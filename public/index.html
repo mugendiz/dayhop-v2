@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DayHop — Plan your perfect GTA day</title>
+<meta name="description" content="DayHop turns a sentence into a realistic family day plan around Richmond Hill and the GTA — World Cup watch parties, splash pads, patios, and more.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-trail" aria-hidden="true"></div>
+  <nav class="topbar">
+    <span class="logo">DayHop</span>
+    <span class="topbar-tag" id="location-tag">Greater Toronto Area</span>
+  </nav>
+
+  <div class="hero-content">
+    <div class="eyebrow">⚽ World Cup 2026 · Greater Toronto Area</div>
+    <h1>Plan your perfect day<br><span>in one sentence.</span></h1>
+    <p class="subtitle">Real places, real weather, and bookable activities across the Greater Toronto Area — curated and ordered for you, not just listed.</p>
+
+    <form class="prompt-box" id="prompt-form">
+      <div class="prompt-location">
+        <label for="location-select" class="prompt-location-label">📍 Where</label>
+        <select id="location-select" class="location-select" aria-label="Choose where in the GTA to plan"></select>
+      </div>
+      <label for="grok-prompt" class="sr-only">Describe the day you want</label>
+      <textarea
+        id="grok-prompt"
+        rows="2"
+        maxlength="600"
+        placeholder="3 hours with my 4-year-old near the water. A World Cup watch party, a splash pad, and somewhere relaxed to eat after."
+        required></textarea>
+      <button type="submit" class="primary-btn" id="generate-btn">
+        <span class="btn-label">Build my day</span>
+        <span class="btn-spinner" aria-hidden="true"></span>
+      </button>
+    </form>
+    <p class="prompt-hint" id="prompt-error" role="alert" aria-live="polite"></p>
+    <p class="weather-strip" id="weather-strip" hidden></p>
+  </div>
+</header>
+
+<main class="app">
+
+  <div class="filters" role="group" aria-label="Filter ideas by category">
+    <button class="filter-chip active" data-filter="all">All</button>
+    <button class="filter-chip" data-filter="worldcup">⚽ World Cup</button>
+    <button class="filter-chip" data-filter="kids">👶 Kid-Friendly</button>
+    <button class="filter-chip" data-filter="patios">🍻 Patios &amp; Rooftops</button>
+    <button class="filter-chip" data-filter="water">🏖️ Beaches &amp; Waterparks</button>
+    <button class="filter-chip" data-filter="cruises">⛴️ Day Cruises</button>
+    <button class="filter-chip" data-filter="adventures">🚁 Big Experiences</button>
+  </div>
+
+  <section class="discovery" id="discovery-section">
+    <div class="section-header">
+      <h2>Today's ideas</h2>
+      <span class="count" id="idea-count">Tell DayHop your plan to get started</span>
+    </div>
+
+    <div id="discovery-feed" class="card-feed" aria-live="polite"></div>
+
+    <div id="empty-state" class="empty-state">
+      <p class="empty-mark">— · — · — · —</p>
+      <h3>No trail yet</h3>
+      <p>Describe the day you're picturing above, and DayHop will lay out a trail of ideas you can swipe right to keep, left to skip.</p>
+    </div>
+
+    <div id="loading-state" class="loading-state" hidden>
+      <p class="empty-mark">— · — · — · —</p>
+      <p>Finding ideas around you…</p>
+    </div>
+  </section>
+
+</main>
+
+<button id="shortlist-btn" class="floating-btn" type="button" aria-haspopup="dialog">
+  <span>My Shortlist</span>
+  <span class="shortlist-count" id="shortlist-count">0</span>
+</button>
+
+<!-- Shortlist / Build My Day panel -->
+<div id="shortlist-panel" class="panel" hidden>
+  <div class="panel-backdrop" data-close-panel></div>
+  <div class="panel-sheet" role="dialog" aria-modal="true" aria-labelledby="shortlist-title">
+    <div class="panel-header">
+      <h2 id="shortlist-title">Your shortlist</h2>
+      <button class="panel-close" data-close-panel aria-label="Close">✕</button>
+    </div>
+    <div id="shortlist-items" class="shortlist-items"></div>
+    <div id="shortlist-empty" class="shortlist-empty">
+      <p>Nothing here yet. Swipe right or tap "Add to plan" on an idea to start building your day.</p>
+    </div>
+    <div class="panel-footer">
+      <button id="build-day-btn" class="primary-btn" type="button" disabled>
+        <span class="btn-label">Build my day</span>
+        <span class="btn-spinner" aria-hidden="true"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Day plan result panel -->
+<div id="dayplan-panel" class="panel" hidden>
+  <div class="panel-backdrop" data-close-panel></div>
+  <div class="panel-sheet" role="dialog" aria-modal="true" aria-labelledby="dayplan-title">
+    <div class="panel-header">
+      <h2 id="dayplan-title">Your day, mapped out</h2>
+      <button class="panel-close" data-close-panel aria-label="Close">✕</button>
+    </div>
+    <div id="dayplan-content" class="dayplan-content"></div>
+  </div>
+</div>
+
+<!-- Detail panel for a single idea -->
+<div id="detail-panel" class="panel" hidden>
+  <div class="panel-backdrop" data-close-panel></div>
+  <div class="panel-sheet panel-sheet--detail" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+    <div class="panel-header">
+      <h2 id="detail-title">Details</h2>
+      <button class="panel-close" data-close-panel aria-label="Close">✕</button>
+    </div>
+    <div id="detail-content" class="detail-content"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
