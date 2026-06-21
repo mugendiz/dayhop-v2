@@ -1,43 +1,49 @@
 // routes/adventures.js — DayHop V2
-// "Adventures" are saved/built day plans. V2 uses an in-memory store keyed
-// by a client-generated id (passed from localStorage on the frontend) so
-// plans survive a refresh without requiring full auth yet.
-// Swap this Map for a real DB + user accounts when auth ships.
+// "Adventures" are saved/built day plans, keyed by an owner id (the
+// localStorage guest id today; a real user id once auth ships in Phase 3).
+// Storage goes through the shared store: Supabase when configured, else an
+// in-memory fallback — see services/db.
 const express = require('express');
 const router = express.Router();
 
-const adventures = new Map();
+const { store } = require('../services/db');
 
-router.post('/', (req, res) => {
+router.post('/', async (req, res, next) => {
   const { ownerId, plan } = req.body || {};
   if (!ownerId || !plan) {
     return res.status(400).json({ error: 'INVALID_INPUT', message: 'ownerId and plan are required.' });
   }
-  const id = `adv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const record = { id, ownerId, plan, created_at: new Date().toISOString() };
-  adventures.set(id, record);
-  res.status(201).json({ adventure: record });
+  try {
+    const adventure = await store.createAdventure({ ownerId, plan });
+    res.status(201).json({ adventure });
+  } catch (err) { next(err); }
 });
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res, next) => {
   const { ownerId } = req.query;
   if (!ownerId) {
     return res.status(400).json({ error: 'INVALID_INPUT', message: 'ownerId query param is required.' });
   }
-  const results = [...adventures.values()].filter(a => a.ownerId === ownerId);
-  res.json({ adventures: results });
+  try {
+    const adventures = await store.listAdventures(ownerId);
+    res.json({ adventures });
+  } catch (err) { next(err); }
 });
 
-router.get('/:id', (req, res) => {
-  const adv = adventures.get(req.params.id);
-  if (!adv) return res.status(404).json({ error: 'NOT_FOUND', message: 'Adventure not found.' });
-  res.json({ adventure: adv });
+router.get('/:id', async (req, res, next) => {
+  try {
+    const adventure = await store.getAdventure(req.params.id);
+    if (!adventure) return res.status(404).json({ error: 'NOT_FOUND', message: 'Adventure not found.' });
+    res.json({ adventure });
+  } catch (err) { next(err); }
 });
 
-router.delete('/:id', (req, res) => {
-  const existed = adventures.delete(req.params.id);
-  if (!existed) return res.status(404).json({ error: 'NOT_FOUND', message: 'Adventure not found.' });
-  res.status(204).send();
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const existed = await store.deleteAdventure(req.params.id);
+    if (!existed) return res.status(404).json({ error: 'NOT_FOUND', message: 'Adventure not found.' });
+    res.status(204).send();
+  } catch (err) { next(err); }
 });
 
 module.exports = router;

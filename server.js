@@ -29,12 +29,16 @@ app.use('/api/places', require('./routes/places'));
 app.use('/api/events', require('./routes/events'));
 app.use('/api/adventures', require('./routes/adventures'));
 app.use('/api/community', require('./routes/community'));
+app.use('/api/shortlist', require('./routes/shortlist'));
+
+const { dbStatus } = require('./services/db');
 
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     version: '2.0',
     phase: 'Worldwide — real venues, weather, and bookable activities',
+    storage: dbStatus(),
     integrations: {
       grok: Boolean(process.env.GROK_API_KEY),
       google_maps: Boolean(process.env.GOOGLE_MAPS_API_KEY),
@@ -63,6 +67,9 @@ app.listen(PORT, () => {
   console.log(`🚀 DayHop V2 running on http://localhost:${PORT}`);
   if (!process.env.GROK_API_KEY) {
     console.warn('⚠️  GROK_API_KEY not set — AI planning will return 503 until configured.');
+  }
+  if (!dbStatus().persistent) {
+    console.warn('⚠️  Supabase not configured — using in-memory storage (data is wiped on restart). Set SUPABASE_URL + keys to persist.');
   }
   if (!isProd) {
     console.log('   Running in development mode.');
