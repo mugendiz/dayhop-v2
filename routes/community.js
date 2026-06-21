@@ -17,8 +17,11 @@ router.post('/submit', async (req, res, next) => {
     });
   }
 
+  // Prefer the signed-in user's email for attribution when available.
+  const attributedTo = (req.user && req.user.email) || submittedBy;
+
   try {
-    const submission = await store.createSubmission({ title, location, date, description, submittedBy });
+    const submission = await store.createSubmission({ title, location, date, description, submittedBy: attributedTo });
     res.status(201).json({
       submission,
       message: 'Thanks — your event is in our review queue and will appear once vetted.'

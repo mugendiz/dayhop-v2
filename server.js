@@ -15,6 +15,10 @@ app.use(cors());
 app.use(express.json({ limit: '100kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Attach the signed-in user (if any) to every request before routes run.
+const { attachUser } = require('./middleware/auth');
+app.use(attachUser);
+
 // Generous but real limit on the AI endpoint — it's the expensive one.
 const generateLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -27,6 +31,7 @@ const generateLimiter = rateLimit({
 app.use('/api/generate', generateLimiter, require('./routes/generate'));
 app.use('/api/places', require('./routes/places'));
 app.use('/api/events', require('./routes/events'));
+app.use('/api/config', require('./routes/config'));
 app.use('/api/adventures', require('./routes/adventures'));
 app.use('/api/community', require('./routes/community'));
 app.use('/api/shortlist', require('./routes/shortlist'));

@@ -1,55 +1,46 @@
 // routes/shortlist.js — DayHop V2
-// Server-side persistence for a user's shortlist, keyed by owner id (the
-// localStorage guest id today; a real user id after Phase 3 auth). The
-// frontend keeps localStorage as the source of truth for guests and syncs
-// here best-effort, so this never blocks the UX — it just makes the data
-// model real and ready for accounts. Storage via the shared store.
+// Server-side shortlist persistence, gated to a signed-in user. The owner is
+// taken from the verified auth token (req.ownerId), never from the client, so
+// one user can't read or write another's shortlist. Anonymous guests keep a
+// local-only shortlist in the browser; they get a 401 here and the frontend
+// treats persistence as a sign-in upsell. Storage via the shared store.
 const express = require('express');
 const router = express.Router();
 
 const { store } = require('../services/db');
+const { requireUser } = require('../middleware/auth');
+
+router.use(requireUser);
 
 router.get('/', async (req, res, next) => {
-  const { ownerId } = req.query;
-  if (!ownerId) {
-    return res.status(400).json({ error: 'INVALID_INPUT', message: 'ownerId query param is required.' });
-  }
   try {
-    const items = await store.listShortlist(ownerId);
+    const items = await store.listShortlist(req.ownerId, req.dbCtx);
     res.json({ items });
   } catch (err) { next(err); }
 });
 
 router.post('/', async (req, res, next) => {
-  const { ownerId, idea } = req.body || {};
-  if (!ownerId || !idea || idea.id == null) {
-    return res.status(400).json({ error: 'INVALID_INPUT', message: 'ownerId and an idea with an id are required.' });
+  const { idea } = req.body || {};
+  if (!idea || idea.id == null) {
+    return res.status(400).json({ error: 'INVALID_INPUT', message: 'An idea with an id is required.' });
   }
   try {
-    const item = await store.addShortlistItem({ ownerId, idea });
+    const item = await store.addShortlistItem({ ownerId: req.ownerId, idea }, req.dbCtx);
     res.status(201).json({ item });
   } catch (err) { next(err); }
 });
 
 router.delete('/:ideaId', async (req, res, next) => {
-  const { ownerId } = req.query;
-  if (!ownerId) {
-    return res.status(400).json({ error: 'INVALID_INPUT', message: 'ownerId query param is required.' });
-  }
   try {
-    const existed = await store.removeShortlistItem({ ownerId, ideaId: req.params.ideaId });
+    const existed = await store.removeShortlistItem({ ownerId: req.ownerId, ideaId: req.params.ideaId }, req.dbCtx);
     if (!existed) return res.status(404).json({ error: 'NOT_FOUND', message: 'Item not on the shortlist.' });
     res.status(204).send();
   } catch (err) { next(err); }
 });
 
 router.delete('/', async (req, res, next) => {
-  const { ownerId } = req.query;
-  if (!ownerId) {
-    return res.status(400).json({ error: 'INVALID_INPUT', message: 'ownerId query param is required.' });
-  }
   try {
-    const removed = await store.clearShortlist(ownerId);
+    const removed = await store.clearShortlist(req.ownerId, req.dbCtx);
     res.json({ removed });
   } catch (err) { next(err); }
 });

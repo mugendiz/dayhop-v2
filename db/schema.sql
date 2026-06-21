@@ -51,31 +51,41 @@ create table if not exists public.community_submissions (
 create index if not exists submissions_status_idx on public.community_submissions (status, submitted_at desc);
 
 -- ---------- Row Level Security ----------
--- PROTOTYPE / PRE-AUTH (Phase 2): the server connects with the publishable
--- (anon) key, so RLS applies. There is no auth yet — owner_id is a guest id,
--- not auth.uid() — so we grant permissive access to the anon role to keep the
--- app working. This is intentionally open and is TIGHTENED IN PHASE 3, when
--- owner_id becomes a real user id and these policies are replaced with the
--- per-user ones below.
+-- Phase 3: the server connects with the publishable (anon) key and forwards
+-- each signed-in user's JWT, so RLS applies per user. adventures + shortlist
+-- are owner-scoped (a user sees/writes only rows where owner_id = auth.uid()).
+-- community submit stays open to anonymous guests; the users mirror is open.
+-- Drop-then-create keeps the whole script idempotent and safe to re-run.
 alter table public.users               enable row level security;
 alter table public.adventures          enable row level security;
 alter table public.shortlist_items     enable row level security;
 alter table public.community_submissions enable row level security;
 
--- Permissive prototype policies (anon + authenticated). Drop-then-create so
--- the whole script is idempotent and safe to re-run. Drop these in Phase 3.
+-- Clean up any earlier policy names (Phase 2 prototype + Phase 3) so re-running works.
 drop policy if exists "proto users rw"       on public.users;
 drop policy if exists "proto adventures rw"  on public.adventures;
 drop policy if exists "proto shortlist rw"   on public.shortlist_items;
 drop policy if exists "proto submissions rw" on public.community_submissions;
+drop policy if exists "users self rw"        on public.users;
+drop policy if exists "own adventures"       on public.adventures;
+drop policy if exists "own shortlist"        on public.shortlist_items;
+drop policy if exists "public submit"        on public.community_submissions;
 
-create policy "proto users rw"       on public.users                 for all to anon, authenticated using (true) with check (true);
-create policy "proto adventures rw"  on public.adventures            for all to anon, authenticated using (true) with check (true);
-create policy "proto shortlist rw"   on public.shortlist_items       for all to anon, authenticated using (true) with check (true);
-create policy "proto submissions rw" on public.community_submissions for all to anon, authenticated using (true) with check (true);
+-- Per-user: only the owning user can read/write their adventures + shortlist.
+create policy "own adventures" on public.adventures
+  for all to authenticated
+  using (owner_id = auth.uid()::text) with check (owner_id = auth.uid()::text);
 
--- Phase 3 target policies (replace the prototype ones above once owner_id = auth.uid()):
--- create policy "own adventures"   on public.adventures      for all using (owner_id = auth.uid()::text);
--- create policy "own shortlist"    on public.shortlist_items for all using (owner_id = auth.uid()::text);
--- Anyone may submit an event; only curators (service role) read the queue:
--- create policy "public submit"    on public.community_submissions for insert with check (true);
+create policy "own shortlist" on public.shortlist_items
+  for all to authenticated
+  using (owner_id = auth.uid()::text) with check (owner_id = auth.uid()::text);
+
+-- Community: anyone (incl. anonymous) may submit an event into the queue.
+-- NOTE: reading/moderating the queue is still open — locking it to a curator
+-- role is deferred (needs an admin claim); see the roadmap.
+create policy "public submit" on public.community_submissions
+  for all to anon, authenticated using (true) with check (true);
+
+-- users mirror: open for now; Phase 3 doesn't depend on it for gating.
+create policy "users self rw" on public.users
+  for all to anon, authenticated using (true) with check (true);

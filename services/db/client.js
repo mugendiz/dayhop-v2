@@ -34,6 +34,22 @@ function getClient() {
   return _client;
 }
 
+// A client scoped to a signed-in user: the user's access token rides along on
+// every PostgREST request, so RLS policies that key off auth.uid() apply.
+// Used for the gated shortlist/adventure routes once auth is in play (Phase 3).
+function getUserClient(accessToken) {
+  if (!isConfigured()) {
+    const err = new Error('Supabase is not configured');
+    err.code = 'DB_NOT_CONFIGURED';
+    throw err;
+  }
+  const { createClient } = require('@supabase/supabase-js');
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${accessToken}` } }
+  });
+}
+
 function status() {
   return {
     configured: isConfigured(),
@@ -43,4 +59,4 @@ function status() {
   };
 }
 
-module.exports = { isConfigured, getClient, status };
+module.exports = { isConfigured, getClient, getUserClient, status };
