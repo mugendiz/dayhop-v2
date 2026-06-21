@@ -17,7 +17,14 @@
   <div class="hero-trail" aria-hidden="true"></div>
   <nav class="topbar">
     <span class="logo">DayHop</span>
-    <span class="topbar-tag" id="location-tag">Greater Toronto Area</span>
+    <div class="topbar-right">
+      <span class="topbar-tag" id="location-tag">Greater Toronto Area</span>
+      <button class="auth-btn" id="auth-btn" type="button" hidden>Sign in</button>
+      <div class="user-chip" id="user-chip" hidden>
+        <span class="user-email" id="user-email"></span>
+        <button class="signout-btn" id="signout-btn" type="button">Sign out</button>
+      </div>
+    </div>
   </nav>
 
   <div class="hero-content">
@@ -158,8 +165,48 @@
   </div>
 </div>
 
+<!-- Auth modal -->
+<div id="auth-panel" class="modal" hidden>
+  <div class="modal-backdrop" data-close-auth></div>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+    <button class="panel-close modal-close" data-close-auth aria-label="Close">✕</button>
+    <h2 id="auth-title">Welcome back</h2>
+    <p class="auth-sub" id="auth-sub">Sign in to save your shortlist and plans across devices.</p>
+
+    <button class="google-btn" id="google-btn" type="button">
+      <span class="g-icon" aria-hidden="true">G</span>
+      Continue with Google
+    </button>
+
+    <div class="auth-divider"><span>or</span></div>
+
+    <form id="auth-form" novalidate>
+      <label class="auth-field">
+        <span>Email</span>
+        <input type="email" id="auth-email" required autocomplete="email" placeholder="you@example.com">
+      </label>
+      <label class="auth-field">
+        <span>Password</span>
+        <input type="password" id="auth-password" required minlength="6" autocomplete="current-password" placeholder="At least 6 characters">
+      </label>
+      <p class="auth-error" id="auth-error" role="alert" aria-live="polite"></p>
+      <button class="primary-btn auth-submit" id="auth-submit" type="submit">
+        <span class="btn-label">Sign in</span>
+        <span class="btn-spinner" aria-hidden="true"></span>
+      </button>
+    </form>
+
+    <p class="auth-toggle">
+      <span id="auth-toggle-text">New to DayHop?</span>
+      <button type="button" id="auth-toggle-btn" class="linklike">Create an account</button>
+    </p>
+  </div>
+</div>
+
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/auth.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

@@ -48,6 +48,7 @@
     dismissedIds: new Set(),
     currentFilter: 'all',
     city: GTA_WIDE,
+    user: null,
     isGenerating: false,
     isBuildingPlan: false
   };
@@ -73,15 +74,6 @@
     } catch (e) {
       // ignore quota errors silently — not critical to function
     }
-  }
-
-  function getOwnerId() {
-    let id = localStorage.getItem('dayhop_owner_id');
-    if (!id) {
-      id = 'guest-' + Math.random().toString(36).slice(2, 10);
-      localStorage.setItem('dayhop_owner_id', id);
-    }
-    return id;
   }
 
   // ---------- Location autocomplete (combobox) ----------
@@ -259,24 +251,40 @@
     });
   }
 
-  // ---------- API ----------
-  // Best-effort shortlist sync. localStorage stays the source of truth for
-  // guests; these fire-and-forget calls mirror it server-side so the data
-  // model is real and ready for accounts (Phase 3). Failures never affect UX.
+  // ---------- Auth helpers ----------
+  // Persistence is gated to signed-in users (Phase 3). Anonymous guests keep a
+  // local-only shortlist; once signed in, these calls carry the auth token and
+  // the server derives the owner from it. All sync is best-effort — a failure
+  // never blocks the local UX.
+  function isLoggedIn() {
+    return Boolean(window.DayHopAuth && window.DayHopAuth.getUser && window.DayHopAuth.getUser());
+  }
+
+  function authHeaders(base) {
+    const headers = Object.assign({}, base || {});
+    const token = window.DayHopAuth && window.DayHopAuth.getToken && window.DayHopAuth.getToken();
+    if (token) headers.Authorization = 'Bearer ' + token;
+    return headers;
+  }
+
   function serverShortlistAdd(idea) {
+    if (!isLoggedIn()) return;
     fetch('/api/shortlist', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ownerId: getOwnerId(), idea })
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ idea })
     }).catch(() => {});
   }
 
   function serverShortlistRemove(ideaId) {
-    fetch(`/api/shortlist/${encodeURIComponent(ideaId)}?ownerId=${encodeURIComponent(getOwnerId())}`, {
-      method: 'DELETE'
+    if (!isLoggedIn()) return;
+    fetch(`/api/shortlist/${encodeURIComponent(ideaId)}`, {
+      method: 'DELETE',
+      headers: authHeaders()
     }).catch(() => {});
   }
 
+  // ---------- API ----------
   async function apiGenerateIdeas(prompt, filter) {
     const res = await fetch('/api/generate', {
       method: 'POST',
@@ -597,12 +605,14 @@
       closePanel(document.getElementById('shortlist-panel'));
       openPanel('dayplan-panel');
 
-      // Persist as an "adventure" server-side too, best-effort.
-      fetch('/api/adventures', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ownerId: getOwnerId(), plan })
-      }).catch(() => {});
+      // Persist the built plan server-side for signed-in users (best-effort).
+      if (isLoggedIn()) {
+        fetch('/api/adventures', {
+          method: 'POST',
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ plan })
+        }).catch(() => {});
+      }
     } catch (err) {
       showToast(err.message || 'Could not build your day plan. Try again.', { duration: 3500 });
     } finally {
@@ -681,12 +691,72 @@
     return map[condition] || '🌤️';
   }
 
+  // ---------- Auth state ----------
+  async function handleAuthChange(detail) {
+    const wasLoggedIn = Boolean(state.user);
+    state.user = detail && detail.user ? detail.user : null;
+    if (state.user) {
+      await onSignedIn();
+    } else if (wasLoggedIn) {
+      onSignedOut();
+    }
+  }
+
+  // On sign-in: one-time migration of the guest's local shortlist into the
+  // account, then the server becomes the source of truth (cross-device).
+  async function onSignedIn() {
+    try {
+      const migratedKey = 'dayhop_migrated_' + state.user.id;
+      if (!localStorage.getItem(migratedKey) && state.shortlist.length) {
+        for (const idea of state.shortlist) {
+          await fetch('/api/shortlist', {
+            method: 'POST',
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ idea })
+          }).catch(() => {});
+        }
+        showToast('Saved your shortlist to your account');
+      }
+      localStorage.setItem(migratedKey, '1');
+
+      const res = await fetch('/api/shortlist', { headers: authHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        state.shortlist = (data.items || []).map(i => i.idea);
+        persist();
+      }
+    } catch (e) {
+      // Network/DB hiccup — keep the local shortlist; never block the UI.
+    }
+    updateShortlistCount();
+    renderShortlistPanel();
+    renderFeed();
+  }
+
+  // On sign-out: clear the local shortlist so one account's data doesn't leak
+  // into the next anonymous session on a shared device.
+  function onSignedOut() {
+    state.shortlist = [];
+    persist();
+    updateShortlistCount();
+    renderShortlistPanel();
+    renderFeed();
+    showToast('Signed out');
+  }
+
   // ---------- Init ----------
   function init() {
     loadPersisted();
     setupLocationCombo();
     updateShortlistCount();
     wirePanelClosers();
+
+    // React to auth (auth.js dispatches on initial session + every change).
+    document.addEventListener('dayhop:auth', (e) => handleAuthChange(e.detail));
+    if (window.DayHopAuth && window.DayHopAuth.current) {
+      const cur = window.DayHopAuth.current();
+      if (cur && cur.user) handleAuthChange(cur);
+    }
 
     document.getElementById('prompt-form').addEventListener('submit', handleGenerate);
 
