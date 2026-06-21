@@ -27,8 +27,21 @@
 
     <form class="prompt-box" id="prompt-form">
       <div class="prompt-location">
-        <label for="location-select" class="prompt-location-label">📍 Where</label>
-        <select id="location-select" class="location-select" aria-label="Choose where in the GTA to plan"></select>
+        <label for="location-input" class="prompt-location-label">📍 Where</label>
+        <div class="location-combo" id="location-combo">
+          <input
+            id="location-input"
+            class="location-input"
+            type="text"
+            role="combobox"
+            aria-expanded="false"
+            aria-autocomplete="list"
+            aria-controls="location-listbox"
+            aria-label="Choose where in the GTA to plan"
+            autocomplete="off"
+            placeholder="Across the GTA">
+          <ul id="location-listbox" class="location-listbox" role="listbox" hidden></ul>
+        </div>
       </div>
       <label for="grok-prompt" class="sr-only">Describe the day you want</label>
       <textarea
@@ -65,17 +78,31 @@
       <span class="count" id="idea-count">Tell DayHop your plan to get started</span>
     </div>
 
-    <div id="discovery-feed" class="card-feed" aria-live="polite"></div>
+    <div id="discovery-feed" class="card-feed" aria-live="polite" aria-busy="false"></div>
 
     <div id="empty-state" class="empty-state">
       <p class="empty-mark">— · — · — · —</p>
-      <h3>No trail yet</h3>
-      <p>Describe the day you're picturing above, and DayHop will lay out a trail of ideas you can swipe right to keep, left to skip.</p>
+      <h3>Start with a sentence</h3>
+      <p>Describe the day you're picturing and DayHop lays out a trail of ideas — swipe right to keep, left to skip.</p>
+      <div class="example-prompts" id="example-prompts">
+        <span class="example-prompts-label">Try one</span>
+        <button class="example-chip" type="button" data-prompt="A rainy Saturday with two kids under 6 — somewhere indoors to burn energy, then an easy lunch nearby.">
+          🌧️ Rainy day with little kids
+        </button>
+        <button class="example-chip" type="button" data-prompt="A World Cup watch party with friends this afternoon — craft beer, big screens, and a patio if the weather holds.">
+          ⚽ World Cup watch party
+        </button>
+        <button class="example-chip" type="button" data-prompt="3 relaxed hours near the water with my 4-year-old — a splash pad and somewhere easy to eat after.">
+          🏖️ Afternoon by the water
+        </button>
+      </div>
     </div>
 
-    <div id="loading-state" class="loading-state" hidden>
+    <div id="noresults-state" class="empty-state" hidden>
       <p class="empty-mark">— · — · — · —</p>
-      <p>Finding ideas around you…</p>
+      <h3>Nothing in this filter</h3>
+      <p>No ideas match that category in your current set. Try another filter, or clear it to see everything again.</p>
+      <button class="ghost-btn" id="reset-filter-btn" type="button">Show all ideas</button>
     </div>
   </section>
 

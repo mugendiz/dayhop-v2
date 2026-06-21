@@ -84,29 +84,132 @@
     return id;
   }
 
-  // ---------- Location picker ----------
-  function populateLocations() {
-    const sel = document.getElementById('location-select');
-    if (!sel) return;
-    sel.appendChild(new Option(GTA_WIDE, GTA_WIDE));
+  // ---------- Location autocomplete (combobox) ----------
+  // Flatten the GTA groups into a single searchable list, GTA-wide first.
+  const LOCATION_OPTIONS = (() => {
+    const list = [{ city: GTA_WIDE, region: 'All regions' }];
     GTA_LOCATIONS.forEach(group => {
-      const og = document.createElement('optgroup');
-      og.label = group.region;
-      group.cities.forEach(city => og.appendChild(new Option(city, city)));
-      sel.appendChild(og);
+      group.cities.forEach(city => list.push({ city, region: group.region }));
     });
-    sel.value = state.city;
-    if (sel.value !== state.city) {
-      // Saved city no longer in list — fall back to GTA-wide.
-      state.city = GTA_WIDE;
-      sel.value = GTA_WIDE;
-    }
+    return list;
+  })();
+
+  const combo = { input: null, listbox: null, activeIndex: -1, filtered: [], debounce: null };
+
+  function setupLocationCombo() {
+    const input = document.getElementById('location-input');
+    const listbox = document.getElementById('location-listbox');
+    if (!input || !listbox) return;
+
+    // Validate any persisted city still exists; otherwise fall back to GTA-wide.
+    if (!LOCATION_OPTIONS.some(o => o.city === state.city)) state.city = GTA_WIDE;
+
+    combo.input = input;
+    combo.listbox = listbox;
+    input.value = state.city;
     updateLocationTag();
-    sel.addEventListener('change', () => {
-      state.city = sel.value;
-      persist();
-      updateLocationTag();
+
+    input.addEventListener('focus', () => openLocationList(''));
+    input.addEventListener('input', () => {
+      clearTimeout(combo.debounce);
+      const q = input.value;
+      combo.debounce = setTimeout(() => openLocationList(q), 130);
     });
+    input.addEventListener('keydown', onLocationKeydown);
+    // Delay close so an option's mousedown/click can land first.
+    input.addEventListener('blur', () => setTimeout(closeLocationList, 120));
+  }
+
+  function openLocationList(query) {
+    const q = (query || '').trim().toLowerCase();
+    combo.filtered = q
+      ? LOCATION_OPTIONS.filter(o => o.city.toLowerCase().includes(q) || o.region.toLowerCase().includes(q))
+      : LOCATION_OPTIONS.slice();
+    combo.activeIndex = -1;
+    renderLocationOptions(q);
+    combo.listbox.hidden = false;
+    combo.input.setAttribute('aria-expanded', 'true');
+  }
+
+  function renderLocationOptions(q) {
+    const lb = combo.listbox;
+    if (!combo.filtered.length) {
+      lb.innerHTML = '<li class="location-option location-option--empty">No GTA match — try “Toronto” or “Markham”, or clear to plan across the GTA.</li>';
+      return;
+    }
+    lb.innerHTML = combo.filtered.map((o, i) => `
+      <li id="loc-opt-${i}" class="location-option" role="option"
+          data-city="${escapeAttr(o.city)}" aria-selected="${o.city === state.city}">
+        <span class="opt-city">${highlight(o.city, q)}</span>
+        ${o.region ? `<span class="opt-region">${escapeHtml(o.region)}</span>` : ''}
+      </li>`).join('');
+
+    lb.querySelectorAll('.location-option[data-city]').forEach(li => {
+      li.addEventListener('mousedown', (e) => {
+        e.preventDefault(); // keep focus so blur doesn't pre-empt the select
+        selectLocation(li.dataset.city);
+      });
+    });
+  }
+
+  function highlight(text, q) {
+    if (!q) return escapeHtml(text);
+    const idx = text.toLowerCase().indexOf(q);
+    if (idx === -1) return escapeHtml(text);
+    return escapeHtml(text.slice(0, idx)) +
+      '<mark>' + escapeHtml(text.slice(idx, idx + q.length)) + '</mark>' +
+      escapeHtml(text.slice(idx + q.length));
+  }
+
+  function moveActive(dir) {
+    const items = combo.listbox.querySelectorAll('.location-option[data-city]');
+    if (!items.length) return;
+    let idx = combo.activeIndex + dir;
+    if (idx < 0) idx = items.length - 1;
+    if (idx >= items.length) idx = 0;
+    combo.activeIndex = idx;
+    items.forEach((el, i) => el.classList.toggle('is-active', i === idx));
+    items[idx].scrollIntoView({ block: 'nearest' });
+    combo.input.setAttribute('aria-activedescendant', items[idx].id);
+  }
+
+  function onLocationKeydown(e) {
+    const open = combo.listbox && !combo.listbox.hidden;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!open) openLocationList(combo.input.value); else moveActive(1);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (open) moveActive(-1);
+    } else if (e.key === 'Enter') {
+      if (open && combo.activeIndex >= 0) {
+        e.preventDefault();
+        const opt = combo.filtered[combo.activeIndex];
+        if (opt) selectLocation(opt.city);
+      }
+    } else if (e.key === 'Escape') {
+      if (open) { e.stopPropagation(); closeLocationList(); }
+    }
+  }
+
+  function selectLocation(city) {
+    state.city = city;
+    combo.input.value = city;
+    persist();
+    updateLocationTag();
+    closeLocationList();
+  }
+
+  function closeLocationList() {
+    const lb = combo.listbox;
+    if (!lb || lb.hidden) return;
+    lb.hidden = true;
+    lb.innerHTML = '';
+    combo.activeIndex = -1;
+    combo.input.setAttribute('aria-expanded', 'false');
+    combo.input.removeAttribute('aria-activedescendant');
+    // Commit: free-typed text that isn't a real option reverts to the current city.
+    if (combo.input.value.trim() !== state.city) combo.input.value = state.city;
   }
 
   function updateLocationTag() {
@@ -157,6 +260,23 @@
   }
 
   // ---------- API ----------
+  // Best-effort shortlist sync. localStorage stays the source of truth for
+  // guests; these fire-and-forget calls mirror it server-side so the data
+  // model is real and ready for accounts (Phase 3). Failures never affect UX.
+  function serverShortlistAdd(idea) {
+    fetch('/api/shortlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ownerId: getOwnerId(), idea })
+    }).catch(() => {});
+  }
+
+  function serverShortlistRemove(ideaId) {
+    fetch(`/api/shortlist/${encodeURIComponent(ideaId)}?ownerId=${encodeURIComponent(getOwnerId())}`, {
+      method: 'DELETE'
+    }).catch(() => {});
+  }
+
   async function apiGenerateIdeas(prompt, filter) {
     const res = await fetch('/api/generate', {
       method: 'POST',
@@ -188,12 +308,42 @@
   }
 
   // ---------- Rendering ----------
+  const SKELETON_COUNT = 4;
+
+  // Layout-matching skeleton cards so the feed doesn't jump when ideas arrive.
+  function renderSkeletons() {
+    const feed = document.getElementById('discovery-feed');
+    feed.innerHTML = '';
+    for (let i = 0; i < SKELETON_COUNT; i++) {
+      const sk = document.createElement('div');
+      sk.className = 'idea-card idea-card--skeleton';
+      sk.setAttribute('aria-hidden', 'true');
+      sk.innerHTML = `
+        <div class="skeleton skeleton-photo"></div>
+        <div class="skeleton-body">
+          <div class="skeleton skeleton-chip"></div>
+          <div class="skeleton skeleton-title"></div>
+          <div class="skeleton skeleton-line" style="width:96%"></div>
+          <div class="skeleton skeleton-line" style="width:88%"></div>
+          <div class="skeleton skeleton-line" style="width:54%"></div>
+        </div>`;
+      feed.appendChild(sk);
+    }
+  }
+
   function setLoading(isLoading) {
     state.isGenerating = isLoading;
-    document.getElementById('loading-state').hidden = !isLoading;
-    document.getElementById('empty-state').hidden = isLoading || state.allIdeas.length > 0;
-    document.getElementById('generate-btn').classList.toggle('is-loading', isLoading);
-    document.getElementById('generate-btn').disabled = isLoading;
+    const feed = document.getElementById('discovery-feed');
+    feed.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+    const btn = document.getElementById('generate-btn');
+    btn.classList.toggle('is-loading', isLoading);
+    btn.disabled = isLoading;
+    if (isLoading) {
+      document.getElementById('empty-state').hidden = true;
+      document.getElementById('noresults-state').hidden = true;
+      renderSkeletons();
+    }
+    // When loading ends, renderFeed() repaints the feed and state messages.
   }
 
   function visibleIdeas() {
@@ -205,23 +355,26 @@
     });
   }
 
-  function renderFeed() {
+  function renderFeed(animate = false) {
     const feed = document.getElementById('discovery-feed');
     feed.innerHTML = '';
     const ideas = visibleIdeas();
 
     ideas.forEach((idea, index) => {
-      feed.appendChild(createIdeaCard(idea, index));
+      feed.appendChild(createIdeaCard(idea, index, animate));
     });
 
-    document.getElementById('empty-state').hidden = state.isGenerating || state.allIdeas.length > 0;
-    const totalAvailable = state.allIdeas.length;
-    document.getElementById('idea-count').textContent = totalAvailable === 0
+    const hasIdeas = state.allIdeas.length > 0;
+    // Empty: nothing generated yet. No-results: ideas exist but the filter/swipes hid them all.
+    document.getElementById('empty-state').hidden = state.isGenerating || hasIdeas;
+    document.getElementById('noresults-state').hidden = state.isGenerating || !hasIdeas || ideas.length > 0;
+
+    document.getElementById('idea-count').textContent = !hasIdeas
       ? 'Tell DayHop your plan to get started'
       : `${ideas.length} idea${ideas.length === 1 ? '' : 's'} · ${state.shortlist.length} on your shortlist`;
   }
 
-  function createIdeaCard(idea, index) {
+  function createIdeaCard(idea, index, animate = false) {
     const card = document.createElement('article');
     card.className = 'idea-card';
     card.dataset.id = idea.id;
@@ -229,6 +382,12 @@
     card.tabIndex = 0;
     card.setAttribute('role', 'group');
     card.setAttribute('aria-label', idea.title);
+
+    if (animate) {
+      card.classList.add('is-entering');
+      // Strip the class once it finishes so transform is free for swipe/dismiss.
+      card.addEventListener('animationend', () => card.classList.remove('is-entering'), { once: true });
+    }
 
     const categoryLabel = CATEGORY_LABELS[idea.category] || CATEGORY_LABELS.general;
     const stopNumber = String(index + 1).padStart(2, '0');
@@ -351,6 +510,7 @@
     if (state.shortlist.find(i => i.id === idea.id)) return;
     state.shortlist.push(idea);
     persist();
+    serverShortlistAdd(idea);
     animateOut(card, 'right', () => renderFeed());
     updateShortlistCount();
     showToast(`Added "${idea.title}" to your shortlist`);
@@ -415,6 +575,7 @@
       row.querySelector('.btn-remove').addEventListener('click', () => {
         state.shortlist = state.shortlist.filter(i => i.id !== idea.id);
         persist();
+        serverShortlistRemove(idea.id);
         updateShortlistCount();
         renderShortlistPanel();
         renderFeed();
@@ -494,7 +655,7 @@
       state.allIdeas = data.ideas || [];
       state.dismissedIds = new Set();
       renderWeatherStrip(data.weather);
-      renderFeed();
+      renderFeed(true);
       document.getElementById('discovery-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (err) {
       errorEl.textContent = err.message || 'Something went wrong. Please try again.';
@@ -523,18 +684,35 @@
   // ---------- Init ----------
   function init() {
     loadPersisted();
-    populateLocations();
+    setupLocationCombo();
     updateShortlistCount();
     wirePanelClosers();
 
     document.getElementById('prompt-form').addEventListener('submit', handleGenerate);
+
+    // Onboarding — tapping an example prompt fills the box and generates instantly.
+    document.querySelectorAll('.example-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const textarea = document.getElementById('grok-prompt');
+        textarea.value = chip.dataset.prompt || '';
+        document.getElementById('prompt-form').requestSubmit();
+      });
+    });
+
+    // No-results: clear the active filter and show everything again.
+    document.getElementById('reset-filter-btn').addEventListener('click', () => {
+      state.currentFilter = 'all';
+      document.querySelectorAll('.filter-chip').forEach(c =>
+        c.classList.toggle('active', c.dataset.filter === 'all'));
+      renderFeed(true);
+    });
 
     document.querySelectorAll('.filter-chip').forEach(chip => {
       chip.addEventListener('click', () => {
         document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
         chip.classList.add('active');
         state.currentFilter = chip.dataset.filter;
-        renderFeed();
+        renderFeed(true);
       });
     });
 

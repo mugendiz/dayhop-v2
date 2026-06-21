@@ -17,7 +17,12 @@
   --line-strong: rgba(16, 42, 46, 0.28);
   --shadow: 0 12px 28px rgba(16, 42, 46, 0.14);
   --shadow-soft: 0 4px 14px rgba(16, 42, 46, 0.08);
-  --radius: 18px;
+  --shadow-lg: 0 20px 48px rgba(16, 42, 46, 0.22);
+  --radius: 18px;     /* cards, panels, prompt box */
+  --radius-md: 12px;  /* buttons, inputs, rows */
+  --radius-sm: 10px;  /* small controls */
+  --radius-pill: 999px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1); /* gentle settle for transitions */
   --display: 'Fraunces', Georgia, serif;
   --body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --mono: 'IBM Plex Mono', 'SFMono-Regular', monospace;
@@ -206,8 +211,11 @@ button { font-family: var(--body); cursor: pointer; }
   white-space: nowrap;
 }
 
-.location-select {
-  flex: 1;
+/* Location autocomplete (combobox) */
+.location-combo { position: relative; flex: 1; }
+
+.location-input {
+  width: 100%;
   border: none;
   background: transparent;
   font-family: var(--body);
@@ -215,17 +223,83 @@ button { font-family: var(--body); cursor: pointer; }
   font-weight: 600;
   color: var(--ink);
   outline: none;
-  cursor: pointer;
-  padding: 2px 4px 2px 0;
-  appearance: none;
-  -webkit-appearance: none;
+  padding: 2px 22px 2px 0;
+  /* chevron affordance so it still reads as a picker */
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%232C4A4E' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
   background-repeat: no-repeat;
   background-position: right 2px center;
-  padding-right: 20px;
 }
 
-.location-select:focus-visible { outline: 2px solid var(--coral); outline-offset: 3px; border-radius: 6px; }
+.location-input::placeholder { color: #8A9594; font-weight: 600; }
+.location-input:focus-visible { outline: 2px solid var(--coral); outline-offset: 3px; border-radius: 6px; }
+
+.location-listbox {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: -8px;
+  right: -8px;
+  z-index: 40;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  max-height: 264px;
+  overflow-y: auto;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  transform-origin: top;
+  animation: popIn 0.16s var(--ease);
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.location-option {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.location-option:hover,
+.location-option.is-active {
+  background: var(--paper-dim);
+}
+
+.location-option[aria-selected="true"] { color: var(--coral-dark); }
+
+.location-option .opt-region {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  opacity: 0.8;
+}
+
+.location-option mark {
+  background: rgba(255,182,39,0.4);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 1px;
+}
+
+.location-option--empty {
+  padding: 12px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  cursor: default;
+}
 
 .prompt-box textarea {
   border: none;
@@ -248,15 +322,16 @@ button { font-family: var(--body); cursor: pointer; }
   color: var(--paper);
   border: none;
   padding: 13px 22px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-weight: 600;
   font-size: 15px;
   letter-spacing: 0.01em;
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: transform 0.18s var(--ease), background 0.15s ease, box-shadow 0.18s var(--ease);
 }
 
-.primary-btn:hover { background: var(--coral-dark); transform: translateY(-1px); }
-.primary-btn:disabled { opacity: 0.7; cursor: default; transform: none; }
+.primary-btn:hover { background: var(--coral-dark); transform: translateY(-1px); box-shadow: 0 8px 20px rgba(225,80,47,0.32); }
+.primary-btn:active { transform: translateY(1px) scale(0.985); box-shadow: none; }
+.primary-btn:disabled { opacity: 0.7; cursor: default; transform: none; box-shadow: none; }
 
 .btn-spinner { display: none; }
 .primary-btn.is-loading .btn-label { visibility: hidden; }
@@ -318,6 +393,9 @@ button { font-family: var(--body); cursor: pointer; }
   box-shadow: var(--shadow-soft);
   transition: all 0.15s ease;
 }
+
+.filter-chip:hover { border-color: var(--ink-soft); transform: translateY(-1px); }
+.filter-chip:active { transform: translateY(0) scale(0.97); }
 
 .filter-chip.active {
   background: var(--ink);
@@ -388,6 +466,60 @@ button { font-family: var(--body); cursor: pointer; }
 
 .idea-card.swipe-keep { box-shadow: 0 0 0 2px var(--moss), var(--shadow); }
 .idea-card.swipe-skip { box-shadow: 0 0 0 2px var(--coral-dark), var(--shadow); }
+
+/* Hover lift via shadow only — the entrance animation's fill state owns transform. */
+.idea-card { transition: box-shadow 0.2s var(--ease); }
+.idea-card:hover { box-shadow: var(--shadow); }
+
+/* Staggered entrance — each card eases up in feed order (--stop-index).
+   Applied as a class and removed on animationend so the animation's fill state
+   never holds `transform` and block the swipe/dismiss gestures. */
+.idea-card.is-entering {
+  animation: cardIn 0.45s var(--ease) both;
+  animation-delay: calc(var(--stop-index, 0) * 55ms);
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Loading skeletons ---------- */
+.idea-card--skeleton { pointer-events: none; gap: 12px; }
+.idea-card--skeleton::before { border-color: var(--line-strong); }
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--paper-dim);
+  border-radius: 6px;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+  animation: shimmer 1.3s infinite;
+}
+
+@keyframes shimmer { to { transform: translateX(100%); } }
+
+.skeleton-photo {
+  margin: -18px -18px 0;
+  height: 140px;
+  border-radius: 17px 17px 0 0;
+}
+
+.skeleton-body { display: grid; gap: 10px; }
+.skeleton-line { height: 12px; }
+.skeleton-chip { height: 18px; width: 92px; border-radius: var(--radius-pill); }
+.skeleton-title { height: 18px; width: 70%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; }
+}
 
 /* Inspiring category photo banner at the top of each card */
 .card-photo {
@@ -489,14 +621,19 @@ button { font-family: var(--body); cursor: pointer; }
 
 .card-actions button {
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 9px 12px;
   font-size: 13px;
   font-weight: 600;
+  transition: background 0.15s ease, transform 0.15s var(--ease), color 0.15s ease;
 }
 
+.card-actions button:active { transform: scale(0.95); }
+
 .btn-dismiss { background: var(--paper-dim); color: var(--ink-soft); }
+.btn-dismiss:hover { background: #E7DFC9; color: var(--coral-dark); }
 .btn-detail { background: var(--paper-dim); color: var(--ink-soft); }
+.btn-detail:hover { background: #E7DFC9; color: var(--ink); }
 .btn-add { background: var(--moss); color: var(--paper); flex: 1; }
 .btn-add:hover { background: #335c4c; }
 
@@ -519,10 +656,10 @@ button { font-family: var(--body); cursor: pointer; }
   color: var(--ink-soft);
 }
 
-/* ---------- Empty / loading states ---------- */
-.empty-state, .loading-state {
+/* ---------- Empty / no-results states ---------- */
+.empty-state {
   text-align: center;
-  padding: 56px 20px;
+  padding: 48px 20px 56px;
   color: var(--ink-soft);
 }
 
@@ -534,8 +671,57 @@ button { font-family: var(--body); cursor: pointer; }
   font-size: 13px;
 }
 
-.empty-state h3 { font-size: 19px; margin-bottom: 8px; }
-.empty-state p, .loading-state p { max-width: 360px; margin: 0 auto; line-height: 1.55; font-size: 14.5px; }
+.empty-state h3 { font-size: 20px; margin-bottom: 8px; }
+.empty-state p { max-width: 380px; margin: 0 auto; line-height: 1.55; font-size: 14.5px; }
+
+/* Onboarding — tappable example prompts */
+.example-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.example-prompts-label {
+  flex-basis: 100%;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 2px;
+}
+
+.example-chip {
+  background: white;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  padding: 10px 16px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease), border-color 0.15s ease;
+}
+
+.example-chip:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--coral); }
+.example-chip:active { transform: translateY(0) scale(0.97); }
+
+/* Shared ghost button (no-results reset, etc.) */
+.ghost-btn {
+  margin-top: 20px;
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  transition: background 0.15s ease, transform 0.15s var(--ease);
+}
+.ghost-btn:hover { background: var(--paper-dim); }
+.ghost-btn:active { transform: scale(0.97); }
 
 /* ---------- Floating shortlist button ---------- */
 .floating-btn {
@@ -554,7 +740,11 @@ button { font-family: var(--body); cursor: pointer; }
   font-size: 14px;
   box-shadow: var(--shadow);
   z-index: 30;
+  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease);
 }
+
+.floating-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.floating-btn:active { transform: translateY(0) scale(0.97); }
 
 .shortlist-count {
   background: var(--coral);
@@ -594,7 +784,7 @@ button { font-family: var(--body); cursor: pointer; }
   background: var(--paper);
   box-shadow: -16px 0 40px rgba(16,42,46,0.18);
   transform: translateX(100%);
-  transition: transform 0.25s ease;
+  transition: transform 0.34s var(--ease);
   display: flex;
   flex-direction: column;
   padding: 22px;
@@ -727,6 +917,37 @@ button { font-family: var(--body); cursor: pointer; }
 }
 
 @media (max-width: 480px) {
-  .panel-sheet { width: 100%; }
+  .panel-sheet { width: 100%; padding: 20px 18px; }
   .floating-btn span:first-child { display: none; }
+}
+
+/* Mobile-first refinements — verified against a 375px viewport. */
+@media (max-width: 420px) {
+  .app { padding: 0 16px 96px; }
+  .topbar { padding: 18px 16px 0; }
+  .hero-content { padding: 0 16px; margin-top: 40px; }
+  .hero { padding-bottom: 56px; }
+  .eyebrow { margin-bottom: 18px; font-size: 11px; }
+  .subtitle { font-size: 15.5px; margin-top: 16px; }
+
+  .prompt-box { margin-top: 26px; padding: 12px; }
+  .prompt-box textarea { font-size: 16px; } /* keep >=16px so iOS doesn't zoom on focus */
+
+  .filters { margin-top: -30px; padding-left: 16px; margin-left: -16px; margin-right: -16px; }
+  .filters::after { content: ''; flex: 0 0 8px; } /* trailing scroll gutter */
+
+  .section-header { margin-top: 24px; }
+  .section-header h2 { font-size: 21px; }
+
+  /* On a single column the trail rail + stop dots read well; keep them tight. */
+  .card-feed { padding-left: 24px; }
+  .idea-card { padding: 16px 16px 12px; }
+  .idea-card::before { left: -24px; }
+  .card-photo { margin: -16px -16px 0; height: 124px; }
+
+  .card-actions { flex-wrap: wrap; }
+  .btn-add { flex: 1 0 100%; order: -1; } /* primary action full-width on top */
+
+  .example-chip { font-size: 13px; padding: 9px 14px; }
+  .floating-btn { bottom: 16px; right: 16px; padding: 13px 16px; }
 }
