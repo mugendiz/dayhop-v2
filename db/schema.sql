@@ -1,9 +1,9 @@
 -- DayHop V2 — Postgres schema (Supabase)
 -- Run this in the Supabase SQL editor (Project → SQL → New query) once your
--- project exists. The Node server talks to these tables through the
--- service-role key, so Row Level Security is enabled but the server bypasses
--- it; the policies below are written for Phase 3, when the browser will read
--- with a user's auth token directly.
+-- project exists. In Phase 2 the Node server connects with the publishable
+-- (anon) key, so Row Level Security is enabled and the permissive prototype
+-- policies at the bottom grant the anon role read/write pre-auth. These get
+-- replaced with per-user policies in Phase 3.
 --
 -- owner_id is TEXT for now: it holds the localStorage guest id (e.g.
 -- "guest-ab12cd34"). In Phase 3 we add auth and migrate these to users.id.
@@ -62,10 +62,16 @@ alter table public.adventures          enable row level security;
 alter table public.shortlist_items     enable row level security;
 alter table public.community_submissions enable row level security;
 
--- Permissive prototype policies (anon + authenticated). Drop these in Phase 3.
-create policy "proto users rw"       on public.users               for all to anon, authenticated using (true) with check (true);
-create policy "proto adventures rw"  on public.adventures          for all to anon, authenticated using (true) with check (true);
-create policy "proto shortlist rw"   on public.shortlist_items     for all to anon, authenticated using (true) with check (true);
+-- Permissive prototype policies (anon + authenticated). Drop-then-create so
+-- the whole script is idempotent and safe to re-run. Drop these in Phase 3.
+drop policy if exists "proto users rw"       on public.users;
+drop policy if exists "proto adventures rw"  on public.adventures;
+drop policy if exists "proto shortlist rw"   on public.shortlist_items;
+drop policy if exists "proto submissions rw" on public.community_submissions;
+
+create policy "proto users rw"       on public.users                 for all to anon, authenticated using (true) with check (true);
+create policy "proto adventures rw"  on public.adventures            for all to anon, authenticated using (true) with check (true);
+create policy "proto shortlist rw"   on public.shortlist_items       for all to anon, authenticated using (true) with check (true);
 create policy "proto submissions rw" on public.community_submissions for all to anon, authenticated using (true) with check (true);
 
 -- Phase 3 target policies (replace the prototype ones above once owner_id = auth.uid()):
