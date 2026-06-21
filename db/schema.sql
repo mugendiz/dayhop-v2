@@ -51,15 +51,25 @@ create table if not exists public.community_submissions (
 create index if not exists submissions_status_idx on public.community_submissions (status, submitted_at desc);
 
 -- ---------- Row Level Security ----------
--- Enabled now; the service-role key used by the server bypasses RLS. The
--- per-user policies become meaningful in Phase 3 once owner_id = auth.uid().
+-- PROTOTYPE / PRE-AUTH (Phase 2): the server connects with the publishable
+-- (anon) key, so RLS applies. There is no auth yet — owner_id is a guest id,
+-- not auth.uid() — so we grant permissive access to the anon role to keep the
+-- app working. This is intentionally open and is TIGHTENED IN PHASE 3, when
+-- owner_id becomes a real user id and these policies are replaced with the
+-- per-user ones below.
 alter table public.users               enable row level security;
 alter table public.adventures          enable row level security;
 alter table public.shortlist_items     enable row level security;
 alter table public.community_submissions enable row level security;
 
--- Phase 3 placeholder policies (commented until owner_id is a real uuid):
+-- Permissive prototype policies (anon + authenticated). Drop these in Phase 3.
+create policy "proto users rw"       on public.users               for all to anon, authenticated using (true) with check (true);
+create policy "proto adventures rw"  on public.adventures          for all to anon, authenticated using (true) with check (true);
+create policy "proto shortlist rw"   on public.shortlist_items     for all to anon, authenticated using (true) with check (true);
+create policy "proto submissions rw" on public.community_submissions for all to anon, authenticated using (true) with check (true);
+
+-- Phase 3 target policies (replace the prototype ones above once owner_id = auth.uid()):
 -- create policy "own adventures"   on public.adventures      for all using (owner_id = auth.uid()::text);
 -- create policy "own shortlist"    on public.shortlist_items for all using (owner_id = auth.uid()::text);
--- Anyone may submit an event; only curators (service role) read the queue.
+-- Anyone may submit an event; only curators (service role) read the queue:
 -- create policy "public submit"    on public.community_submissions for insert with check (true);

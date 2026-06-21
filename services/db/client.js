@@ -8,8 +8,10 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
-// We need a URL and at least one key. The server prefers the service-role key
-// (bypasses RLS for trusted server-side writes); anon works for read-only dev.
+// We need a URL and at least one key. If a service-role/secret key is set the
+// server uses it (bypasses RLS). Otherwise it uses the publishable/anon key,
+// in which case RLS governs access — see the prototype policies in
+// db/schema.sql that allow the anon role to read/write pre-auth (Phase 2).
 function isConfigured() {
   return Boolean(SUPABASE_URL && (SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY));
 }
