@@ -25,8 +25,10 @@ async function listAdventures(ownerId) {
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
-async function getAdventure(id) {
-  return adventures.get(id) || null;
+async function getAdventure(id, ownerId) {
+  const record = adventures.get(id);
+  // Match the Supabase store: only return the row to its owner.
+  return record && record.ownerId === ownerId ? record : null;
 }
 
 async function deleteAdventure(id) {

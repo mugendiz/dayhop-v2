@@ -31,9 +31,9 @@ router.get('/', async (req, res, next) => {
 
 router.get('/:id', async (req, res, next) => {
   try {
-    const adventure = await store.getAdventure(req.params.id, req.dbCtx);
-    // RLS (or the owner check below for memory mode) ensures cross-user reads 404.
-    if (!adventure || adventure.ownerId !== req.ownerId) {
+    const adventure = await store.getAdventure(req.params.id, req.ownerId, req.dbCtx);
+    // getAdventure now scopes by owner_id, so a miss means not-yours-or-absent.
+    if (!adventure) {
       return res.status(404).json({ error: 'NOT_FOUND', message: 'Adventure not found.' });
     }
     res.json({ adventure });
@@ -42,9 +42,9 @@ router.get('/:id', async (req, res, next) => {
 
 router.delete('/:id', async (req, res, next) => {
   try {
-    // Confirm ownership first (covers the in-memory path, which has no RLS).
-    const existing = await store.getAdventure(req.params.id, req.dbCtx);
-    if (!existing || existing.ownerId !== req.ownerId) {
+    // Confirm ownership first (owner-scoped query covers the in-memory path too).
+    const existing = await store.getAdventure(req.params.id, req.ownerId, req.dbCtx);
+    if (!existing) {
       return res.status(404).json({ error: 'NOT_FOUND', message: 'Adventure not found.' });
     }
     await store.deleteAdventure(req.params.id, req.dbCtx);

@@ -43,8 +43,11 @@ async function listAdventures(ownerId, ctx) {
   return (data || []).map(adventureFromRow);
 }
 
-async function getAdventure(id, ctx) {
-  const { data, error } = await clientFor(ctx).from('adventures').select('*').eq('id', id).maybeSingle();
+async function getAdventure(id, ownerId, ctx) {
+  // Scope by owner_id at the DB layer so isolation never depends solely on a
+  // route-level check (RLS is also bypassed when a service key is configured).
+  const { data, error } = await clientFor(ctx)
+    .from('adventures').select('*').eq('id', id).eq('owner_id', ownerId).maybeSingle();
   if (error) throw fail(error, 'getAdventure');
   return adventureFromRow(data);
 }
@@ -57,12 +60,22 @@ async function deleteAdventure(id, ctx) {
 
 // ---------- shortlist ----------
 async function addShortlistItem({ ownerId, idea }, ctx) {
-  const row = { id: genId('sl'), owner_id: ownerId, idea_id: String(idea.id), idea };
-  // Upsert on the (owner_id, idea_id) unique constraint so re-adds don't error.
-  const { data, error } = await clientFor(ctx)
-    .from('shortlist_items')
-    .upsert(row, { onConflict: 'owner_id,idea_id', ignoreDuplicates: false })
-    .select().single();
+  const client = clientFor(ctx);
+  const ideaId = String(idea.id);
+  // Re-add must keep the original row's primary key (matches memoryStore): only
+  // generate a fresh id when inserting a genuinely new row. So look first, then
+  // UPDATE the idea payload in place, else INSERT with a new id.
+  const { data: existing, error: selErr } = await client
+    .from('shortlist_items').select('id').eq('owner_id', ownerId).eq('idea_id', ideaId).maybeSingle();
+  if (selErr) throw fail(selErr, 'addShortlistItem');
+  if (existing) {
+    const { data, error } = await client
+      .from('shortlist_items').update({ idea }).eq('owner_id', ownerId).eq('idea_id', ideaId).select().single();
+    if (error) throw fail(error, 'addShortlistItem');
+    return shortlistFromRow(data);
+  }
+  const row = { id: genId('sl'), owner_id: ownerId, idea_id: ideaId, idea };
+  const { data, error } = await client.from('shortlist_items').insert(row).select().single();
   if (error) throw fail(error, 'addShortlistItem');
   return shortlistFromRow(data);
 }
@@ -100,8 +113,9 @@ async function createSubmission({ title, location, date, description, submittedB
 }
 
 async function listPendingSubmissions(ctx) {
+  // Oldest-first (FIFO) so the moderation queue is fair and matches memoryStore.
   const { data, error } = await clientFor(ctx)
-    .from('community_submissions').select('*').eq('status', 'pending').order('submitted_at', { ascending: false });
+    .from('community_submissions').select('*').eq('status', 'pending').order('submitted_at', { ascending: true });
   if (error) throw fail(error, 'listPendingSubmissions');
   return (data || []).map(submissionFromRow);
 }

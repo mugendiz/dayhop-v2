@@ -37,17 +37,29 @@ function getClient() {
 // A client scoped to a signed-in user: the user's access token rides along on
 // every PostgREST request, so RLS policies that key off auth.uid() apply.
 // Used for the gated shortlist/adventure routes once auth is in play (Phase 3).
+const _userClients = new Map();            // accessToken -> { client, ts }
+const USER_CLIENT_TTL_MS = 60 * 60 * 1000; // evict after 1h to bound growth
+
 function getUserClient(accessToken) {
   if (!isConfigured()) {
     const err = new Error('Supabase is not configured');
     err.code = 'DB_NOT_CONFIGURED';
     throw err;
   }
+  const now = Date.now();
+  const cached = _userClients.get(accessToken);
+  if (cached && now - cached.ts < USER_CLIENT_TTL_MS) return cached.client;
+  // Drop stale entries (expired tokens) so the map can't grow unbounded.
+  for (const [token, entry] of _userClients) {
+    if (now - entry.ts >= USER_CLIENT_TTL_MS) _userClients.delete(token);
+  }
   const { createClient } = require('@supabase/supabase-js');
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY, {
+  const client = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: `Bearer ${accessToken}` } }
   });
+  _userClients.set(accessToken, { client, ts: now });
+  return client;
 }
 
 function status() {

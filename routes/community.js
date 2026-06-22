@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 
 const { store } = require('../services/db');
+const { requireUser } = require('../middleware/auth');
 
 router.post('/submit', async (req, res, next) => {
   const { title, location, date, description, submittedBy } = req.body || {};
@@ -29,26 +30,27 @@ router.post('/submit', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// Curator-facing: list pending submissions. Lock this behind real auth
-// before launch — currently open for internal review only.
-router.get('/queue', async (req, res, next) => {
+// Curator-facing: list pending submissions. Gated to a signed-in user
+// (requireUser); tighten to an admin/curator claim before launch. The user's
+// JWT is forwarded via req.dbCtx so the per-user RLS policy applies.
+router.get('/queue', requireUser, async (req, res, next) => {
   try {
-    const pending = await store.listPendingSubmissions();
+    const pending = await store.listPendingSubmissions(req.dbCtx);
     res.json({ pending });
   } catch (err) { next(err); }
 });
 
-router.post('/:id/approve', async (req, res, next) => {
+router.post('/:id/approve', requireUser, async (req, res, next) => {
   try {
-    const submission = await store.setSubmissionStatus(req.params.id, 'approved');
+    const submission = await store.setSubmissionStatus(req.params.id, 'approved', req.dbCtx);
     if (!submission) return res.status(404).json({ error: 'NOT_FOUND', message: 'Submission not found.' });
     res.json({ submission });
   } catch (err) { next(err); }
 });
 
-router.post('/:id/reject', async (req, res, next) => {
+router.post('/:id/reject', requireUser, async (req, res, next) => {
   try {
-    const submission = await store.setSubmissionStatus(req.params.id, 'rejected');
+    const submission = await store.setSubmissionStatus(req.params.id, 'rejected', req.dbCtx);
     if (!submission) return res.status(404).json({ error: 'NOT_FOUND', message: 'Submission not found.' });
     res.json({ submission });
   } catch (err) { next(err); }

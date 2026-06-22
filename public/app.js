@@ -267,13 +267,16 @@
     return headers;
   }
 
+  // Returns a promise resolving to true on success, false on failure. It never
+  // rejects, so existing fire-and-forget callers stay safe; the sign-in
+  // migration awaits the result to detect partial failures.
   function serverShortlistAdd(idea) {
-    if (!isLoggedIn()) return;
-    fetch('/api/shortlist', {
+    if (!isLoggedIn()) return Promise.resolve(true);
+    return fetch('/api/shortlist', {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ idea })
-    }).catch(() => {});
+    }).then(res => res.ok).catch(() => false);
   }
 
   function serverShortlistRemove(ideaId) {
@@ -708,21 +711,29 @@
     try {
       const migratedKey = 'dayhop_migrated_' + state.user.id;
       if (!localStorage.getItem(migratedKey) && state.shortlist.length) {
-        for (const idea of state.shortlist) {
-          await fetch('/api/shortlist', {
-            method: 'POST',
-            headers: authHeaders({ 'Content-Type': 'application/json' }),
-            body: JSON.stringify({ idea })
-          }).catch(() => {});
+        // Upload every local item in parallel; only mark migration complete if
+        // ALL succeeded, otherwise leave the key unset so the next sign-in retries.
+        const results = await Promise.all(state.shortlist.map(serverShortlistAdd));
+        if (results.every(Boolean)) {
+          localStorage.setItem(migratedKey, '1');
+          showToast('Saved your shortlist to your account');
+        } else {
+          console.warn('[shortlist] migration incomplete (' +
+            results.filter(ok => !ok).length + ' item(s) failed); will retry on next sign-in.');
         }
-        showToast('Saved your shortlist to your account');
       }
-      localStorage.setItem(migratedKey, '1');
 
       const res = await fetch('/api/shortlist', { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
-        state.shortlist = (data.items || []).map(i => i.idea);
+        const serverItems = (data.items || []).map(i => i.idea);
+        // Merge local + server (union by idea id, server wins on conflict) so we
+        // never drop items — whether a migration upload failed (FIX 3) or items
+        // were added during a later signed-out session (FIX 4).
+        const byId = new Map();
+        for (const idea of state.shortlist) if (idea && idea.id != null) byId.set(String(idea.id), idea);
+        for (const idea of serverItems) if (idea && idea.id != null) byId.set(String(idea.id), idea);
+        state.shortlist = [...byId.values()];
         persist();
       }
     } catch (e) {

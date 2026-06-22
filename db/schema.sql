@@ -1,4 +1,34 @@
 -- DayHop V2 — Postgres schema (Supabase)
+--
+-- ============================================================================
+-- ⚠️ PHASE 3b SECURITY UPDATE — RE-RUN THIS IN THE SUPABASE SQL EDITOR
+-- The RLS policies for `community_submissions` and `users` were tightened
+-- (they were previously `for all to anon using(true)`, i.e. world read/write).
+-- Re-running the whole file is idempotent (policies are dropped then created),
+-- but if you want just the security delta, paste this block into the SQL editor:
+--
+--   drop policy if exists "public submit"          on public.community_submissions;
+--   drop policy if exists "users self rw"          on public.users;
+--   drop policy if exists "community submit"       on public.community_submissions;
+--   drop policy if exists "community moderate read"   on public.community_submissions;
+--   drop policy if exists "community moderate update" on public.community_submissions;
+--
+--   -- Anyone (incl. anon) may submit, but NOT read/update/delete the queue.
+--   create policy "community submit" on public.community_submissions
+--     for insert to anon, authenticated with check (true);
+--   -- Reading + moderating the queue is restricted to signed-in users (the
+--   -- server forwards each curator's JWT). Tighten to an admin claim before launch.
+--   create policy "community moderate read" on public.community_submissions
+--     for select to authenticated using (true);
+--   create policy "community moderate update" on public.community_submissions
+--     for update to authenticated using (true) with check (true);
+--
+--   -- A user may only read/write their own profile row.
+--   create policy "users self rw" on public.users
+--     for all to authenticated
+--     using (id = auth.uid()) with check (id = auth.uid());
+-- ============================================================================
+--
 -- Run this in the Supabase SQL editor (Project → SQL → New query) once your
 -- project exists. In Phase 2 the Node server connects with the publishable
 -- (anon) key, so Row Level Security is enabled and the permissive prototype
@@ -54,7 +84,8 @@ create index if not exists submissions_status_idx on public.community_submission
 -- Phase 3: the server connects with the publishable (anon) key and forwards
 -- each signed-in user's JWT, so RLS applies per user. adventures + shortlist
 -- are owner-scoped (a user sees/writes only rows where owner_id = auth.uid()).
--- community submit stays open to anonymous guests; the users mirror is open.
+-- community: anon may INSERT (submit) only; reading/moderating is authenticated.
+-- users mirror: each user reads/writes only their own row (no anon access).
 -- Drop-then-create keeps the whole script idempotent and safe to re-run.
 alter table public.users               enable row level security;
 alter table public.adventures          enable row level security;
@@ -70,6 +101,9 @@ drop policy if exists "users self rw"        on public.users;
 drop policy if exists "own adventures"       on public.adventures;
 drop policy if exists "own shortlist"        on public.shortlist_items;
 drop policy if exists "public submit"        on public.community_submissions;
+drop policy if exists "community submit"          on public.community_submissions;
+drop policy if exists "community moderate read"   on public.community_submissions;
+drop policy if exists "community moderate update" on public.community_submissions;
 
 -- Per-user: only the owning user can read/write their adventures + shortlist.
 create policy "own adventures" on public.adventures
@@ -80,12 +114,19 @@ create policy "own shortlist" on public.shortlist_items
   for all to authenticated
   using (owner_id = auth.uid()::text) with check (owner_id = auth.uid()::text);
 
--- Community: anyone (incl. anonymous) may submit an event into the queue.
--- NOTE: reading/moderating the queue is still open — locking it to a curator
--- role is deferred (needs an admin claim); see the roadmap.
-create policy "public submit" on public.community_submissions
-  for all to anon, authenticated using (true) with check (true);
+-- Community: anyone (incl. anonymous) may submit an event into the queue,
+-- but NObody may read/update/delete it as the anon role (the anon publishable
+-- key is shipped to browsers, so an open policy = world-readable queue + PII).
+create policy "community submit" on public.community_submissions
+  for insert to anon, authenticated with check (true);
+-- Reading + moderating the queue is restricted to signed-in users; the server
+-- forwards each curator's JWT (req.dbCtx). Tighten to an admin claim before launch.
+create policy "community moderate read" on public.community_submissions
+  for select to authenticated using (true);
+create policy "community moderate update" on public.community_submissions
+  for update to authenticated using (true) with check (true);
 
--- users mirror: open for now; Phase 3 doesn't depend on it for gating.
+-- users mirror: a user may only read/write their OWN row (no anon access).
 create policy "users self rw" on public.users
-  for all to anon, authenticated using (true) with check (true);
+  for all to authenticated
+  using (id = auth.uid()) with check (id = auth.uid());

@@ -39,6 +39,16 @@ function requireUser(req, res, next) {
     return next();
   }
   if (!isConfigured()) {
+    // Memory-mode dev fallback: trusting a client-supplied ownerId means any
+    // caller can read/write another owner's data. Keep it OFF unless explicitly
+    // opted in via env, so it can never silently activate in a misconfigured
+    // (Supabase env missing) production deployment.
+    if (process.env.TRUST_CLIENT_OWNER_ID !== 'true') {
+      return res.status(401).json({
+        error: 'AUTH_REQUIRED',
+        message: 'Sign in to save and sync your shortlist and day plans.'
+      });
+    }
     const legacy = (req.body && req.body.ownerId) || req.query.ownerId;
     if (!legacy) {
       return res.status(400).json({ error: 'INVALID_INPUT', message: 'ownerId is required when auth is not configured.' });
