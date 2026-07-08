@@ -1,10 +1,14 @@
 // services/eventbrite.js — DayHop V2
-// Eventbrite — ORG-SCOPED ONLY. Eventbrite removed its public Event Search
-// API on 2020-02-20; the only sanctioned reads left are event-by-id and
-// events-by-organization. So this connector pulls live events from a curated
-// list of GTA organizer ids (EVENTBRITE_ORG_IDS, comma-separated) and is a
-// silent no-op until that list is populated. Do NOT re-add public search —
-// it no longer exists; scraping is off-limits.
+// Eventbrite — ORGANIZER-SCOPED ONLY. Eventbrite removed its public Event
+// Search API on 2020-02-20; what still works (verified 2026-07-08) is
+// GET /v3/organizers/{id}/events/ for any PUBLIC organizer — same params and
+// event shape as the org-member endpoint. NOTE: /organizations/{id}/events/
+// 404s for orgs your token isn't a member of — don't "fix" this back to it.
+// This connector pulls live events from a curated list of GTA organizer ids
+// (EVENTBRITE_ORG_IDS, comma-separated — the number at the end of an
+// eventbrite.ca/o/... page URL) and is a silent no-op until that list is
+// populated. Do NOT re-add public search — it no longer exists; scraping
+// event pages is off-limits.
 // Candidate shape: see the JSDoc block in services/ticketmaster.js.
 
 const axios = require('axios');
@@ -49,7 +53,7 @@ async function searchEvents({ limit = 20 } = {}) {
   try {
     const results = await Promise.allSettled(
       orgs.map(orgId =>
-        client.get(`${BASE_URL}/organizations/${orgId}/events/`, {
+        client.get(`${BASE_URL}/organizers/${orgId}/events/`, {
           headers: { Authorization: `Bearer ${token}` },
           params: { status: 'live', order_by: 'start_asc', expand: 'venue' }
         })
@@ -65,7 +69,14 @@ async function searchEvents({ limit = 20 } = {}) {
       }
     }
     events.sort((a, b) => String(a.date || '9999').localeCompare(String(b.date || '9999')));
-    return events.slice(0, limit);
+    // Recurring events list one row per occurrence — keep the nearest date so
+    // repeats don't crowd out variety within the limit.
+    const byKey = new Map();
+    for (const ev of events) {
+      const key = `${(ev.title || '').toLowerCase()}|${(ev.venue || '').toLowerCase()}`;
+      if (!byKey.has(key)) byKey.set(key, ev);
+    }
+    return [...byKey.values()].slice(0, limit);
   } catch (err) {
     if (!warned) { console.warn('[eventbrite] unavailable:', err.message); warned = true; }
     return [];
