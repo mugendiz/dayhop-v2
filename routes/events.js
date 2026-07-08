@@ -1,21 +1,11 @@
 // routes/events.js — DayHop V2
-// Seed event data (World Cup 2026 watch parties + local happenings).
+// Seed event data (World Cup 2026 watch parties + local happenings), shared
+// with the generate candidate pipeline via data/curatedEvents.js.
 // Replace with a real events DB / community submission pipeline as it matures.
 const express = require('express');
 const router = express.Router();
 
-const EVENTS = [
-  {
-    id: 'wc26-rh-library-watch-party',
-    title: 'World Cup 2026 Watch Party — Richmond Hill Library',
-    category: 'worldcup',
-    location: 'Richmond Hill',
-    date: '2026-06-20',
-    description: 'Big screen, kids activity corner, concession on site.',
-    cost_tier: 'free',
-    source: 'curated'
-  }
-];
+const EVENTS = require('../data/curatedEvents');
 
 router.get('/', (req, res) => {
   const { category, from, to } = req.query;

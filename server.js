@@ -49,7 +49,11 @@ app.get('/health', (req, res) => {
       google_maps: Boolean(process.env.GOOGLE_MAPS_API_KEY),
       openweather: Boolean(process.env.OPENWEATHER_API_KEY),
       viator: Boolean(process.env.VIATOR_API_KEY),
-      getyourguide: Boolean(process.env.GETYOURGUIDE_API_KEY)
+      getyourguide: Boolean(process.env.GETYOURGUIDE_API_KEY),
+      ticketmaster: Boolean(process.env.TICKETMASTER_API_KEY),
+      eventbrite: Boolean(process.env.EVENTBRITE_PRIVATE_TOKEN && String(process.env.EVENTBRITE_ORG_IDS || '').trim()),
+      toronto_open_data: true, // keyless public feed, always on for GTA requests
+      york_open_data: process.env.YORK_OPEN_DATA_ENABLED === 'true'
     }
   });
 });
