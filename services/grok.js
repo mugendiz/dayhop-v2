@@ -10,7 +10,9 @@ const GROK_MODEL = process.env.GROK_MODEL || 'grok-4';
 const DEFAULT_CITY = process.env.DEFAULT_CITY || 'Richmond Hill';
 const DEFAULT_REGION = process.env.DEFAULT_REGION || 'Ontario';
 
-const client = axios.create({ timeout: 25000 });
+// 45s: asking for 16-22 ideas roughly triples output tokens vs the old
+// 6-10, and grok-4 latency scales with output length.
+const client = axios.create({ timeout: 45000 });
 
 // When the user hasn't pinned a single city, DayHop plans across the whole
 // Greater Toronto Area. We detect that intent from a few common phrasings.
@@ -64,12 +66,13 @@ JSON shape to return:
       "location": "string, the area or neighbourhood — always name which GTA city/town it's in (e.g. 'Harbourfront, Toronto' or 'Mill Pond, Richmond Hill')",
       "duration_minutes": number,
       "good_for_ages": "string, e.g. 'all ages' or '3-8 years'",
-      "cost_tier": "one of: free | $ | $$ | $$$"
+      "cost_tier": "one of: free | $ | $$ | $$$",
+      "wow_reason": "OPTIONAL — include ONLY on the 2-4 stretch ideas: one warm sentence connecting what the user asked for to this unexpected find, e.g. 'You asked for swimming — did you know you can rent a kayak right at Harbourfront?' Omit this field entirely on regular ideas."
     }
   ]
 }
 
-Return 6-10 ideas unless the user's request is narrow, in which case return fewer high-quality matches rather than padding with weak ones.`;
+Return 16-22 ideas unless the user's request is very narrow, in which case return fewer high-quality matches rather than padding with weak ones. Cover the request directly first, then broaden to adjacent ideas the user would plausibly love — for example, if they asked about swimming, also include beaches, splash pads, lakes, paddling, and waterparks. Then include 2-4 "stretch" ideas the user did not ask for but a GTA family would be genuinely excited to discover (a helicopter tour, a treetop zipline course, a hidden-gem beach), each carrying a "wow_reason".`;
 }
 
 /**
@@ -90,6 +93,8 @@ Hard rules:
 - Use the live weather context to favor indoor or outdoor picks appropriately, and mention it briefly in "why" when it materially affected the choice.
 - Preserve each selected item's "id" and "source" fields exactly as given so we can re-attach booking/map links.
 - Dated events only fit if their date works for the request; prefer sooner over later and mention the date in "why".
+- If an "active_filter" is provided in the request, weight your selection toward that category where it genuinely fits, but never force a bad match.
+- Never select two candidates that are effectively the same place or event under slightly different names — keep the one with better data (rating, booking link) and drop the other.
 - Keep tone warm, plain, and trustworthy. No hype.
 - Return ONLY valid JSON, no markdown fences, no commentary.
 
@@ -104,12 +109,14 @@ JSON shape to return:
       "why": "string, one sentence, honest reason this fits the request (and weather, if relevant)",
       "location": "string, neighborhood or area name",
       "good_for_ages": "string",
-      "cost_tier": "one of: free | $ | $$ | $$$"
+      "cost_tier": "one of: free | $ | $$ | $$$",
+      "duration_minutes": number — realistic honest estimate for a typical visit,
+      "wow_reason": "OPTIONAL — include ONLY on the 2-4 stretch picks: one warm sentence connecting what the user asked for to this unexpected find, e.g. 'You asked for swimming — did you know you can rent a kayak right at Harbourfront?' Omit this field entirely on regular picks."
     }
   ]
 }
 
-Select 6-10 of the strongest candidates for the request. Quality over quantity.`;
+The candidates are roughly ordered most-relevant first. Select 16 to 22 candidates. Start with every candidate that directly answers the request, then broaden to strong adjacent matches — for example, if the user asked about swimming, also include beaches, splash pads, lakes, paddling rentals, and waterparks. Then include 2 to 4 "stretch" picks: excellent candidates the user did not ask for but a GTA family would be genuinely excited to discover (a helicopter tour, treetop trekking, a hidden-gem beach — candidates marked "wow": true are good stretch material). Give each stretch pick a "wow_reason". If fewer than 16 candidates genuinely fit, return the ones that do rather than padding with weak matches — never invent to hit the count.`;
 }
 
 function buildPlanSystemPrompt({ city }) {
@@ -213,7 +220,7 @@ async function generateIdeas({ prompt, city = DEFAULT_CITY, region = DEFAULT_REG
  * @param {Array} opts.candidates - normalized candidate objects, each tagged with a `source`
  * @param {Object} [opts.weather] - output of services/weather.getConditions
  */
-async function generateGroundedIdeas({ prompt, city = DEFAULT_CITY, candidates, weather }) {
+async function generateGroundedIdeas({ prompt, filter, city = DEFAULT_CITY, candidates, weather }) {
   if (!prompt || !prompt.trim()) {
     const err = new Error('Prompt is required');
     err.code = 'INVALID_INPUT';
@@ -229,7 +236,8 @@ async function generateGroundedIdeas({ prompt, city = DEFAULT_CITY, candidates, 
 
   const userMessage = JSON.stringify({
     request: prompt,
-    candidates: candidates.slice(0, 40) // keep token usage sane
+    active_filter: filter && filter !== 'all' ? filter : undefined,
+    candidates: candidates.slice(0, 60) // safety belt; caller pre-ranks and slims to 60
   });
 
   const messages = [

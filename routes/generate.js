@@ -20,6 +20,9 @@ const eventbrite = require('../services/eventbrite');
 const torontoOpenData = require('../services/torontoOpenData');
 const yorkOpenData = require('../services/yorkOpenData');
 const curatedEvents = require('../data/curatedEvents');
+const curatedCatalog = require('../data/curatedCatalog');
+const { matchThemes } = require('../data/themes');
+const relevance = require('../services/relevance');
 
 const DEFAULT_CITY = process.env.DEFAULT_CITY || 'Richmond Hill';
 
@@ -45,11 +48,17 @@ router.post('/', async (req, res) => {
   const eventKeyword = typeof event_keyword === 'string' ? event_keyword.trim().slice(0, 80) : '';
 
   try {
-    const { candidates, weather, usedGrounding } = await gatherCandidates(prompt, targetLocation, eventKeyword);
+    const { candidates, weather, usedGrounding } = await gatherCandidates(prompt, targetLocation, eventKeyword, filter);
 
     let ideas;
     if (usedGrounding) {
-      const selected = await grok.generateGroundedIdeas({ prompt, city: targetLocation, candidates, weather });
+      const selected = await grok.generateGroundedIdeas({
+        prompt,
+        filter,
+        city: targetLocation,
+        candidates: candidates.map(toGrokCandidate),
+        weather
+      });
       ideas = mergeWithCandidates(selected, candidates);
     } else {
       ideas = await grok.generateIdeas({ prompt, filter, city: targetLocation });
@@ -73,38 +82,74 @@ router.post('/', async (req, res) => {
  */
 function mergeWithCandidates(selectedIdeas, candidates) {
   const byId = new Map(candidates.map(c => [String(c.id), c]));
-  return selectedIdeas.map(idea => {
-    const original = byId.get(String(idea.id));
-    if (!original) return idea;
-    return Object.assign({}, idea, {
-      booking_url: original.booking_url || null,
-      maps_url: original.maps_url || null,
-      rating: original.rating != null ? original.rating : null,
-      price_from: original.price_from != null ? original.price_from : null,
-      currency: original.currency || null,
-      image_url: original.image_url || null,
-      date: original.date || null,
-      venue: original.venue || null,
-      civic: original.civic === true || undefined,
-      also_from: original.also_from || undefined
+  return selectedIdeas
+    // A grounded idea whose id isn't in the pool is a hallucination —
+    // drop it rather than showing an unverifiable card with no links.
+    .filter(idea => byId.has(String(idea.id)))
+    .map(idea => {
+      const original = byId.get(String(idea.id));
+      return Object.assign({}, idea, {
+        booking_url: original.booking_url || null,
+        maps_url: original.maps_url || null,
+        rating: original.rating != null ? original.rating : null,
+        price_from: original.price_from != null ? original.price_from : null,
+        currency: original.currency || null,
+        image_url: original.image_url || null,
+        date: original.date || null,
+        venue: original.venue || null,
+        civic: original.civic === true || undefined,
+        also_from: original.also_from || undefined,
+        wow: original.wow === true || undefined
+      });
     });
-  });
 }
 
-// Per-source caps keep any one source from flooding the pool that Grok sees
-// (grok.js hard-caps at 40 candidates total).
+// Slim projection sent to Grok: enough signal to select and explain, but
+// without URLs/coordinates/opening hours — keeps 60 candidates around the
+// same token budget the old 40 full-fat ones used.
+function toGrokCandidate(c) {
+  return {
+    id: c.id,
+    source: c.source,
+    title: c.title,
+    category: c.category || null,
+    description: c.description ? String(c.description).slice(0, 160) : null,
+    venue: c.venue || null,
+    area: shortAddress(c.address || c.location),
+    date: c.date || null,
+    cost_tier: c.cost_tier || null,
+    price_from: c.price_from != null ? c.price_from : null,
+    rating: c.rating != null ? c.rating : null,
+    good_for_ages: c.good_for_ages || null,
+    wow: c.wow === true || undefined
+  };
+}
+
+// "290 Bremner Blvd, Toronto, ON M5V 3L9, Canada" → "Toronto"
+function shortAddress(address) {
+  if (!address) return null;
+  const parts = String(address).split(',').map(s => s.trim()).filter(Boolean);
+  return parts.length > 2 ? parts[parts.length - 3] : parts.join(', ');
+}
+
+// Per-source caps keep any one source from flooding the pool. The pool is
+// then relevance-scored against the prompt and trimmed to 60 (grok.js cap),
+// so these are generous ceilings, not the final mix.
 const SOURCE_CAPS = {
-  google_places: 16,
+  google_places: 24,
   viator: 10,
   getyourguide: 10,
-  ticketmaster: 10,
+  ticketmaster: 12,
   eventbrite: 8,
-  toronto_open_data: 10,
+  toronto_open_data: 12,
   york_open_data: 6,
-  curated: 6
+  curated: 4,
+  curated_catalog: 12
 };
 
-async function gatherCandidates(prompt, locationText, eventKeyword) {
+const CANDIDATE_POOL_CAP = 60;
+
+async function gatherCandidates(prompt, locationText, eventKeyword, filter) {
   let geo = null;
   let weather = null;
 
@@ -131,15 +176,18 @@ async function gatherCandidates(prompt, locationText, eventKeyword) {
   // wrong grounding for a request about some other city — skip them there.
   const isGta = GTA_TOWNS.test(String(locationText || ''));
 
+  // Theme expansion: "swimming" fans out to pools, beaches, splash pads,
+  // paddling rentals, waterparks — the neighbourhood of the request, not
+  // just its literal words.
+  const themes = matchThemes(prompt);
+  const themeQueries = themes.flatMap(t => t.placesQueries).slice(0, 4);
+
   // One parallel batch: each source is independently optional — a failed or
   // unconfigured source logs one warning and contributes nothing.
   const sources = [
     {
       name: 'google_places',
-      run: () => geo
-        ? maps.searchPlaces({ query: prompt, lat: geo.lat, lng: geo.lng })
-            .then(places => places.map(p => Object.assign({}, p, { source: 'google_places', id: p.place_id })))
-        : []
+      run: () => geo ? searchPlacesWithThemes(prompt, themeQueries, geo) : []
     },
     {
       name: 'viator',
@@ -175,6 +223,10 @@ async function gatherCandidates(prompt, locationText, eventKeyword) {
     {
       name: 'curated',
       run: () => isGta ? upcomingCuratedEvents(SOURCE_CAPS.curated) : []
+    },
+    {
+      name: 'curated_catalog',
+      run: () => isGta ? catalogCandidates(prompt, themes, SOURCE_CAPS.curated_catalog) : []
     }
   ];
 
@@ -190,8 +242,79 @@ async function gatherCandidates(prompt, locationText, eventKeyword) {
     }
   });
 
-  const candidates = dedupCandidates(interleave(bySource));
+  // Dedup first (interleave order only decides which duplicate wins), then
+  // rank the whole pool against the prompt so the cap trims the least
+  // relevant candidates instead of whichever source came last.
+  const pool = dedupCandidates(interleave(bySource));
+  const candidates = relevance.selectTop(
+    relevance.scoreCandidates(pool, { prompt, themes, filter }),
+    CANDIDATE_POOL_CAP
+  );
   return { candidates, weather, usedGrounding: candidates.length > 0 };
+}
+
+// Raw-prompt Places search plus up to 4 theme-expanded searches, all in
+// parallel; results from theme queries are tagged so the relevance scorer
+// knows they were already intent-matched.
+async function searchPlacesWithThemes(prompt, themeQueries, geo) {
+  const searches = [
+    maps.searchPlaces({ query: prompt, lat: geo.lat, lng: geo.lng, maxResults: 8 })
+      .then(places => places.map(p => Object.assign({}, p, { source: 'google_places', id: p.place_id })))
+  ];
+  for (const query of themeQueries) {
+    searches.push(
+      maps.searchPlaces({ query, lat: geo.lat, lng: geo.lng, maxResults: 6 })
+        .then(places => places.map(p => Object.assign({}, p, { source: 'google_places', id: p.place_id, theme_hit: true })))
+        .catch(err => {
+          console.warn(`[generate] places theme search "${query}" failed:`, err.message);
+          return [];
+        })
+    );
+  }
+  const results = await Promise.all(searches);
+  const seen = new Set();
+  const out = [];
+  for (const place of results.flat()) {
+    if (seen.has(place.place_id)) continue;
+    seen.add(place.place_id);
+    out.push(place);
+  }
+  return out;
+}
+
+// Evergreen curated catalog entries, season-filtered and pre-ranked against
+// the prompt so only the most fitting slice of the catalog joins the pool.
+function catalogCandidates(prompt, themes, limit) {
+  const month = Number(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', month: 'numeric' }).format(new Date()));
+  const inSeason = month >= 5 && month <= 9 ? 'summer' : 'winter';
+  const eligible = curatedCatalog.filter(e => !e.seasonal || e.seasonal === inSeason);
+
+  const normalized = eligible.map(e => ({
+    source: 'curated_catalog',
+    id: e.id,
+    title: e.title,
+    description: e.description,
+    category: e.category,
+    tags: e.tags,
+    date: null,
+    venue: e.venue,
+    address: e.location,
+    location: e.location,
+    good_for_ages: e.good_for_ages,
+    cost_tier: e.cost_tier,
+    price_from: null,
+    currency: null,
+    image_url: null,
+    booking_url: null,
+    maps_url: e.maps_url,
+    rating: null,
+    wow: e.wow === true
+  }));
+
+  return relevance.selectTop(
+    relevance.scoreCandidates(normalized, { prompt, themes }),
+    limit
+  );
 }
 
 // Round-robin across the source lists so grok.js's 40-candidate cap trims

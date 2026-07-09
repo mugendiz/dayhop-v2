@@ -319,7 +319,7 @@
   }
 
   // ---------- Rendering ----------
-  const SKELETON_COUNT = 4;
+  const SKELETON_COUNT = 8;
 
   // Layout-matching skeleton cards so the feed doesn't jump when ideas arrive.
   function renderSkeletons() {
@@ -371,9 +371,29 @@
     feed.innerHTML = '';
     const ideas = visibleIdeas();
 
-    ideas.forEach((idea, index) => {
-      feed.appendChild(createIdeaCard(idea, index, animate));
-    });
+    // Two sections when wow picks exist: the direct answers first, then the
+    // "didn't know you could do that" stretch picks. STOP numbers continue
+    // across sections so the trail metaphor stays intact.
+    const onTarget = ideas.filter(i => !i.wow_reason);
+    const beyond = ideas.filter(i => i.wow_reason);
+    const showHeaders = onTarget.length > 0 && beyond.length > 0;
+    let stopIndex = 0;
+
+    const appendSection = (label, group) => {
+      if (group.length === 0) return;
+      if (showHeaders) {
+        const header = document.createElement('h3');
+        header.className = 'feed-section-header';
+        header.textContent = label;
+        feed.appendChild(header);
+      }
+      group.forEach(idea => {
+        feed.appendChild(createIdeaCard(idea, stopIndex++, animate));
+      });
+    };
+
+    appendSection('Right on target', onTarget);
+    appendSection('Beyond what you asked ✨', beyond);
 
     const hasIdeas = state.allIdeas.length > 0;
     // Empty: nothing generated yet. No-results: ideas exist but the filter/swipes hid them all.
@@ -405,19 +425,24 @@
 
     card.innerHTML = `
       <div class="card-photo">
-        <img src="${categoryImage(idea.category)}" alt="" loading="lazy" decoding="async">
+        <img src="${escapeAttr(idea.image_url || categoryImage(idea.category))}" alt="" loading="lazy" decoding="async">
         <span class="card-stamp">STOP ${stopNumber}</span>
+        ${idea.wow_reason ? '<span class="card-badge card-badge--wow">✨ Unexpected find</span>' : ''}
         <span class="card-category">${categoryLabel}</span>
       </div>
       <div class="card-body">
         <h3>${escapeHtml(idea.title)}</h3>
         <p class="why">${escapeHtml(idea.why || '')}</p>
+        ${idea.wow_reason ? `<p class="wow-line">✨ ${escapeHtml(idea.wow_reason)}</p>` : ''}
         <div class="card-meta">
           <span>${escapeHtml(idea.location || '')}</span>
+          ${idea.date ? `<span class="card-date">${escapeHtml(formatEventDate(idea.date))}</span>` : ''}
           ${idea.duration_minutes ? `<span>${formatDuration(idea.duration_minutes)}</span>` : ''}
           ${idea.cost_tier ? `<span>${escapeHtml(idea.cost_tier)}</span>` : ''}
           ${idea.rating != null ? `<span>★ ${escapeHtml(String(idea.rating))}</span>` : ''}
           ${idea.price_from != null ? `<span>from ${escapeHtml(String(idea.price_from))}${idea.currency ? ' ' + escapeHtml(idea.currency) : ''}</span>` : ''}
+          ${idea.civic ? '<span title="From your city\'s official events feed">🏛 City event</span>' : ''}
+          ${idea.also_from && idea.also_from.length ? `<span title="Also listed by ${escapeAttr(idea.also_from.join(', '))}">+${idea.also_from.length} source${idea.also_from.length > 1 ? 's' : ''}</span>` : ''}
         </div>
         ${idea.booking_url ? `<a class="card-booking-link" href="${escapeAttr(idea.booking_url)}" target="_blank" rel="noopener noreferrer sponsored">Book this on ${idea.source === 'viator' ? 'Viator' : 'GetYourGuide'} ↗</a>` : ''}
         ${!idea.booking_url && idea.maps_url ? `<a class="card-booking-link card-booking-link--secondary" href="${escapeAttr(idea.maps_url)}" target="_blank" rel="noopener noreferrer">View on Google Maps ↗</a>` : ''}
@@ -428,6 +453,12 @@
         <button class="btn-add" type="button" title="Add to shortlist">Add to plan →</button>
       </div>
     `;
+
+    // Broken partner image URLs fall back to the category stock photo.
+    if (idea.image_url) {
+      const img = card.querySelector('.card-photo img');
+      img.addEventListener('error', () => { img.src = categoryImage(idea.category); }, { once: true });
+    }
 
     card.querySelector('.btn-dismiss').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -451,6 +482,13 @@
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
     return m ? `${h}h ${m}m` : `${h}h`;
+  }
+
+  // "2026-07-12" (or full ISO) → "Sun, Jul 12". Falls back to the raw string.
+  function formatEventDate(dateStr) {
+    const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr + 'T12:00:00' : dateStr);
+    if (Number.isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
   }
 
   function escapeHtml(str) {
@@ -549,14 +587,25 @@
     document.getElementById('detail-title').textContent = idea.title;
     const categoryLabel = CATEGORY_LABELS[idea.category] || CATEGORY_LABELS.general;
     document.getElementById('detail-content').innerHTML = `
+      <div class="detail-photo">
+        <img src="${escapeAttr(idea.image_url || categoryImage(idea.category))}" alt="" loading="lazy">
+      </div>
       <span class="card-category">${categoryLabel}</span>
       <p class="detail-why">${escapeHtml(idea.why || '')}</p>
+      ${idea.wow_reason ? `<p class="wow-line">✨ ${escapeHtml(idea.wow_reason)}</p>` : ''}
       <dl class="detail-grid">
         <dt>Location</dt><dd>${escapeHtml(idea.location || '—')}</dd>
+        ${idea.venue ? `<dt>Venue</dt><dd>${escapeHtml(idea.venue)}</dd>` : ''}
+        ${idea.date ? `<dt>Date</dt><dd>${escapeHtml(formatEventDate(idea.date))}</dd>` : ''}
         <dt>Good for</dt><dd>${escapeHtml(idea.good_for_ages || 'all ages')}</dd>
         <dt>Duration</dt><dd>${idea.duration_minutes ? formatDuration(idea.duration_minutes) : '—'}</dd>
-        <dt>Cost</dt><dd>${escapeHtml(idea.cost_tier || '—')}</dd>
+        <dt>Cost</dt><dd>${escapeHtml(idea.cost_tier || '—')}${idea.price_from != null ? ` · from ${escapeHtml(String(idea.price_from))}${idea.currency ? ' ' + escapeHtml(idea.currency) : ''}` : ''}</dd>
+        ${idea.rating != null ? `<dt>Rating</dt><dd>★ ${escapeHtml(String(idea.rating))}</dd>` : ''}
       </dl>
+      <div class="detail-links">
+        ${idea.booking_url ? `<a class="card-booking-link" href="${escapeAttr(idea.booking_url)}" target="_blank" rel="noopener noreferrer sponsored">Book this on ${idea.source === 'viator' ? 'Viator' : 'GetYourGuide'} ↗</a>` : ''}
+        ${idea.maps_url ? `<a class="card-booking-link card-booking-link--secondary" href="${escapeAttr(idea.maps_url)}" target="_blank" rel="noopener noreferrer">View on Google Maps ↗</a>` : ''}
+      </div>
     `;
     openPanel('detail-panel');
   }

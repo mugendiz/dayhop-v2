@@ -82,17 +82,37 @@ async function searchPlaces({ query, lat, lng, radiusMeters = 15000, maxResults 
   return places.map(normalizePlace);
 }
 
+const PRICE_LEVEL_TO_TIER = {
+  PRICE_LEVEL_FREE: 'free',
+  PRICE_LEVEL_INEXPENSIVE: '$',
+  PRICE_LEVEL_MODERATE: '$$',
+  PRICE_LEVEL_EXPENSIVE: '$$$',
+  PRICE_LEVEL_VERY_EXPENSIVE: '$$$'
+};
+
+function humanizeTypes(types) {
+  const skip = new Set(['point_of_interest', 'establishment']);
+  return types
+    .filter(t => !skip.has(t))
+    .slice(0, 2)
+    .map(t => t.replace(/_/g, ' '))
+    .join(' · ');
+}
+
 function normalizePlace(p) {
+  const types = p.types || [];
   return {
     place_id: p.id,
-    name: p.displayName?.text || 'Unknown place',
+    title: p.displayName?.text || 'Unknown place',
+    description: humanizeTypes(types),
     address: p.formattedAddress || '',
     lat: p.location?.latitude,
     lng: p.location?.longitude,
     rating: p.rating ?? null,
     rating_count: p.userRatingCount ?? 0,
     price_level: p.priceLevel || null,
-    types: p.types || [],
+    cost_tier: PRICE_LEVEL_TO_TIER[p.priceLevel] || null,
+    types,
     maps_url: p.googleMapsUri || null,
     open_hours: p.regularOpeningHours?.weekdayDescriptions || null
   };
