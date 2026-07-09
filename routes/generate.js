@@ -51,15 +51,26 @@ router.post('/', async (req, res) => {
     const { candidates, weather, usedGrounding } = await gatherCandidates(prompt, targetLocation, eventKeyword, filter);
 
     let ideas;
+    let degraded = false;
     if (usedGrounding) {
-      const selected = await grok.generateGroundedIdeas({
-        prompt,
-        filter,
-        city: targetLocation,
-        candidates: candidates.map(toGrokCandidate),
-        weather
-      });
-      ideas = mergeWithCandidates(selected, candidates);
+      try {
+        const selected = await grok.generateGroundedIdeas({
+          prompt,
+          filter,
+          city: targetLocation,
+          candidates: candidates.map(toGrokCandidate),
+          weather
+        });
+        ideas = mergeWithCandidates(selected, candidates);
+      } catch (err) {
+        // We already hold a relevance-ranked pool of real places — serve the
+        // top of it directly rather than failing the whole feed because the
+        // AI selection step timed out or misbehaved.
+        if (err.code === 'GROK_NOT_CONFIGURED' || err.code === 'INVALID_INPUT') throw err;
+        console.warn('[generate] Grok selection failed, serving ranked candidates directly:', err.message);
+        ideas = mergeWithCandidates(candidates.slice(0, 16).map(fallbackIdea), candidates);
+        degraded = true;
+      }
     } else {
       ideas = await grok.generateIdeas({ prompt, filter, city: targetLocation });
     }
@@ -67,6 +78,7 @@ router.post('/', async (req, res) => {
     res.json({
       ideas,
       grounded: usedGrounding,
+      degraded: degraded || undefined,
       weather: weather || null,
       generated_at: new Date().toISOString()
     });
@@ -122,6 +134,21 @@ function toGrokCandidate(c) {
     rating: c.rating != null ? c.rating : null,
     good_for_ages: c.good_for_ages || null,
     wow: c.wow === true || undefined
+  };
+}
+
+// A candidate rendered as an idea card without Grok's curation — used when
+// the AI selection step fails but the grounded pool is healthy.
+function fallbackIdea(c) {
+  return {
+    id: c.id,
+    source: c.source,
+    title: c.title,
+    category: c.category || 'general',
+    why: c.description || '',
+    location: c.venue || shortAddress(c.address || c.location) || '',
+    good_for_ages: c.good_for_ages || null,
+    cost_tier: c.cost_tier || null
   };
 }
 
@@ -433,6 +460,13 @@ function handleGrokError(err, res) {
   }
   if (err.code === 'INVALID_INPUT') {
     return res.status(400).json({ error: 'INVALID_INPUT', message: err.message });
+  }
+  if (err.code === 'ECONNABORTED' || /timeout/i.test(err.message || '')) {
+    console.error('[generate] Grok timed out:', err.message);
+    return res.status(504).json({
+      error: 'AI_TIMEOUT',
+      message: 'That took longer than usual — please try again.'
+    });
   }
   if (err.code === 'GROK_BAD_SHAPE' || err.code === 'NO_CANDIDATES') {
     console.error('[generate] Unexpected Grok response/shape:', err.message);
