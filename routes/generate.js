@@ -46,9 +46,12 @@ router.post('/', async (req, res) => {
 
   const targetLocation = (location && location.trim()) || (city && city.trim()) || DEFAULT_CITY;
   const eventKeyword = typeof event_keyword === 'string' ? event_keyword.trim().slice(0, 80) : '';
+  const userCoords = sanitizeCoords(req.body && req.body.coords);
 
   try {
-    const { candidates, weather, usedGrounding } = await gatherCandidates(prompt, targetLocation, eventKeyword, filter);
+    const { candidates, weather, usedGrounding, resolvedCity } =
+      await gatherCandidates(prompt, targetLocation, eventKeyword, filter, userCoords);
+    const cityForGrok = resolvedCity || targetLocation;
 
     let ideas;
     let degraded = false;
@@ -57,7 +60,7 @@ router.post('/', async (req, res) => {
         const selected = await grok.generateGroundedIdeas({
           prompt,
           filter,
-          city: targetLocation,
+          city: cityForGrok,
           candidates: candidates.map(toGrokCandidate),
           weather
         });
@@ -72,7 +75,7 @@ router.post('/', async (req, res) => {
         degraded = true;
       }
     } else {
-      ideas = await grok.generateIdeas({ prompt, filter, city: targetLocation });
+      ideas = await grok.generateIdeas({ prompt, filter, city: cityForGrok });
     }
 
     res.json({
@@ -80,6 +83,7 @@ router.post('/', async (req, res) => {
       grounded: usedGrounding,
       degraded: degraded || undefined,
       weather: weather || null,
+      near: userCoords ? resolvedCity || null : null,
       generated_at: new Date().toISOString()
     });
   } catch (err) {
@@ -111,7 +115,8 @@ function mergeWithCandidates(selectedIdeas, candidates) {
         venue: original.venue || null,
         civic: original.civic === true || undefined,
         also_from: original.also_from || undefined,
-        wow: original.wow === true || undefined
+        wow: original.wow === true || undefined,
+        distance_km: original.distance_km != null ? original.distance_km : undefined
       });
     });
 }
@@ -133,7 +138,8 @@ function toGrokCandidate(c) {
     price_from: c.price_from != null ? c.price_from : null,
     rating: c.rating != null ? c.rating : null,
     good_for_ages: c.good_for_ages || null,
-    wow: c.wow === true || undefined
+    wow: c.wow === true || undefined,
+    km_away: c.distance_km != null ? c.distance_km : undefined
   };
 }
 
@@ -176,20 +182,33 @@ const SOURCE_CAPS = {
 
 const CANDIDATE_POOL_CAP = 60;
 
-async function gatherCandidates(prompt, locationText, eventKeyword, filter) {
+async function gatherCandidates(prompt, locationText, eventKeyword, filter, userCoords) {
   let geo = null;
   let weather = null;
+  // With shared coordinates the locality comes from reverse geocoding and
+  // drives the GTA gate, Viator destination, and Grok's location context.
+  let resolvedCity = null;
 
-  // Normalize GTA-picker values into something geocodable: "Across the GTA"
-  // grounds on Toronto; strip "(Downtown)"-style hints; bias bare town names
-  // to Ontario so we don't accidentally geocode a same-named city elsewhere.
-  const geoText = toGeocodable(locationText);
-
-  try {
-    geo = await maps.geocode(geoText);
-  } catch (err) {
-    console.warn('[generate] Geocoding unavailable:', err.message);
+  if (userCoords) {
+    geo = { lat: userCoords.lat, lng: userCoords.lng };
+    try {
+      resolvedCity = (await maps.reverseGeocode(userCoords)).city;
+    } catch (err) {
+      console.warn('[generate] Reverse geocode unavailable:', err.message);
+    }
+  } else {
+    // Normalize GTA-picker values into something geocodable: "Across the GTA"
+    // grounds on Toronto; strip "(Downtown)"-style hints; bias bare GTA town
+    // names to Ontario so we don't geocode a same-named city elsewhere.
+    const geoText = toGeocodable(locationText);
+    try {
+      geo = await maps.geocode(geoText);
+    } catch (err) {
+      console.warn('[generate] Geocoding unavailable:', err.message);
+    }
   }
+
+  const localityText = resolvedCity || locationText;
 
   if (geo) {
     try {
@@ -201,7 +220,10 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter) {
 
   // The GTA-only sources (open data, curated, org-scoped Eventbrite) would be
   // wrong grounding for a request about some other city — skip them there.
-  const isGta = GTA_TOWNS.test(String(locationText || ''));
+  // A typed postal code ("L4C 1J8") won't name a town, so also check the
+  // geocoder's formatted address.
+  const isGta = GTA_TOWNS.test(String(localityText || '')) ||
+    Boolean(geo && GTA_TOWNS.test(String(geo.formatted_address || '')));
 
   // Theme expansion: "swimming" fans out to pools, beaches, splash pads,
   // paddling rentals, waterparks — the neighbourhood of the request, not
@@ -214,11 +236,11 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter) {
   const sources = [
     {
       name: 'google_places',
-      run: () => geo ? searchPlacesWithThemes(prompt, themeQueries, geo) : []
+      run: () => geo ? searchPlacesWithThemes(prompt, themeQueries, geo, Boolean(userCoords)) : []
     },
     {
       name: 'viator',
-      run: () => viator.resolveDestinationId(toViatorDestination(locationText))
+      run: () => viator.resolveDestinationId(toViatorDestination(localityText))
         .then(destinationId => viator.searchActivities({ destinationId }))
         .then(activities => activities.map(a => Object.assign({}, a, { id: a.product_code })))
     },
@@ -273,24 +295,56 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter) {
   // rank the whole pool against the prompt so the cap trims the least
   // relevant candidates instead of whichever source came last.
   const pool = dedupCandidates(interleave(bySource));
+
+  // With shared coordinates, distance becomes a first-class signal: shown on
+  // cards, boosted by the scorer, and visible to Grok as km_away.
+  if (userCoords) {
+    for (const c of pool) {
+      if (c.lat != null && c.lng != null) {
+        c.distance_km = relevance.haversineKm(userCoords, { lat: c.lat, lng: c.lng });
+      }
+    }
+  }
+
   const candidates = relevance.selectTop(
     relevance.scoreCandidates(pool, { prompt, themes, filter }),
     CANDIDATE_POOL_CAP
   );
-  return { candidates, weather, usedGrounding: candidates.length > 0 };
+  return { candidates, weather, usedGrounding: candidates.length > 0, resolvedCity };
+}
+
+// Coordinates from the browser (already rounded client-side). Anything
+// malformed is silently ignored — the request proceeds city-based.
+function sanitizeCoords(coords) {
+  if (!coords || typeof coords !== 'object') return null;
+  const lat = Number(coords.lat);
+  const lng = Number(coords.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
 }
 
 // Raw-prompt Places search plus up to 4 theme-expanded searches, all in
 // parallel; results from theme queries are tagged so the relevance scorer
-// knows they were already intent-matched.
-async function searchPlacesWithThemes(prompt, themeQueries, geo) {
+// knows they were already intent-matched. When the user shared their real
+// coordinates, bias tight (5 km — "around the corner") and add one wide
+// 15 km raw-prompt search so standout options further out still appear.
+async function searchPlacesWithThemes(prompt, themeQueries, geo, hyperLocal = false) {
+  const radiusMeters = hyperLocal ? 5000 : 15000;
   const searches = [
-    maps.searchPlaces({ query: prompt, lat: geo.lat, lng: geo.lng, maxResults: 8 })
+    maps.searchPlaces({ query: prompt, lat: geo.lat, lng: geo.lng, radiusMeters, maxResults: 8 })
       .then(places => places.map(p => Object.assign({}, p, { source: 'google_places', id: p.place_id })))
   ];
+  if (hyperLocal) {
+    searches.push(
+      maps.searchPlaces({ query: prompt, lat: geo.lat, lng: geo.lng, radiusMeters: 15000, maxResults: 6 })
+        .then(places => places.map(p => Object.assign({}, p, { source: 'google_places', id: p.place_id })))
+        .catch(() => [])
+    );
+  }
   for (const query of themeQueries) {
     searches.push(
-      maps.searchPlaces({ query, lat: geo.lat, lng: geo.lng, maxResults: 6 })
+      maps.searchPlaces({ query, lat: geo.lat, lng: geo.lng, radiusMeters, maxResults: 6 })
         .then(places => places.map(p => Object.assign({}, p, { source: 'google_places', id: p.place_id, theme_hit: true })))
         .catch(err => {
           console.warn(`[generate] places theme search "${query}" failed:`, err.message);
@@ -423,13 +477,22 @@ function toViatorDestination(text) {
   return t.replace(/\s*\([^)]*\)\s*/g, ' ').split(',')[0].trim();
 }
 
-// Turn a GTA-picker label into a geocodable place string.
+// Turn a GTA-picker label, free-typed city, or postal/zip code into a
+// geocodable place string.
+const CA_POSTAL_RE = /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/;
+const US_ZIP_RE = /^\d{5}(-\d{4})?$/;
+
 function toGeocodable(text) {
   const t = String(text || '').trim();
   if (!t) return DEFAULT_CITY;
   if (/across the gta|greater toronto/i.test(t)) return 'Toronto, Ontario';
+  if (CA_POSTAL_RE.test(t)) return `${t.toUpperCase()}, Canada`;
+  if (US_ZIP_RE.test(t)) return `${t}, USA`;
   const cleaned = t.replace(/\s*\([^)]*\)\s*/g, ' ').trim(); // drop "(Downtown)" etc.
-  return /,/.test(cleaned) ? cleaned : `${cleaned}, Ontario`;
+  if (/,/.test(cleaned)) return cleaned;
+  // Only bias bare names to Ontario when they're known GTA towns — a free-
+  // typed "Lisbon" should geocode to Portugal, not an Ontario hamlet.
+  return GTA_TOWNS.test(cleaned) ? `${cleaned}, Ontario` : cleaned;
 }
 
 router.post('/plan', async (req, res) => {

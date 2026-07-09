@@ -30,6 +30,8 @@ const generateLimiter = rateLimit({
 
 app.use('/api/generate', generateLimiter, require('./routes/generate'));
 app.use('/api/places', require('./routes/places'));
+app.use('/api/photo', require('./routes/photo'));
+app.use('/api/geo', require('./routes/geo'));
 app.use('/api/events', require('./routes/events'));
 app.use('/api/config', require('./routes/config'));
 app.use('/api/adventures', require('./routes/adventures'));

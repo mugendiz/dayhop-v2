@@ -52,7 +52,7 @@ ${locationRule(city)}
 - Prioritize: family-friendly activities, World Cup 2026 watch parties/public viewings, splash pads & playgrounds, patios & rooftops, beaches & waterparks, day cruises, and standout local experiences (helicopter tours, etc.) when relevant to the prompt.
 - Never invent a fake specific business name with false confidence — if unsure of an exact venue, describe the type of place and area generically (e.g. "a family-friendly patio near Yonge & 16th") rather than fabricating a precise address or claiming a brand exists.
 - Keep tone warm, plain, and trustworthy. No hype, no exclamation overload.
-- Each idea must include a clear, honest one-line "why" — the actual reason it fits the request, not generic marketing copy.
+- Each idea's "why" is one short, warm, benefit-driven sentence (max ~110 characters): how it feels and why it fits their request — never a feature list. Good: "Lively sports bar with big screens and great craft beer — perfect for catching the match with friends." Bad: "Sports bar with multiple big screens perfect for afternoon World Cup watch parties with friends and craft beer options."
 - Return ONLY valid JSON. No markdown fences, no commentary, no preamble.
 
 JSON shape to return:
@@ -95,6 +95,7 @@ Hard rules:
 - Dated events only fit if their date works for the request; prefer sooner over later and mention the date in "why".
 - If an "active_filter" is provided in the request, weight your selection toward that category where it genuinely fits, but never force a bad match.
 - Never select two candidates that are effectively the same place or event under slightly different names — keep the one with better data (rating, booking link) and drop the other.
+- When candidates include "km_away" (distance from the user's shared location), prefer closer options when quality is comparable, and you may mention proximity in "why" (e.g. "a five-minute walk from you").
 - Keep tone warm, plain, and trustworthy. No hype.
 - Return ONLY valid JSON, no markdown fences, no commentary.
 
@@ -106,7 +107,7 @@ JSON shape to return:
       "source": "copy the candidate's source field exactly (e.g. google_places, ticketmaster, eventbrite, toronto_open_data, york_open_data, curated, viator, getyourguide)",
       "title": "string, from the candidate, lightly cleaned up if needed",
       "category": "one of: worldcup | kids | patios | water | cruises | adventures | culture | food | general",
-      "why": "string, one sentence, honest reason this fits the request (and weather, if relevant)",
+      "why": "one short, warm, benefit-driven sentence (max ~110 characters) — how it feels and why it fits the request (and weather, if relevant), never a feature list. Good: 'Lively sports bar with big screens and great craft beer — perfect for catching the match with friends.'",
       "location": "string, neighborhood or area name",
       "good_for_ages": "string",
       "cost_tier": "one of: free | $ | $$ | $$$",
@@ -165,6 +166,9 @@ async function callGrok(messages, { temperature = 0.7 } = {}) {
       model: GROK_MODEL,
       messages,
       temperature,
+      // 16-22 ideas of JSON ≈ 2K tokens; leave real headroom so the
+      // response is never truncated mid-string (which breaks JSON.parse).
+      max_tokens: 6000,
       response_format: { type: 'json_object' }
     },
     {

@@ -73,6 +73,7 @@ async function searchPlaces({ query, lat, lng, radiusMeters = 15000, maxResults 
         'places.priceLevel',
         'places.types',
         'places.googleMapsUri',
+        'places.photos',
         'places.regularOpeningHours.weekdayDescriptions'
       ].join(',')
     }
@@ -101,10 +102,13 @@ function humanizeTypes(types) {
 
 function normalizePlace(p) {
   const types = p.types || [];
+  const photoName = p.photos?.[0]?.name || null;
   return {
     place_id: p.id,
     title: p.displayName?.text || 'Unknown place',
     description: humanizeTypes(types),
+    // Served through our /api/photo proxy so the API key stays server-side.
+    image_url: photoName ? `/api/photo?name=${encodeURIComponent(photoName)}` : null,
     address: p.formattedAddress || '',
     lat: p.location?.latitude,
     lng: p.location?.longitude,
@@ -118,4 +122,82 @@ function normalizePlace(p) {
   };
 }
 
-module.exports = { geocode, searchPlaces };
+// Reverse geocode lat/lng into a friendly locality label ("Richmond Hill",
+// postal prefix "L4C"). Cached on rounded coords — the frontend rounds to
+// 3 decimals (~110 m) before sending, so keys are naturally coarse.
+const reverseCache = new Map();
+const REVERSE_TTL_MS = 24 * 60 * 60 * 1000;
+
+async function reverseGeocode({ lat, lng }) {
+  assertConfigured();
+  const key = `${Number(lat).toFixed(3)},${Number(lng).toFixed(3)}`;
+  const cached = reverseCache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.value;
+
+  const res = await axios.get(GEOCODE_URL, {
+    params: {
+      latlng: `${lat},${lng}`,
+      result_type: 'locality|neighborhood|postal_code',
+      key: process.env.GOOGLE_MAPS_API_KEY
+    },
+    timeout: 8000
+  });
+
+  const results = res.data?.results || [];
+  if (!results.length) {
+    const err = new Error('No reverse-geocode match for that location');
+    err.code = 'REVERSE_NOT_FOUND';
+    throw err;
+  }
+
+  let city = null;
+  let neighborhood = null;
+  let postalPrefix = null;
+  for (const result of results) {
+    for (const comp of result.address_components || []) {
+      if (!city && comp.types.includes('locality')) city = comp.long_name;
+      if (!neighborhood && comp.types.includes('neighborhood')) neighborhood = comp.long_name;
+      if (!postalPrefix && comp.types.includes('postal_code')) {
+        postalPrefix = comp.long_name.replace(/\s/g, '').slice(0, 3).toUpperCase();
+      }
+    }
+  }
+  if (!city) city = neighborhood;
+  if (!city) {
+    const err = new Error('No locality in reverse-geocode result');
+    err.code = 'REVERSE_NOT_FOUND';
+    throw err;
+  }
+
+  const label = [neighborhood && neighborhood !== city ? neighborhood : null, city, postalPrefix]
+    .filter(Boolean).join(' · ');
+  const value = { city, label };
+  reverseCache.set(key, { value, expires: Date.now() + REVERSE_TTL_MS });
+  return value;
+}
+
+// Resolve a Places photo resource name ("places/…/photos/…") to its
+// image URI. Cached in-memory so repeat card renders don't re-hit Google.
+const photoUriCache = new Map();
+const PHOTO_TTL_MS = 12 * 60 * 60 * 1000;
+
+async function getPhotoUri(photoName, { maxWidthPx = 800 } = {}) {
+  assertConfigured();
+  const cached = photoUriCache.get(photoName);
+  if (cached && cached.expires > Date.now()) return cached.uri;
+
+  const res = await axios.get(`${PLACES_BASE}/${photoName}/media`, {
+    params: { maxWidthPx, skipHttpRedirect: true, key: process.env.GOOGLE_MAPS_API_KEY },
+    timeout: 8000
+  });
+  const uri = res.data?.photoUri;
+  if (!uri) {
+    const err = new Error('Places returned no photoUri');
+    err.code = 'PHOTO_NOT_FOUND';
+    throw err;
+  }
+  photoUriCache.set(photoName, { uri, expires: Date.now() + PHOTO_TTL_MS });
+  return uri;
+}
+
+module.exports = { geocode, searchPlaces, getPhotoUri, reverseGeocode };

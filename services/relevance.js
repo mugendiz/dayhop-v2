@@ -97,6 +97,14 @@ function scoreCandidates(candidates, { prompt, themes = [], filter } = {}) {
     if (candidate.wow === true) score += 1;
     if (candidate.civic === true || candidate.cost_tier === 'free') score += 0.5;
 
+    // Proximity (set when the user shared their location): "around the
+    // corner" beats "across the region" for equally relevant candidates.
+    if (candidate.distance_km != null) {
+      if (candidate.distance_km <= 2) score += 2.5;
+      else if (candidate.distance_km <= 5) score += 1.5;
+      else if (candidate.distance_km <= 10) score += 0.5;
+    }
+
     return { candidate, score };
   });
 }
@@ -131,4 +139,15 @@ function selectTop(scored, cap = 60) {
   return sorted.filter(e => picked.has(e)).map(e => e.candidate);
 }
 
-module.exports = { scoreCandidates, selectTop, tokenize };
+// Great-circle distance in km, one decimal.
+function haversineKm(a, b) {
+  const R = 6371;
+  const toRad = d => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return Math.round(R * 2 * Math.asin(Math.sqrt(h)) * 10) / 10;
+}
+
+module.exports = { scoreCandidates, selectTop, tokenize, haversineKm };

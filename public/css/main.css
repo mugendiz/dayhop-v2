@@ -23,9 +23,11 @@
   --radius-sm: 10px;  /* small controls */
   --radius-pill: 999px;
   --ease: cubic-bezier(0.22, 1, 0.36, 1); /* gentle settle for transitions */
-  --display: 'Fraunces', Georgia, serif;
-  --body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --mono: 'IBM Plex Mono', 'SFMono-Regular', monospace;
+  /* DayHop V2 type system: Satoshi (headings/brand, via Fontshare),
+     Inter (body/UI), Space Grotesk (badges, stamps, accent labels). */
+  --display: 'Satoshi', system-ui, sans-serif;
+  --body: 'Inter', system-ui, sans-serif;
+  --mono: 'Space Grotesk', 'IBM Plex Mono', monospace;
 }
 
 * { box-sizing: border-box; }
@@ -51,9 +53,21 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3 { font-family: var(--display); margin: 0; color: var(--ink); }
+h1, h2, h3 {
+  font-family: var(--display);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--ink);
+}
 p { margin: 0; }
-button { font-family: var(--body); cursor: pointer; }
+button, .filter-chip {
+  font-family: var(--display);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+}
 :focus-visible { outline: 2px solid var(--coral); outline-offset: 2px; }
 
 .sr-only {
@@ -112,7 +126,7 @@ button { font-family: var(--body); cursor: pointer; }
 
 .logo {
   font-family: var(--display);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 22px;
   letter-spacing: -0.01em;
 }
@@ -139,7 +153,7 @@ button { font-family: var(--body); cursor: pointer; }
   border: 1px solid rgba(251,247,238,0.3);
   color: var(--paper);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   padding: 7px 14px;
   border-radius: var(--radius-pill);
   transition: background 0.15s ease, transform 0.15s var(--ease);
@@ -166,7 +180,7 @@ button { font-family: var(--body); cursor: pointer; }
   border: 1px solid rgba(251,247,238,0.3);
   color: rgba(251,247,238,0.85);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   padding: 6px 11px;
   border-radius: var(--radius-pill);
   transition: background 0.15s ease;
@@ -198,7 +212,7 @@ button { font-family: var(--body); cursor: pointer; }
 .hero h1 {
   font-size: clamp(36px, 6vw, 60px);
   line-height: 1.06;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.015em;
   text-shadow: 0 2px 18px rgba(11,31,34,0.45);
 }
@@ -206,7 +220,7 @@ button { font-family: var(--body); cursor: pointer; }
 /* Large headline phrase with the city photo ingrained into the letters. */
 .hero h1 span {
   font-style: italic;
-  font-weight: 600;
+  font-weight: 700; /* Satoshi is loaded at 500/700(+italic) only */
   color: var(--marigold); /* fallback if background-clip:text is unsupported */
 }
 
@@ -244,21 +258,44 @@ button { font-family: var(--body); cursor: pointer; }
   text-align: left;
 }
 
+/* The Where field is step one — framed in coral so nobody searches
+   location-less, and pulsing until a location is explicitly chosen. */
 .prompt-location {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--line);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border: 2px solid var(--coral);
+  border-radius: var(--radius-md);
+  background: rgba(255,107,74,0.07);
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .prompt-location-label {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--ink-soft);
+  color: var(--coral-dark);
   white-space: nowrap;
+}
+
+.prompt-location--unset { animation: wherePulse 2.4s ease-in-out infinite; }
+@keyframes wherePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,107,74,0.35); }
+  55% { box-shadow: 0 0 0 7px rgba(255,107,74,0); }
+}
+
+.prompt-location--error {
+  border-color: var(--coral-dark);
+  background: rgba(255,107,74,0.16);
+  animation: whereShake 0.3s ease;
+}
+@keyframes whereShake {
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
 }
 
 /* Location autocomplete (combobox) */
@@ -373,7 +410,7 @@ button { font-family: var(--body); cursor: pointer; }
   border: none;
   padding: 13px 22px;
   border-radius: var(--radius-md);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 15px;
   letter-spacing: 0.01em;
   transition: transform 0.18s var(--ease), background 0.15s ease, box-shadow 0.18s var(--ease);
@@ -453,6 +490,67 @@ button { font-family: var(--body); cursor: pointer; }
   color: var(--paper);
 }
 
+/* ---------- Results header + curated collections ---------- */
+.results-header { margin-top: 30px; }
+.results-header h2 { font-size: 26px; }
+.results-sub {
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+
+.collections {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  margin-top: 16px;
+  padding-bottom: 6px;
+  scrollbar-width: none;
+}
+.collections::-webkit-scrollbar { display: none; }
+
+.collection-card {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  padding: 10px 16px 10px 10px;
+  box-shadow: var(--shadow-soft);
+  text-align: left;
+  transition: transform 0.15s var(--ease), box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.collection-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--coral); }
+.collection-card:active { transform: translateY(0) scale(0.98); }
+
+.collection-thumbs {
+  display: flex;
+  flex-shrink: 0;
+}
+.collection-thumbs img {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 2px solid white;
+  margin-left: -12px;
+}
+.collection-thumbs img:first-child { margin-left: 0; }
+
+.collection-text { display: flex; flex-direction: column; gap: 2px; }
+.collection-text strong { font-size: 14px; color: var(--ink); }
+.collection-text span {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
 /* ---------- Discovery feed ---------- */
 .section-header {
   display: flex;
@@ -461,7 +559,7 @@ button { font-family: var(--body); cursor: pointer; }
   margin: 28px 0 4px;
 }
 
-.section-header h2 { font-size: 24px; font-weight: 600; }
+.section-header h2 { font-size: 24px; }
 
 .count {
   font-family: var(--mono);
@@ -575,7 +673,7 @@ button { font-family: var(--body); cursor: pointer; }
 .card-photo {
   position: relative;
   margin: -18px -18px 0;
-  height: 140px;
+  height: 210px;
   border-radius: 17px 17px 0 0;
   overflow: hidden;
   background: var(--paper-dim);
@@ -683,7 +781,7 @@ button { font-family: var(--body); cursor: pointer; }
 
 .idea-card h3 {
   font-size: 19px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.3;
   margin-top: 8px;
 }
@@ -692,11 +790,15 @@ button { font-family: var(--body); cursor: pointer; }
   font-size: 14.5px;
   color: var(--ink-soft);
   line-height: 1.5;
+  /* One strong line, two max — faster scanning (full text in Details). */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .card-meta {
   display: flex;
-  gap: 10px;
   flex-wrap: wrap;
   font-family: var(--mono);
   font-size: 11.5px;
@@ -704,6 +806,37 @@ button { font-family: var(--body); cursor: pointer; }
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
+
+/* Grouped "Location · Time · Cost" reading with dot separators. */
+.card-meta span + span::before {
+  content: '·';
+  margin: 0 7px;
+  color: var(--line-strong);
+}
+
+.card-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.card-chip {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  background: var(--paper-dim);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+.card-chip--free { background: rgba(63,111,92,0.14); color: var(--moss); font-weight: 600; }
+.card-chip--date { background: rgba(255,182,39,0.16); color: var(--ink); }
+.card-chip--near { background: rgba(255,107,74,0.12); color: var(--coral-dark); font-weight: 600; }
+
+/* Location dropdown action rows (use-my-location / free-text search). */
+.location-option--geo .opt-city { color: var(--coral-dark); font-weight: 500; }
+.location-option--search .opt-city { color: var(--ink); font-weight: 500; }
 
 .card-actions {
   display: flex;
@@ -718,7 +851,7 @@ button { font-family: var(--body); cursor: pointer; }
   border-radius: var(--radius-sm);
   padding: 9px 12px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   transition: background 0.15s ease, transform 0.15s var(--ease), color 0.15s ease;
 }
 
@@ -810,7 +943,7 @@ button { font-family: var(--body); cursor: pointer; }
   border-radius: var(--radius-md);
   padding: 10px 18px;
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--ink);
   transition: background 0.15s ease, transform 0.15s var(--ease);
 }
@@ -830,7 +963,7 @@ button { font-family: var(--body); cursor: pointer; }
   display: flex;
   align-items: center;
   gap: 10px;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
   box-shadow: var(--shadow);
   z-index: 30;
@@ -920,6 +1053,30 @@ button { font-family: var(--body); cursor: pointer; }
 
 .shortlist-row strong { display: block; font-size: 14.5px; }
 .shortlist-row-meta { font-family: var(--mono); font-size: 11px; color: var(--ink-soft); }
+.shortlist-row-text { flex: 1; min-width: 0; }
+
+.shortlist-summary {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: -6px 0 12px;
+}
+
+.shortlist-order { display: flex; flex-direction: column; gap: 2px; margin-right: 10px; }
+.btn-move {
+  background: var(--paper-dim);
+  border: none;
+  border-radius: 6px;
+  font-size: 9px;
+  line-height: 1;
+  padding: 4px 7px;
+  color: var(--ink-soft);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.btn-move:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
+.btn-move:disabled { opacity: 0.35; cursor: default; }
 
 .btn-remove {
   background: transparent;
@@ -931,8 +1088,9 @@ button { font-family: var(--body); cursor: pointer; }
 
 .shortlist-empty { color: var(--ink-soft); font-size: 14.5px; line-height: 1.6; padding: 20px 0; }
 
-.panel-footer { margin-top: 16px; }
+.panel-footer { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
 .panel-footer .primary-btn { width: 100%; }
+.surprise-btn { width: 100%; margin-top: 0; }
 
 /* Day plan */
 .plan-start { font-size: 14.5px; color: var(--ink-soft); margin-bottom: 18px; }
@@ -1020,6 +1178,25 @@ button { font-family: var(--body); cursor: pointer; }
 
 .toast--visible { opacity: 1; transform: translate(-50%, 0); }
 
+.toast-action {
+  background: none;
+  border: none;
+  color: var(--marigold);
+  font-weight: 700;
+  font-size: 13.5px;
+  margin-left: 12px;
+  padding: 0;
+  text-decoration: underline;
+}
+
+/* Shortlist count badge pop when an idea is added/removed. */
+@keyframes countPulse {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.45); }
+  100% { transform: scale(1); }
+}
+.count-pulse { animation: countPulse 0.4s var(--ease); }
+
 /* ---------- Auth modal ---------- */
 .modal {
   position: fixed;
@@ -1070,7 +1247,7 @@ button { font-family: var(--body); cursor: pointer; }
   border-radius: var(--radius-md);
   padding: 12px;
   font-size: 14.5px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--ink);
   transition: background 0.15s ease, transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
@@ -1138,7 +1315,7 @@ button { font-family: var(--body); cursor: pointer; }
   background: none;
   border: none;
   color: var(--coral-dark);
-  font-weight: 600;
+  font-weight: 500;
   font-size: 13.5px;
   padding: 0 0 0 4px;
   text-decoration: underline;
@@ -1181,7 +1358,7 @@ button { font-family: var(--body); cursor: pointer; }
   .card-feed { padding-left: 24px; }
   .idea-card { padding: 16px 16px 12px; }
   .idea-card::before { left: -24px; }
-  .card-photo { margin: -16px -16px 0; height: 124px; }
+  .card-photo { margin: -16px -16px 0; height: 180px; }
 
   .card-actions { flex-wrap: wrap; }
   .btn-add { flex: 1 0 100%; order: -1; } /* primary action full-width on top */

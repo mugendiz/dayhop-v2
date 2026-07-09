@@ -50,8 +50,16 @@
     city: GTA_WIDE,
     user: null,
     isGenerating: false,
-    isBuildingPlan: false
+    isBuildingPlan: false,
+    lastPrompt: '',
+    lastWeather: null,
+    coords: null,        // { lat, lng } rounded to ~110 m, only if user opted in
+    coordsAt: 0,
+    locationLabel: null, // e.g. "Richmond Hill · L4C"
+    locationChosen: false // user must explicitly pick a location before searching
   };
+
+  const COORDS_FRESH_MS = 30 * 60 * 1000;
 
   // ---------- Persistence (survive refresh) ----------
   const STORAGE_KEY = 'dayhop_state_v2';
@@ -63,6 +71,16 @@
       const saved = JSON.parse(raw);
       state.shortlist = saved.shortlist || [];
       if (saved.city) state.city = saved.city;
+      // Re-use a recent opt-in location so a refresh doesn't lose "near you",
+      // but let it expire — people move.
+      if (saved.coords && saved.coordsAt && Date.now() - saved.coordsAt < COORDS_FRESH_MS) {
+        state.coords = saved.coords;
+        state.coordsAt = saved.coordsAt;
+        state.locationLabel = saved.locationLabel || null;
+      }
+      // Returning users who picked before don't have to pick again.
+      state.locationChosen = Boolean(saved.locationChosen) || Boolean(state.coords) ||
+        Boolean(saved.city && saved.city !== GTA_WIDE);
     } catch (e) {
       console.warn('Could not load saved DayHop state', e);
     }
@@ -70,7 +88,14 @@
 
   function persist() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ shortlist: state.shortlist, city: state.city }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        shortlist: state.shortlist,
+        city: state.city,
+        coords: state.coords,
+        coordsAt: state.coordsAt,
+        locationLabel: state.locationLabel,
+        locationChosen: state.locationChosen
+      }));
     } catch (e) {
       // ignore quota errors silently — not critical to function
     }
@@ -86,19 +111,23 @@
     return list;
   })();
 
-  const combo = { input: null, listbox: null, activeIndex: -1, filtered: [], debounce: null };
+  const combo = { input: null, listbox: null, activeIndex: -1, filtered: [], debounce: null, locating: false };
+
+  // What the location input should display for the current state.
+  function locationDisplayValue() {
+    return state.coords && state.locationLabel ? `📍 Near you · ${state.locationLabel}` : state.city;
+  }
 
   function setupLocationCombo() {
     const input = document.getElementById('location-input');
     const listbox = document.getElementById('location-listbox');
     if (!input || !listbox) return;
 
-    // Validate any persisted city still exists; otherwise fall back to GTA-wide.
-    if (!LOCATION_OPTIONS.some(o => o.city === state.city)) state.city = GTA_WIDE;
+    if (!state.city) state.city = GTA_WIDE;
 
     combo.input = input;
     combo.listbox = listbox;
-    input.value = state.city;
+    input.value = locationDisplayValue();
     updateLocationTag();
 
     input.addEventListener('focus', () => openLocationList(''));
@@ -113,7 +142,9 @@
   }
 
   function openLocationList(query) {
-    const q = (query || '').trim().toLowerCase();
+    const raw = (query || '').trim();
+    // The synthetic "Near you" label isn't a search query — show the full list.
+    const q = raw.startsWith('📍') ? '' : raw.toLowerCase();
     combo.filtered = q
       ? LOCATION_OPTIONS.filter(o => o.city.toLowerCase().includes(q) || o.region.toLowerCase().includes(q))
       : LOCATION_OPTIONS.slice();
@@ -125,23 +156,131 @@
 
   function renderLocationOptions(q) {
     const lb = combo.listbox;
-    if (!combo.filtered.length) {
-      lb.innerHTML = '<li class="location-option location-option--empty">No GTA match — try “Toronto” or “Markham”, or clear to plan across the GTA.</li>';
-      return;
-    }
-    lb.innerHTML = combo.filtered.map((o, i) => `
+    const rows = [];
+
+    // Pinned: geolocation on an explicit user gesture (never on page load).
+    rows.push(`
+      <li class="location-option location-option--geo" role="option" data-kind="geo">
+        <span class="opt-city">${combo.locating ? '📍 Locating…' : '📍 Use my current location'}</span>
+        <span class="opt-region">Ideas around the corner</span>
+      </li>`);
+
+    rows.push(...combo.filtered.map((o, i) => `
       <li id="loc-opt-${i}" class="location-option" role="option"
-          data-city="${escapeAttr(o.city)}" aria-selected="${o.city === state.city}">
+          data-kind="city" data-city="${escapeAttr(o.city)}" aria-selected="${o.city === state.city}">
         <span class="opt-city">${highlight(o.city, q)}</span>
         ${o.region ? `<span class="opt-region">${escapeHtml(o.region)}</span>` : ''}
-      </li>`).join('');
+      </li>`));
 
-    lb.querySelectorAll('.location-option[data-city]').forEach(li => {
+    // Anything typed that isn't a GTA option is searchable as free text —
+    // a city anywhere, an address, a zip or postal code.
+    if (q && !combo.filtered.some(o => o.city.toLowerCase() === q)) {
+      rows.push(`
+        <li class="location-option location-option--search" role="option" data-kind="search" data-text="${escapeAttr(q)}">
+          <span class="opt-city">🔎 Search “${escapeHtml(q)}”</span>
+          <span class="opt-region">City, address, zip or postal code</span>
+        </li>`);
+    }
+
+    lb.innerHTML = rows.join('');
+    lb.querySelectorAll('.location-option[data-kind]').forEach(li => {
       li.addEventListener('mousedown', (e) => {
         e.preventDefault(); // keep focus so blur doesn't pre-empt the select
-        selectLocation(li.dataset.city);
+        commitLocationOption(li);
       });
     });
+  }
+
+  function commitLocationOption(li) {
+    const kind = li.dataset.kind;
+    if (kind === 'geo') { useMyLocation(); return; }
+    if (kind === 'search') { selectFreeTextLocation(combo.input.value.trim()); return; }
+    selectLocation(li.dataset.city);
+  }
+
+  function selectFreeTextLocation(text) {
+    if (!text) return;
+    state.city = text;
+    state.coords = null;
+    state.locationLabel = null;
+    combo.input.value = text;
+    markLocationChosen();
+    persist();
+    updateLocationTag();
+    closeLocationList();
+  }
+
+  // Best practice: request the permission only from this explicit gesture,
+  // and always leave the typed fallback available if it's declined.
+  function useMyLocation() {
+    if (combo.locating) return;
+    if (!navigator.geolocation) {
+      showToast("Your browser doesn't support location — type a city or postal code instead.");
+      return;
+    }
+
+    const start = () => {
+      combo.locating = true;
+      renderLocationOptions('');
+      navigator.geolocation.getCurrentPosition(onGeoSuccess, onGeoError, {
+        enableHighAccuracy: false,
+        timeout: 8000,
+        maximumAge: 300000
+      });
+    };
+
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'geolocation' }).then(status => {
+        if (status.state === 'denied') {
+          showToast('Location is blocked in your browser settings — type a city or postal code instead.', { duration: 4500 });
+          combo.input.focus();
+        } else {
+          start();
+        }
+      }).catch(start);
+    } else {
+      start();
+    }
+  }
+
+  async function onGeoSuccess(position) {
+    combo.locating = false;
+    // Round to ~110 m before anything leaves the browser — the server never
+    // sees (or stores) precise coordinates.
+    const lat = Math.round(position.coords.latitude * 1000) / 1000;
+    const lng = Math.round(position.coords.longitude * 1000) / 1000;
+    state.coords = { lat, lng };
+    state.coordsAt = Date.now();
+
+    try {
+      const res = await fetch(`/api/geo/reverse?lat=${lat}&lng=${lng}`);
+      if (res.ok) {
+        const data = await res.json();
+        state.city = data.city || state.city;
+        state.locationLabel = data.label || data.city || 'your area';
+      } else {
+        state.locationLabel = 'your area';
+      }
+    } catch (e) {
+      state.locationLabel = 'your area';
+    }
+
+    combo.input.value = locationDisplayValue();
+    markLocationChosen();
+    persist();
+    updateLocationTag();
+    closeLocationList();
+    showToast('Showing ideas near you 📍');
+  }
+
+  function onGeoError(err) {
+    combo.locating = false;
+    renderLocationOptions('');
+    const blocked = err && err.code === 1; // PERMISSION_DENIED
+    showToast(blocked
+      ? 'No problem — search a city, address, or postal code instead.'
+      : "Couldn't get your location — search a city or postal code instead.", { duration: 4500 });
+    combo.input.focus();
   }
 
   function highlight(text, q) {
@@ -154,7 +293,7 @@
   }
 
   function moveActive(dir) {
-    const items = combo.listbox.querySelectorAll('.location-option[data-city]');
+    const items = combo.listbox.querySelectorAll('.location-option[data-kind]');
     if (!items.length) return;
     let idx = combo.activeIndex + dir;
     if (idx < 0) idx = items.length - 1;
@@ -174,19 +313,37 @@
       e.preventDefault();
       if (open) moveActive(-1);
     } else if (e.key === 'Enter') {
-      if (open && combo.activeIndex >= 0) {
+      if (open) {
         e.preventDefault();
-        const opt = combo.filtered[combo.activeIndex];
-        if (opt) selectLocation(opt.city);
+        const items = combo.listbox.querySelectorAll('.location-option[data-kind]');
+        if (combo.activeIndex >= 0 && items[combo.activeIndex]) {
+          commitLocationOption(items[combo.activeIndex]);
+        } else if (combo.input.value.trim() && !combo.input.value.startsWith('📍')) {
+          // Enter on free-typed text (postal code, city, address) searches it.
+          selectFreeTextLocation(combo.input.value.trim());
+        }
       }
     } else if (e.key === 'Escape') {
       if (open) { e.stopPropagation(); closeLocationList(); }
     }
   }
 
+  function markLocationChosen() {
+    state.locationChosen = true;
+    updateWhereEmphasis();
+  }
+
+  function updateWhereEmphasis() {
+    const el = document.getElementById('prompt-location');
+    if (el) el.classList.toggle('prompt-location--unset', !state.locationChosen);
+  }
+
   function selectLocation(city) {
     state.city = city;
+    state.coords = null;
+    state.locationLabel = null;
     combo.input.value = city;
+    markLocationChosen();
     persist();
     updateLocationTag();
     closeLocationList();
@@ -200,27 +357,44 @@
     combo.activeIndex = -1;
     combo.input.setAttribute('aria-expanded', 'false');
     combo.input.removeAttribute('aria-activedescendant');
-    // Commit: free-typed text that isn't a real option reverts to the current city.
-    if (combo.input.value.trim() !== state.city) combo.input.value = state.city;
+    // Commit: uncommitted typed text reverts to the current selection.
+    if (combo.input.value.trim() !== locationDisplayValue()) combo.input.value = locationDisplayValue();
   }
 
   function updateLocationTag() {
     const tag = document.getElementById('location-tag');
-    if (tag) tag.textContent = state.city === GTA_WIDE ? 'Greater Toronto Area' : state.city;
+    if (!tag) return;
+    if (state.coords && state.locationLabel) tag.textContent = `📍 ${state.locationLabel}`;
+    else tag.textContent = state.city === GTA_WIDE ? 'Greater Toronto Area' : state.city;
   }
 
   // ---------- Toast ----------
   let toastTimer = null;
-  function showToast(message, { duration = 2600 } = {}) {
+  function showToast(message, { duration = 2600, actionLabel, onAction } = {}) {
     const el = document.getElementById('toast');
     el.textContent = message;
+    if (actionLabel && typeof onAction === 'function') {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'toast-action';
+      btn.textContent = actionLabel;
+      btn.addEventListener('click', () => {
+        hideToast();
+        onAction();
+      });
+      el.appendChild(btn);
+    }
     el.hidden = false;
     requestAnimationFrame(() => el.classList.add('toast--visible'));
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
-      el.classList.remove('toast--visible');
-      setTimeout(() => { el.hidden = true; }, 200);
-    }, duration);
+    toastTimer = setTimeout(hideToast, duration);
+  }
+
+  function hideToast() {
+    const el = document.getElementById('toast');
+    clearTimeout(toastTimer);
+    el.classList.remove('toast--visible');
+    setTimeout(() => { el.hidden = true; }, 200);
   }
 
   // ---------- Panels ----------
@@ -292,7 +466,7 @@
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, filter, city: state.city })
+      body: JSON.stringify({ prompt, filter, city: state.city, coords: state.coords || undefined })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -403,6 +577,8 @@
     document.getElementById('idea-count').textContent = !hasIdeas
       ? 'Tell DayHop your plan to get started'
       : `${ideas.length} idea${ideas.length === 1 ? '' : 's'} · ${state.shortlist.length} on your shortlist`;
+
+    renderCollections();
   }
 
   function createIdeaCard(idea, index, animate = false) {
@@ -435,22 +611,18 @@
         <p class="why">${escapeHtml(idea.why || '')}</p>
         ${idea.wow_reason ? `<p class="wow-line">✨ ${escapeHtml(idea.wow_reason)}</p>` : ''}
         <div class="card-meta">
-          <span>${escapeHtml(idea.location || '')}</span>
-          ${idea.date ? `<span class="card-date">${escapeHtml(formatEventDate(idea.date))}</span>` : ''}
+          ${idea.location ? `<span>${escapeHtml(idea.location)}</span>` : ''}
           ${idea.duration_minutes ? `<span>${formatDuration(idea.duration_minutes)}</span>` : ''}
           ${idea.cost_tier ? `<span>${escapeHtml(idea.cost_tier)}</span>` : ''}
-          ${idea.rating != null ? `<span>★ ${escapeHtml(String(idea.rating))}</span>` : ''}
-          ${idea.price_from != null ? `<span>from ${escapeHtml(String(idea.price_from))}${idea.currency ? ' ' + escapeHtml(idea.currency) : ''}</span>` : ''}
-          ${idea.civic ? '<span title="From your city\'s official events feed">🏛 City event</span>' : ''}
-          ${idea.also_from && idea.also_from.length ? `<span title="Also listed by ${escapeAttr(idea.also_from.join(', '))}">+${idea.also_from.length} source${idea.also_from.length > 1 ? 's' : ''}</span>` : ''}
         </div>
+        ${buildCardChips(idea)}
         ${idea.booking_url ? `<a class="card-booking-link" href="${escapeAttr(idea.booking_url)}" target="_blank" rel="noopener noreferrer sponsored">Book this on ${idea.source === 'viator' ? 'Viator' : 'GetYourGuide'} ↗</a>` : ''}
         ${!idea.booking_url && idea.maps_url ? `<a class="card-booking-link card-booking-link--secondary" href="${escapeAttr(idea.maps_url)}" target="_blank" rel="noopener noreferrer">View on Google Maps ↗</a>` : ''}
       </div>
       <div class="card-actions">
         <button class="btn-dismiss" type="button" title="Not for us">✕ Skip</button>
         <button class="btn-detail" type="button" title="See details">Details</button>
-        <button class="btn-add" type="button" title="Add to shortlist">Add to plan →</button>
+        <button class="btn-add" type="button" title="Add to your day">Add to my day →</button>
       </div>
     `;
 
@@ -482,6 +654,20 @@
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
     return m ? `${h}h ${m}m` : `${h}h`;
+  }
+
+  // Secondary chip row: date, rating, price, provenance — kept apart from
+  // the primary "Location · Time · Cost" meta line for cleaner scanning.
+  function buildCardChips(idea) {
+    const chips = [];
+    if (idea.distance_km != null) chips.push(`<span class="card-chip card-chip--near">📍 ${escapeHtml(String(idea.distance_km))} km</span>`);
+    if (idea.date) chips.push(`<span class="card-chip card-chip--date">📅 ${escapeHtml(formatEventDate(idea.date))}</span>`);
+    if (idea.rating != null) chips.push(`<span class="card-chip">★ ${escapeHtml(String(idea.rating))}</span>`);
+    if (idea.price_from != null) chips.push(`<span class="card-chip">from ${escapeHtml(String(idea.price_from))}${idea.currency ? ' ' + escapeHtml(idea.currency) : ''}</span>`);
+    if (idea.cost_tier === 'free') chips.push('<span class="card-chip card-chip--free">Free</span>');
+    if (idea.civic) chips.push('<span class="card-chip" title="From your city\'s official events feed">🏛 City event</span>');
+    if (idea.also_from && idea.also_from.length) chips.push(`<span class="card-chip" title="Also listed by ${escapeAttr(idea.also_from.join(', '))}">+${idea.also_from.length} source${idea.also_from.length > 1 ? 's' : ''}</span>`);
+    return chips.length ? `<div class="card-chips">${chips.join('')}</div>` : '';
   }
 
   // "2026-07-12" (or full ISO) → "Sun, Jul 12". Falls back to the raw string.
@@ -560,14 +746,33 @@
     state.shortlist.push(idea);
     persist();
     serverShortlistAdd(idea);
-    animateOut(card, 'right', () => renderFeed());
+    if (card) animateOut(card, 'right', () => renderFeed());
     updateShortlistCount();
-    showToast(`Added "${idea.title}" to your shortlist`);
+    if (navigator.vibrate) navigator.vibrate(10);
+    showToast(`Added "${idea.title}" to your day`, {
+      duration: 4000,
+      actionLabel: 'Undo',
+      onAction: () => {
+        state.shortlist = state.shortlist.filter(i => i.id !== idea.id);
+        persist();
+        serverShortlistRemove(idea.id);
+        updateShortlistCount();
+        renderFeed(true);
+      }
+    });
   }
 
   function dismissIdea(idea, card) {
     state.dismissedIds.add(idea.id);
     animateOut(card, 'left', () => renderFeed());
+    showToast('Skipped', {
+      duration: 4000,
+      actionLabel: 'Undo',
+      onAction: () => {
+        state.dismissedIds.delete(idea.id);
+        renderFeed(true);
+      }
+    });
   }
 
   function animateOut(card, direction, after) {
@@ -579,7 +784,13 @@
   }
 
   function updateShortlistCount() {
-    document.getElementById('shortlist-count').textContent = state.shortlist.length;
+    const badge = document.getElementById('shortlist-count');
+    if (badge.textContent !== String(state.shortlist.length)) {
+      badge.classList.remove('count-pulse');
+      void badge.offsetWidth; // restart the animation
+      badge.classList.add('count-pulse');
+    }
+    badge.textContent = state.shortlist.length;
     document.getElementById('build-day-btn').disabled = state.shortlist.length === 0;
   }
 
@@ -595,6 +806,7 @@
       ${idea.wow_reason ? `<p class="wow-line">✨ ${escapeHtml(idea.wow_reason)}</p>` : ''}
       <dl class="detail-grid">
         <dt>Location</dt><dd>${escapeHtml(idea.location || '—')}</dd>
+        ${idea.distance_km != null ? `<dt>Distance</dt><dd>📍 ${escapeHtml(String(idea.distance_km))} km from you</dd>` : ''}
         ${idea.venue ? `<dt>Venue</dt><dd>${escapeHtml(idea.venue)}</dd>` : ''}
         ${idea.date ? `<dt>Date</dt><dd>${escapeHtml(formatEventDate(idea.date))}</dd>` : ''}
         <dt>Good for</dt><dd>${escapeHtml(idea.good_for_ages || 'all ages')}</dd>
@@ -611,27 +823,69 @@
   }
 
   // ---------- Shortlist panel ----------
+  function shortlistSummary() {
+    const items = state.shortlist;
+    const bits = [`${items.length} experience${items.length === 1 ? '' : 's'}`];
+
+    const totalMin = items.reduce((sum, i) => sum + (Number(i.duration_minutes) || 0), 0);
+    if (totalMin > 0) bits.push(`~${formatDuration(totalMin)}`);
+
+    // Most common town = last comma-separated part of each idea's location.
+    const townCounts = new Map();
+    for (const i of items) {
+      const parts = String(i.location || '').split(',').map(s => s.trim()).filter(Boolean);
+      const town = parts[parts.length - 1];
+      if (town) townCounts.set(town, (townCounts.get(town) || 0) + 1);
+    }
+    const top = [...townCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+    if (top && top[1] > 1) bits.push(`mostly ${top[0]}`);
+
+    return bits.join(' • ');
+  }
+
+  function moveShortlistItem(index, delta) {
+    const target = index + delta;
+    if (target < 0 || target >= state.shortlist.length) return;
+    const [item] = state.shortlist.splice(index, 1);
+    state.shortlist.splice(target, 0, item);
+    persist();
+    renderShortlistPanel();
+  }
+
   function renderShortlistPanel() {
     const container = document.getElementById('shortlist-items');
     const empty = document.getElementById('shortlist-empty');
+    const summary = document.getElementById('shortlist-summary');
     container.innerHTML = '';
 
     if (state.shortlist.length === 0) {
       empty.hidden = false;
+      if (summary) summary.hidden = true;
       return;
     }
     empty.hidden = true;
+    if (summary) {
+      summary.textContent = shortlistSummary();
+      summary.hidden = false;
+    }
 
-    state.shortlist.forEach(idea => {
+    state.shortlist.forEach((idea, index) => {
       const row = document.createElement('div');
       row.className = 'shortlist-row';
       row.innerHTML = `
-        <div>
+        <div class="shortlist-order">
+          <button class="btn-move" type="button" data-dir="-1" aria-label="Move up" ${index === 0 ? 'disabled' : ''}>▲</button>
+          <button class="btn-move" type="button" data-dir="1" aria-label="Move down" ${index === state.shortlist.length - 1 ? 'disabled' : ''}>▼</button>
+        </div>
+        <div class="shortlist-row-text">
           <strong>${escapeHtml(idea.title)}</strong>
           <span class="shortlist-row-meta">${escapeHtml(idea.location || '')}</span>
         </div>
         <button class="btn-remove" type="button" aria-label="Remove from shortlist">✕</button>
       `;
+      row.querySelectorAll('.btn-move').forEach(btn => {
+        btn.addEventListener('click', () => moveShortlistItem(index, Number(btn.dataset.dir)));
+      });
       row.querySelector('.btn-remove').addEventListener('click', () => {
         state.shortlist = state.shortlist.filter(i => i.id !== idea.id);
         persist();
@@ -642,6 +896,22 @@
       });
       container.appendChild(row);
     });
+  }
+
+  // "Surprise me": pull one idea the user hasn't acted on into their day —
+  // wow picks first, so the surprise actually surprises.
+  function handleSurpriseMe() {
+    const pool = ideasInPlay();
+    if (pool.length === 0) {
+      showToast('No more ideas to surprise you with — generate a new day!');
+      return;
+    }
+    const wows = pool.filter(i => i.wow_reason || i.wow);
+    const pickFrom = wows.length ? wows : pool;
+    const idea = pickFrom[Math.floor(Math.random() * pickFrom.length)];
+    addToShortlist(idea, null);
+    renderShortlistPanel();
+    renderFeed(true);
   }
 
   async function handleBuildDay() {
@@ -705,6 +975,21 @@
     const errorEl = document.getElementById('prompt-error');
     errorEl.textContent = '';
 
+    // Location first — never search location-less.
+    if (!state.locationChosen) {
+      errorEl.textContent = 'First pick where 📍 — use your location, or type a city or postal code.';
+      const whereEl = document.getElementById('prompt-location');
+      if (whereEl) {
+        whereEl.classList.remove('prompt-location--error');
+        void whereEl.offsetWidth; // restart the shake
+        whereEl.classList.add('prompt-location--error');
+        setTimeout(() => whereEl.classList.remove('prompt-location--error'), 1200);
+      }
+      combo.input.focus();
+      openLocationList('');
+      return;
+    }
+
     if (!prompt) {
       errorEl.textContent = 'Tell DayHop what kind of day you want first.';
       textarea.focus();
@@ -716,15 +1001,115 @@
       const data = await apiGenerateIdeas(prompt, state.currentFilter);
       state.allIdeas = data.ideas || [];
       state.dismissedIds = new Set();
+      state.lastPrompt = prompt;
+      state.lastWeather = data.weather || null;
       renderWeatherStrip(data.weather);
+      renderResultsHeader();
       renderFeed(true);
-      document.getElementById('discovery-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('results-header').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (err) {
       errorEl.textContent = err.message || 'Something went wrong. Please try again.';
       showToast(err.message || 'Could not generate ideas right now.', { duration: 3500 });
     } finally {
       setLoading(false);
     }
+  }
+
+  // ---------- Results header + curated collections ----------
+  const COLLECTION_TITLES = {
+    worldcup: 'World Cup watch parties near you',
+    patios: 'Lively patios & rooftops',
+    kids: 'Kid-friendly favourites',
+    water: 'Beaches, pools & splash pads',
+    food: 'Good eats nearby',
+    culture: 'Culture & hidden gems',
+    adventures: 'Big experiences',
+    cruises: 'On the water',
+    general: 'Local favourites'
+  };
+
+  function renderResultsHeader() {
+    const header = document.getElementById('results-header');
+    if (!state.allIdeas.length) {
+      header.hidden = true;
+      return;
+    }
+    const words = (state.lastPrompt || '').split(/\s+/).filter(Boolean);
+    const snippet = words.slice(0, 6).join(' ') + (words.length > 6 ? '…' : '');
+    document.getElementById('results-headline').textContent = snippet
+      ? `Here's what matches "${snippet}"`
+      : "Here's what matches your plan";
+
+    const where = state.coords && state.locationLabel ? `near ${state.locationLabel}` : state.city;
+    const bits = [`${state.allIdeas.length} ideas`, `Personalized for ${where}`];
+    if (state.lastWeather) {
+      bits.push(`Adjusted for ${state.lastWeather.temp_c}°C, ${state.lastWeather.description}`);
+    }
+    document.getElementById('results-sub').textContent = bits.join(' • ');
+    header.hidden = false;
+  }
+
+  // Ideas that are still in play (not swiped away, not already saved),
+  // ignoring the active category filter — used by collections & surprise-me.
+  function ideasInPlay() {
+    return state.allIdeas.filter(idea =>
+      !state.dismissedIds.has(idea.id) &&
+      !state.shortlist.find(s => s.id === idea.id));
+  }
+
+  function setFilter(category) {
+    state.currentFilter = category;
+    document.querySelectorAll('.filter-chip').forEach(c =>
+      c.classList.toggle('active', c.dataset.filter === category));
+    renderFeed(true);
+  }
+
+  function renderCollections() {
+    const el = document.getElementById('collections');
+    const pool = ideasInPlay();
+    // Collections are shortcuts into the unfiltered feed — hide them while a
+    // filter is active or before/without enough results to group.
+    if (state.currentFilter !== 'all' || pool.length === 0) {
+      el.hidden = true;
+      return;
+    }
+
+    const byCategory = new Map();
+    for (const idea of pool) {
+      const cat = idea.category || 'general';
+      if (!byCategory.has(cat)) byCategory.set(cat, []);
+      byCategory.get(cat).push(idea);
+    }
+    const groups = [...byCategory.entries()]
+      .filter(([, ideas]) => ideas.length >= 2)
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 4);
+
+    if (groups.length < 2) { // one big group = the feed itself, nothing to curate
+      el.hidden = true;
+      return;
+    }
+
+    el.innerHTML = '';
+    for (const [category, ideas] of groups) {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'collection-card';
+      const thumbs = ideas.slice(0, 3).map(i =>
+        `<img src="${escapeAttr(i.image_url || categoryImage(i.category, 200))}" alt="" loading="lazy">`).join('');
+      card.innerHTML = `
+        <span class="collection-thumbs">${thumbs}</span>
+        <span class="collection-text">
+          <strong>${escapeHtml(COLLECTION_TITLES[category] || CATEGORY_LABELS[category] || category)}</strong>
+          <span>${ideas.length} idea${ideas.length === 1 ? '' : 's'}</span>
+        </span>`;
+      card.addEventListener('click', () => {
+        setFilter(category);
+        document.getElementById('discovery-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      el.appendChild(card);
+    }
+    el.hidden = false;
   }
 
   function renderWeatherStrip(weather) {
@@ -808,6 +1193,7 @@
   function init() {
     loadPersisted();
     setupLocationCombo();
+    updateWhereEmphasis();
     updateShortlistCount();
     wirePanelClosers();
 
@@ -830,20 +1216,10 @@
     });
 
     // No-results: clear the active filter and show everything again.
-    document.getElementById('reset-filter-btn').addEventListener('click', () => {
-      state.currentFilter = 'all';
-      document.querySelectorAll('.filter-chip').forEach(c =>
-        c.classList.toggle('active', c.dataset.filter === 'all'));
-      renderFeed(true);
-    });
+    document.getElementById('reset-filter-btn').addEventListener('click', () => setFilter('all'));
 
     document.querySelectorAll('.filter-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        state.currentFilter = chip.dataset.filter;
-        renderFeed(true);
-      });
+      chip.addEventListener('click', () => setFilter(chip.dataset.filter));
     });
 
     document.getElementById('shortlist-btn').addEventListener('click', () => {
@@ -852,6 +1228,7 @@
     });
 
     document.getElementById('build-day-btn').addEventListener('click', handleBuildDay);
+    document.getElementById('surprise-me-btn').addEventListener('click', handleSurpriseMe);
 
     renderFeed();
   }
