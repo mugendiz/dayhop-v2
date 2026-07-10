@@ -62,6 +62,13 @@ function recordEvent({ type, ownerKey, ideaId, source, meta }) {
  */
 async function countToday(type, ownerKey) {
   const today = torontoDay();
+  // The mirror always counts this process's own events, so it is the floor:
+  // if SUPABASE_SERVICE_KEY is missing OR wrong (e.g. the publishable key,
+  // where RLS silently filters reads to zero rows with NO error), the DB
+  // count under-reports and limits would never fire. Take the max of both.
+  const mirrorCount = mirror.filter(e =>
+    e.type === type && e.owner_key === String(ownerKey) && torontoDay(e.created_at) === today
+  ).length;
   if (hasServiceKey()) {
     try {
       // Start of the Toronto day expressed as an ISO instant.
@@ -72,15 +79,13 @@ async function countToday(type, ownerKey) {
         .eq('type', type)
         .eq('owner_key', String(ownerKey))
         .gte('created_at', sinceIso);
-      if (!error && typeof count === 'number') return count;
+      if (!error && typeof count === 'number') return Math.max(count, mirrorCount);
       if (error) console.warn('[analytics] countToday failed, using mirror:', error.message);
     } catch (err) {
       console.warn('[analytics] countToday failed, using mirror:', err.message);
     }
   }
-  return mirror.filter(e =>
-    e.type === type && e.owner_key === String(ownerKey) && torontoDay(e.created_at) === today
-  ).length;
+  return mirrorCount;
 }
 
 // ---------- metrics (admin dashboard) ----------
