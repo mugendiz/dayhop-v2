@@ -47,7 +47,7 @@
     shortlist: [],
     dismissedIds: new Set(),
     currentFilter: 'all',
-    city: GTA_WIDE,
+    city: 'Richmond Hill',
     user: null,
     isGenerating: false,
     isBuildingPlan: false,
