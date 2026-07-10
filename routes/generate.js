@@ -23,8 +23,19 @@ const curatedEvents = require('../data/curatedEvents');
 const curatedCatalog = require('../data/curatedCatalog');
 const { matchThemes } = require('../data/themes');
 const relevance = require('../services/relevance');
+const analytics = require('../services/analytics');
+const { entitlementsFor } = require('../services/entitlements');
 
 const DEFAULT_CITY = process.env.DEFAULT_CITY || 'Richmond Hill';
+
+// Who is asking, for usage limits + analytics: authenticated user id, else
+// the client's guest id, else the IP as a last resort.
+function ownerKeyFor(req) {
+  if (req.user && req.user.id) return req.user.id;
+  const guest = req.body && req.body.owner_id;
+  if (typeof guest === 'string' && guest.trim()) return guest.trim().slice(0, 80);
+  return `ip-${req.ip}`;
+}
 
 router.post('/', async (req, res) => {
   // Frontend's GTA picker sends `city`; older clients may send `location`.
@@ -47,6 +58,27 @@ router.post('/', async (req, res) => {
   const targetLocation = (location && location.trim()) || (city && city.trim()) || DEFAULT_CITY;
   const eventKeyword = typeof event_keyword === 'string' ? event_keyword.trim().slice(0, 80) : '';
   const userCoords = sanitizeCoords(req.body && req.body.coords);
+  const ownerKey = ownerKeyFor(req);
+
+  // Free-tier daily limit (entitlements resolve to unlimited for Pro and for
+  // pre-Stripe preview mode). Any gate error fails open — the paywall must
+  // never break the product.
+  try {
+    const ent = await entitlementsFor(req.user && req.user.id);
+    if (ent.daily_generates != null) {
+      const usedToday = await analytics.countToday('prompt_generated', ownerKey);
+      if (usedToday >= ent.daily_generates) {
+        return res.status(402).json({
+          error: 'UPGRADE_REQUIRED',
+          feature: 'generate',
+          message: `You've used your ${ent.daily_generates} free day plans for today. Go Pro for unlimited planning.`,
+          limit: ent.daily_generates
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[generate] pro-gate check failed (allowing):', err.message);
+  }
 
   try {
     const { candidates, weather, usedGrounding, resolvedCity } =
@@ -77,6 +109,12 @@ router.post('/', async (req, res) => {
     } else {
       ideas = await grok.generateIdeas({ prompt, filter, city: cityForGrok });
     }
+
+    analytics.recordEvent({
+      type: 'prompt_generated',
+      ownerKey,
+      meta: { grounded: usedGrounding, degraded, city: cityForGrok, ideas: ideas.length }
+    });
 
     res.json({
       ideas,
@@ -505,13 +543,241 @@ router.post('/plan', async (req, res) => {
     });
   }
 
+  // Multi-day trips (2-3 days) are a Pro feature; the tier's max_trip_days
+  // is the gate. Unlike the daily limits this does NOT fail open on a gate
+  // error — a Grok multi-day call costs real money, so unknown tier = free.
+  const days = Math.min(Math.max(Number(req.body.days) || 1, 1), 3);
+  if (days > 1) {
+    const ent = await entitlementsFor(req.user && req.user.id).catch(() => null);
+    if (!ent || days > ent.max_trip_days) {
+      return res.status(402).json({
+        error: 'UPGRADE_REQUIRED',
+        feature: 'multi_day',
+        message: 'Weekend and multi-day trips are a Pro feature. Go Pro to plan 2-3 day itineraries.'
+      });
+    }
+  }
+
   try {
-    const plan = await grok.buildDayPlan({ items, city });
+    const plan = await grok.buildDayPlan({ items, city, days });
+    analytics.recordEvent({ type: 'plan_built', ownerKey: ownerKeyFor(req), meta: { stops: items.length, days } });
     res.json(plan);
   } catch (err) {
     handleGrokError(err, res);
   }
 });
+
+// ---------- Smart re-planning ----------
+// POST /api/generate/replan { guide, instruction, city }
+// Takes the CURRENT itinerary (self-contained guide shape: stops carry their
+// full idea payloads) plus a natural-language adjustment ("it's raining",
+// "make it kid-friendly"), gathers fresh real-venue candidates scoped to the
+// instruction as swap material, and asks Grok to revise. Free tier gets
+// FREE_DAILY_REPLANS per day; Pro is unlimited.
+
+// Only these idea fields survive into swap-in stops (mirrors guides.js).
+const REPLAN_IDEA_FIELDS = [
+  'id', 'title', 'why', 'category', 'location', 'venue', 'date',
+  'good_for_ages', 'duration_minutes', 'cost_tier', 'price_from', 'currency',
+  'rating', 'image_url', 'booking_url', 'maps_url', 'source', 'distance_km'
+];
+
+router.post('/replan', async (req, res) => {
+  const { guide, instruction, city } = req.body || {};
+  const ownerKey = ownerKeyFor(req);
+
+  if (!instruction || typeof instruction !== 'string' || !instruction.trim()) {
+    return res.status(400).json({
+      error: 'MISSING_INSTRUCTION',
+      message: 'Tell DayHop what to change — "it\'s raining" is enough.'
+    });
+  }
+  const stops = collectGuideStops(guide);
+  if (!stops.length) {
+    return res.status(400).json({
+      error: 'MISSING_PLAN',
+      message: 'Build a day plan first, then ask DayHop to tune it.'
+    });
+  }
+
+  // Replan gate: free tier gets a daily taste, Pro is unlimited. Fails open
+  // like the generate gate.
+  try {
+    const ent = await entitlementsFor(req.user && req.user.id);
+    if (ent.daily_replans != null) {
+      const usedToday = await analytics.countToday('plan_replanned', ownerKey);
+      if (usedToday >= ent.daily_replans) {
+        return res.status(402).json({
+          error: 'UPGRADE_REQUIRED',
+          feature: 'replan',
+          message: `You've used today's free re-plan. Go Pro for unlimited smart re-planning.`,
+          limit: ent.daily_replans
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[replan] pro-gate check failed (allowing):', err.message);
+  }
+
+  const targetLocation = (city && String(city).trim()) || guide.city || DEFAULT_CITY;
+  const trimmedInstruction = instruction.trim().slice(0, 300);
+
+  try {
+    // Fresh swap material scoped to the instruction (plus the plan's own
+    // titles for context). Candidate gathering failing is fine — Grok can
+    // still reorder/retime/remove with an empty pool.
+    let candidates = [];
+    let weather = null;
+    try {
+      const gathered = await gatherCandidates(
+        trimmedInstruction, targetLocation, '', null, sanitizeCoords(req.body.coords)
+      );
+      candidates = gathered.candidates;
+      weather = gathered.weather;
+    } catch (err) {
+      console.warn('[replan] candidate gathering failed (re-planning without swaps):', err.message);
+    }
+
+    const revised = await grok.replanPlan({
+      current: slimGuideForReplan(guide),
+      instruction: trimmedInstruction,
+      city: targetLocation,
+      weather,
+      candidates: candidates.map(toGrokCandidate)
+    });
+
+    const merged = mergeReplan(revised, guide, candidates);
+    if (!collectGuideStops(merged).length) {
+      const err = new Error('Re-plan produced no usable stops');
+      err.code = 'GROK_BAD_SHAPE';
+      throw err;
+    }
+
+    analytics.recordEvent({
+      type: 'plan_replanned',
+      ownerKey,
+      meta: { instruction: trimmedInstruction.slice(0, 80), city: targetLocation, stops: collectGuideStops(merged).length }
+    });
+
+    res.json({
+      guide: merged,
+      change_summary: Array.isArray(revised.change_summary) ? revised.change_summary.slice(0, 6).map(s => String(s).slice(0, 200)) : [],
+      weather: weather || null
+    });
+  } catch (err) {
+    handleGrokError(err, res);
+  }
+});
+
+// All stops of a guide regardless of single-day (stops) or multi-day (days[].stops) shape.
+function collectGuideStops(guide) {
+  if (!guide || typeof guide !== 'object') return [];
+  if (Array.isArray(guide.days)) return guide.days.flatMap(d => Array.isArray(d && d.stops) ? d.stops : []);
+  return Array.isArray(guide.stops) ? guide.stops : [];
+}
+
+// What Grok needs to reason about the current plan — ids + human context,
+// no URLs/images (token budget, and the model must not echo links anyway).
+function slimGuideForReplan(guide) {
+  const slimStop = (stop) => {
+    const idea = (stop && stop.idea) || {};
+    return {
+      id: idea.id != null ? String(idea.id) : null,
+      title: stop.title || idea.title || '',
+      suggested_time: stop.suggested_time || '',
+      note: stop.note || undefined,
+      category: idea.category || null,
+      location: idea.location || null,
+      cost_tier: idea.cost_tier || null,
+      duration_minutes: idea.duration_minutes || null,
+      good_for_ages: idea.good_for_ages || null
+    };
+  };
+  const out = {
+    title: guide.title || '',
+    city: guide.city || null,
+    start_time: guide.start_time || '',
+    notes: guide.notes || ''
+  };
+  if (Array.isArray(guide.days)) {
+    out.days = guide.days.map((d, i) => ({
+      day: i + 1,
+      label: (d && d.label) || `Day ${i + 1}`,
+      start_time: (d && d.start_time) || '',
+      stops: (Array.isArray(d && d.stops) ? d.stops : []).map(slimStop)
+    }));
+  } else {
+    out.stops = (guide.stops || []).map(slimStop);
+  }
+  return out;
+}
+
+// Rebuild a self-contained guide from Grok's revision: kept stops get their
+// original idea payload back (by keep_id), swap-ins are built from the real
+// candidate (by candidate_id). Stops referencing neither are hallucinations
+// and get dropped.
+function mergeReplan(revised, originalGuide, candidates) {
+  const ideaById = new Map();
+  for (const stop of collectGuideStops(originalGuide)) {
+    const idea = stop && stop.idea;
+    if (idea && idea.id != null) ideaById.set(String(idea.id), stop);
+  }
+  const candidateById = new Map(candidates.map(c => [String(c.id), c]));
+
+  const rebuildStop = (stop) => {
+    if (!stop || typeof stop !== 'object') return null;
+    const keepId = stop.keep_id != null ? String(stop.keep_id) : null;
+    const candId = stop.candidate_id != null ? String(stop.candidate_id) : null;
+    let idea = null;
+    let note = '';
+    if (keepId && ideaById.has(keepId)) {
+      const original = ideaById.get(keepId);
+      idea = original.idea;
+      note = original.note || '';
+    } else if (candId && candidateById.has(candId)) {
+      idea = ideaFromCandidate(candidateById.get(candId));
+    } else {
+      return null; // unverifiable stop — drop it
+    }
+    return {
+      title: String(stop.title || idea.title || '').slice(0, 200),
+      suggested_time: String(stop.suggested_time || '').slice(0, 60),
+      transition_note: String(stop.transition_note || '').slice(0, 300),
+      note,
+      changed: stop.changed === true || undefined,
+      idea
+    };
+  };
+
+  const out = {
+    title: String(revised.plan_title || originalGuide.title || 'Your day, mapped out').slice(0, 140),
+    city: originalGuide.city || null,
+    notes: String(revised.notes || '').slice(0, 1000)
+  };
+  if (Array.isArray(revised.days)) {
+    out.days = revised.days.slice(0, 3).map((d, i) => ({
+      label: String((d && d.label) || `Day ${i + 1}`).slice(0, 80),
+      start_time: String((d && d.start_time) || '').slice(0, 40),
+      notes: String((d && d.notes) || '').slice(0, 500),
+      stops: (Array.isArray(d && d.stops) ? d.stops : []).map(rebuildStop).filter(Boolean)
+    }));
+  } else {
+    out.start_time = String(revised.start_time || originalGuide.start_time || '').slice(0, 40);
+    out.stops = (Array.isArray(revised.stops) ? revised.stops : []).map(rebuildStop).filter(Boolean);
+  }
+  return out;
+}
+
+// A gathered candidate rendered as a guide-stop idea (the swap-in path).
+function ideaFromCandidate(c) {
+  const idea = {};
+  for (const key of REPLAN_IDEA_FIELDS) {
+    if (c[key] != null && c[key] !== '') idea[key] = typeof c[key] === 'string' ? c[key].slice(0, 2000) : c[key];
+  }
+  if (!idea.why && c.description) idea.why = String(c.description).slice(0, 300);
+  if (!idea.location) idea.location = c.venue || shortAddress(c.address || c.location) || '';
+  return idea;
+}
 
 function handleGrokError(err, res) {
   if (err.code === 'GROK_NOT_CONFIGURED') {

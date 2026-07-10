@@ -12,6 +12,9 @@ const isProd = process.env.NODE_ENV === 'production';
 
 app.use(compression());
 app.use(cors());
+// Stripe webhook needs the raw body for signature verification, so it mounts
+// BEFORE the JSON parser. Everything else gets parsed JSON as usual.
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), require('./routes/billingWebhook'));
 app.use(express.json({ limit: '100kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -37,6 +40,10 @@ app.use('/api/config', require('./routes/config'));
 app.use('/api/adventures', require('./routes/adventures'));
 app.use('/api/community', require('./routes/community'));
 app.use('/api/shortlist', require('./routes/shortlist'));
+app.use('/api/billing', require('./routes/billing'));
+app.use('/api/guides', require('./routes/guides'));
+app.use('/api/track', require('./routes/track'));
+app.use('/api/admin', require('./routes/admin'));
 
 const { dbStatus } = require('./services/db');
 
@@ -55,9 +62,17 @@ app.get('/health', (req, res) => {
       ticketmaster: Boolean(process.env.TICKETMASTER_API_KEY),
       eventbrite: Boolean(process.env.EVENTBRITE_PRIVATE_TOKEN && String(process.env.EVENTBRITE_ORG_IDS || '').trim()),
       toronto_open_data: true, // keyless public feed, always on for GTA requests
-      york_open_data: process.env.YORK_OPEN_DATA_ENABLED === 'true'
+      york_open_data: process.env.YORK_OPEN_DATA_ENABLED === 'true',
+      stripe: require('./services/billing').status(),
+      admin_metrics: Boolean(process.env.ADMIN_KEY)
     }
   });
+});
+
+// Public shared-guide page: /g/<share_id> — the page itself fetches the
+// guide JSON from /api/guides/shared/<share_id>.
+app.get('/g/:shareId', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'guide.html'));
 });
 
 // SPA fallback — must stay last.

@@ -51,6 +51,18 @@
     user: null,
     isGenerating: false,
     isBuildingPlan: false,
+    lastPlan: null,          // last itinerary skeleton built from the shortlist
+    savedGuide: null,        // server-saved copy of currentGuide ({ share_url, guide, … })
+    currentGuide: null,      // the guide being viewed/edited in the plan panel (self-contained)
+    currentGuideId: null,    // server id when currentGuide is a saved guide
+    editMode: false,         // plan panel edit mode (anyone can edit; saving edits is Pro)
+    planDays: 1,             // trip length selector (2-3 days = Pro)
+    lastChangeSummary: null, // bullets from the last smart re-plan
+    isReplanning: false,
+    myGuides: [],            // "My Plans" list from GET /api/guides
+    billingConfigured: false,
+    isPro: false,
+    entitlements: null,      // limits from /api/billing/status (free vs pro)
     lastPrompt: '',
     lastWeather: null,
     coords: null,        // { lat, lng } rounded to ~110 m, only if user opted in
@@ -461,12 +473,39 @@
     }).catch(() => {});
   }
 
+  // Stable guest id for anonymous usage limits + analytics (Phase 4).
+  function getOwnerId() {
+    let id = localStorage.getItem('dayhop_owner_id');
+    if (!id) {
+      id = 'guest-' + Math.random().toString(36).slice(2, 10);
+      localStorage.setItem('dayhop_owner_id', id);
+    }
+    return id;
+  }
+
+  // ---------- Analytics (fire-and-forget, never blocks UX) ----------
+  function track(type, idea) {
+    try {
+      fetch('/api/track', {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          type,
+          idea_id: idea ? idea.id : undefined,
+          source: idea ? idea.source : undefined,
+          owner_id: getOwnerId()
+        }),
+        keepalive: true // survives the page navigating to a booking site
+      }).catch(() => {});
+    } catch (e) { /* never let analytics break the app */ }
+  }
+
   // ---------- API ----------
   async function apiGenerateIdeas(prompt, filter) {
     const res = await fetch('/api/generate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, filter, city: state.city, coords: state.coords || undefined })
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ prompt, filter, city: state.city, coords: state.coords || undefined, owner_id: getOwnerId() })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -477,19 +516,43 @@
     return data; // { ideas, grounded, weather, generated_at }
   }
 
-  async function apiBuildPlan(items) {
+  async function apiBuildPlan(items, days) {
+    // Auth headers matter here: multi-day is gated on the caller's tier.
     const res = await fetch('/api/generate/plan', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items, city: state.city })
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ items, city: state.city, days: days || 1, owner_id: getOwnerId() })
     });
     const data = await res.json();
     if (!res.ok) {
       const err = new Error(data.message || 'Could not build your day plan');
       err.code = data.error;
+      err.feature = data.feature;
       throw err;
     }
     return data;
+  }
+
+  async function apiReplan(guide, instruction) {
+    const res = await fetch('/api/generate/replan', {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({
+        guide,
+        instruction,
+        city: guide.city || state.city,
+        coords: state.coords || undefined,
+        owner_id: getOwnerId()
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const err = new Error(data.message || 'Could not re-plan your day');
+      err.code = data.error;
+      err.feature = data.feature;
+      throw err;
+    }
+    return data; // { guide, change_summary, weather }
   }
 
   // ---------- Rendering ----------
@@ -616,8 +679,7 @@
           ${idea.cost_tier ? `<span>${escapeHtml(idea.cost_tier)}</span>` : ''}
         </div>
         ${buildCardChips(idea)}
-        ${idea.booking_url ? `<a class="card-booking-link" href="${escapeAttr(idea.booking_url)}" target="_blank" rel="noopener noreferrer sponsored">Book this on ${idea.source === 'viator' ? 'Viator' : 'GetYourGuide'} ↗</a>` : ''}
-        ${!idea.booking_url && idea.maps_url ? `<a class="card-booking-link card-booking-link--secondary" href="${escapeAttr(idea.maps_url)}" target="_blank" rel="noopener noreferrer">View on Google Maps ↗</a>` : ''}
+        ${bookingLinksHtml(idea, 'card')}
       </div>
       <div class="card-actions">
         <button class="btn-dismiss" type="button" title="Not for us">✕ Skip</button>
@@ -668,6 +730,53 @@
     if (idea.civic) chips.push('<span class="card-chip" title="From your city\'s official events feed">🏛 City event</span>');
     if (idea.also_from && idea.also_from.length) chips.push(`<span class="card-chip" title="Also listed by ${escapeAttr(idea.also_from.join(', '))}">+${idea.also_from.length} source${idea.also_from.length > 1 ? 's' : ''}</span>`);
     return chips.length ? `<div class="card-chips">${chips.join('')}</div>` : '';
+  }
+
+  // ---------- One-click booking links ----------
+  const SOURCE_BOOK_LABELS = {
+    viator: 'Viator',
+    getyourguide: 'GetYourGuide',
+    ticketmaster: 'Ticketmaster',
+    eventbrite: 'Eventbrite'
+  };
+
+  // Categories where a prefilled Viator search is genuinely useful when the
+  // idea has no direct booking link (tours, cruises, big experiences) —
+  // a search link for a playground would just be noise.
+  const VIATOR_SEARCH_CATEGORIES = new Set(['adventures', 'cruises', 'culture', 'water']);
+
+  function viatorSearchUrl(idea) {
+    // Pre-fill what we know: activity name + where. Viator's search box is
+    // text-only, so date/location ride inside the query string.
+    const where = idea.location || (state.city !== GTA_WIDE ? state.city : 'Toronto');
+    const q = [idea.title, where].filter(Boolean).join(' ');
+    return 'https://www.viator.com/searchResults/all?text=' + encodeURIComponent(q);
+  }
+
+  /**
+   * The booking row for an idea. mode:
+   *   'card'   → one primary link (direct booking, else prefilled Viator
+   *              search for experience categories, else map link)
+   *   'detail' → booking + map, full labels
+   *   'stop'   → booking + map, compact labels (plan stops)
+   * All links carry data-idea-* so the global click handler tracks them.
+   */
+  function bookingLinksHtml(idea, mode) {
+    const attrs = `data-idea-id="${escapeAttr(idea.id)}" data-idea-source="${escapeAttr(idea.source || '')}"`;
+    const compact = mode === 'stop';
+    const links = [];
+    if (idea.booking_url) {
+      const label = compact ? 'Book ↗' : `Book this on ${SOURCE_BOOK_LABELS[idea.source] || 'our partner'} ↗`;
+      links.push(`<a class="card-booking-link" ${attrs} href="${escapeAttr(idea.booking_url)}" target="_blank" rel="noopener noreferrer sponsored">${label}</a>`);
+    } else if (VIATOR_SEARCH_CATEGORIES.has(idea.category)) {
+      const label = compact ? 'Find tickets ↗' : 'Find tickets on Viator ↗';
+      links.push(`<a class="card-booking-link" ${attrs} data-idea-source="viator_search" href="${escapeAttr(viatorSearchUrl(idea))}" target="_blank" rel="noopener noreferrer sponsored">${label}</a>`);
+    }
+    if (idea.maps_url && (mode !== 'card' || links.length === 0)) {
+      links.push(`<a class="card-booking-link card-booking-link--secondary" ${attrs} href="${escapeAttr(idea.maps_url)}" target="_blank" rel="noopener noreferrer">${compact ? 'Map ↗' : 'View on Google Maps ↗'}</a>`);
+    }
+    if (!links.length) return '';
+    return mode === 'card' ? links[0] : `<div class="${mode === 'stop' ? 'plan-stop-links' : 'detail-links'}">${links.join('')}</div>`;
   }
 
   // "2026-07-12" (or full ISO) → "Sun, Jul 12". Falls back to the raw string.
@@ -746,6 +855,7 @@
     state.shortlist.push(idea);
     persist();
     serverShortlistAdd(idea);
+    track('shortlist_add', idea);
     if (card) animateOut(card, 'right', () => renderFeed());
     updateShortlistCount();
     if (navigator.vibrate) navigator.vibrate(10);
@@ -792,6 +902,7 @@
     }
     badge.textContent = state.shortlist.length;
     document.getElementById('build-day-btn').disabled = state.shortlist.length === 0;
+    state.savedGuide = null; // shortlist changed → any saved export is stale
   }
 
   function openDetail(idea) {
@@ -814,10 +925,7 @@
         <dt>Cost</dt><dd>${escapeHtml(idea.cost_tier || '—')}${idea.price_from != null ? ` · from ${escapeHtml(String(idea.price_from))}${idea.currency ? ' ' + escapeHtml(idea.currency) : ''}` : ''}</dd>
         ${idea.rating != null ? `<dt>Rating</dt><dd>★ ${escapeHtml(String(idea.rating))}</dd>` : ''}
       </dl>
-      <div class="detail-links">
-        ${idea.booking_url ? `<a class="card-booking-link" href="${escapeAttr(idea.booking_url)}" target="_blank" rel="noopener noreferrer sponsored">Book this on ${idea.source === 'viator' ? 'Viator' : 'GetYourGuide'} ↗</a>` : ''}
-        ${idea.maps_url ? `<a class="card-booking-link card-booking-link--secondary" href="${escapeAttr(idea.maps_url)}" target="_blank" rel="noopener noreferrer">View on Google Maps ↗</a>` : ''}
-      </div>
+      ${bookingLinksHtml(idea, 'detail')}
     `;
     openPanel('detail-panel');
   }
@@ -848,6 +956,7 @@
     if (target < 0 || target >= state.shortlist.length) return;
     const [item] = state.shortlist.splice(index, 1);
     state.shortlist.splice(target, 0, item);
+    state.savedGuide = null; // order changed → any saved export is stale
     persist();
     renderShortlistPanel();
   }
@@ -856,7 +965,9 @@
     const container = document.getElementById('shortlist-items');
     const empty = document.getElementById('shortlist-empty');
     const summary = document.getElementById('shortlist-summary');
+    const newBtn = document.getElementById('new-shortlist-btn');
     container.innerHTML = '';
+    if (newBtn) newBtn.hidden = state.shortlist.length === 0;
 
     if (state.shortlist.length === 0) {
       empty.hidden = false;
@@ -922,7 +1033,7 @@
     btn.disabled = true;
 
     try {
-      const plan = await apiBuildPlan(state.shortlist);
+      const plan = await apiBuildPlan(state.shortlist, state.planDays);
       renderDayPlan(plan);
       closePanel(document.getElementById('shortlist-panel'));
       openPanel('dayplan-panel');
@@ -936,7 +1047,11 @@
         }).catch(() => {});
       }
     } catch (err) {
-      showToast(err.message || 'Could not build your day plan. Try again.', { duration: 3500 });
+      if (err.code === 'UPGRADE_REQUIRED') {
+        showUpgradeModal(err.feature || 'multi_day');
+      } else {
+        showToast(err.message || 'Could not build your day plan. Try again.', { duration: 3500 });
+      }
     } finally {
       state.isBuildingPlan = false;
       btn.classList.remove('is-loading');
@@ -944,25 +1059,592 @@
     }
   }
 
+  // ---------- Plan view (guide-shaped: view, edit, re-plan) ----------
+  // The plan panel always renders a self-contained "guide" structure — the
+  // same shape the server stores — so a freshly built plan, an edited plan,
+  // a re-planned plan, and a saved plan opened from My Plans all flow through
+  // one renderer.
+
+  // Grok skeleton (stops reference shortlist ids) → self-contained guide.
+  function guideFromPlan(plan) {
+    const byId = new Map(state.shortlist.map(i => [String(i.id), i]));
+    const toStops = (stops) => (stops || []).map((stop, i) => ({
+      title: stop.title || '',
+      suggested_time: stop.suggested_time || '',
+      transition_note: stop.transition_note || '',
+      note: '',
+      idea: byId.get(String(stop.id)) || state.shortlist[i] || {}
+    }));
+    const g = {
+      title: plan.plan_title || 'Your day, mapped out',
+      city: state.city === GTA_WIDE ? null : state.city,
+      notes: plan.notes || ''
+    };
+    if (Array.isArray(plan.days) && plan.days.length) {
+      g.days = plan.days.map((d, i) => ({
+        label: (d && d.label) || `Day ${i + 1}`,
+        start_time: (d && d.start_time) || '',
+        notes: (d && d.notes) || '',
+        stops: toStops(d && d.stops)
+      }));
+    } else {
+      g.start_time = plan.start_time || '';
+      g.stops = toStops(plan.stops);
+    }
+    return g;
+  }
+
   function renderDayPlan(plan) {
-    const content = document.getElementById('dayplan-content');
-    const stopsHtml = (plan.stops || []).map((stop, i) => `
-      <div class="plan-stop">
-        <div class="plan-stop-marker">${String(i + 1).padStart(2, '0')}</div>
+    state.lastPlan = plan;
+    state.currentGuide = guideFromPlan(plan);
+    state.currentGuideId = null; // fresh plan, not saved yet
+    state.savedGuide = null;
+    state.lastChangeSummary = null;
+    state.editMode = false;
+    renderPlanView();
+  }
+
+  // The stop arrays of the current guide: [{ label, stops }] — one entry for
+  // a single-day plan, one per day for multi-day. Handlers mutate these
+  // arrays in place (they ARE the guide's arrays).
+  function guideStopGroups(guide) {
+    if (Array.isArray(guide.days)) {
+      return guide.days.map((d, i) => ({ label: d.label || `Day ${i + 1}`, day: d, stops: d.stops || [] }));
+    }
+    return [{ label: null, day: null, stops: guide.stops || [] }];
+  }
+
+  // Any local change to the plan makes the saved copy stale.
+  function markGuideDirty() {
+    state.savedGuide = null;
+    updateExportHint();
+    updateSaveButton();
+  }
+
+  function planStopHtml(stop, index, groupIndex) {
+    const idea = stop.idea || {};
+    const facts = [];
+    if (idea.location) facts.push(`📍 ${escapeHtml(idea.location)}`);
+    if (idea.duration_minutes) facts.push(`⏱ ${formatDuration(idea.duration_minutes)}`);
+    if (idea.cost_tier) facts.push(`💳 ${escapeHtml(idea.cost_tier)}`);
+    if (idea.rating != null) facts.push(`★ ${escapeHtml(String(idea.rating))}`);
+
+    const editControls = state.editMode ? `
+      <div class="plan-edit-controls" data-group="${groupIndex}" data-index="${index}">
+        <button class="btn-move" type="button" data-edit="up" aria-label="Move stop up">▲</button>
+        <button class="btn-move" type="button" data-edit="down" aria-label="Move stop down">▼</button>
+        <button class="btn-remove" type="button" data-edit="remove" aria-label="Remove stop">✕</button>
+      </div>` : '';
+
+    const timeHtml = state.editMode
+      ? `<input class="plan-time-input" data-group="${groupIndex}" data-index="${index}" data-field="suggested_time" value="${escapeAttr(stop.suggested_time || '')}" placeholder="e.g. 10:00 AM - 11:30 AM" aria-label="Suggested time">`
+      : `<span class="plan-stop-time">${escapeHtml(stop.suggested_time || '')}</span>`;
+
+    const noteHtml = state.editMode
+      ? `<textarea class="plan-note-input" data-group="${groupIndex}" data-index="${index}" data-field="note" rows="1" maxlength="500" placeholder="Add a note — parking tips, snacks, who to text…" aria-label="Your note">${escapeHtml(stop.note || '')}</textarea>`
+      : (stop.note ? `<p class="plan-stop-note">📝 ${escapeHtml(stop.note)}</p>` : '');
+
+    return `
+      <div class="plan-stop${stop.changed ? ' plan-stop--changed' : ''}">
+        <div class="plan-stop-marker">${String(index + 1).padStart(2, '0')}</div>
         <div class="plan-stop-body">
-          <span class="plan-stop-time">${escapeHtml(stop.suggested_time || '')}</span>
-          <h3>${escapeHtml(stop.title || '')}</h3>
-          ${stop.transition_note ? `<p class="plan-transition">${escapeHtml(stop.transition_note)}</p>` : ''}
+          ${stop.changed ? '<span class="plan-changed-badge">✨ Updated</span>' : ''}
+          ${timeHtml}
+          <h3>${escapeHtml(stop.title || idea.title || '')}</h3>
+          ${idea.image_url && !state.editMode ? `<div class="plan-stop-photo"><img src="${escapeAttr(idea.image_url)}" alt="" loading="lazy"></div>` : ''}
+          ${idea.why && !state.editMode ? `<p class="plan-stop-why">${escapeHtml(idea.why)}</p>` : ''}
+          ${facts.length && !state.editMode ? `<p class="plan-stop-facts">${facts.join(' · ')}</p>` : ''}
+          ${!state.editMode ? bookingLinksHtml(idea, 'stop') : ''}
+          ${noteHtml}
+          ${stop.transition_note && !state.editMode ? `<p class="plan-transition">→ ${escapeHtml(stop.transition_note)}</p>` : ''}
         </div>
-      </div>
-    `).join('');
+        ${editControls}
+      </div>`;
+  }
+
+  function renderPlanView() {
+    const guide = state.currentGuide;
+    if (!guide) return;
+    const content = document.getElementById('dayplan-content');
+
+    const groups = guideStopGroups(guide);
+    const sections = groups.map((group, gi) => {
+      const stopsHtml = group.stops.map((stop, i) => planStopHtml(stop, i, gi)).join('');
+      const header = group.label !== null ? `<h3 class="plan-day-header">${escapeHtml(group.label)}</h3>` : '';
+      const start = group.day && group.day.start_time
+        ? `<p class="plan-start">Starts around <strong>${escapeHtml(group.day.start_time)}</strong></p>` : '';
+      const dayNotes = group.day && group.day.notes ? `<div class="plan-notes">💬 ${escapeHtml(group.day.notes)}</div>` : '';
+      return `${header}${start}<div class="plan-stops">${stopsHtml}</div>${dayNotes}`;
+    }).join('');
+
+    const startLine = !guide.days && guide.start_time
+      ? `<p class="plan-start">Starts around <strong>${escapeHtml(guide.start_time)}</strong></p>` : '';
 
     content.innerHTML = `
-      <p class="plan-start">Starts around <strong>${escapeHtml(plan.start_time || '')}</strong></p>
-      <div class="plan-stops">${stopsHtml}</div>
-      ${plan.notes ? `<div class="plan-notes">💬 ${escapeHtml(plan.notes)}</div>` : ''}
+      ${startLine}
+      ${sections}
+      ${guide.notes ? `<div class="plan-notes">💬 ${escapeHtml(guide.notes)}</div>` : ''}
     `;
-    document.getElementById('dayplan-title').textContent = plan.plan_title || 'Your day, mapped out';
+    document.getElementById('dayplan-title').textContent = guide.title || 'Your day, mapped out';
+
+    renderChangeSummary();
+    wireEditControls(content);
+
+    // Toolbar + re-plan bar + export live below/around the content.
+    const toolbar = document.getElementById('plan-toolbar');
+    toolbar.hidden = false;
+    document.getElementById('plan-edit-btn').textContent = state.editMode ? '✓ Done editing' : '✏️ Edit plan';
+    updateSaveButton();
+    document.getElementById('replan-bar').hidden = state.editMode;
+    updateExportHint();
+    document.getElementById('guide-export').hidden = state.editMode;
+  }
+
+  function updateSaveButton() {
+    const btn = document.getElementById('plan-save-btn');
+    if (!btn) return;
+    if (state.savedGuide && !state.editMode) {
+      btn.textContent = '✓ Saved';
+      btn.disabled = true;
+    } else {
+      btn.textContent = state.currentGuideId ? '💾 Save changes' : '💾 Save plan';
+      btn.disabled = false;
+    }
+  }
+
+  function renderChangeSummary() {
+    const el = document.getElementById('plan-change-summary');
+    const bullets = state.lastChangeSummary;
+    if (!bullets || !bullets.length) {
+      el.hidden = true;
+      el.innerHTML = '';
+      return;
+    }
+    el.innerHTML = `<p class="change-summary-title">✨ What changed</p><ul>${bullets.map(b => `<li>${escapeHtml(b)}</li>`).join('')}</ul>`;
+    el.hidden = false;
+  }
+
+  function wireEditControls(content) {
+    if (!state.editMode) return;
+    const stopsFor = (el) => guideStopGroups(state.currentGuide)[Number(el.dataset.group)].stops;
+
+    content.querySelectorAll('.plan-edit-controls button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const wrap = btn.parentElement;
+        const stops = stopsFor(wrap);
+        const index = Number(wrap.dataset.index);
+        const action = btn.dataset.edit;
+        if (action === 'remove') {
+          stops.splice(index, 1);
+        } else {
+          const target = index + (action === 'up' ? -1 : 1);
+          if (target < 0 || target >= stops.length) return;
+          const [item] = stops.splice(index, 1);
+          stops.splice(target, 0, item);
+        }
+        markGuideDirty();
+        renderPlanView();
+      });
+    });
+
+    // Time + note inputs write straight into the guide on input; no re-render
+    // needed (the DOM already shows what the user typed).
+    content.querySelectorAll('.plan-time-input, .plan-note-input').forEach(input => {
+      input.addEventListener('input', () => {
+        const stops = stopsFor(input);
+        const stop = stops[Number(input.dataset.index)];
+        if (stop) stop[input.dataset.field] = input.value;
+        markGuideDirty();
+      });
+    });
+  }
+
+  function toggleEditMode() {
+    if (!state.currentGuide) return;
+    state.editMode = !state.editMode;
+    renderPlanView();
+    if (state.editMode) {
+      showToast('Reorder, retime, remove stops, or add notes — then save.', { duration: 3500 });
+    }
+  }
+
+  // Save the current guide: POST for a new plan (free tier: limited total),
+  // PUT for edits to an already-saved one (Pro). Returns the saved record
+  // or null after showing the right gate.
+  async function saveCurrentGuide() {
+    if (!state.currentGuide) return null;
+    if (!isLoggedIn()) {
+      showToast('Sign in to save your plan.', { duration: 4000 });
+      const authBtn = document.getElementById('auth-btn');
+      if (authBtn && !authBtn.hidden) authBtn.click();
+      return null;
+    }
+    if (state.savedGuide) return state.savedGuide;
+
+    const isUpdate = Boolean(state.currentGuideId);
+    try {
+      const res = await fetch(isUpdate ? `/api/guides/${encodeURIComponent(state.currentGuideId)}` : '/api/guides', {
+        method: isUpdate ? 'PUT' : 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ guide: state.currentGuide, city: state.currentGuide.city || state.city })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 402) {
+        showUpgradeModal(data.feature || (isUpdate ? 'edit_guide' : 'saved_guides'));
+        return null;
+      }
+      if (res.status === 404 && isUpdate) {
+        // The saved copy is gone (deleted elsewhere) — save as a new plan.
+        state.currentGuideId = null;
+        return saveCurrentGuide();
+      }
+      if (!res.ok) {
+        showToast(data.message || 'Could not save your plan. Try again.', { duration: 4000 });
+        return null;
+      }
+      state.savedGuide = data;
+      state.currentGuideId = data.id;
+      updateExportHint();
+      updateSaveButton();
+      return data;
+    } catch (e) {
+      showToast('Could not save your plan. Try again.', { duration: 4000 });
+      return null;
+    }
+  }
+
+  async function handleSavePlan() {
+    if (state.editMode) state.editMode = false; // saving exits edit mode
+    const saved = await saveCurrentGuide();
+    renderPlanView();
+    if (saved) {
+      showToast('Plan saved to My Plans 🗂', {
+        duration: 4500,
+        actionLabel: 'Copy link',
+        onAction: () => copyToClipboard(saved.share_url, 'Guide link copied')
+      });
+    }
+  }
+
+  // ---------- Smart re-planning ----------
+  async function handleReplan(instruction) {
+    const text = (instruction || '').trim();
+    if (!text || !state.currentGuide || state.isReplanning) return;
+    state.isReplanning = true;
+    const goBtn = document.getElementById('replan-go');
+    goBtn.classList.add('is-loading');
+    goBtn.disabled = true;
+    document.getElementById('replan-bar').classList.add('replan-bar--busy');
+
+    try {
+      const data = await apiReplan(state.currentGuide, text);
+      state.currentGuide = data.guide;
+      state.lastChangeSummary = data.change_summary || [];
+      state.savedGuide = null; // new version → stale save
+      state.editMode = false;
+      renderPlanView();
+      document.getElementById('replan-input').value = '';
+      const panel = document.querySelector('#dayplan-panel .panel-sheet');
+      if (panel) panel.scrollTo({ top: 0, behavior: 'smooth' });
+      showToast('Plan updated ✨');
+    } catch (err) {
+      if (err.code === 'UPGRADE_REQUIRED') {
+        showUpgradeModal(err.feature || 'replan');
+      } else {
+        showToast(err.message || 'Could not re-plan right now. Try again.', { duration: 3500 });
+      }
+    } finally {
+      state.isReplanning = false;
+      goBtn.classList.remove('is-loading');
+      goBtn.disabled = false;
+      document.getElementById('replan-bar').classList.remove('replan-bar--busy');
+    }
+  }
+
+  function wireReplanBar() {
+    document.querySelectorAll('.replan-chip').forEach(chip => {
+      chip.addEventListener('click', () => handleReplan(chip.dataset.replan));
+    });
+    document.getElementById('replan-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      handleReplan(document.getElementById('replan-input').value);
+    });
+  }
+
+  // ---------- My Plans (saved guides list) ----------
+  async function openMyPlans() {
+    if (!isLoggedIn()) {
+      showToast('Sign in to see your saved plans.', { duration: 4000 });
+      const authBtn = document.getElementById('auth-btn');
+      if (authBtn && !authBtn.hidden) authBtn.click();
+      return;
+    }
+    openPanel('myplans-panel');
+    const list = document.getElementById('myplans-list');
+    list.innerHTML = '<p class="myplans-loading">Loading your plans…</p>';
+    try {
+      const res = await fetch('/api/guides', { headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Could not load your plans.');
+      state.myGuides = data.guides || [];
+      renderMyPlans(data.limit);
+    } catch (e) {
+      list.innerHTML = '';
+      showToast(e.message || 'Could not load your plans right now.', { duration: 3500 });
+    }
+  }
+
+  function renderMyPlans(limit) {
+    const list = document.getElementById('myplans-list');
+    const empty = document.getElementById('myplans-empty');
+    const footnote = document.getElementById('myplans-footnote');
+    list.innerHTML = '';
+
+    empty.hidden = state.myGuides.length > 0;
+
+    // Free tier: show how much of the allowance is used, with the upgrade path.
+    if (limit != null && state.billingConfigured && !state.isPro) {
+      footnote.innerHTML = `${state.myGuides.length} of ${limit} free saved plans used · <button type="button" class="linklike" id="myplans-upgrade">Go Pro for unlimited ✨</button>`;
+      footnote.hidden = false;
+      const up = document.getElementById('myplans-upgrade');
+      if (up) up.addEventListener('click', () => showUpgradeModal('saved_guides'));
+    } else {
+      footnote.hidden = true;
+    }
+
+    state.myGuides.forEach(g => {
+      const row = document.createElement('div');
+      row.className = 'myplans-row';
+      const when = g.updated_at || g.created_at;
+      const bits = [];
+      if (g.city) bits.push(escapeHtml(g.city));
+      if (g.day_count > 1) bits.push(`${g.day_count} days`);
+      bits.push(`${g.stop_count} stop${g.stop_count === 1 ? '' : 's'}`);
+      if (when) bits.push(formatEventDate(when));
+      row.innerHTML = `
+        <button class="myplans-open" type="button">
+          <strong>${escapeHtml(g.title)}</strong>
+          <span class="myplans-meta">${bits.join(' · ')}${g.day_count > 1 ? ' <span class="card-chip card-chip--date">🌅 Multi-day</span>' : ''}</span>
+        </button>
+        <div class="myplans-actions">
+          <button class="btn-move" type="button" data-act="share" title="Copy share link" aria-label="Copy share link">🔗</button>
+          <button class="btn-remove" type="button" data-act="delete" title="Delete plan" aria-label="Delete plan">✕</button>
+        </div>`;
+      row.querySelector('.myplans-open').addEventListener('click', () => openSavedGuide(g));
+      row.querySelector('[data-act="share"]').addEventListener('click', () => copyToClipboard(g.share_url, 'Guide link copied'));
+      row.querySelector('[data-act="delete"]').addEventListener('click', () => deleteSavedGuide(g));
+      list.appendChild(row);
+    });
+  }
+
+  function openSavedGuide(g) {
+    state.currentGuide = g.guide;
+    state.currentGuideId = g.id;
+    state.savedGuide = g;
+    state.lastChangeSummary = null;
+    state.editMode = false;
+    closePanel(document.getElementById('myplans-panel'));
+    renderPlanView();
+    openPanel('dayplan-panel');
+  }
+
+  async function deleteSavedGuide(g) {
+    if (!window.confirm(`Delete "${g.title}"? Its share link stops working too.`)) return;
+    try {
+      const res = await fetch(`/api/guides/${encodeURIComponent(g.id)}`, {
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+      if (!res.ok && res.status !== 404) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Could not delete that plan.');
+      }
+      state.myGuides = state.myGuides.filter(x => x.id !== g.id);
+      if (state.currentGuideId === g.id) {
+        state.currentGuideId = null;
+        state.savedGuide = null;
+      }
+      renderMyPlans(state.entitlements ? state.entitlements.saved_guides : null);
+      showToast('Plan deleted');
+    } catch (e) {
+      showToast(e.message || 'Could not delete that plan.', { duration: 3500 });
+    }
+  }
+
+  // ---------- Guide export (saves the itinerary + share link, then fans out) ----------
+  function updateExportHint() {
+    const hint = document.getElementById('guide-export-hint');
+    if (!hint) return;
+    const freeLimit = state.entitlements && state.entitlements.saved_guides;
+    if (state.savedGuide) {
+      hint.textContent = 'Plan saved — share it anywhere, the link stays live.';
+    } else if (!isLoggedIn()) {
+      hint.textContent = 'Sign in to save this as a shareable guide.';
+    } else if (state.billingConfigured && !state.isPro) {
+      hint.textContent = `Exporting saves this plan (free includes ${freeLimit != null ? freeLimit : 2} — Pro is unlimited).`;
+    } else {
+      hint.textContent = 'Exporting saves this as a shareable guide with a public link.';
+    }
+  }
+
+  // Every export format needs the guide saved server-side first (that's what
+  // mints the public /g/… link). Delegates to saveCurrentGuide, which shows
+  // the right gate (sign-in modal, or the upgrade modal on 402).
+  async function ensureGuideSaved() {
+    if (state.savedGuide) return state.savedGuide;
+    if (!state.currentGuide) {
+      showToast('Build a day plan first — add ideas and tap "Build my day".');
+      return null;
+    }
+    const saved = await saveCurrentGuide();
+    if (saved) renderPlanView();
+    return saved;
+  }
+
+  // Every stop of a guide with its day label — export formats iterate this so
+  // single-day and multi-day guides share one code path.
+  function flattenGuideStops(g) {
+    if (Array.isArray(g.days)) {
+      return g.days.flatMap((d, di) => (d.stops || []).map((stop, i) => ({
+        stop, index: i, dayLabel: d.label || `Day ${di + 1}`, firstOfDay: i === 0, dayStart: d.start_time || ''
+      })));
+    }
+    return (g.stops || []).map((stop, i) => ({ stop, index: i, dayLabel: null, firstOfDay: false, dayStart: '' }));
+  }
+
+  function trackExport(format) {
+    try {
+      fetch('/api/track', {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ type: 'guide_export', source: format, owner_id: getOwnerId() }),
+        keepalive: true
+      }).catch(() => {});
+    } catch (e) { /* analytics must never block an export */ }
+  }
+
+  function guideAsText(saved) {
+    const g = saved.guide || {};
+    const lines = [g.title || 'Your DayHop guide'];
+    if (g.city) lines.push(g.city);
+    if (g.start_time) lines.push(`Starts around ${g.start_time}`);
+    lines.push('');
+    flattenGuideStops(g).forEach(({ stop, index, dayLabel, firstOfDay, dayStart }) => {
+      if (firstOfDay) {
+        lines.push(`— ${dayLabel}${dayStart ? ` (starts around ${dayStart})` : ''} —`);
+      }
+      const idea = stop.idea || {};
+      lines.push(`${index + 1}. ${stop.title}${stop.suggested_time ? ` (${stop.suggested_time})` : ''}`);
+      if (idea.location) lines.push(`   ${idea.location}`);
+      if (stop.note) lines.push(`   📝 ${stop.note}`);
+      if (stop.transition_note) lines.push(`   → ${stop.transition_note}`);
+    });
+    lines.push('', `Full guide: ${saved.share_url}`);
+    return lines.join('\n');
+  }
+
+  function guideAsMarkdown(saved) {
+    const g = saved.guide || {};
+    const md = [`# ${g.title || 'Your DayHop guide'}`, ''];
+    if (g.city) md.push(`**Where:** ${g.city}  `);
+    if (g.start_time) md.push(`**Starts around:** ${g.start_time}`);
+    md.push('');
+    flattenGuideStops(g).forEach(({ stop, index, dayLabel, firstOfDay, dayStart }) => {
+      if (firstOfDay) {
+        md.push(`# ${dayLabel}`);
+        if (dayStart) md.push(`**Starts around:** ${dayStart}`);
+        md.push('');
+      }
+      const idea = stop.idea || {};
+      md.push(`## ${index + 1}. ${stop.title}${stop.suggested_time ? ` — ${stop.suggested_time}` : ''}`);
+      if (idea.why) md.push(idea.why);
+      if (idea.location) md.push(`- 📍 ${idea.location}`);
+      if (stop.note) md.push(`- 📝 ${stop.note}`);
+      if (idea.booking_url) md.push(`- [Book](${idea.booking_url})`);
+      if (idea.maps_url) md.push(`- [Map](${idea.maps_url})`);
+      if (stop.transition_note) md.push(`- → ${stop.transition_note}`);
+      md.push('');
+    });
+    if (g.notes) md.push(`> 💬 ${g.notes}`);
+    md.push('', `Made with DayHop — full guide: ${saved.share_url}`);
+    return md.join('\n');
+  }
+
+  function copyToClipboard(text, doneMsg) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(() => { if (doneMsg) showToast(doneMsg); })
+        .catch(() => {});
+    }
+  }
+
+  async function handleExport(format) {
+    const saved = await ensureGuideSaved();
+    if (!saved) return;
+    trackExport(format);
+    const g = saved.guide || {};
+    const shareTitle = g.title || 'My DayHop day guide';
+
+    if (format === 'share') {
+      if (navigator.share) {
+        navigator.share({ title: shareTitle, text: `${shareTitle}${g.city ? ' — ' + g.city : ''}`, url: saved.share_url }).catch(() => {});
+      } else {
+        // Desktop without Web Share: copy the link and open an X intent.
+        copyToClipboard(saved.share_url);
+        const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTitle)}&url=${encodeURIComponent(saved.share_url)}`;
+        window.open(intent, '_blank', 'noopener');
+        showToast('Link copied — sharing on X');
+      }
+    } else if (format === 'pdf') {
+      // The share page carries the print stylesheet; ?print=1 auto-opens the
+      // system print → Save as PDF dialog.
+      window.open(`${saved.share_url}?print=1`, '_blank', 'noopener');
+    } else if (format === 'email') {
+      window.location.href = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(guideAsText(saved))}`;
+    } else if (format === 'file') {
+      const blob = new Blob([guideAsMarkdown(saved)], { type: 'text/markdown;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${(g.title || 'dayhop-guide').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.md`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+      showToast('Guide saved as Markdown');
+    } else if (format === 'copy') {
+      copyToClipboard(saved.share_url, 'Guide link copied');
+    }
+  }
+
+  function wireExportBar() {
+    const formats = { 'export-share': 'share', 'export-pdf': 'pdf', 'export-email': 'email', 'export-file': 'file', 'export-copy': 'copy' };
+    Object.entries(formats).forEach(([id, format]) => {
+      const btn = document.getElementById(id);
+      if (btn) btn.addEventListener('click', () => handleExport(format));
+    });
+  }
+
+  // "New shortlist" — Pro feature once billing is live (free tier keeps its
+  // single shortlist + one exported guide; fails open pre-Stripe).
+  function handleNewShortlist() {
+    if (state.billingConfigured && !state.isPro) {
+      if (!isLoggedIn()) {
+        showToast('Sign in first — new shortlists come with Pro.', { duration: 4500 });
+        const authBtn = document.getElementById('auth-btn');
+        if (authBtn && !authBtn.hidden) authBtn.click();
+      } else {
+        showUpgradeModal('new_shortlist');
+      }
+      return;
+    }
+    state.shortlist = [];
+    state.savedGuide = null;
+    state.lastPlan = null;
+    persist();
+    if (isLoggedIn()) fetch('/api/shortlist', { method: 'DELETE', headers: authHeaders() }).catch(() => {});
+    updateShortlistCount();
+    renderShortlistPanel();
+    renderFeed(true);
+    showToast('Fresh shortlist — pick your next day ✨');
   }
 
   // ---------- Generate flow ----------
@@ -1009,10 +1691,149 @@
       document.getElementById('results-header').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (err) {
       errorEl.textContent = err.message || 'Something went wrong. Please try again.';
-      showToast(err.message || 'Could not generate ideas right now.', { duration: 3500 });
+      if (err.code === 'UPGRADE_REQUIRED') {
+        showUpgradeModal('generate');
+      } else {
+        showToast(err.message || 'Could not generate ideas right now.', { duration: 3500 });
+      }
     } finally {
       setLoading(false);
     }
+  }
+
+  // ---------- Pro tier (Phase 4) ----------
+  // One upgrade modal for every Pro gate: a contextual first line (what just
+  // hit the limit) above the full benefits list, so the prompt always answers
+  // "why am I seeing this" AND "what do I get".
+  const UPGRADE_CONTEXTS = {
+    generate: "You've used today's free day plans — Pro plans without limits.",
+    saved_guides: 'Your free saved plans are full — Pro keeps every plan you make.',
+    edit_guide: 'Your edits look great — saving a customized plan is a Pro feature.',
+    multi_day: 'Weekend and multi-day trips are a Pro feature.',
+    replan: "You've used today's free re-plan — Pro re-plans as often as the weather changes.",
+    new_shortlist: 'Starting fresh shortlists anytime is a Pro feature.'
+  };
+
+  function showUpgradeModal(context) {
+    // No billing configured → nothing to sell yet; fall back to a soft toast.
+    if (!state.billingConfigured) {
+      showToast('DayHop Pro is coming soon ✨');
+      return;
+    }
+    const ctx = document.getElementById('upgrade-context');
+    ctx.textContent = UPGRADE_CONTEXTS[context] || 'Unlock everything DayHop can do.';
+    const modal = document.getElementById('upgrade-panel');
+    modal.hidden = false;
+    requestAnimationFrame(() => modal.classList.add('modal--open'));
+  }
+
+  function hideUpgradeModal() {
+    const modal = document.getElementById('upgrade-panel');
+    modal.classList.remove('modal--open');
+    setTimeout(() => { modal.hidden = true; }, 200);
+  }
+
+  function wireUpgradeModal() {
+    document.getElementById('upgrade-cta').addEventListener('click', () => {
+      hideUpgradeModal();
+      startUpgrade();
+    });
+    document.getElementById('upgrade-later').addEventListener('click', hideUpgradeModal);
+    document.querySelectorAll('[data-close-upgrade]').forEach(el => el.addEventListener('click', hideUpgradeModal));
+  }
+
+  // Keep every Pro-dependent bit of chrome in sync with the current tier:
+  // PRO chips on gated controls appear only for free users with billing live.
+  function updateProUi() {
+    const gated = state.billingConfigured && !state.isPro;
+    document.querySelectorAll('#day-selector .pro-chip').forEach(chip => { chip.hidden = !gated; });
+    const replanChip = document.getElementById('replan-pro-chip');
+    if (replanChip) replanChip.hidden = !gated;
+    const myPlansBtn = document.getElementById('my-plans-btn');
+    if (myPlansBtn) myPlansBtn.hidden = !isLoggedIn();
+  }
+
+  function setPlanDays(days) {
+    // Free users can tap 2-3 days — that's the natural upgrade moment.
+    if (days > 1 && state.billingConfigured && !state.isPro) {
+      showUpgradeModal('multi_day');
+      return;
+    }
+    state.planDays = days;
+    document.querySelectorAll('.day-choice').forEach(btn =>
+      btn.classList.toggle('active', Number(btn.dataset.days) === days));
+    const label = document.querySelector('#build-day-btn .btn-label');
+    if (label) label.textContent = days > 1 ? `Build my ${days}-day trip` : 'Build my day';
+  }
+
+  function wireDaySelector() {
+    document.querySelectorAll('.day-choice').forEach(btn => {
+      btn.addEventListener('click', () => setPlanDays(Number(btn.dataset.days)));
+    });
+  }
+
+  async function startUpgrade() {
+    if (!isLoggedIn()) {
+      showToast('Sign in first, then go Pro for unlimited planning.', { duration: 4000 });
+      const authBtn = document.getElementById('auth-btn');
+      if (authBtn && !authBtn.hidden) authBtn.click();
+      return;
+    }
+    try {
+      const res = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' })
+      });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.location.href = data.url; // Stripe Checkout
+      } else {
+        showToast(data.message || 'Could not start checkout.', { duration: 4000 });
+      }
+    } catch (e) {
+      showToast('Could not start checkout. Please try again.', { duration: 4000 });
+    }
+  }
+
+  async function refreshProStatus() {
+    const badge = document.getElementById('pro-badge');
+    const goProBtn = document.getElementById('go-pro-btn');
+    try {
+      // Works signed-out too: the route still reports whether billing is
+      // configured, which is what decides if the Go Pro button appears.
+      const res = await fetch('/api/billing/status', { headers: isLoggedIn() ? authHeaders() : {} });
+      const data = await res.json();
+      const pro = Boolean(res.ok && isLoggedIn() && data.pro);
+      state.billingConfigured = Boolean(res.ok && data.configured);
+      state.isPro = pro;
+      state.entitlements = (res.ok && data.entitlements) || null;
+      if (badge) badge.hidden = !pro;
+      if (goProBtn) goProBtn.hidden = !(res.ok && data.configured && !pro);
+    } catch (e) {
+      if (badge) badge.hidden = true;
+      if (goProBtn) goProBtn.hidden = true;
+    }
+    // A tier change can unlock/lock multi-day: snap the selector back to a
+    // valid choice and refresh all PRO chips.
+    if (state.planDays > 1 && state.billingConfigured && !state.isPro) setPlanDays(1);
+    updateProUi();
+  }
+
+  // Returning from Stripe Checkout (?billing=success|cancelled).
+  function handleBillingReturn() {
+    const params = new URLSearchParams(window.location.search);
+    const billing = params.get('billing');
+    if (!billing) return;
+    if (billing === 'success') {
+      showToast('Welcome to DayHop Pro 🎉 Unlimited day plans unlocked.', { duration: 5000 });
+      // Webhook processing can lag checkout by a moment.
+      setTimeout(refreshProStatus, 2500);
+    } else if (billing === 'cancelled') {
+      showToast('No worries — Pro is here whenever you want it.');
+    }
+    params.delete('billing');
+    const rest = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (rest ? '?' + rest : ''));
   }
 
   // ---------- Results header + curated collections ----------
@@ -1133,10 +1954,17 @@
     const wasLoggedIn = Boolean(state.user);
     state.user = detail && detail.user ? detail.user : null;
     if (state.user) {
+      // First sign-in on this device → one signup event for the funnel.
+      const seenKey = 'dayhop_signup_tracked_' + state.user.id;
+      if (!localStorage.getItem(seenKey)) {
+        localStorage.setItem(seenKey, '1');
+        track('signup');
+      }
       await onSignedIn();
     } else if (wasLoggedIn) {
       onSignedOut();
     }
+    refreshProStatus();
   }
 
   // On sign-in: one-time migration of the guest's local shortlist into the
@@ -1182,6 +2010,10 @@
   // into the next anonymous session on a shared device.
   function onSignedOut() {
     state.shortlist = [];
+    state.myGuides = [];
+    state.currentGuide = null;
+    state.currentGuideId = null;
+    state.savedGuide = null;
     persist();
     updateShortlistCount();
     renderShortlistPanel();
@@ -1205,6 +2037,7 @@
     }
 
     document.getElementById('prompt-form').addEventListener('submit', handleGenerate);
+    document.getElementById('go-pro-btn').addEventListener('click', startUpgrade);
 
     // Onboarding — tapping an example prompt fills the box and generates instantly.
     document.querySelectorAll('.example-chip').forEach(chip => {
@@ -1229,6 +2062,32 @@
 
     document.getElementById('build-day-btn').addEventListener('click', handleBuildDay);
     document.getElementById('surprise-me-btn').addEventListener('click', handleSurpriseMe);
+    document.getElementById('new-shortlist-btn').addEventListener('click', handleNewShortlist);
+    wireExportBar();
+
+    // Freemium surfaces: My Plans, plan editing, smart re-planning, trip
+    // length, and the shared upgrade modal.
+    document.getElementById('my-plans-btn').addEventListener('click', openMyPlans);
+    document.getElementById('plan-edit-btn').addEventListener('click', toggleEditMode);
+    document.getElementById('plan-save-btn').addEventListener('click', handleSavePlan);
+    wireReplanBar();
+    wireDaySelector();
+    wireUpgradeModal();
+
+    // Outbound click tracking (booking links are the affiliate-revenue metric).
+    document.addEventListener('click', (e) => {
+      const link = e.target.closest && e.target.closest('a.card-booking-link');
+      if (!link) return;
+      const card = link.closest('.idea-card');
+      const idea = {
+        id: link.dataset.ideaId || (card && card.dataset.id),
+        source: link.dataset.ideaSource || undefined
+      };
+      track(link.classList.contains('card-booking-link--secondary') ? 'maps_click' : 'booking_click', idea);
+    });
+
+    handleBillingReturn();
+    refreshProStatus();
 
     renderFeed();
   }

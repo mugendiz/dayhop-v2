@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DayHop Guide</title>
+<meta name="description" content="A DayHop day guide — real places, real plans.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #102A2E;
+    --ink-soft: #2C4A4E;
+    --paper: #FBF7EE;
+    --paper-dim: #F2ECDC;
+    --coral: #FF6B4A;
+    --coral-dark: #E1502F;
+    --line: rgba(16, 42, 46, 0.14);
+    --line-strong: rgba(16, 42, 46, 0.28);
+    --radius: 18px;
+    --radius-md: 12px;
+    --radius-pill: 999px;
+    --serif: 'Fraunces', Georgia, serif;
+    --sans: 'Inter', system-ui, sans-serif;
+    --mono: 'Space Grotesk', 'IBM Plex Mono', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--coral-dark); }
+
+  .wrap { max-width: 680px; margin: 0 auto; padding: 28px 22px 140px; }
+
+  .brand {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding-bottom: 18px; border-bottom: 1px solid var(--line); margin-bottom: 26px;
+  }
+  .brand a.logo {
+    font-family: var(--serif); font-weight: 650; font-size: 22px;
+    color: var(--ink); text-decoration: none;
+  }
+  .brand .made-with { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-soft); }
+
+  .guide-head h1 { font-family: var(--serif); font-weight: 650; font-size: clamp(28px, 6vw, 40px); line-height: 1.12; }
+  .guide-meta { font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.06em; color: var(--ink-soft); margin-top: 10px; }
+  .guide-start { margin-top: 20px; font-size: 15px; }
+  .guide-start strong { color: var(--coral-dark); }
+
+  .stops { margin-top: 30px; display: flex; flex-direction: column; gap: 22px; }
+  .stop {
+    display: grid; grid-template-columns: 44px 1fr; gap: 14px;
+    background: white; border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px;
+  }
+  .stop-marker {
+    font-family: var(--mono); font-size: 15px; font-weight: 500; color: var(--coral-dark);
+    width: 44px; height: 44px; border: 1.5px solid var(--coral); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stop-time { font-family: var(--mono); font-size: 12px; letter-spacing: 0.07em; color: var(--ink-soft); text-transform: uppercase; }
+  .stop h2 { font-family: var(--serif); font-weight: 650; font-size: 21px; margin: 2px 0 6px; }
+  .stop-photo { margin: 10px 0; border-radius: var(--radius-md); overflow: hidden; }
+  .stop-photo img { width: 100%; max-height: 240px; object-fit: cover; display: block; }
+  .stop-why { font-size: 14.5px; color: var(--ink-soft); }
+  .stop-wow { font-size: 14px; margin-top: 8px; color: var(--coral-dark); }
+  .stop-facts { margin-top: 10px; font-size: 13.5px; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: 6px 14px; }
+  .stop-facts span { white-space: nowrap; }
+  .stop-links { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 10px; }
+  .stop-links a {
+    font-size: 13px; font-weight: 600; text-decoration: none;
+    border: 1px solid var(--line-strong); border-radius: var(--radius-pill);
+    padding: 6px 13px; color: var(--ink);
+  }
+  .stop-links a.primary { background: var(--coral); border-color: var(--coral); color: white; }
+  .transition {
+    grid-column: 2; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line);
+    font-size: 13.5px; color: var(--ink-soft); font-style: italic;
+  }
+
+  .guide-notes {
+    margin-top: 28px; background: var(--paper-dim); border-radius: var(--radius);
+    padding: 16px 18px; font-size: 14.5px; color: var(--ink-soft);
+  }
+
+  .day-header {
+    font-family: var(--serif); font-weight: 650; font-size: 24px;
+    margin: 34px 0 4px; padding-top: 22px; border-top: 1px dashed var(--line);
+  }
+  .day-header:first-child { margin-top: 6px; padding-top: 0; border-top: none; }
+  .day-start { font-size: 14px; margin-bottom: 4px; }
+  .day-start strong { color: var(--coral-dark); }
+  .stop-note {
+    margin-top: 8px; font-size: 13.5px; color: var(--ink-soft);
+    background: var(--paper-dim); border-radius: var(--radius-md); padding: 7px 10px;
+  }
+
+  .footer-cta { margin-top: 40px; text-align: center; font-size: 14px; color: var(--ink-soft); }
+  .footer-cta a { font-weight: 600; }
+
+  /* ---------- export bar ---------- */
+  .export-bar {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: rgba(251, 247, 238, 0.96); backdrop-filter: blur(8px);
+    border-top: 1px solid var(--line); padding: 12px 16px;
+    display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;
+  }
+  .export-bar button, .export-bar a {
+    font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--line-strong); background: white; color: var(--ink);
+    border-radius: var(--radius-pill); padding: 8px 14px; text-decoration: none;
+  }
+  .export-bar .share-main { background: var(--coral); border-color: var(--coral); color: white; }
+
+  .status { text-align: center; padding: 80px 20px; }
+  .status h1 { font-family: var(--serif); font-size: 26px; margin-bottom: 10px; }
+  .status a { font-weight: 600; }
+
+  .toast {
+    position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--paper); font-size: 13.5px;
+    padding: 10px 18px; border-radius: var(--radius-pill); opacity: 0;
+    transition: opacity 0.2s ease; pointer-events: none; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+
+  @media print {
+    .export-bar, .footer-cta, .toast { display: none !important; }
+    body { background: white; }
+    .wrap { padding: 0; max-width: none; }
+    .stop { break-inside: avoid; border-color: #ccc; }
+    .stop-photo { display: none; } /* keep printed guides ink-friendly */
+    a { color: var(--ink); text-decoration: none; }
+    .stop-links a.primary { background: none; color: var(--ink); border: 1px solid #999; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="brand">
+    <a class="logo" href="/">DayHop</a>
+    <span class="made-with">DAY GUIDE</span>
+  </div>
+  <div id="guide-root">
+    <div class="status"><h1>Loading your guide…</h1></div>
+  </div>
+  <p class="footer-cta">Made with <a href="/">DayHop</a> — plan your perfect day in one sentence.</p>
+</div>
+
+<div class="export-bar" id="export-bar" hidden>
+  <button class="share-main" id="btn-share" type="button">📤 Share</button>
+  <button id="btn-pdf" type="button">🖨️ Save as PDF</button>
+  <a id="btn-email" href="#">✉️ Email</a>
+  <button id="btn-download" type="button">💾 Save to file</button>
+  <button id="btn-copy" type="button">🔗 Copy link</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var guide = null;
+  var pageUrl = window.location.href.split('#')[0];
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function toast(msg) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(function () { el.classList.remove('show'); }, 2200);
+  }
+
+  function factsLine(idea) {
+    var bits = [];
+    if (idea.location) bits.push('📍 ' + esc(idea.location));
+    if (idea.duration_minutes) bits.push('⏱ ~' + Math.round(idea.duration_minutes / 60 * 10) / 10 + ' h');
+    if (idea.cost_tier) bits.push('💳 ' + esc(idea.cost_tier));
+    if (idea.price_from != null) bits.push('from ' + esc(String(idea.price_from)) + (idea.currency ? ' ' + esc(idea.currency) : ''));
+    if (idea.rating != null) bits.push('★ ' + esc(String(idea.rating)));
+    return bits.map(function (b) { return '<span>' + b + '</span>'; }).join('');
+  }
+
+  // Multi-day guides carry a days[] array; single-day guides carry stops[].
+  // Normalize to [{ label, start_time, notes, stops }] so both render alike.
+  function dayGroups(g) {
+    if (g.days && g.days.length) return g.days;
+    return [{ label: null, start_time: g.start_time || '', notes: '', stops: g.stops || [] }];
+  }
+
+  function stopHtml(stop, i) {
+    var idea = stop.idea || {};
+    return '<div class="stop">' +
+      '<div class="stop-marker">' + String(i + 1).padStart(2, '0') + '</div>' +
+      '<div class="stop-body">' +
+        (stop.suggested_time ? '<span class="stop-time">' + esc(stop.suggested_time) + '</span>' : '') +
+        '<h2>' + esc(stop.title) + '</h2>' +
+        (idea.image_url ? '<div class="stop-photo"><img src="' + esc(idea.image_url) + '" alt="" loading="lazy"></div>' : '') +
+        (idea.why ? '<p class="stop-why">' + esc(idea.why) + '</p>' : '') +
+        (idea.wow_reason ? '<p class="stop-wow">✨ ' + esc(idea.wow_reason) + '</p>' : '') +
+        (stop.note ? '<p class="stop-note">📝 ' + esc(stop.note) + '</p>' : '') +
+        '<div class="stop-facts">' + factsLine(idea) + '</div>' +
+        '<div class="stop-links">' +
+          (idea.booking_url ? '<a class="primary" href="' + esc(idea.booking_url) + '" target="_blank" rel="noopener noreferrer sponsored">Book ↗</a>' : '') +
+          (idea.maps_url ? '<a href="' + esc(idea.maps_url) + '" target="_blank" rel="noopener noreferrer">Map ↗</a>' : '') +
+        '</div>' +
+      '</div>' +
+      (stop.transition_note ? '<div class="transition">→ ' + esc(stop.transition_note) + '</div>' : '') +
+    '</div>';
+  }
+
+  function render(data) {
+    guide = data;
+    var g = data.guide || {};
+    var created = data.created_at ? new Date(data.created_at) : null;
+    var meta = [];
+    if (g.city) meta.push(esc(g.city));
+    if (g.days && g.days.length > 1) meta.push(g.days.length + '-day trip');
+    if (created) meta.push(created.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }));
+
+    var sectionsHtml = dayGroups(g).map(function (day) {
+      var stopsHtml = (day.stops || []).map(stopHtml).join('');
+      return (day.label ? '<h2 class="day-header">' + esc(day.label) + '</h2>' : '') +
+        (day.label && day.start_time ? '<p class="day-start">Starts around <strong>' + esc(day.start_time) + '</strong></p>' : '') +
+        '<div class="stops">' + stopsHtml + '</div>' +
+        (day.notes ? '<div class="guide-notes">💬 ' + esc(day.notes) + '</div>' : '');
+    }).join('');
+
+    document.title = (g.title || 'DayHop Guide') + ' — DayHop';
+    document.getElementById('guide-root').innerHTML =
+      '<div class="guide-head">' +
+        '<h1>' + esc(g.title || 'Your day, mapped out') + '</h1>' +
+        '<p class="guide-meta">' + meta.join(' · ') + '</p>' +
+        (!g.days && g.start_time ? '<p class="guide-start">Starts around <strong>' + esc(g.start_time) + '</strong></p>' : '') +
+      '</div>' +
+      sectionsHtml +
+      (g.notes ? '<div class="guide-notes">💬 ' + esc(g.notes) + '</div>' : '');
+
+    wireExports();
+    document.getElementById('export-bar').hidden = false;
+
+    // Opened from the in-app "PDF" button: go straight to the system print
+    // dialog (where "Save as PDF" lives) once the layout has settled.
+    if (new URLSearchParams(window.location.search).has('print')) {
+      setTimeout(function () { window.print(); }, 600);
+    }
+  }
+
+  function guideAsText() {
+    var g = guide.guide || {};
+    var lines = [g.title || 'Your DayHop guide'];
+    if (g.city) lines.push(g.city);
+    if (!g.days && g.start_time) lines.push('Starts around ' + g.start_time);
+    lines.push('');
+    dayGroups(g).forEach(function (day) {
+      if (day.label) lines.push('— ' + day.label + (day.start_time ? ' (starts around ' + day.start_time + ')' : '') + ' —');
+      (day.stops || []).forEach(function (stop, i) {
+        var idea = stop.idea || {};
+        lines.push((i + 1) + '. ' + stop.title + (stop.suggested_time ? ' (' + stop.suggested_time + ')' : ''));
+        if (idea.location) lines.push('   ' + idea.location);
+        if (stop.note) lines.push('   📝 ' + stop.note);
+        if (stop.transition_note) lines.push('   → ' + stop.transition_note);
+      });
+    });
+    lines.push('');
+    lines.push('Full guide: ' + pageUrl);
+    return lines.join('\n');
+  }
+
+  function guideAsMarkdown() {
+    var g = guide.guide || {};
+    var md = ['# ' + (g.title || 'Your DayHop guide'), ''];
+    if (g.city) md.push('**Where:** ' + g.city + '  ');
+    if (!g.days && g.start_time) md.push('**Starts around:** ' + g.start_time);
+    md.push('');
+    dayGroups(g).forEach(function (day) {
+      if (day.label) {
+        md.push('# ' + day.label);
+        if (day.start_time) md.push('**Starts around:** ' + day.start_time);
+        md.push('');
+      }
+      (day.stops || []).forEach(function (stop, i) {
+        var idea = stop.idea || {};
+        md.push('## ' + (i + 1) + '. ' + stop.title + (stop.suggested_time ? ' — ' + stop.suggested_time : ''));
+        if (idea.why) md.push(idea.why);
+        if (idea.location) md.push('- 📍 ' + idea.location);
+        if (stop.note) md.push('- 📝 ' + stop.note);
+        if (idea.booking_url) md.push('- [Book](' + idea.booking_url + ')');
+        if (idea.maps_url) md.push('- [Map](' + idea.maps_url + ')');
+        if (stop.transition_note) md.push('- → ' + stop.transition_note);
+        md.push('');
+      });
+    });
+    if (g.notes) md.push('> 💬 ' + g.notes);
+    md.push('');
+    md.push('Made with [DayHop](' + window.location.origin + ') — full guide: ' + pageUrl);
+    return md.join('\n');
+  }
+
+  function wireExports() {
+    var g = guide.guide || {};
+    var shareTitle = g.title || 'My DayHop day guide';
+    var shareText = shareTitle + (g.city ? ' — ' + g.city : '');
+
+    document.getElementById('btn-share').addEventListener('click', function () {
+      if (navigator.share) {
+        navigator.share({ title: shareTitle, text: shareText, url: pageUrl }).catch(function () {});
+      } else {
+        // No Web Share API (desktop): open an X/Twitter intent as the default
+        // social path, with the link already on the clipboard.
+        copyLink(true);
+        var intent = 'https://twitter.com/intent/tweet?text=' +
+          encodeURIComponent(shareText) + '&url=' + encodeURIComponent(pageUrl);
+        window.open(intent, '_blank', 'noopener');
+      }
+    });
+
+    document.getElementById('btn-pdf').addEventListener('click', function () { window.print(); });
+
+    var email = document.getElementById('btn-email');
+    email.href = 'mailto:?subject=' + encodeURIComponent(shareTitle) +
+      '&body=' + encodeURIComponent(guideAsText());
+
+    document.getElementById('btn-download').addEventListener('click', function () {
+      var blob = new Blob([guideAsMarkdown()], { type: 'text/markdown;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (g.title || 'dayhop-guide').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.md';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+      toast('Guide saved as Markdown');
+    });
+
+    document.getElementById('btn-copy').addEventListener('click', function () { copyLink(); });
+  }
+
+  function copyLink(quiet) {
+    var done = function () { if (!quiet) toast('Link copied'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(pageUrl).then(done).catch(function () {});
+    } else {
+      var input = document.createElement('input');
+      input.value = pageUrl;
+      document.body.appendChild(input);
+      input.select();
+      try { document.execCommand('copy'); done(); } catch (e) {}
+      input.remove();
+    }
+  }
+
+  function showError(message) {
+    document.getElementById('guide-root').innerHTML =
+      '<div class="status"><h1>' + esc(message) + '</h1>' +
+      '<p><a href="/">Plan your own day with DayHop →</a></p></div>';
+  }
+
+  var shareId = window.location.pathname.split('/').filter(Boolean).pop();
+  fetch('/api/guides/shared/' + encodeURIComponent(shareId))
+    .then(function (res) {
+      if (!res.ok) throw new Error(res.status === 404 ? 'This guide does not exist or is no longer shared.' : 'Could not load this guide right now.');
+      return res.json();
+    })
+    .then(render)
+    .catch(function (err) { showError(err.message); });
+})();
+</script>
+</body>
+</html>

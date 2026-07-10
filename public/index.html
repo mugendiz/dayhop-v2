@@ -19,9 +19,11 @@
 <header class="hero">
   <div class="hero-trail" aria-hidden="true"></div>
   <nav class="topbar">
-    <span class="logo">DayHop</span>
+    <span class="logo">DayHop<span id="pro-badge" class="pro-badge" hidden>PRO</span></span>
     <div class="topbar-right">
       <span class="topbar-tag" id="location-tag">Greater Toronto Area</span>
+      <button class="go-pro-btn" id="go-pro-btn" type="button" hidden>Go Pro ✨</button>
+      <button class="auth-btn my-plans-btn" id="my-plans-btn" type="button" hidden>🗂 My Plans</button>
       <button class="auth-btn" id="auth-btn" type="button" hidden>Sign in</button>
       <div class="user-chip" id="user-chip" hidden>
         <span class="user-email" id="user-email"></span>
@@ -142,8 +144,15 @@
     </div>
     <p id="shortlist-summary" class="shortlist-summary" hidden></p>
     <div id="shortlist-items" class="shortlist-items"></div>
+    <button id="new-shortlist-btn" class="new-shortlist-btn" type="button" hidden>✦ Start a new shortlist</button>
     <div id="shortlist-empty" class="shortlist-empty">
       <p>Nothing here yet. Swipe right or tap "Add to my day" on an idea to start building your day.</p>
+    </div>
+    <div class="day-selector" id="day-selector" role="group" aria-label="Trip length">
+      <span class="day-selector-label">Trip length</span>
+      <button class="day-choice active" type="button" data-days="1">1 day</button>
+      <button class="day-choice" type="button" data-days="2">2 days <span class="pro-chip" hidden>PRO</span></button>
+      <button class="day-choice" type="button" data-days="3">3 days <span class="pro-chip" hidden>PRO</span></button>
     </div>
     <div class="panel-footer">
       <button id="surprise-me-btn" class="ghost-btn surprise-btn" type="button">✨ Surprise me</button>
@@ -163,7 +172,41 @@
       <h2 id="dayplan-title">Your day, mapped out</h2>
       <button class="panel-close" data-close-panel aria-label="Close">✕</button>
     </div>
+    <div class="plan-toolbar" id="plan-toolbar" hidden>
+      <button id="plan-edit-btn" class="ghost-btn plan-tool-btn" type="button">✏️ Edit plan</button>
+      <button id="plan-save-btn" class="ghost-btn plan-tool-btn" type="button">💾 Save plan</button>
+    </div>
+    <div id="plan-change-summary" class="change-summary" hidden></div>
     <div id="dayplan-content" class="dayplan-content"></div>
+    <!-- Smart re-planning: quick chips + free text, revises the current plan in place -->
+    <div class="replan-bar" id="replan-bar" hidden>
+      <p class="replan-title">✨ Tune this plan <span class="pro-chip" id="replan-pro-chip" hidden>PRO</span></p>
+      <div class="replan-chips">
+        <button class="replan-chip" type="button" data-replan="It's raining — swap outdoor stops for great indoor alternatives">☔ Rain-proof it</button>
+        <button class="replan-chip" type="button" data-replan="Make this more kid-friendly for young children">👶 Kid-friendly</button>
+        <button class="replan-chip" type="button" data-replan="Reduce driving — keep stops closer together with a more relaxed pace">🚗 Less driving</button>
+        <button class="replan-chip" type="button" data-replan="Make this a budget version — prefer free and cheap options">💸 Budget version</button>
+        <button class="replan-chip" type="button" data-replan="Add more good food stops at sensible meal times">🍜 More food</button>
+      </div>
+      <form id="replan-form" class="replan-form">
+        <label for="replan-input" class="sr-only">Tell DayHop what to change</label>
+        <input id="replan-input" maxlength="300" placeholder="Or say it your way — &quot;more relaxed pace, add a beach&quot;">
+        <button class="primary-btn replan-go" id="replan-go" type="submit">
+          <span class="btn-label">Re-plan</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
+        </button>
+      </form>
+    </div>
+    <div class="guide-export" id="guide-export" hidden>
+      <p class="guide-export-hint" id="guide-export-hint">Turn this into a shareable guide — sign in to export. Free includes one guide.</p>
+      <div class="guide-export-bar">
+        <button id="export-share" type="button" class="export-btn export-btn--primary">📤 Share</button>
+        <button id="export-pdf" type="button" class="export-btn">🖨️ PDF</button>
+        <button id="export-email" type="button" class="export-btn">✉️ Email</button>
+        <button id="export-file" type="button" class="export-btn">💾 Save to file</button>
+        <button id="export-copy" type="button" class="export-btn">🔗 Copy link</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -176,6 +219,42 @@
       <button class="panel-close" data-close-panel aria-label="Close">✕</button>
     </div>
     <div id="detail-content" class="detail-content"></div>
+  </div>
+</div>
+
+<!-- My Plans: saved guides list (view / edit / share / delete) -->
+<div id="myplans-panel" class="panel" hidden>
+  <div class="panel-backdrop" data-close-panel></div>
+  <div class="panel-sheet" role="dialog" aria-modal="true" aria-labelledby="myplans-title">
+    <div class="panel-header">
+      <h2 id="myplans-title">My Plans</h2>
+      <button class="panel-close" data-close-panel aria-label="Close">✕</button>
+    </div>
+    <p id="myplans-footnote" class="myplans-footnote" hidden></p>
+    <div id="myplans-list" class="myplans-list"></div>
+    <div id="myplans-empty" class="shortlist-empty" hidden>
+      <p>No saved plans yet. Build a day from your shortlist, then save it here to edit, share, and reuse it.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Upgrade modal: the one place every Pro gate points at -->
+<div id="upgrade-panel" class="modal" hidden>
+  <div class="modal-backdrop" data-close-upgrade></div>
+  <div class="modal-card upgrade-card" role="dialog" aria-modal="true" aria-labelledby="upgrade-title">
+    <button class="panel-close modal-close" data-close-upgrade aria-label="Close">✕</button>
+    <span class="pro-badge upgrade-badge">PRO</span>
+    <h2 id="upgrade-title">Do more with DayHop Pro</h2>
+    <p class="upgrade-context" id="upgrade-context"></p>
+    <ul class="upgrade-benefits">
+      <li>♾️ Unlimited day plans, every day</li>
+      <li>🗂 Unlimited saved plans + full history</li>
+      <li>✏️ Edit &amp; customize any saved plan</li>
+      <li>🌅 Weekend &amp; multi-day trips (2–3 days)</li>
+      <li>✨ Unlimited smart re-planning — rain-proof it, kid-proof it, budget it</li>
+    </ul>
+    <button class="primary-btn upgrade-cta" id="upgrade-cta" type="button">Go Pro ✨</button>
+    <button class="linklike upgrade-later" id="upgrade-later" type="button">Maybe later</button>
   </div>
 </div>
 

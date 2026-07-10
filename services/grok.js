@@ -120,8 +120,12 @@ JSON shape to return:
 The candidates are roughly ordered most-relevant first. Select 16 to 22 candidates. Start with every candidate that directly answers the request, then broaden to strong adjacent matches — for example, if the user asked about swimming, also include beaches, splash pads, lakes, paddling rentals, and waterparks. Then include 2 to 4 "stretch" picks: excellent candidates the user did not ask for but a GTA family would be genuinely excited to discover (a helicopter tour, treetop trekking, a hidden-gem beach — candidates marked "wow": true are good stretch material). Give each stretch pick a "wow_reason". If fewer than 16 candidates genuinely fit, return the ones that do rather than padding with weak matches — never invent to hit the count.`;
 }
 
+function whereLabel(city) {
+  return isGtaWide(city) ? 'the Greater Toronto Area' : `${city} and the GTA`;
+}
+
 function buildPlanSystemPrompt({ city }) {
-  const where = isGtaWide(city) ? 'the Greater Toronto Area' : `${city} and the GTA`;
+  const where = whereLabel(city);
   return `You are DayHop's day-plan assembler. Given a parent's shortlist of selected activities across ${where}, arrange them into a realistic, well-paced day itinerary.
 
 Hard rules:
@@ -144,6 +148,84 @@ JSON shape:
     }
   ],
   "notes": "string, empty string if the day is well-paced, otherwise a brief honest flag"
+}`;
+}
+
+// Multi-day variant (Pro): the same shortlist, spread across 2-3 days.
+function buildTripPlanSystemPrompt({ city, days }) {
+  const where = whereLabel(city);
+  return `You are DayHop's trip-plan assembler. Given a parent's shortlist of selected activities across ${where}, arrange them into a realistic, well-paced ${days}-day itinerary.
+
+Hard rules:
+- Use ONLY the items provided. Never invent new activities. Every input item appears exactly once across the whole trip — never duplicated, never dropped (unless the trip is badly overpacked, in which case flag the cut in "notes" instead of silently dropping it).
+- Spread items over exactly ${days} days. Cluster stops that are geographically close on the same day so each day has minimal driving; put the region-hopping between days, not within them.
+- Pace each day like a real family day: roughly 2-5 stops, meals at sensible times, no day wildly heavier than another.
+- Insert a short transition note between items only when it adds real value (travel time, meal timing) — otherwise use an empty string.
+- Give each day a short warm label (e.g. "Day 1 — Waterfront wandering"), not just a number.
+- Flag (politely, in the top-level "notes") if the trip looks overpacked or scattered, and suggest what to cut.
+- Return ONLY valid JSON, no markdown fences, no commentary.
+
+JSON shape:
+{
+  "plan_title": "string, short and specific to the trip",
+  "days": [
+    {
+      "day": 1,
+      "label": "string, e.g. 'Day 1 — Waterfront wandering'",
+      "start_time": "string, e.g. '10:00 AM'",
+      "stops": [
+        {
+          "id": "string, matches the input item id",
+          "title": "string",
+          "suggested_time": "string, e.g. '10:00 AM - 11:30 AM'",
+          "transition_note": "string or empty string if not needed"
+        }
+      ],
+      "notes": "string, empty unless this specific day needs an honest flag"
+    }
+  ],
+  "notes": "string, empty string if the trip is well-paced, otherwise a brief honest flag"
+}`;
+}
+
+/**
+ * Smart re-planning (the "it's raining — fix my day" engine). Takes the
+ * CURRENT itinerary plus a natural-language adjustment request, and optional
+ * real candidate venues to swap in. Existing stops are referenced by keep_id
+ * and replacements by candidate_id so the caller can re-attach full idea
+ * payloads (photos, booking links) without trusting the model to copy them.
+ */
+function buildReplanSystemPrompt({ city, weatherHint, hasCandidates, multiDay }) {
+  const where = whereLabel(city);
+  return `You are DayHop's smart re-planning engine for ${where}. You will receive a family's CURRENT itinerary ("current_plan"), their adjustment request ("request")${hasCandidates ? ', and a list of REAL candidate places/activities ("candidates") you may swap in' : ''}. ${weatherHint || ''}
+
+Your job: revise the plan to honor the request while keeping everything that still works. Change what needs changing — no more, no less.
+
+Hard rules:
+- Each output stop is EITHER a kept stop (set "keep_id" to that stop's original id — copy it exactly) OR ${hasCandidates ? 'a swap-in from the candidates (set "candidate_id" to the candidate\'s id — copy it exactly)' : 'a kept stop; with no candidates provided you may only reorder, retime, remove, or annotate stops'}. Never both, and NEVER invent a venue that is in neither list.
+- Kept stops may be reordered, retimed, or given new transition notes. Keep their titles as-is.
+- Remove stops that conflict with the request (e.g. outdoor stops when rain-proofing, pricey stops for a budget version) — removal is often the right move.
+${hasCandidates ? '- Swap-ins must genuinely serve the request. If the candidates don\'t cover something, adjust with what exists and say so honestly in change_summary rather than forcing a bad match.\n' : ''}- Keep the day(s) realistically paced with sensible meal timing and minimal zigzagging.
+- Mark every stop you changed, moved significantly, or swapped with "changed": true.
+- "change_summary": 2-5 short, warm, plain-language bullets — one concrete change each, with the why (e.g. "Swapped the splash pad for the science centre — it's pouring after 2 PM").
+${multiDay ? '- The current plan is multi-day: return the SAME "days" array structure (same number of days unless the request says otherwise). You may move stops between days when it improves the trip.\n' : ''}- Keep tone warm, plain, and trustworthy. Return ONLY valid JSON, no markdown fences, no commentary.
+
+JSON shape to return:
+{
+  "plan_title": "string — keep the old title unless the request changes the day's character",
+  "change_summary": ["string", "..."],
+${multiDay ? `  "days": [
+    {
+      "day": 1,
+      "label": "string",
+      "start_time": "string, e.g. '10:00 AM'",
+      "stops": [ { "keep_id": "string (kept stops only)", "candidate_id": "string (swap-ins only)", "title": "string", "suggested_time": "string", "transition_note": "string or empty", "changed": boolean } ],
+      "notes": "string or empty"
+    }
+  ],
+` : `  "start_time": "string, e.g. '10:00 AM'",
+  "stops": [ { "keep_id": "string (kept stops only)", "candidate_id": "string (swap-ins only)", "title": "string", "suggested_time": "string", "transition_note": "string or empty", "changed": boolean } ],
+`}  "notes": "string, empty unless the revised plan needs an honest flag"
 }`;
 }
 
@@ -260,23 +342,79 @@ async function generateGroundedIdeas({ prompt, filter, city = DEFAULT_CITY, cand
   return result.ideas;
 }
 
-async function buildDayPlan({ items, city = DEFAULT_CITY }) {
+async function buildDayPlan({ items, city = DEFAULT_CITY, days = 1 }) {
   if (!Array.isArray(items) || items.length === 0) {
     const err = new Error('At least one shortlisted item is required');
     err.code = 'INVALID_INPUT';
     throw err;
   }
 
+  const dayCount = Math.min(Math.max(Number(days) || 1, 1), 3);
   const messages = [
-    { role: 'system', content: buildPlanSystemPrompt({ city }) },
+    {
+      role: 'system',
+      content: dayCount > 1
+        ? buildTripPlanSystemPrompt({ city, days: dayCount })
+        : buildPlanSystemPrompt({ city })
+    },
     { role: 'user', content: JSON.stringify({ items }) }
   ];
 
   return callGrok(messages, { temperature: 0.4 });
 }
 
+/**
+ * Revise an existing plan against a natural-language request ("it's raining",
+ * "make it kid-friendly", "budget version"). See buildReplanSystemPrompt for
+ * the contract; the caller re-attaches full idea payloads by keep_id /
+ * candidate_id and must treat unknown ids as hallucinations.
+ */
+async function replanPlan({ current, instruction, city = DEFAULT_CITY, weather, candidates }) {
+  if (!instruction || !String(instruction).trim()) {
+    const err = new Error('Tell DayHop what to change first');
+    err.code = 'INVALID_INPUT';
+    throw err;
+  }
+  if (!current || typeof current !== 'object') {
+    const err = new Error('A current plan is required to re-plan');
+    err.code = 'INVALID_INPUT';
+    throw err;
+  }
+
+  const weatherHint = weather ? require('./weather').toPromptHint(weather) : '';
+  const pool = Array.isArray(candidates) ? candidates.slice(0, 40) : [];
+  const multiDay = Array.isArray(current.days) && current.days.length > 0;
+
+  const messages = [
+    {
+      role: 'system',
+      content: buildReplanSystemPrompt({ city, weatherHint, hasCandidates: pool.length > 0, multiDay })
+    },
+    {
+      role: 'user',
+      content: JSON.stringify({
+        request: String(instruction).slice(0, 300),
+        current_plan: current,
+        candidates: pool.length ? pool : undefined
+      })
+    }
+  ];
+
+  const result = await callGrok(messages, { temperature: 0.5 });
+  const stopsOk = multiDay
+    ? Array.isArray(result && result.days)
+    : Array.isArray(result && result.stops);
+  if (!result || !stopsOk) {
+    const err = new Error('Grok returned an unexpected re-plan shape');
+    err.code = 'GROK_BAD_SHAPE';
+    throw err;
+  }
+  return result;
+}
+
 module.exports = {
   generateIdeas,
   generateGroundedIdeas,
-  buildDayPlan
+  buildDayPlan,
+  replanPlan
 };

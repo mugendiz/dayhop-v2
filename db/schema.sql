@@ -130,3 +130,89 @@ create policy "community moderate update" on public.community_submissions
 create policy "users self rw" on public.users
   for all to authenticated
   using (id = auth.uid()) with check (id = auth.uid());
+
+-- ============================================================================
+-- PHASE 4 — business-model wiring (events analytics + subscriptions).
+-- Idempotent like the rest of the file: re-run the whole script, or paste
+-- from here down.
+-- ============================================================================
+
+-- ---------- events (analytics: prompts, shortlist adds, booking clicks) ----------
+-- owner_key is a user id OR a localStorage guest id ("guest-…") — analytics
+-- must count anonymous usage too.
+create table if not exists public.events (
+  id          text primary key,
+  type        text not null,
+  owner_key   text not null default 'anon',
+  idea_id     text,
+  source      text,
+  meta        jsonb,
+  created_at  timestamptz not null default now()
+);
+create index if not exists events_type_time_idx  on public.events (type, created_at desc);
+create index if not exists events_owner_time_idx on public.events (owner_key, created_at desc);
+
+alter table public.events enable row level security;
+drop policy if exists "events insert only" on public.events;
+-- Write-only analytics sink: anyone may INSERT, nobody may read/update/delete
+-- with the anon key (reads happen server-side with SUPABASE_SERVICE_KEY only —
+-- the publishable key ships to browsers and must never expose usage data).
+create policy "events insert only" on public.events
+  for insert to anon, authenticated with check (true);
+
+-- ---------- subscriptions (Stripe Pro tier) ----------
+create table if not exists public.subscriptions (
+  owner_id               text primary key,
+  stripe_customer_id     text,
+  stripe_subscription_id text,
+  status                 text not null default 'inactive',
+  current_period_end     timestamptz,
+  updated_at             timestamptz not null default now()
+);
+create index if not exists subscriptions_stripe_sub_idx on public.subscriptions (stripe_subscription_id);
+
+alter table public.subscriptions enable row level security;
+drop policy if exists "subscriptions self read" on public.subscriptions;
+-- A user may read their own subscription row. There is NO anon/authenticated
+-- write policy: rows are written exclusively by the Stripe webhook running
+-- server-side with SUPABASE_SERVICE_KEY (never trust a client about billing).
+create policy "subscriptions self read" on public.subscriptions
+  for select to authenticated using (owner_id = auth.uid()::text);
+
+-- ---------- guides (saved plans: editable, multi-day, shareable by link) ----------
+-- A guide is a self-contained, enriched copy of an itinerary. share_id is an
+-- unguessable slug used in public /g/<share_id> links; is_public lets a future
+-- "unshare" toggle work without deleting.
+--
+-- Freemium note (no migration needed): edits, multi-day structure, and the
+-- edit timestamp all live INSIDE the `guide` jsonb —
+--   guide.days[]      → multi-day itineraries ({label, start_time, notes, stops})
+--   guide.stops[].note → per-stop user annotations from the editor
+--   guide.updated_at  → set by the server on every save/edit
+-- The free tier's saved-plan cap and the Pro-only PUT (edit) are enforced in
+-- routes/guides.js via services/entitlements.js, not in the schema.
+create table if not exists public.guides (
+  id          text primary key,
+  owner_id    text not null,
+  share_id    text not null unique,
+  title       text not null default 'Your day',
+  city        text,
+  guide       jsonb not null,
+  is_public   boolean not null default true,
+  created_at  timestamptz not null default now()
+);
+create index if not exists guides_owner_idx on public.guides (owner_id, created_at desc);
+
+alter table public.guides enable row level security;
+drop policy if exists "own guides"          on public.guides;
+drop policy if exists "guides shared read"  on public.guides;
+
+-- Owners manage their own guides (create/list/delete).
+create policy "own guides" on public.guides
+  for all to authenticated
+  using (owner_id = auth.uid()::text) with check (owner_id = auth.uid()::text);
+
+-- Anyone with the link may read a public guide (share pages are served by the
+-- server using the anon client keyed on share_id).
+create policy "guides shared read" on public.guides
+  for select to anon, authenticated using (is_public);

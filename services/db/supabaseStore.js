@@ -127,6 +127,73 @@ async function setSubmissionStatus(id, status, ctx) {
   return submissionFromRow(data);
 }
 
+// ---------- guides (exported shortlist itineraries) ----------
+const guideFromRow = (r) => r && ({
+  id: r.id, ownerId: r.owner_id, share_id: r.share_id, title: r.title,
+  city: r.city, guide: r.guide, is_public: r.is_public, created_at: r.created_at
+});
+
+async function createGuide({ ownerId, shareId, title, city, guide }, ctx) {
+  const row = {
+    id: genId('gd'), owner_id: ownerId, share_id: shareId,
+    title: title || 'Your day', city: city || null, guide
+  };
+  const { data, error } = await clientFor(ctx).from('guides').insert(row).select().single();
+  if (error) throw fail(error, 'createGuide');
+  return guideFromRow(data);
+}
+
+async function countGuides(ownerId, ctx) {
+  const { count, error } = await clientFor(ctx)
+    .from('guides').select('id', { count: 'exact', head: true }).eq('owner_id', ownerId);
+  if (error) throw fail(error, 'countGuides');
+  return count || 0;
+}
+
+async function listGuides(ownerId, ctx) {
+  const { data, error } = await clientFor(ctx)
+    .from('guides').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false });
+  if (error) throw fail(error, 'listGuides');
+  return (data || []).map(guideFromRow);
+}
+
+async function getGuideById(id, ownerId, ctx) {
+  // Owner-scoped at the DB layer (like getAdventure) so isolation never
+  // depends solely on RLS being active.
+  const { data, error } = await clientFor(ctx)
+    .from('guides').select('*').eq('id', id).eq('owner_id', ownerId).maybeSingle();
+  if (error) throw fail(error, 'getGuideById');
+  return guideFromRow(data);
+}
+
+// Edit timestamps live inside the guide jsonb (guide.updated_at, set by the
+// route) so no schema migration is needed on already-deployed guides tables.
+async function updateGuide({ id, ownerId, title, city, guide }, ctx) {
+  const patch = { guide };
+  if (title) patch.title = title;
+  if (city !== undefined) patch.city = city;
+  const { data, error } = await clientFor(ctx)
+    .from('guides').update(patch).eq('id', id).eq('owner_id', ownerId).select().maybeSingle();
+  if (error) throw fail(error, 'updateGuide');
+  return guideFromRow(data);
+}
+
+async function deleteGuide(id, ownerId, ctx) {
+  const { data, error } = await clientFor(ctx)
+    .from('guides').delete().eq('id', id).eq('owner_id', ownerId).select('id');
+  if (error) throw fail(error, 'deleteGuide');
+  return Array.isArray(data) && data.length > 0;
+}
+
+async function getGuideByShareId(shareId) {
+  // Share pages are anonymous by design — the anon client + "guides shared
+  // read" RLS policy scope this to is_public rows.
+  const { data, error } = await getClient()
+    .from('guides').select('*').eq('share_id', shareId).eq('is_public', true).maybeSingle();
+  if (error) throw fail(error, 'getGuideByShareId');
+  return guideFromRow(data);
+}
+
 // ---------- users ----------
 async function upsertUser({ id, email }, ctx) {
   const row = id ? { id, email } : { email };
@@ -140,5 +207,6 @@ module.exports = {
   createAdventure, listAdventures, getAdventure, deleteAdventure,
   addShortlistItem, listShortlist, removeShortlistItem, clearShortlist,
   createSubmission, listPendingSubmissions, setSubmissionStatus,
+  createGuide, countGuides, listGuides, getGuideById, updateGuide, deleteGuide, getGuideByShareId,
   upsertUser
 };

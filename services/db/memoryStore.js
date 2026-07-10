@@ -99,6 +99,59 @@ async function setSubmissionStatus(id, status) {
   return sub;
 }
 
+// ---------- guides (exported shortlist itineraries) ----------
+const guides = new Map(); // id -> record
+
+async function createGuide({ ownerId, shareId, title, city, guide }) {
+  const record = {
+    id: genId('gd'), ownerId, share_id: shareId,
+    title: title || 'Your day', city: city || null, guide,
+    is_public: true, created_at: new Date().toISOString()
+  };
+  guides.set(record.id, record);
+  return record;
+}
+
+async function countGuides(ownerId) {
+  let n = 0;
+  for (const g of guides.values()) if (g.ownerId === ownerId) n++;
+  return n;
+}
+
+async function listGuides(ownerId) {
+  return [...guides.values()]
+    .filter(g => g.ownerId === ownerId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+async function getGuideById(id, ownerId) {
+  const g = guides.get(id);
+  // Owner-scoped like getAdventure: never return another owner's guide.
+  return g && g.ownerId === ownerId ? g : null;
+}
+
+async function updateGuide({ id, ownerId, title, city, guide }) {
+  const g = guides.get(id);
+  if (!g || g.ownerId !== ownerId) return null;
+  if (title) g.title = title;
+  if (city !== undefined) g.city = city;
+  g.guide = guide;
+  return g;
+}
+
+async function deleteGuide(id, ownerId) {
+  const g = guides.get(id);
+  if (!g || g.ownerId !== ownerId) return false;
+  return guides.delete(id);
+}
+
+async function getGuideByShareId(shareId) {
+  for (const g of guides.values()) {
+    if (g.share_id === shareId && g.is_public) return g;
+  }
+  return null;
+}
+
 // ---------- users (minimal; Phase 3 wires real auth) ----------
 async function upsertUser({ id, email }) {
   const record = users.get(id) || { id, created_at: new Date().toISOString() };
@@ -111,5 +164,6 @@ module.exports = {
   createAdventure, listAdventures, getAdventure, deleteAdventure,
   addShortlistItem, listShortlist, removeShortlistItem, clearShortlist,
   createSubmission, listPendingSubmissions, setSubmissionStatus,
+  createGuide, countGuides, listGuides, getGuideById, updateGuide, deleteGuide, getGuideByShareId,
   upsertUser
 };
