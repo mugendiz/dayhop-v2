@@ -10,7 +10,7 @@ const analytics = require('../services/analytics');
 
 // Only client-originated event types are accepted here; server-truth events
 // (prompt_generated, plan_built) are recorded by their own routes.
-const CLIENT_TYPES = new Set(['booking_click', 'maps_click', 'shortlist_add', 'signup', 'guide_export']);
+const CLIENT_TYPES = new Set(['booking_click', 'maps_click', 'shortlist_add', 'signup', 'guide_export', 'upgrade_viewed']);
 
 router.post('/', (req, res) => {
   const { type, idea_id, source, owner_id } = req.body || {};

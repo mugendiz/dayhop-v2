@@ -96,6 +96,34 @@ async function isPro(ownerId) {
   return Boolean(sub && ACTIVE_STATUSES.has(sub.status));
 }
 
+// Price display info for the upgrade UI ({ amount, currency, interval }).
+// Cached after the first successful lookup; failures are re-tried at most
+// every 5 minutes so a Stripe hiccup can't hammer the API from /status.
+let _priceCache = null; // { value, at }
+const PRICE_RETRY_MS = 5 * 60 * 1000;
+
+async function getPriceInfo() {
+  if (!isConfigured()) return null;
+  if (_priceCache && (_priceCache.value || Date.now() - _priceCache.at < PRICE_RETRY_MS)) {
+    return _priceCache.value;
+  }
+  try {
+    const price = await getStripe().prices.retrieve(STRIPE_PRICE_ID);
+    _priceCache = {
+      at: Date.now(),
+      value: {
+        amount: price.unit_amount != null ? price.unit_amount / 100 : null,
+        currency: (price.currency || 'cad').toUpperCase(),
+        interval: (price.recurring && price.recurring.interval) || 'month'
+      }
+    };
+  } catch (err) {
+    console.warn('[billing] price lookup failed:', err.message);
+    _priceCache = { at: Date.now(), value: null };
+  }
+  return _priceCache.value;
+}
+
 // ---------- Stripe operations ----------
 
 async function createCheckoutSession({ ownerId, email, origin }) {
@@ -158,4 +186,4 @@ async function handleWebhook(rawBody, signature) {
   }
 }
 
-module.exports = { isConfigured, status, isPro, getSubscription, createCheckoutSession, handleWebhook };
+module.exports = { isConfigured, status, isPro, getSubscription, getPriceInfo, createCheckoutSession, handleWebhook };

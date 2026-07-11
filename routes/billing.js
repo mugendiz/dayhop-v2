@@ -37,10 +37,11 @@ router.post('/checkout', requireUser, async (req, res) => {
 
 router.get('/status', async (req, res) => {
   const configured = billing.isConfigured();
-  // Entitlements ride along so the client can show the right limits and
-  // upgrade prompts without hardcoding tier rules.
+  // Entitlements and price ride along so the client can show the right
+  // limits and upgrade prompts without hardcoding tier rules or amounts.
   const entitlements = await entitlementsFor(req.user && req.user.id).catch(() => null);
-  if (!req.user) return res.json({ configured, pro: false, status: null, entitlements });
+  const price = await billing.getPriceInfo().catch(() => null);
+  if (!req.user) return res.json({ configured, pro: false, status: null, entitlements, price });
   try {
     const sub = await billing.getSubscription(req.user.id);
     res.json({
@@ -48,11 +49,12 @@ router.get('/status', async (req, res) => {
       pro: Boolean(sub && ['active', 'trialing'].includes(sub.status)),
       status: sub ? sub.status : null,
       current_period_end: sub ? sub.current_period_end : null,
-      entitlements
+      entitlements,
+      price
     });
   } catch (err) {
     console.warn('[billing] status failed:', err.message);
-    res.json({ configured, pro: false, status: null, entitlements });
+    res.json({ configured, pro: false, status: null, entitlements, price });
   }
 });
 

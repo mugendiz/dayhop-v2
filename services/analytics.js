@@ -15,7 +15,10 @@ const EVENT_TYPES = new Set([
   'plan_built', 'signup', 'upgrade_started',
   // Freemium feature events: re-planning is rate-limited by countToday, and
   // edit/delete round out the saved-guides funnel.
-  'plan_replanned', 'guide_created', 'guide_edited', 'guide_deleted'
+  'plan_replanned', 'guide_created', 'guide_edited', 'guide_deleted',
+  // Conversion funnel: upgrade_viewed (modal shown, source = which gate)
+  // → upgrade_started (checkout created) → subscriptions table.
+  'upgrade_viewed', 'guide_export'
 ]);
 
 // ---------- in-memory mirror ----------
