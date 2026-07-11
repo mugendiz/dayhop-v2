@@ -879,6 +879,9 @@ button, .filter-chip {
 .btn-detail:hover { background: #E7DFC9; color: var(--ink); }
 .btn-add { background: var(--moss); color: var(--paper); flex: 1; }
 .btn-add:hover { background: #335c4c; }
+/* Browse-feed cards only: shortlist this and jump straight into building */
+.btn-build-around { background: var(--marigold); color: var(--ink); white-space: nowrap; }
+.btn-build-around:hover { filter: brightness(1.06); }
 
 /* Booking / map link surfaced on grounded (real-venue) cards */
 .card-booking-link {
@@ -1434,6 +1437,7 @@ button, .filter-chip {
 
   .card-actions { flex-wrap: wrap; }
   .btn-add { flex: 1 0 100%; order: -1; } /* primary action full-width on top */
+  .btn-build-around { flex: 1; }
 
   .example-chip { font-size: 13px; padding: 9px 14px; }
   .floating-btn { bottom: 16px; right: 16px; padding: 13px 16px; }

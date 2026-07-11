@@ -68,7 +68,8 @@
     coords: null,        // { lat, lng } rounded to ~110 m, only if user opted in
     coordsAt: 0,
     locationLabel: null, // e.g. "Richmond Hill · L4C"
-    locationChosen: false // user must explicitly pick a location before searching
+    locationChosen: false, // user must explicitly pick a location before searching
+    browseMode: false    // feed is showing the instant discovery feed, not prompt results
   };
 
   const COORDS_FRESH_MS = 30 * 60 * 1000;
@@ -343,6 +344,9 @@
   function markLocationChosen() {
     state.locationChosen = true;
     updateWhereEmphasis();
+    // Picking a place is intent enough — show ideas immediately, no prompt
+    // needed. Never clobbers prompt results (loadBrowseFeed guards that).
+    loadBrowseFeed();
   }
 
   function updateWhereEmphasis() {
@@ -608,15 +612,8 @@
     feed.innerHTML = '';
     const ideas = visibleIdeas();
 
-    // Two sections when wow picks exist: the direct answers first, then the
-    // "didn't know you could do that" stretch picks. STOP numbers continue
-    // across sections so the trail metaphor stays intact.
-    const onTarget = ideas.filter(i => !i.wow_reason);
-    const beyond = ideas.filter(i => i.wow_reason);
-    const showHeaders = onTarget.length > 0 && beyond.length > 0;
     let stopIndex = 0;
-
-    const appendSection = (label, group) => {
+    const appendSection = (label, group, showHeaders) => {
       if (group.length === 0) return;
       if (showHeaders) {
         const header = document.createElement('h3');
@@ -629,8 +626,26 @@
       });
     };
 
-    appendSection('Right on target', onTarget);
-    appendSection('Beyond what you asked ✨', beyond);
+    if (state.browseMode && ideas.some(i => i.section)) {
+      // Browse feed: server-assigned sections, in server order. STOP numbers
+      // continue across sections so the trail metaphor stays intact.
+      const order = [];
+      const groups = new Map();
+      ideas.forEach(idea => {
+        const label = idea.section || 'More ideas';
+        if (!groups.has(label)) { groups.set(label, []); order.push(label); }
+        groups.get(label).push(idea);
+      });
+      order.forEach(label => appendSection(label, groups.get(label), order.length > 1));
+    } else {
+      // Prompt results: the direct answers first, then the "didn't know you
+      // could do that" stretch picks.
+      const onTarget = ideas.filter(i => !i.wow_reason);
+      const beyond = ideas.filter(i => i.wow_reason);
+      const showHeaders = onTarget.length > 0 && beyond.length > 0;
+      appendSection('Right on target', onTarget, showHeaders);
+      appendSection('Beyond what you asked ✨', beyond, showHeaders);
+    }
 
     const hasIdeas = state.allIdeas.length > 0;
     // Empty: nothing generated yet. No-results: ideas exist but the filter/swipes hid them all.
@@ -684,6 +699,7 @@
       <div class="card-actions">
         <button class="btn-dismiss" type="button" title="Not for us">✕ Skip</button>
         <button class="btn-detail" type="button" title="See details">Details</button>
+        ${idea.section ? '<button class="btn-build-around" type="button" title="Add this and start building your day around it">⚡ Build a day</button>' : ''}
         <button class="btn-add" type="button" title="Add to your day">Add to my day →</button>
       </div>
     `;
@@ -705,6 +721,13 @@
     card.querySelector('.btn-detail').addEventListener('click', (e) => {
       e.stopPropagation();
       openDetail(idea);
+    });
+    const buildBtn = card.querySelector('.btn-build-around');
+    if (buildBtn) buildBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      addToShortlist(idea, card);
+      renderShortlistPanel();
+      openPanel('shortlist-panel');
     });
 
     addSwipeListeners(card, idea);
@@ -1647,6 +1670,60 @@
     showToast('Fresh shortlist — pick your next day ✨');
   }
 
+  // ---------- Instant discovery feed ----------
+  // Fired when a location is committed (or restored on load) and no prompt
+  // results are on screen: real candidates from /api/browse, no Grok,
+  // sectioned server-side. Failures fall back silently to the empty state —
+  // a proactive feature must never nag.
+  let browseAbort = null;
+  async function loadBrowseFeed() {
+    if (!state.locationChosen || state.isGenerating) return;
+    // Prompt results own the feed; browse only fills idle or browse-owned feeds.
+    if (state.allIdeas.length && !state.browseMode) return;
+    if (browseAbort) browseAbort.abort();
+    const ctl = new AbortController();
+    browseAbort = ctl;
+
+    const feed = document.getElementById('discovery-feed');
+    feed.setAttribute('aria-busy', 'true');
+    document.getElementById('empty-state').hidden = true;
+    document.getElementById('noresults-state').hidden = true;
+    renderSkeletons();
+
+    try {
+      const coordsFresh = state.coords && Date.now() - state.coordsAt < COORDS_FRESH_MS;
+      const res = await fetch('/api/browse', {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          city: state.city,
+          coords: coordsFresh ? state.coords : undefined,
+          owner_id: getOwnerId()
+        }),
+        signal: ctl.signal
+      });
+      if (ctl !== browseAbort) return; // superseded by a newer browse/prompt
+      if (!res.ok) throw new Error('browse failed');
+      const data = await res.json();
+      state.allIdeas = data.ideas || [];
+      state.browseMode = true;
+      state.dismissedIds = new Set();
+      state.lastPrompt = '';
+      state.lastWeather = data.weather || null;
+      renderWeatherStrip(data.weather);
+      renderResultsHeader();
+      renderFeed(true);
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      state.browseMode = false;
+      renderFeed(); // repaints the empty state
+    } finally {
+      if (ctl === browseAbort && !state.isGenerating) {
+        feed.setAttribute('aria-busy', 'false');
+      }
+    }
+  }
+
   // ---------- Generate flow ----------
   async function handleGenerate(e) {
     e.preventDefault();
@@ -1678,10 +1755,14 @@
       return;
     }
 
+    // A prompt search always wins over an in-flight browse fetch.
+    if (browseAbort) { browseAbort.abort(); browseAbort = null; }
+
     setLoading(true);
     try {
       const data = await apiGenerateIdeas(prompt, state.currentFilter);
       state.allIdeas = data.ideas || [];
+      state.browseMode = false;
       state.dismissedIds = new Set();
       state.lastPrompt = prompt;
       state.lastWeather = data.weather || null;
@@ -1876,13 +1957,26 @@
       header.hidden = true;
       return;
     }
+    const where = state.coords && state.locationLabel ? `near ${state.locationLabel}` : state.city;
+    if (state.browseMode) {
+      document.getElementById('results-headline').textContent = state.coords && state.locationLabel
+        ? 'Happening near you 📍'
+        : `Exploring ${state.city === GTA_WIDE ? 'the GTA' : state.city}`;
+      const bits = [`${state.allIdeas.length} ideas to browse`, 'Describe your day for a tailored set'];
+      if (state.lastWeather) {
+        bits.splice(1, 0, `${state.lastWeather.temp_c}°C, ${state.lastWeather.description}`);
+      }
+      document.getElementById('results-sub').textContent = bits.join(' • ');
+      header.hidden = false;
+      return;
+    }
+
     const words = (state.lastPrompt || '').split(/\s+/).filter(Boolean);
     const snippet = words.slice(0, 6).join(' ') + (words.length > 6 ? '…' : '');
     document.getElementById('results-headline').textContent = snippet
       ? `Here's what matches "${snippet}"`
       : "Here's what matches your plan";
 
-    const where = state.coords && state.locationLabel ? `near ${state.locationLabel}` : state.city;
     const bits = [`${state.allIdeas.length} ideas`, `Personalized for ${where}`];
     if (state.lastWeather) {
       bits.push(`Adjusted for ${state.lastWeather.temp_c}°C, ${state.lastWeather.description}`);
@@ -2118,6 +2212,10 @@
     refreshProStatus();
 
     renderFeed();
+
+    // Instant discovery: a returning visitor with a remembered location
+    // lands on a live feed instead of an empty state.
+    if (state.locationChosen && !state.allIdeas.length) loadBrowseFeed();
   }
 
   if (document.readyState === 'loading') {

@@ -18,7 +18,9 @@ const EVENT_TYPES = new Set([
   'plan_replanned', 'guide_created', 'guide_edited', 'guide_deleted',
   // Conversion funnel: upgrade_viewed (modal shown, source = which gate)
   // → upgrade_started (checkout created) → subscriptions table.
-  'upgrade_viewed', 'guide_export'
+  'upgrade_viewed', 'guide_export',
+  // Instant discovery feed served (server-truth, includes cache hits).
+  'browse_feed'
 ]);
 
 // ---------- in-memory mirror ----------

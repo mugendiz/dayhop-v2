@@ -32,6 +32,17 @@ const generateLimiter = rateLimit({
 });
 
 app.use('/api/generate', generateLimiter, require('./routes/generate'));
+
+// Instant discovery feed: no LLM and cached, but it still fans out to
+// partner APIs on a cache miss — keep a real (if looser) ceiling on it.
+const browseLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'RATE_LIMITED', message: 'Slow down a little — try again in a moment.' }
+});
+app.use('/api/browse', browseLimiter, require('./routes/browse'));
 app.use('/api/places', require('./routes/places'));
 app.use('/api/photo', require('./routes/photo'));
 app.use('/api/geo', require('./routes/geo'));
