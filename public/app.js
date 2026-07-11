@@ -1720,9 +1720,26 @@
       showToast('DayHop Pro is coming soon ✨');
       return;
     }
+    // First stage of the conversion funnel: which gate showed the modal.
+    track('upgrade_viewed', { source: context });
     const ctx = document.getElementById('upgrade-context');
     ctx.textContent = UPGRADE_CONTEXTS[context] || 'Unlock everything DayHop can do.';
     const modal = document.getElementById('upgrade-panel');
+    // Free-column numbers come from the server's entitlements so the modal
+    // never contradicts the actual limits; static HTML values are fallbacks.
+    if (state.entitlements) {
+      modal.querySelectorAll('.compare-free[data-free]').forEach(el => {
+        const limit = state.entitlements[el.dataset.free];
+        if (limit != null) el.textContent = limit + (el.dataset.suffix || '');
+      });
+    }
+    // Echo the gate that opened the modal in the comparison table.
+    modal.querySelectorAll('.compare-row[data-context]').forEach(row =>
+      row.classList.toggle('compare-hit', row.dataset.context === context));
+    const cta = document.getElementById('upgrade-cta');
+    cta.textContent = state.price && state.price.amount != null
+      ? `Go Pro — $${state.price.amount} ${state.price.currency}/${state.price.interval} ✨`
+      : 'Go Pro ✨';
     modal.hidden = false;
     requestAnimationFrame(() => modal.classList.add('modal--open'));
   }
@@ -1774,7 +1791,10 @@
 
   async function startUpgrade() {
     if (!isLoggedIn()) {
-      showToast('Sign in first, then go Pro for unlimited planning.', { duration: 4000 });
+      // Remember the intent so sign-in resumes checkout instead of dropping
+      // the user back on the page to re-find the upgrade button.
+      state.pendingUpgrade = true;
+      showToast('Sign in first — we\'ll take you straight to checkout.', { duration: 4000 });
       const authBtn = document.getElementById('auth-btn');
       if (authBtn && !authBtn.hidden) authBtn.click();
       return;
@@ -1807,6 +1827,7 @@
       state.billingConfigured = Boolean(res.ok && data.configured);
       state.isPro = pro;
       state.entitlements = (res.ok && data.entitlements) || null;
+      state.price = (res.ok && data.price) || null;
       if (badge) badge.hidden = !pro;
       if (goProBtn) goProBtn.hidden = !(res.ok && data.configured && !pro);
     } catch (e) {
@@ -1963,8 +1984,15 @@
       await onSignedIn();
     } else if (wasLoggedIn) {
       onSignedOut();
+      state.pendingUpgrade = false;
     }
-    refreshProStatus();
+    await refreshProStatus();
+    // Resume a "Go Pro" tap that was interrupted by the sign-in wall — unless
+    // this account turned out to already be Pro.
+    if (state.user && state.pendingUpgrade) {
+      state.pendingUpgrade = false;
+      if (!state.isPro) startUpgrade();
+    }
   }
 
   // On sign-in: one-time migration of the guest's local shortlist into the

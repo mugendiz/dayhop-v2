@@ -246,14 +246,40 @@
     <span class="pro-badge upgrade-badge">PRO</span>
     <h2 id="upgrade-title">Do more with DayHop Pro</h2>
     <p class="upgrade-context" id="upgrade-context"></p>
-    <ul class="upgrade-benefits">
-      <li>♾️ Unlimited day plans, every day</li>
-      <li>🗂 Unlimited saved plans + full history</li>
-      <li>✏️ Edit &amp; customize any saved plan</li>
-      <li>🌅 Weekend &amp; multi-day trips (2–3 days)</li>
-      <li>✨ Unlimited smart re-planning — rain-proof it, kid-proof it, budget it</li>
-    </ul>
+    <div class="upgrade-compare" role="table" aria-label="Free vs Pro comparison">
+      <div class="compare-row compare-head" role="row">
+        <span role="columnheader"></span>
+        <span role="columnheader">Free</span>
+        <span class="compare-pro" role="columnheader">Pro</span>
+      </div>
+      <div class="compare-row" data-context="generate" role="row">
+        <span role="cell">♾️ Day plans</span>
+        <span class="compare-free" data-free="daily_generates" data-suffix="/day" role="cell">5/day</span>
+        <span class="compare-pro" role="cell">Unlimited</span>
+      </div>
+      <div class="compare-row" data-context="saved_guides" role="row">
+        <span role="cell">🗂 Saved plans</span>
+        <span class="compare-free" data-free="saved_guides" role="cell">2</span>
+        <span class="compare-pro" role="cell">Unlimited</span>
+      </div>
+      <div class="compare-row" data-context="replan" role="row">
+        <span role="cell">✨ Smart re-plans</span>
+        <span class="compare-free" data-free="daily_replans" data-suffix="/day" role="cell">1/day</span>
+        <span class="compare-pro" role="cell">Unlimited</span>
+      </div>
+      <div class="compare-row" data-context="multi_day" role="row">
+        <span role="cell">🌅 Trip length</span>
+        <span class="compare-free" role="cell">1 day</span>
+        <span class="compare-pro" role="cell">2–3 days</span>
+      </div>
+      <div class="compare-row" data-context="edit_guide" role="row">
+        <span role="cell">✏️ Edit saved plans</span>
+        <span class="compare-free" role="cell">—</span>
+        <span class="compare-pro" role="cell">✓</span>
+      </div>
+    </div>
     <button class="primary-btn upgrade-cta" id="upgrade-cta" type="button">Go Pro ✨</button>
+    <p class="upgrade-reassure">Cancel anytime — your saved plans stay yours.</p>
     <button class="linklike upgrade-later" id="upgrade-later" type="button">Maybe later</button>
   </div>
 </div>
