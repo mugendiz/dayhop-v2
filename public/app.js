@@ -1493,7 +1493,7 @@
   async function ensureGuideSaved() {
     if (state.savedGuide) return state.savedGuide;
     if (!state.currentGuide) {
-      showToast('Build a day plan first — add ideas and tap "Build my day".');
+      showToast('Build a day plan first — add ideas and tap "View My Plan".');
       return null;
     }
     const saved = await saveCurrentGuide();
@@ -1763,7 +1763,7 @@
     document.querySelectorAll('.day-choice').forEach(btn =>
       btn.classList.toggle('active', Number(btn.dataset.days) === days));
     const label = document.querySelector('#build-day-btn .btn-label');
-    if (label) label.textContent = days > 1 ? `Build my ${days}-day trip` : 'Build my day';
+    if (label) label.textContent = days > 1 ? `View My ${days}-Day Plan` : 'View My Plan';
   }
 
   function wireDaySelector() {
