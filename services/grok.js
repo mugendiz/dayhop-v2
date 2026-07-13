@@ -10,8 +10,8 @@ const GROK_MODEL = process.env.GROK_MODEL || 'grok-4';
 const DEFAULT_CITY = process.env.DEFAULT_CITY || 'Richmond Hill';
 const DEFAULT_REGION = process.env.DEFAULT_REGION || 'Ontario';
 
-// 45s: asking for 16-22 ideas roughly triples output tokens vs the old
-// 6-10, and grok-4 latency scales with output length.
+// 45s: generous headroom even now that we ask for 8-12 best-only ideas
+// (grok-4 latency scales with output length).
 const client = axios.create({ timeout: 45000 });
 
 // When the user hasn't pinned a single city, DayHop plans across the whole
@@ -94,7 +94,7 @@ JSON shape to return:
   ]
 }
 
-Return 16-22 ideas unless the user's request is very narrow, in which case return fewer high-quality matches rather than padding with weak ones. Cover the request directly first, then broaden to adjacent ideas the user would plausibly love — for example, if they asked about swimming, also include beaches, splash pads, lakes, paddling, and waterparks. Then include 2-4 "stretch" ideas the user did not ask for but a GTA family would be genuinely excited to discover (a helicopter tour, a treetop zipline course, a hidden-gem beach), each carrying a "wow_reason".`;
+Return 8 to 12 ideas — quality over quantity. Every idea must be one you would honestly rate 10/10 for this request: a genuinely excellent place or experience AND a strong fit for what was asked. If an idea is merely "pretty good", leave it out. Cover the request directly first, then broaden to adjacent ideas the user would plausibly love — for example, if they asked about swimming, also include beaches, splash pads, lakes, paddling, and waterparks. Then include 1-3 "stretch" ideas the user did not ask for but a GTA family would be genuinely excited to discover (a helicopter tour, a treetop zipline course, a hidden-gem beach), each carrying a "wow_reason". If fewer than 8 truly excellent ideas exist, return fewer — never pad.`;
 }
 
 /**
@@ -140,7 +140,7 @@ JSON shape to return:
   ]
 }
 
-The candidates are roughly ordered most-relevant first. Select 16 to 22 candidates. Start with every candidate that directly answers the request, then broaden to strong adjacent matches — for example, if the user asked about swimming, also include beaches, splash pads, lakes, paddling rentals, and waterparks. Then include 2 to 4 "stretch" picks: excellent candidates the user did not ask for but a GTA family would be genuinely excited to discover (a helicopter tour, treetop trekking, a hidden-gem beach — candidates marked "wow": true are good stretch material). Give each stretch pick a "wow_reason". If fewer than 16 candidates genuinely fit, return the ones that do rather than padding with weak matches — never invent to hit the count.`;
+The candidates are roughly ordered most-relevant first. Select 8 to 12 candidates — ONLY ones you would honestly rate 10/10 for this request: an excellent place or experience (strong rating, standout offering) AND a strong fit for what was asked. A merely decent candidate does not make the cut. Start with the candidates that directly answer the request, then the strongest adjacent matches — for example, if the user asked about swimming, also consider beaches, splash pads, lakes, paddling rentals, and waterparks. Then include 1 to 3 "stretch" picks: outstanding candidates the user did not ask for but a GTA family would be genuinely excited to discover (a helicopter tour, treetop trekking, a hidden-gem beach — candidates marked "wow": true are good stretch material). Give each stretch pick a "wow_reason". If fewer than 8 candidates are genuinely excellent, return the ones that are rather than padding with weak matches — never invent to hit the count.`;
 }
 
 function whereLabel(city) {

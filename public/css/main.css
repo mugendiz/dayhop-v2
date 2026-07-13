@@ -1904,9 +1904,20 @@ body[data-mode="adventure"] {
   --mode-tint: rgba(225, 80, 47, 0.10);
 }
 
-/* Hero warms up in Adventure mode — same structure, shifted temperature. */
+/* The whole page shifts with the mode — background temperature and the hero
+   photo itself. R&R keeps the calm golden-hour skyline over cool paper;
+   Adventure goes bold: sun-baked apricot page, ember gradient, and a rock
+   climber hanging off an overhang above turquoise water (photo verified). */
+body { transition: background-color 0.45s ease; }
+body[data-mode="adventure"] { background: #F9E0BD; }
 body[data-mode="adventure"] .hero {
-  background: linear-gradient(180deg, #FDF8F1 0%, var(--paper) 40%, #F6E9E0 100%);
+  background: linear-gradient(180deg, #FDEBD0 0%, #F9E0BD 42%, #F0C793 100%);
+}
+body[data-mode="adventure"] .hero::before {
+  background:
+    linear-gradient(180deg, rgba(253,235,208,0.84) 0%, rgba(250,224,189,0.52) 48%, rgba(249,224,189,0.88) 100%),
+    url("https://images.unsplash.com/photo-1522163182402-834f871fd851?auto=format&fit=crop&w=2100&q=80")
+      center 30% / cover no-repeat;
 }
 
 .mode-toggle {

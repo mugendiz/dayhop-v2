@@ -39,6 +39,43 @@ const SOURCE_CAPS = {
 
 const CANDIDATE_POOL_CAP = 60;
 
+// ---------- Quality gate: only "10/10" candidates survive ----------
+// Applied to the ranked pool in every mode, so the browse feed, prompt
+// results, and re-plan swap-ins all draw from excellent material only.
+// A candidate passes on the strongest evidence available for its kind:
+//  - Rated venues/activities: rating >= 4.4 with a real review sample.
+//  - Hand-curated entries: 10/10 by definition — a human picked them.
+//  - Unrated events/civic listings: must be a complete, actionable listing
+//    (description plus a venue, booking link, map link, or photo).
+const QUALITY_MIN_RATING = 4.4;
+const QUALITY_MIN_REVIEWS = 25;
+// Strictness must never starve the feed in a sparse area: below this many
+// survivors, top back up with the best-scored of the rest.
+const QUALITY_FLOOR = 12;
+
+function isTopQuality(c) {
+  if (c.rating != null) {
+    if (c.rating < QUALITY_MIN_RATING) return false;
+    if ((c.rating_count ?? QUALITY_MIN_REVIEWS) < QUALITY_MIN_REVIEWS) return false;
+    return true;
+  }
+  if (c.source === 'curated' || c.source === 'curated_catalog') return true;
+  if (c.wow === true) return true;
+  return Boolean(c.description && (c.venue || c.booking_url || c.maps_url || c.image_url));
+}
+
+// Operates on scoreCandidates output so the floor top-up picks the most
+// RELEVANT of the rejects, not arbitrary ones.
+function qualityGate(scored) {
+  const strict = scored.filter(e => isTopQuality(e.candidate));
+  if (strict.length >= QUALITY_FLOOR) return strict;
+  const rest = scored
+    .filter(e => !isTopQuality(e.candidate))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, QUALITY_FLOOR - strict.length);
+  return [...strict, ...rest];
+}
+
 async function gatherCandidates(prompt, locationText, eventKeyword, filter, userCoords) {
   let geo = null;
   let weather = null;
@@ -163,8 +200,10 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
     }
   }
 
+  // Quality gate BEFORE the cap, so the pool fills with excellent
+  // candidates instead of capping first and filtering what's left.
   const candidates = relevance.selectTop(
-    relevance.scoreCandidates(pool, { prompt, themes, filter }),
+    qualityGate(relevance.scoreCandidates(pool, { prompt, themes, filter })),
     CANDIDATE_POOL_CAP
   );
   return { candidates, weather, usedGrounding: candidates.length > 0, resolvedCity };

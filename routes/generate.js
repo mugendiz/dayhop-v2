@@ -93,7 +93,7 @@ router.post('/', async (req, res) => {
         // AI selection step timed out or misbehaved.
         if (err.code === 'GROK_NOT_CONFIGURED' || err.code === 'INVALID_INPUT') throw err;
         console.warn('[generate] Grok selection failed, serving ranked candidates directly:', err.message);
-        ideas = mergeWithCandidates(candidates.slice(0, 16).map(fallbackIdea), candidates);
+        ideas = mergeWithCandidates(candidates.slice(0, 10).map(fallbackIdea), candidates);
         degraded = true;
       }
     } else {

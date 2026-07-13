@@ -20,9 +20,10 @@ const CACHE_TTL_MS = 30 * 60 * 1000;
 const CACHE_MAX_ENTRIES = 200;
 const cache = new Map();
 
-// Section size ceilings; overlaps are deduped so the final feed lands
-// around 8–14 cards — browsable, not overwhelming.
-const FEED_CAP = 14;
+// Section size ceilings; overlaps are deduped and the pool is already
+// quality-gated (candidates.js), so the final feed is a tight top-10 —
+// only the best, never overwhelming.
+const FEED_CAP = 10;
 
 router.post('/', async (req, res) => {
   const city = String((req.body && req.body.city) || '').trim().slice(0, 120) || DEFAULT_CITY;

@@ -39,6 +39,7 @@
   const MODES = {
     rr: {
       hint: '🌿 Restorative days — gardens, trails, lookouts, calm water',
+      feedTitle: "Today's calm escapes 🌿",
       placeholder: '3 unhurried hours near the water — a quiet garden, a scenic lookout, and somewhere relaxed to eat after.',
       switchToast: '🌿 R&R Mode on — new searches and plans will lean restful',
       filters: [
@@ -59,6 +60,7 @@
     },
     adventure: {
       hint: '⛰️ Active days — ziplines, climbing, paddling, big thrills',
+      feedTitle: "Today's thrills ⚡",
       placeholder: 'A full-throttle Saturday — ziplining or climbing in the morning, kayaking after lunch, go-karts to finish.',
       switchToast: '⚡ Adventure Mode on — new searches and plans will lean thrilling',
       filters: [
@@ -187,6 +189,8 @@
       btn.setAttribute('aria-checked', String(btn.dataset.mode === state.mode)));
     const hint = document.getElementById('mode-hint');
     if (hint) hint.textContent = MODES[state.mode].hint;
+    const feedTitle = document.getElementById('feed-title');
+    if (feedTitle) feedTitle.textContent = MODES[state.mode].feedTitle;
     const textarea = document.getElementById('grok-prompt');
     if (textarea) textarea.placeholder = MODES[state.mode].placeholder;
     renderExamplePrompts();
