@@ -176,6 +176,49 @@ async function reverseGeocode({ lat, lng }) {
   return value;
 }
 
+/**
+ * Full place lookup for the detail panel: extra photos, Google's editorial
+ * summary, live open-now status, hours, and rating depth. Normalized like
+ * searchPlaces — photos ride through the /api/photo proxy.
+ */
+async function getPlaceDetails(placeId) {
+  assertConfigured();
+  const res = await axios.get(`${PLACES_BASE}/places/${encodeURIComponent(placeId)}`, {
+    timeout: 10000,
+    headers: {
+      'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY,
+      'X-Goog-FieldMask': [
+        'id',
+        'displayName',
+        'editorialSummary',
+        'rating',
+        'userRatingCount',
+        'websiteUri',
+        'googleMapsUri',
+        'photos',
+        'currentOpeningHours.openNow',
+        'regularOpeningHours.weekdayDescriptions'
+      ].join(',')
+    }
+  });
+
+  const p = res.data || {};
+  return {
+    place_id: p.id || placeId,
+    title: p.displayName?.text || null,
+    editorial_summary: p.editorialSummary?.text || null,
+    rating: p.rating ?? null,
+    rating_count: p.userRatingCount ?? 0,
+    website: p.websiteUri || null,
+    maps_url: p.googleMapsUri || null,
+    open_now: p.currentOpeningHours?.openNow ?? null,
+    open_hours: p.regularOpeningHours?.weekdayDescriptions || null,
+    photos: (p.photos || []).slice(0, 6)
+      .map(ph => ph.name ? `/api/photo?name=${encodeURIComponent(ph.name)}` : null)
+      .filter(Boolean)
+  };
+}
+
 // Resolve a Places photo resource name ("places/…/photos/…") to its
 // image URI. Cached in-memory so repeat card renders don't re-hit Google.
 const photoUriCache = new Map();
@@ -200,4 +243,4 @@ async function getPhotoUri(photoName, { maxWidthPx = 800 } = {}) {
   return uri;
 }
 
-module.exports = { geocode, searchPlaces, getPhotoUri, reverseGeocode };
+module.exports = { geocode, searchPlaces, getPlaceDetails, getPhotoUri, reverseGeocode };

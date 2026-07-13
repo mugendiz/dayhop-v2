@@ -22,6 +22,14 @@
   --radius-md: 12px;  /* buttons, inputs, rows */
   --radius-sm: 10px;  /* small controls */
   --radius-pill: 999px;
+  /* Glass pass: squared-off buttons + frosted surfaces. Buttons share one
+     radius so the whole control language reads as a family. */
+  --radius-btn: 8px;
+  --glass: rgba(253, 250, 243, 0.6);
+  --glass-strong: rgba(253, 250, 243, 0.84);
+  --glass-ink: rgba(16, 42, 46, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.65);
+  --blur: saturate(1.5) blur(16px);
   --ease: cubic-bezier(0.22, 1, 0.36, 1); /* gentle settle for transitions */
   /* DayHop V2 type system: Satoshi (headings/brand, via Fontshare),
      Inter (body/UI), Space Grotesk (badges, stamps, accent labels). */
@@ -152,25 +160,31 @@ button, .filter-chip {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-soft);
-  border: 1px solid var(--line-strong);
-  background: rgba(255,255,255,0.6);
+  border: 1px solid var(--glass-border);
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
   padding: 5px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-btn);
 }
 
 .auth-btn {
-  background: rgba(255,255,255,0.7);
-  border: 1px solid var(--line-strong);
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
   color: var(--ink);
   font-size: 13px;
   font-weight: 500;
   padding: 7px 14px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-btn);
   transition: background 0.15s ease, transform 0.15s var(--ease);
 }
-.auth-btn:hover { background: white; }
+.auth-btn:hover { background: var(--glass-strong); }
 .auth-btn:active { transform: scale(0.96); }
 
+/* The Z-scan terminal: eyes sweep logo → top-right, so the money button
+   sits there and breathes just enough to register without shouting. */
 .go-pro-btn {
   background: var(--coral);
   border: 1px solid var(--coral);
@@ -178,11 +192,17 @@ button, .filter-chip {
   font-size: 13px;
   font-weight: 600;
   padding: 7px 14px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-btn);
   transition: filter 0.15s ease, transform 0.15s var(--ease);
+  animation: goProGlow 5s ease-in-out infinite;
 }
-.go-pro-btn:hover { filter: brightness(1.08); }
+.go-pro-btn:hover { filter: brightness(1.08); animation: none; }
 .go-pro-btn:active { transform: scale(0.96); }
+
+@keyframes goProGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 74, 0); }
+  50% { box-shadow: 0 4px 18px 2px rgba(255, 107, 74, 0.38); }
+}
 
 .user-chip {
   display: flex;
@@ -205,7 +225,7 @@ button, .filter-chip {
   font-size: 12px;
   font-weight: 500;
   padding: 6px 11px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-btn);
   transition: background 0.15s ease;
 }
 .signout-btn:hover { background: rgba(255,255,255,0.7); }
@@ -260,13 +280,17 @@ button, .filter-chip {
   color: var(--ink-soft);
 }
 
+/* Frosted glass over the skyline photo — the hero's single fixation point.
+   Solid-ish fallback color keeps it readable where blur is unsupported. */
 .prompt-box {
   margin-top: 40px;
-  background: white;
+  background: rgba(255, 255, 255, 0.62);
+  -webkit-backdrop-filter: saturate(1.6) blur(20px);
+  backdrop-filter: saturate(1.6) blur(20px);
   border-radius: var(--radius);
   padding: 16px;
-  box-shadow: var(--shadow-lg);
-  border: 1px solid var(--line);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--glass-border);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -346,8 +370,10 @@ button, .filter-chip {
   list-style: none;
   max-height: 264px;
   overflow-y: auto;
-  background: var(--paper);
-  border: 1px solid var(--line);
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow);
   transform-origin: top;
@@ -417,23 +443,41 @@ button, .filter-chip {
 
 .prompt-box textarea::placeholder { color: #8A9594; }
 
+/* Primary CTA: bottom-right of the prompt box — the terminal fixation of the
+   hero's Z-scan (read headline → read placeholder → land here). A resting
+   glow marks it as "the" action; a sheen sweep rewards arrival on hover. */
 .primary-btn {
   position: relative;
   align-self: flex-end;
+  overflow: hidden;
   background: var(--coral);
   color: var(--paper);
   border: none;
-  padding: 13px 22px;
-  border-radius: var(--radius-md);
+  padding: 14px 24px;
+  border-radius: var(--radius-btn);
   font-weight: 700;
   font-size: 15px;
   letter-spacing: 0.01em;
+  box-shadow: 0 6px 16px rgba(255, 107, 74, 0.28);
   transition: transform 0.18s var(--ease), background 0.15s ease, box-shadow 0.18s var(--ease);
 }
 
-.primary-btn:hover { background: var(--coral-dark); transform: translateY(-1px); box-shadow: 0 8px 20px rgba(225,80,47,0.32); }
+.primary-btn::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: -70%;
+  width: 45%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.55s var(--ease);
+  pointer-events: none;
+}
+.primary-btn:hover::after { left: 130%; }
+
+.primary-btn:hover { background: var(--coral-dark); transform: translateY(-2px); box-shadow: 0 10px 26px rgba(225,80,47,0.4); }
 .primary-btn:active { transform: translateY(1px) scale(0.985); box-shadow: none; }
 .primary-btn:disabled { opacity: 0.7; cursor: default; transform: none; box-shadow: none; }
+.primary-btn:disabled::after { display: none; }
 
 .btn-spinner { display: none; }
 .primary-btn.is-loading .btn-label { visibility: hidden; }
@@ -486,10 +530,12 @@ button, .filter-chip {
 
 .filter-chip {
   flex: 0 0 auto;
-  background: var(--paper);
-  border: 1px solid var(--line-strong);
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-border);
   padding: 9px 16px;
-  border-radius: 999px;
+  border-radius: var(--radius-btn);
   font-size: 13.5px;
   font-weight: 500;
   color: var(--ink-soft);
@@ -862,23 +908,26 @@ button, .filter-chip {
   margin-top: 2px;
 }
 
+/* Card actions read left → right as a gradient of intent: Skip is barely
+   there, Details neutral, Build/Add saturated in the bottom-right corner —
+   the card's own terminal fixation point, and thumb territory on mobile. */
 .card-actions button {
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-btn);
   padding: 9px 12px;
   font-size: 13px;
   font-weight: 500;
-  transition: background 0.15s ease, transform 0.15s var(--ease), color 0.15s ease;
+  transition: background 0.15s ease, transform 0.15s var(--ease), color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .card-actions button:active { transform: scale(0.95); }
 
-.btn-dismiss { background: var(--paper-dim); color: var(--ink-soft); }
-.btn-dismiss:hover { background: #E7DFC9; color: var(--coral-dark); }
+.btn-dismiss { background: transparent; color: var(--ink-soft); opacity: 0.75; }
+.btn-dismiss:hover { background: var(--paper-dim); color: var(--coral-dark); opacity: 1; }
 .btn-detail { background: var(--paper-dim); color: var(--ink-soft); }
 .btn-detail:hover { background: #E7DFC9; color: var(--ink); }
 .btn-add { background: var(--moss); color: var(--paper); flex: 1; }
-.btn-add:hover { background: #335c4c; }
+.btn-add:hover { background: #335c4c; box-shadow: 0 6px 16px rgba(63, 111, 92, 0.35); transform: translateY(-1px); }
 /* Browse-feed cards only: shortlist this and jump straight into building */
 .btn-build-around { background: var(--marigold); color: var(--ink); white-space: nowrap; }
 .btn-build-around:hover { filter: brightness(1.06); }
@@ -940,9 +989,11 @@ button, .filter-chip {
 }
 
 .example-chip {
-  background: white;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-pill);
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-btn);
   padding: 10px 16px;
   font-size: 13.5px;
   font-weight: 500;
@@ -959,7 +1010,7 @@ button, .filter-chip {
   margin-top: 20px;
   background: transparent;
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-btn);
   padding: 10px 18px;
   font-size: 13.5px;
   font-weight: 500;
@@ -970,15 +1021,20 @@ button, .filter-chip {
 .ghost-btn:active { transform: scale(0.97); }
 
 /* ---------- Floating shortlist button ---------- */
+/* Bottom-right = the thumb's home on mobile and the natural end of every
+   scroll gesture: the bridge from browsing to building lives exactly there.
+   Frosted ink so the feed glows through as you scroll under it. */
 .floating-btn {
   position: fixed;
-  bottom: 22px;
-  right: 22px;
-  background: var(--ink);
+  bottom: 24px;
+  right: 24px;
+  background: var(--glass-ink);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
   color: var(--paper);
-  border: none;
-  border-radius: 999px;
-  padding: 14px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  padding: 15px 22px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1017,6 +1073,8 @@ button, .filter-chip {
   position: absolute;
   inset: 0;
   background: rgba(16,42,46,0.45);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   opacity: 0;
   transition: opacity 0.2s ease;
 }
@@ -1027,7 +1085,10 @@ button, .filter-chip {
   top: 0;
   bottom: 0;
   width: min(420px, 100%);
-  background: var(--paper);
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: saturate(1.5) blur(24px);
+  backdrop-filter: saturate(1.5) blur(24px);
+  border-left: 1px solid var(--glass-border);
   box-shadow: -16px 0 40px rgba(16,42,46,0.18);
   transform: translateX(100%);
   transition: transform 0.34s var(--ease);
@@ -1184,7 +1245,7 @@ button, .filter-chip {
   font-size: 12.5px;
   font-weight: 600;
   padding: 7px 12px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-btn);
   transition: background 0.15s ease, transform 0.15s var(--ease);
 }
 .export-btn:hover { background: var(--paper-dim); }
@@ -1200,7 +1261,7 @@ button, .filter-chip {
   font-size: 13px;
   font-weight: 500;
   padding: 9px 14px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-btn);
   width: 100%;
   margin-top: 10px;
   transition: background 0.15s ease, color 0.15s ease;
@@ -1212,6 +1273,93 @@ button, .filter-chip {
 .detail-grid { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 14px; }
 .detail-grid dt { font-family: var(--mono); font-size: 11px; text-transform: uppercase; color: var(--ink-soft); align-self: center; }
 .detail-grid dd { margin: 0; font-weight: 500; }
+
+/* Detail enrichment: photos strip, live status, facts, hours */
+.detail-more { margin-top: 18px; }
+.detail-more-loading {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+  animation: factsPulse 1.6s ease-in-out infinite;
+}
+@keyframes factsPulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+
+.detail-gallery {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-bottom: 14px;
+  scroll-snap-type: x mandatory;
+}
+.detail-gallery img {
+  flex: 0 0 auto;
+  width: 150px;
+  height: 104px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  scroll-snap-align: start;
+}
+
+.detail-now { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.detail-open {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.detail-open--yes { color: var(--moss); }
+.detail-open--no { color: var(--coral-dark); }
+.detail-busy { font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; }
+
+.detail-summary { font-size: 14px; line-height: 1.6; color: var(--ink-soft); margin-bottom: 14px; }
+
+.detail-more-title {
+  font-family: var(--display);
+  font-size: 16px;
+  margin: 16px 0 8px;
+}
+.detail-history { font-size: 13.5px; line-height: 1.6; color: var(--ink-soft); margin-bottom: 8px; }
+.detail-facts {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.detail-facts li {
+  font-size: 13.5px;
+  line-height: 1.55;
+  padding: 6px 0 6px 22px;
+  position: relative;
+  border-bottom: 1px dashed var(--line);
+}
+.detail-facts li:last-child { border-bottom: none; }
+.detail-facts li::before { content: '✨'; position: absolute; left: 0; top: 7px; font-size: 11px; }
+
+.detail-tip {
+  font-size: 13.5px;
+  line-height: 1.55;
+  background: rgba(255, 182, 39, 0.14);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin: 0 0 12px;
+}
+
+.detail-hours { margin-bottom: 12px; }
+.detail-hours summary {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.detail-hours ul { list-style: none; margin: 8px 0 0; padding: 0; }
+.detail-hours li { font-size: 12.5px; color: var(--ink-soft); padding: 2px 0; }
+
+.detail-rating-depth {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  margin: 0;
+}
 
 .detail-photo {
   margin: 0 0 14px;
@@ -1236,10 +1384,13 @@ button, .filter-chip {
   left: 50%;
   bottom: 90px;
   transform: translate(-50%, 12px);
-  background: var(--ink);
+  background: var(--glass-ink);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   color: var(--paper);
   padding: 12px 18px;
-  border-radius: 12px;
+  border-radius: var(--radius-btn);
   font-size: 13.5px;
   box-shadow: var(--shadow);
   opacity: 0;
@@ -1284,6 +1435,8 @@ button, .filter-chip {
   position: absolute;
   inset: 0;
   background: rgba(16,42,46,0.5);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   opacity: 0;
   transition: opacity 0.2s ease;
 }
@@ -1291,9 +1444,12 @@ button, .filter-chip {
 .modal-card {
   position: relative;
   width: min(420px, 100%);
-  background: var(--paper);
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: saturate(1.5) blur(24px);
+  backdrop-filter: saturate(1.5) blur(24px);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.6);
   padding: 30px 26px 24px;
   opacity: 0;
   transform: translateY(12px) scale(0.98);
@@ -1316,7 +1472,7 @@ button, .filter-chip {
   gap: 10px;
   background: white;
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-btn);
   padding: 12px;
   font-size: 14.5px;
   font-weight: 500;
@@ -1486,7 +1642,7 @@ button, .filter-chip {
   color: var(--ink);
   background: white;
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-btn);
   padding: 6px 13px;
   cursor: pointer;
   transition: all 0.15s var(--ease);
@@ -1607,7 +1763,7 @@ button, .filter-chip {
   color: var(--ink);
   background: white;
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-btn);
   padding: 7px 13px;
   cursor: pointer;
   transition: all 0.15s var(--ease);
@@ -1619,7 +1775,7 @@ button, .filter-chip {
   font-family: var(--body);
   font-size: 14px;
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-btn);
   padding: 9px 15px;
   background: white;
   color: var(--ink);
@@ -1730,4 +1886,115 @@ button, .filter-chip {
   .replan-form { flex-direction: column; }
   .replan-go { width: 100%; }
   .plan-toolbar { flex-wrap: wrap; }
+}
+
+/* ---------- Mode toggle: R&R vs Adventure ---------- */
+/* Two equal product personalities. The active mode drives an accent variable
+   that tints the hero, the toggle thumb, and the active filter chip — a
+   subtle whole-page shift, not a reskin. R&R (default) keeps the calm
+   dusk-park teal/moss; Adventure warms everything toward ember. */
+body {
+  --mode-accent: var(--moss);
+  --mode-accent-deep: #2F5646;
+  --mode-tint: rgba(63, 111, 92, 0.10);
+}
+body[data-mode="adventure"] {
+  --mode-accent: var(--coral-dark);
+  --mode-accent-deep: #B93E22;
+  --mode-tint: rgba(225, 80, 47, 0.10);
+}
+
+/* Hero warms up in Adventure mode — same structure, shifted temperature. */
+body[data-mode="adventure"] .hero {
+  background: linear-gradient(180deg, #FDF8F1 0%, var(--paper) 40%, #F6E9E0 100%);
+}
+
+.mode-toggle {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: min(440px, 100%);
+  margin: 0 auto 14px;
+  padding: 6px;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft);
+  touch-action: pan-y; /* horizontal swipes belong to the mode gesture */
+}
+
+.mode-thumb {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 6px;
+  width: calc(50% - 6px);
+  background: var(--mode-accent);
+  border-radius: 11px;
+  box-shadow: 0 6px 16px var(--mode-tint), inset 0 1px 0 rgba(255,255,255,0.25);
+  transition: transform 0.35s var(--ease), background 0.35s ease;
+}
+body[data-mode="adventure"] .mode-thumb { transform: translateX(100%); }
+
+.mode-option {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 11px;
+  color: var(--ink-soft);
+  transition: color 0.25s ease;
+}
+.mode-option[aria-checked="true"] { color: var(--paper); }
+.mode-option:focus-visible { outline: 2px solid var(--mode-accent); outline-offset: 2px; }
+
+.mode-icon { font-size: 22px; line-height: 1; }
+.mode-text { text-align: left; }
+.mode-text strong {
+  display: block;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 15.5px;
+  letter-spacing: -0.01em;
+}
+.mode-text small {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.78;
+  margin-top: 1px;
+}
+
+.mode-hint {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+  margin: 0 0 26px;
+  min-height: 15px;
+}
+
+/* Active filter chip picks up the mode accent (was flat ink). */
+.filter-chip.active {
+  background: var(--mode-accent);
+  border-color: var(--mode-accent);
+  color: var(--paper);
+}
+
+/* Feed dips while the mode switch refetches, so the swap reads as one
+   smooth transition instead of a hard repaint. */
+.card-feed { transition: opacity 0.25s ease; }
+.card-feed.mode-fading { opacity: 0.3; }
+
+@media (max-width: 560px) {
+  .mode-option { padding: 11px 8px; gap: 8px; }
+  .mode-icon { font-size: 19px; }
+  .mode-text strong { font-size: 14px; }
 }

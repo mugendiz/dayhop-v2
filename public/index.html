@@ -34,6 +34,23 @@
 
   <div class="hero-content">
     <div class="eyebrow">Greater Toronto Area · World Cup 2026</div>
+
+    <!-- Mode toggle: R&R vs Adventure — the two equal halves of DayHop.
+         Tap to switch; on touch devices the hero also accepts a horizontal
+         swipe (left → Adventure, right → R&R). -->
+    <div class="mode-toggle" id="mode-toggle" role="radiogroup" aria-label="What kind of day?">
+      <span class="mode-thumb" aria-hidden="true"></span>
+      <button type="button" class="mode-option" id="mode-option-rr" data-mode="rr" role="radio" aria-checked="true">
+        <span class="mode-icon" aria-hidden="true">🌿</span>
+        <span class="mode-text"><strong>R&amp;R</strong><small>Rest &amp; restore</small></span>
+      </button>
+      <button type="button" class="mode-option" id="mode-option-adventure" data-mode="adventure" role="radio" aria-checked="false">
+        <span class="mode-icon" aria-hidden="true">⛰️</span>
+        <span class="mode-text"><strong>Adventure</strong><small>Thrills &amp; action</small></span>
+      </button>
+    </div>
+    <p class="mode-hint" id="mode-hint" aria-live="polite"></p>
+
     <h1>Plan your perfect day<span>in one sentence.</span></h1>
     <p class="subtitle">Real places, real weather, real plans — like a thoughtful local friend who knows the city.</p>
 
@@ -81,17 +98,8 @@
 
   <div id="collections" class="collections" hidden aria-label="Curated collections"></div>
 
-  <div class="filters" role="group" aria-label="Filter ideas by category">
-    <button class="filter-chip active" data-filter="all">All</button>
-    <button class="filter-chip" data-filter="worldcup">⚽ World Cup</button>
-    <button class="filter-chip" data-filter="kids">👶 Kid-Friendly</button>
-    <button class="filter-chip" data-filter="patios">🍻 Patios &amp; Rooftops</button>
-    <button class="filter-chip" data-filter="water">🏖️ Beaches &amp; Waterparks</button>
-    <button class="filter-chip" data-filter="cruises">⛴️ Day Cruises</button>
-    <button class="filter-chip" data-filter="adventures">🚁 Big Experiences</button>
-    <button class="filter-chip" data-filter="culture">🏛️ Culture</button>
-    <button class="filter-chip" data-filter="food">🍽️ Food</button>
-  </div>
+  <!-- Chips are rendered by app.js — the set depends on the active mode. -->
+  <div class="filters" id="filters" role="group" aria-label="Filter ideas by category"></div>
 
   <section class="discovery" id="discovery-section">
     <div class="section-header">

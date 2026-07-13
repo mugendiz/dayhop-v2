@@ -43,6 +43,17 @@ const browseLimiter = rateLimit({
   message: { error: 'RATE_LIMITED', message: 'Slow down a little — try again in a moment.' }
 });
 app.use('/api/browse', browseLimiter, require('./routes/browse'));
+
+// Detail enrichment: one Grok + one Places call per uncached place — cached
+// 24h server-side, but still worth a ceiling against click-spamming Details.
+const detailsLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'RATE_LIMITED', message: 'Slow down a little — try again in a moment.' }
+});
+app.use('/api/details', detailsLimiter, require('./routes/details'));
 app.use('/api/places', require('./routes/places'));
 app.use('/api/photo', require('./routes/photo'));
 app.use('/api/geo', require('./routes/geo'));

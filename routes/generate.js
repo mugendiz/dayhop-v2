@@ -27,7 +27,9 @@ function ownerKeyFor(req) {
 router.post('/', async (req, res) => {
   // Frontend's GTA picker sends `city`; older clients may send `location`.
   // `event_keyword` (optional) narrows the event connectors, e.g. "world cup".
+  // `mode` is the R&R/Adventure toggle; anything unrecognized falls back to R&R.
   const { prompt, filter, location, city, event_keyword } = req.body || {};
+  const mode = grok.normalizeMode(req.body && req.body.mode);
 
   if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
     return res.status(400).json({
@@ -79,6 +81,7 @@ router.post('/', async (req, res) => {
         const selected = await grok.generateGroundedIdeas({
           prompt,
           filter,
+          mode,
           city: cityForGrok,
           candidates: candidates.map(toGrokCandidate),
           weather
@@ -94,13 +97,13 @@ router.post('/', async (req, res) => {
         degraded = true;
       }
     } else {
-      ideas = await grok.generateIdeas({ prompt, filter, city: cityForGrok });
+      ideas = await grok.generateIdeas({ prompt, filter, mode, city: cityForGrok });
     }
 
     analytics.recordEvent({
       type: 'prompt_generated',
       ownerKey,
-      meta: { grounded: usedGrounding, degraded, city: cityForGrok, ideas: ideas.length }
+      meta: { grounded: usedGrounding, degraded, mode, city: cityForGrok, ideas: ideas.length }
     });
 
     res.json({
@@ -194,9 +197,10 @@ router.post('/plan', async (req, res) => {
     }
   }
 
+  const mode = grok.normalizeMode(req.body && req.body.mode);
   try {
-    const plan = await grok.buildDayPlan({ items, city, days });
-    analytics.recordEvent({ type: 'plan_built', ownerKey: ownerKeyFor(req), meta: { stops: items.length, days } });
+    const plan = await grok.buildDayPlan({ items, city, days, mode });
+    analytics.recordEvent({ type: 'plan_built', ownerKey: ownerKeyFor(req), meta: { stops: items.length, days, mode } });
     res.json(plan);
   } catch (err) {
     handleGrokError(err, res);
@@ -278,6 +282,7 @@ router.post('/replan', async (req, res) => {
       current: slimGuideForReplan(guide),
       instruction: trimmedInstruction,
       city: targetLocation,
+      mode: grok.normalizeMode(req.body.mode),
       weather,
       candidates: candidates.map(toGrokCandidate)
     });

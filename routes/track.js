@@ -10,7 +10,14 @@ const analytics = require('../services/analytics');
 
 // Only client-originated event types are accepted here; server-truth events
 // (prompt_generated, plan_built) are recorded by their own routes.
-const CLIENT_TYPES = new Set(['booking_click', 'maps_click', 'shortlist_add', 'signup', 'guide_export', 'upgrade_viewed']);
+const CLIENT_TYPES = new Set([
+  'booking_click', 'maps_click', 'shortlist_add', 'signup', 'guide_export', 'upgrade_viewed',
+  // Booking retention: prompt shown after a booking click, and the idea
+  // auto-saved to the shortlist by that click.
+  'booking_return_prompt_shown', 'idea_auto_saved_on_booking',
+  // Mode toggle: which of the two product personalities users switch into.
+  'mode_switch'
+]);
 
 router.post('/', (req, res) => {
   const { type, idea_id, source, owner_id } = req.body || {};

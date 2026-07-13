@@ -20,7 +20,9 @@ const EVENT_TYPES = new Set([
   // → upgrade_started (checkout created) → subscriptions table.
   'upgrade_viewed', 'guide_export',
   // Instant discovery feed served (server-truth, includes cache hits).
-  'browse_feed'
+  'browse_feed',
+  // Booking retention: click → prompt shown → (maybe) idea auto-saved.
+  'booking_return_prompt_shown', 'idea_auto_saved_on_booking'
 ]);
 
 // ---------- in-memory mirror ----------

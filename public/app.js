@@ -32,6 +32,52 @@
     return `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${width}&q=70`;
   }
 
+  // ---------- Modes: R&R vs Adventure ----------
+  // Two equal product personalities. The active mode shapes the browse feed,
+  // search results, AI plans (server-side via the `mode` param), and the
+  // client chrome below: filter chips, example prompts, placeholder, accent.
+  const MODES = {
+    rr: {
+      hint: '🌿 Restorative days — gardens, trails, lookouts, calm water',
+      placeholder: '3 unhurried hours near the water — a quiet garden, a scenic lookout, and somewhere relaxed to eat after.',
+      switchToast: '🌿 R&R Mode on — new searches and plans will lean restful',
+      filters: [
+        { filter: 'all', label: 'All' },
+        { filter: 'water', label: '🏖️ Calm Water' },
+        { filter: 'culture', label: '🏛️ Culture' },
+        { filter: 'kids', label: '👶 Family' },
+        { filter: 'patios', label: '🍻 Patios' },
+        { filter: 'food', label: '🍽️ Food' },
+        { filter: 'cruises', label: '⛴️ Cruises' },
+        { filter: 'worldcup', label: '⚽ World Cup' }
+      ],
+      examples: [
+        { label: '🌿 Slow morning in nature', prompt: 'A slow, restorative morning — a peaceful garden or quiet trail, a scenic lookout, and a calm café to end at.' },
+        { label: '🌧️ Rainy day with little kids', prompt: 'A rainy Saturday with two kids under 6 — somewhere calm indoors to unwind, then an easy lunch nearby.' },
+        { label: '🏖️ Afternoon by the water', prompt: '3 relaxed hours near the water with my 4-year-old — a splash pad and somewhere easy to eat after.' }
+      ]
+    },
+    adventure: {
+      hint: '⛰️ Active days — ziplines, climbing, paddling, big thrills',
+      placeholder: 'A full-throttle Saturday — ziplining or climbing in the morning, kayaking after lunch, go-karts to finish.',
+      switchToast: '⚡ Adventure Mode on — new searches and plans will lean thrilling',
+      filters: [
+        { filter: 'all', label: 'All' },
+        { filter: 'adventures', label: '🚁 Big Experiences' },
+        { filter: 'water', label: '🌊 Water Action' },
+        { filter: 'cruises', label: '⛴️ On the Water' },
+        { filter: 'kids', label: '👶 Family Thrills' },
+        { filter: 'worldcup', label: '⚽ World Cup' },
+        { filter: 'food', label: '🍽️ Refuel' }
+      ],
+      examples: [
+        { label: '🧗 Adrenaline day for two', prompt: 'An adrenaline-filled day for two adults — ziplining or treetop trekking, rock climbing, then a well-earned dinner.' },
+        { label: '🚣 Paddle & pedal', prompt: 'An active day outdoors — kayaking or paddleboarding in the morning, then a mountain bike trail after lunch.' },
+        { label: '🏎️ Thrills with teens', prompt: 'A high-energy day with two teenagers — go-karts, a climbing gym or trampoline park, and pizza after.' }
+      ]
+    }
+  };
+
   // GTA coverage — "Across the GTA" is the default, then grouped by region.
   const GTA_WIDE = 'Across the GTA';
   const GTA_LOCATIONS = [
@@ -43,6 +89,7 @@
   ];
 
   const state = {
+    mode: 'rr',          // 'rr' (default) | 'adventure' — see MODES
     allIdeas: [],
     shortlist: [],
     dismissedIds: new Set(),
@@ -84,6 +131,8 @@
       const saved = JSON.parse(raw);
       state.shortlist = saved.shortlist || [];
       if (saved.city) state.city = saved.city;
+      // Remember the last used mode across visits (first launch = R&R).
+      if (MODES[saved.mode]) state.mode = saved.mode;
       // Re-use a recent opt-in location so a refresh doesn't lose "near you",
       // but let it expire — people move.
       if (saved.coords && saved.coordsAt && Date.now() - saved.coordsAt < COORDS_FRESH_MS) {
@@ -103,6 +152,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         shortlist: state.shortlist,
+        mode: state.mode,
         city: state.city,
         coords: state.coords,
         coordsAt: state.coordsAt,
@@ -112,6 +162,118 @@
     } catch (e) {
       // ignore quota errors silently — not critical to function
     }
+  }
+
+  // ---------- Mode toggle behavior ----------
+  function setMode(mode) {
+    if (!MODES[mode] || mode === state.mode) return;
+    state.mode = mode;
+    persist();
+    track('mode_switch', { id: mode, source: mode });
+    if (navigator.vibrate) navigator.vibrate(8);
+    applyModeUi();
+    // The chip set changes with the mode, so an active filter no longer
+    // means anything — reset quietly.
+    state.currentFilter = 'all';
+    renderFilterChips();
+    refreshFeedForMode();
+  }
+
+  // Everything mode-flavored in the chrome: accent (body[data-mode] drives
+  // the CSS), toggle position, hint line, prompt placeholder, example chips.
+  function applyModeUi() {
+    document.body.dataset.mode = state.mode;
+    document.querySelectorAll('#mode-toggle .mode-option').forEach(btn =>
+      btn.setAttribute('aria-checked', String(btn.dataset.mode === state.mode)));
+    const hint = document.getElementById('mode-hint');
+    if (hint) hint.textContent = MODES[state.mode].hint;
+    const textarea = document.getElementById('grok-prompt');
+    if (textarea) textarea.placeholder = MODES[state.mode].placeholder;
+    renderExamplePrompts();
+  }
+
+  // Browse-owned feeds refetch in the new mode; prompt results stay (they
+  // cost a daily generate) and a toast explains the new lean instead.
+  function refreshFeedForMode() {
+    if (state.locationChosen && (state.browseMode || !state.allIdeas.length)) {
+      const feed = document.getElementById('discovery-feed');
+      if (feed) {
+        feed.classList.add('mode-fading');
+        setTimeout(() => feed.classList.remove('mode-fading'), 260);
+      }
+      if (state.browseMode) state.allIdeas = []; // that feed belongs to the old mode
+      loadBrowseFeed();
+    } else if (state.allIdeas.length) {
+      showToast(MODES[state.mode].switchToast, { duration: 3500 });
+    }
+  }
+
+  function renderFilterChips() {
+    const wrap = document.getElementById('filters');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    MODES[state.mode].filters.forEach(({ filter, label }) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'filter-chip' + (state.currentFilter === filter ? ' active' : '');
+      chip.dataset.filter = filter;
+      chip.textContent = label;
+      chip.addEventListener('click', () => setFilter(filter));
+      wrap.appendChild(chip);
+    });
+  }
+
+  function renderExamplePrompts() {
+    const wrap = document.getElementById('example-prompts');
+    if (!wrap) return;
+    wrap.innerHTML = '<span class="example-prompts-label">Try one</span>';
+    MODES[state.mode].examples.forEach(ex => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'example-chip';
+      btn.textContent = ex.label;
+      btn.addEventListener('click', () => {
+        document.getElementById('grok-prompt').value = ex.prompt;
+        document.getElementById('prompt-form').requestSubmit();
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
+  // Horizontal swipe → mode switch (left = Adventure, right = R&R). Scoped
+  // to the hero/toggle only: in the feed, card swipes mean keep/skip and
+  // must not fight a global gesture. Vertical-ish drags are scrolling.
+  function addModeSwipe(el, ignoreSelector) {
+    if (!el) return;
+    let sx = 0, sy = 0, live = false;
+    el.addEventListener('touchstart', (e) => {
+      if (ignoreSelector && e.target.closest(ignoreSelector)) { live = false; return; }
+      live = true;
+      sx = e.touches[0].clientX;
+      sy = e.touches[0].clientY;
+    }, { passive: true });
+    el.addEventListener('touchend', (e) => {
+      if (!live) return;
+      live = false;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - sx;
+      const dy = t.clientY - sy;
+      if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+      setMode(dx < 0 ? 'adventure' : 'rr');
+    }, { passive: true });
+  }
+
+  function wireModeToggle() {
+    const toggle = document.getElementById('mode-toggle');
+    if (!toggle) return;
+    toggle.querySelectorAll('.mode-option').forEach(btn => {
+      btn.addEventListener('click', () => setMode(btn.dataset.mode));
+    });
+    addModeSwipe(toggle);
+    // The rest of the hero swipes too — but never steal from the inputs,
+    // the location combobox, or the toggle's own handler.
+    addModeSwipe(document.querySelector('.hero'),
+      'input, textarea, button, a, .location-combo, .location-listbox, .mode-toggle');
   }
 
   // ---------- Location autocomplete (combobox) ----------
@@ -509,7 +671,7 @@
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ prompt, filter, city: state.city, coords: state.coords || undefined, owner_id: getOwnerId() })
+      body: JSON.stringify({ prompt, filter, mode: state.mode, city: state.city, coords: state.coords || undefined, owner_id: getOwnerId() })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -525,7 +687,7 @@
     const res = await fetch('/api/generate/plan', {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ items, city: state.city, days: days || 1, owner_id: getOwnerId() })
+      body: JSON.stringify({ items, city: state.city, days: days || 1, mode: state.mode, owner_id: getOwnerId() })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -544,6 +706,7 @@
       body: JSON.stringify({
         guide,
         instruction,
+        mode: state.mode,
         city: guide.city || state.city,
         coords: state.coords || undefined,
         owner_id: getOwnerId()
@@ -873,7 +1036,9 @@
   }
 
   // ---------- Actions ----------
-  function addToShortlist(idea, card) {
+  // opts.silent skips the confirmation toast — for flows (like the booking
+  // retention prompt) that show their own combined message instead.
+  function addToShortlist(idea, card, opts) {
     if (state.shortlist.find(i => i.id === idea.id)) return;
     state.shortlist.push(idea);
     persist();
@@ -882,6 +1047,7 @@
     if (card) animateOut(card, 'right', () => renderFeed());
     updateShortlistCount();
     if (navigator.vibrate) navigator.vibrate(10);
+    if (opts && opts.silent) return;
     showToast(`Added "${idea.title}" to your day`, {
       duration: 4000,
       actionLabel: 'Undo',
@@ -949,8 +1115,100 @@
         ${idea.rating != null ? `<dt>Rating</dt><dd>★ ${escapeHtml(String(idea.rating))}</dd>` : ''}
       </dl>
       ${bookingLinksHtml(idea, 'detail')}
+      <div class="detail-more" id="detail-more">
+        <p class="detail-more-loading">✨ Digging up the good stuff…</p>
+      </div>
     `;
     openPanel('detail-panel');
+    loadDetailMore(idea);
+  }
+
+  // ---------- Detail enrichment ----------
+  // Lazy second course for the detail panel: extra photos, editorial
+  // summary, live open-now, and Grok's local color (facts / history /
+  // busy patterns / a tip). Cached per idea for the session; a token
+  // guards against a slow response landing in a newer panel.
+  const detailMoreCache = new Map();
+  let detailMoreToken = 0;
+
+  async function loadDetailMore(idea) {
+    const box = document.getElementById('detail-more');
+    if (!box) return;
+    const token = ++detailMoreToken;
+    const key = String(idea.id);
+
+    let data = detailMoreCache.get(key);
+    if (!data) {
+      try {
+        const res = await fetch('/api/details', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: idea.id,
+            source: idea.source || undefined,
+            title: idea.title,
+            venue: idea.venue || undefined,
+            location: idea.location || undefined,
+            city: state.city,
+            category: idea.category || undefined
+          })
+        });
+        if (!res.ok) throw new Error('details failed');
+        data = await res.json();
+        if (data.place || data.facts) detailMoreCache.set(key, data);
+      } catch (e) {
+        data = null;
+      }
+    }
+
+    if (token !== detailMoreToken) return; // panel moved on to another idea
+    const current = document.getElementById('detail-more');
+    if (!current) return;
+    current.innerHTML = data ? detailMoreHtml(data, idea) : '';
+  }
+
+  function detailMoreHtml({ place, facts }, idea) {
+    const parts = [];
+
+    // More photos — skip when all we'd show is the hero image again.
+    const photos = (place && place.photos || []).filter(u => u !== idea.image_url);
+    if (photos.length > 1) {
+      parts.push(`<div class="detail-gallery">${photos.map(u =>
+        `<img src="${escapeAttr(u)}" alt="" loading="lazy" decoding="async">`).join('')}</div>`);
+    }
+
+    // Right now: live open state (Google) + typical crowd rhythm (Grok).
+    const nowBits = [];
+    if (place && place.open_now != null) {
+      nowBits.push(`<span class="detail-open ${place.open_now ? 'detail-open--yes' : 'detail-open--no'}">${place.open_now ? '● Open now' : '● Closed right now'}</span>`);
+    }
+    if (facts && facts.busy) nowBits.push(`<span class="detail-busy">👥 ${escapeHtml(facts.busy)}</span>`);
+    if (nowBits.length) parts.push(`<div class="detail-now">${nowBits.join('')}</div>`);
+
+    if (place && place.editorial_summary) {
+      parts.push(`<p class="detail-summary">${escapeHtml(place.editorial_summary)}</p>`);
+    }
+
+    const factList = (facts && facts.facts || []).slice(0, 4);
+    if (factList.length || (facts && facts.history)) {
+      parts.push(`<h4 class="detail-more-title">Worth knowing</h4>`);
+      if (facts.history) parts.push(`<p class="detail-history">${escapeHtml(facts.history)}</p>`);
+      if (factList.length) {
+        parts.push(`<ul class="detail-facts">${factList.map(f => `<li>${escapeHtml(f)}</li>`).join('')}</ul>`);
+      }
+    }
+
+    if (facts && facts.tip) parts.push(`<p class="detail-tip">💡 ${escapeHtml(facts.tip)}</p>`);
+
+    if (place && place.open_hours && place.open_hours.length) {
+      parts.push(`<details class="detail-hours"><summary>Opening hours</summary><ul>${place.open_hours.map(h => `<li>${escapeHtml(h)}</li>`).join('')}</ul></details>`);
+    }
+
+    if (place && (place.rating != null) && place.rating_count > 0) {
+      parts.push(`<p class="detail-rating-depth">★ ${escapeHtml(String(place.rating))} from ${escapeHtml(String(place.rating_count.toLocaleString('en-CA')))} Google reviews</p>`);
+    }
+
+    return parts.join('');
   }
 
   // ---------- Shortlist panel ----------
@@ -1697,6 +1955,7 @@
         headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           city: state.city,
+          mode: state.mode,
           coords: coordsFresh ? state.coords : undefined,
           owner_id: getOwnerId()
         }),
@@ -2064,6 +2323,39 @@
     return map[condition] || '🌤️';
   }
 
+  // ---------- Booking retention ----------
+  // Every booking link opens in a new tab, so a Book click is a save signal,
+  // not a goodbye: shortlist the idea (deduped; localStorage for guests, the
+  // account for signed-in users) and show one combined toast that confirms
+  // the save and offers the way back into planning. Plan stops are exempt —
+  // they're already part of a built day.
+  function handleBookingRetention(ideaRef, link, card) {
+    let saved = false;
+    if (!link.closest('.plan-stop-links')) {
+      const id = ideaRef.id != null ? String(ideaRef.id) : null;
+      const alreadySaved = id && state.shortlist.some(i => String(i.id) === id);
+      const idea = !alreadySaved && id
+        ? state.allIdeas.find(i => String(i.id) === id)
+        : null;
+      if (idea) {
+        addToShortlist(idea, card, { silent: true });
+        track('idea_auto_saved_on_booking', idea);
+        saved = true;
+      }
+    }
+    track('booking_return_prompt_shown', ideaRef);
+    showToast(saved
+      ? 'Booking opened in a new tab — saved to your shortlist ✨'
+      : 'Booking opened in a new tab', {
+      duration: 6000,
+      actionLabel: 'Keep planning →',
+      onAction: () => {
+        renderShortlistPanel();
+        openPanel('shortlist-panel');
+      }
+    });
+  }
+
   // ---------- Auth state ----------
   async function handleAuthChange(detail) {
     const wasLoggedIn = Boolean(state.user);
@@ -2161,21 +2453,15 @@
     document.getElementById('prompt-form').addEventListener('submit', handleGenerate);
     document.getElementById('go-pro-btn').addEventListener('click', startUpgrade);
 
-    // Onboarding — tapping an example prompt fills the box and generates instantly.
-    document.querySelectorAll('.example-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        const textarea = document.getElementById('grok-prompt');
-        textarea.value = chip.dataset.prompt || '';
-        document.getElementById('prompt-form').requestSubmit();
-      });
-    });
+    // Mode toggle (R&R / Adventure): tap or swipe, then paint the
+    // mode-flavored chrome — accent, hint, placeholder, example prompts,
+    // filter chips. Defaults to R&R; returning users keep their last mode.
+    wireModeToggle();
+    applyModeUi();
+    renderFilterChips();
 
     // No-results: clear the active filter and show everything again.
     document.getElementById('reset-filter-btn').addEventListener('click', () => setFilter('all'));
-
-    document.querySelectorAll('.filter-chip').forEach(chip => {
-      chip.addEventListener('click', () => setFilter(chip.dataset.filter));
-    });
 
     document.getElementById('shortlist-btn').addEventListener('click', () => {
       renderShortlistPanel();
@@ -2196,16 +2482,20 @@
     wireDaySelector();
     wireUpgradeModal();
 
-    // Outbound click tracking (booking links are the affiliate-revenue metric).
+    // Outbound click tracking (booking links are the affiliate-revenue metric)
+    // + booking retention: the link opens in a new tab, so THIS tab is still
+    // DayHop — auto-save the idea and invite the user to keep planning.
     document.addEventListener('click', (e) => {
       const link = e.target.closest && e.target.closest('a.card-booking-link');
       if (!link) return;
       const card = link.closest('.idea-card');
-      const idea = {
+      const ideaRef = {
         id: link.dataset.ideaId || (card && card.dataset.id),
         source: link.dataset.ideaSource || undefined
       };
-      track(link.classList.contains('card-booking-link--secondary') ? 'maps_click' : 'booking_click', idea);
+      const isMaps = link.classList.contains('card-booking-link--secondary');
+      track(isMaps ? 'maps_click' : 'booking_click', ideaRef);
+      if (!isMaps) handleBookingRetention(ideaRef, link, card);
     });
 
     handleBillingReturn();
