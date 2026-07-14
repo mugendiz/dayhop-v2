@@ -1,0 +1,17 @@
+{
+  "name": "DayHop — Plan your perfect day",
+  "short_name": "DayHop",
+  "description": "R&R or Adventure — real places, real weather, real plans.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FBF7EE",
+  "theme_color": "#102A2E",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

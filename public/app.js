@@ -750,6 +750,117 @@
     }
   }
 
+  // ---------- Progressive loading ----------
+  // The loading screen paces itself: a progress bar + staged status line
+  // easing toward done over how long this flow ACTUALLY takes on this device
+  // (median of the last few runs, kept in localStorage), so the wait feels
+  // measured instead of open-ended. Past the estimate the bar keeps crawling
+  // and the copy owns the delay.
+  const LOAD_STAGES = {
+    generate: [
+      { at: 0.0, label: '📍 Pinning down your area' },
+      { at: 0.1, label: '☀️ Checking today’s weather' },
+      { at: 0.22, label: '🗺️ Scanning real venues, events & experiences' },
+      { at: 0.55, label: '✨ Picking the best matches for your vibe' },
+      { at: 0.88, label: '🎨 Setting up your cards' }
+    ],
+    browse: [
+      { at: 0.0, label: '📍 Finding what’s around you' },
+      { at: 0.3, label: '🗺️ Gathering real venues & events' },
+      { at: 0.72, label: '🎨 Curating today’s feed' }
+    ],
+    plan: [
+      { at: 0.0, label: '🧭 Mapping your stops' },
+      { at: 0.3, label: '⏱️ Timing the day, hop by hop' },
+      { at: 0.7, label: '✨ Writing your itinerary' }
+    ],
+    replan: [
+      { at: 0.0, label: '🔄 Rereading your day' },
+      { at: 0.3, label: '🗺️ Hunting for the right swaps' },
+      { at: 0.7, label: '✨ Reshaping the plan' }
+    ]
+  };
+  const LOAD_DEFAULT_MS = { generate: 16000, browse: 6000, plan: 14000, replan: 12000 };
+  const LOAD_TIMES_KEY = 'dayhop_load_times_v1';
+
+  function loadTimesRead() {
+    try { return JSON.parse(localStorage.getItem(LOAD_TIMES_KEY)) || {}; } catch { return {}; }
+  }
+  function loadEstimate(kind) {
+    const runs = (loadTimesRead()[kind] || []).slice().sort((a, b) => a - b);
+    if (!runs.length) return LOAD_DEFAULT_MS[kind] || 10000;
+    return runs[Math.floor(runs.length / 2)];
+  }
+  function recordLoadTime(kind, ms) {
+    if (ms < 800) return; // cache hits would skew the estimate absurdly fast
+    try {
+      const all = loadTimesRead();
+      all[kind] = [...(all[kind] || []), Math.round(ms)].slice(-5);
+      localStorage.setItem(LOAD_TIMES_KEY, JSON.stringify(all));
+    } catch { /* private mode etc. — estimates just stay on defaults */ }
+  }
+
+  // startProgress('generate') → { finish(), fail() }. Inserted before
+  // `anchor` (default: the feed) so renderSkeletons/renderFeed never touch it.
+  function startProgress(kind, anchor) {
+    const stages = LOAD_STAGES[kind] || LOAD_STAGES.generate;
+    const est = loadEstimate(kind);
+    const target = anchor || document.getElementById('discovery-feed');
+
+    const el = document.createElement('div');
+    el.className = 'progress-loader' + (anchor ? ' progress-loader--compact' : '');
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
+    el.innerHTML = `
+      <div class="progress-loader-top">
+        <span class="progress-loader-stage">${stages[0].label}</span>
+        <span class="progress-loader-pct" aria-hidden="true">0%</span>
+      </div>
+      <div class="progress-loader-track"><div class="progress-loader-fill"></div></div>
+      <p class="progress-loader-hint">Usually takes ~${Math.max(2, Math.round(est / 1000))}s</p>`;
+    target.parentNode.insertBefore(el, target);
+
+    const stageEl = el.querySelector('.progress-loader-stage');
+    const pctEl = el.querySelector('.progress-loader-pct');
+    const fillEl = el.querySelector('.progress-loader-fill');
+    const hintEl = el.querySelector('.progress-loader-hint');
+    const t0 = Date.now();
+    let lastStage = stages[0].label;
+
+    const tick = setInterval(() => {
+      const t = Date.now() - t0;
+      const f = Math.min(t / est, 1);
+      // Ease out to 90% at the estimate, then asymptotically crawl toward 99
+      // — motion never stops, so a slow request still reads as "working".
+      const p = t <= est
+        ? 90 * (1 - Math.pow(1 - f, 1.8))
+        : 90 + 9 * (1 - Math.exp(-(t - est) / est));
+      fillEl.style.width = `${p}%`;
+      pctEl.textContent = `${Math.round(p)}%`;
+      if (t > est * 1.25) {
+        stageEl.textContent = '⏳ Taking a bit longer than usual — worth it';
+        hintEl.textContent = 'Almost there…';
+      } else {
+        const stage = [...stages].reverse().find(s => f >= s.at) || stages[0];
+        if (stage.label !== lastStage) { lastStage = stage.label; stageEl.textContent = stage.label; }
+      }
+    }, 150);
+
+    function teardown(recorded) {
+      clearInterval(tick);
+      if (recorded) {
+        recordLoadTime(kind, Date.now() - t0);
+        fillEl.style.width = '100%';
+        pctEl.textContent = '100%';
+        el.classList.add('progress-loader--done');
+        setTimeout(() => el.remove(), 320);
+      } else {
+        el.remove();
+      }
+    }
+    return { finish: () => teardown(true), fail: () => teardown(false) };
+  }
+
   function setLoading(isLoading) {
     state.isGenerating = isLoading;
     const feed = document.getElementById('discovery-feed');
@@ -1316,9 +1427,11 @@
     const btn = document.getElementById('build-day-btn');
     btn.classList.add('is-loading');
     btn.disabled = true;
+    const progress = startProgress('plan', document.querySelector('#shortlist-panel .panel-footer'));
 
     try {
       const plan = await apiBuildPlan(state.shortlist, state.planDays);
+      progress.finish();
       renderDayPlan(plan);
       closePanel(document.getElementById('shortlist-panel'));
       openPanel('dayplan-panel');
@@ -1332,6 +1445,7 @@
         }).catch(() => {});
       }
     } catch (err) {
+      progress.fail();
       if (err.code === 'UPGRADE_REQUIRED') {
         showUpgradeModal(err.feature || 'multi_day');
       } else {
@@ -1365,6 +1479,15 @@
       city: state.city === GTA_WIDE ? null : state.city,
       notes: plan.notes || ''
     };
+    // Snapshot the conditions the plan was built for — the exported/printed
+    // guide shows this so the paper copy carries the same context.
+    if (state.lastWeather) {
+      g.weather = {
+        condition: state.lastWeather.condition || '',
+        temp_c: state.lastWeather.temp_c != null ? state.lastWeather.temp_c : null,
+        description: state.lastWeather.description || ''
+      };
+    }
     if (Array.isArray(plan.days) && plan.days.length) {
       g.days = plan.days.map((d, i) => ({
         label: (d && d.label) || `Day ${i + 1}`,
@@ -1619,10 +1742,13 @@
     const goBtn = document.getElementById('replan-go');
     goBtn.classList.add('is-loading');
     goBtn.disabled = true;
-    document.getElementById('replan-bar').classList.add('replan-bar--busy');
+    const replanBar = document.getElementById('replan-bar');
+    replanBar.classList.add('replan-bar--busy');
+    const progress = startProgress('replan', replanBar);
 
     try {
       const data = await apiReplan(state.currentGuide, text);
+      progress.finish();
       state.currentGuide = data.guide;
       state.lastChangeSummary = data.change_summary || [];
       state.savedGuide = null; // new version → stale save
@@ -1633,6 +1759,7 @@
       if (panel) panel.scrollTo({ top: 0, behavior: 'smooth' });
       showToast('Plan updated ✨');
     } catch (err) {
+      progress.fail();
       if (err.code === 'UPGRADE_REQUIRED') {
         showUpgradeModal(err.feature || 'replan');
       } else {
@@ -1951,6 +2078,7 @@
     document.getElementById('empty-state').hidden = true;
     document.getElementById('noresults-state').hidden = true;
     renderSkeletons();
+    const progress = startProgress('browse');
 
     try {
       const coordsFresh = state.coords && Date.now() - state.coordsAt < COORDS_FRESH_MS;
@@ -1965,9 +2093,10 @@
         }),
         signal: ctl.signal
       });
-      if (ctl !== browseAbort) return; // superseded by a newer browse/prompt
+      if (ctl !== browseAbort) { progress.fail(); return; } // superseded by a newer browse/prompt
       if (!res.ok) throw new Error('browse failed');
       const data = await res.json();
+      progress.finish();
       state.allIdeas = data.ideas || [];
       state.browseMode = true;
       state.dismissedIds = new Set();
@@ -1977,6 +2106,7 @@
       renderResultsHeader();
       renderFeed(true);
     } catch (err) {
+      progress.fail();
       if (err.name === 'AbortError') return;
       state.browseMode = false;
       renderFeed(); // repaints the empty state
@@ -2022,8 +2152,10 @@
     if (browseAbort) { browseAbort.abort(); browseAbort = null; }
 
     setLoading(true);
+    const progress = startProgress('generate');
     try {
       const data = await apiGenerateIdeas(prompt, state.currentFilter);
+      progress.finish();
       state.allIdeas = data.ideas || [];
       state.browseMode = false;
       state.dismissedIds = new Set();
@@ -2034,6 +2166,7 @@
       renderFeed(true);
       document.getElementById('results-header').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (err) {
+      progress.fail();
       errorEl.textContent = err.message || 'Something went wrong. Please try again.';
       if (err.code === 'UPGRADE_REQUIRED') {
         showUpgradeModal('generate');
@@ -2162,6 +2295,7 @@
   async function refreshProStatus() {
     const badge = document.getElementById('pro-badge');
     const goProBtn = document.getElementById('go-pro-btn');
+    const adminLink = document.getElementById('admin-link');
     try {
       // Works signed-out too: the route still reports whether billing is
       // configured, which is what decides if the Go Pro button appears.
@@ -2174,9 +2308,11 @@
       state.price = (res.ok && data.price) || null;
       if (badge) badge.hidden = !pro;
       if (goProBtn) goProBtn.hidden = !(res.ok && data.configured && !pro);
+      if (adminLink) adminLink.hidden = !(res.ok && isLoggedIn() && data.admin);
     } catch (e) {
       if (badge) badge.hidden = true;
       if (goProBtn) goProBtn.hidden = true;
+      if (adminLink) adminLink.hidden = true;
     }
     // A tier change can unlock/lock multi-day: snap the selector back to a
     // valid choice and refresh all PRO chips.
@@ -2501,6 +2637,12 @@
       track(isMaps ? 'maps_click' : 'booking_click', ideaRef);
       if (!isMaps) handleBookingRetention(ideaRef, link, card);
     });
+
+    // Offline awareness (PWA): the shell + saved data work offline; live
+    // search and AI plans need a connection.
+    window.addEventListener('offline', () =>
+      showToast("You're offline — your saved plans and shortlist still work.", { duration: 4500 }));
+    window.addEventListener('online', () => showToast('Back online ✨'));
 
     handleBillingReturn();
     refreshProStatus();

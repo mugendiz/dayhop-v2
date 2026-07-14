@@ -74,6 +74,15 @@ function sanitizeGuidePayload(raw) {
     city: str(raw.city, 80) || null,
     notes: str(raw.notes, 1000)
   };
+  // Weather snapshot from plan time — the share/print page shows it so an
+  // exported guide records the conditions it was planned for.
+  if (raw.weather && typeof raw.weather === 'object') {
+    out.weather = {
+      condition: str(raw.weather.condition, 30),
+      temp_c: Number.isFinite(Number(raw.weather.temp_c)) ? Number(raw.weather.temp_c) : null,
+      description: str(raw.weather.description, 80)
+    };
+  }
   if (Array.isArray(raw.days) && raw.days.length) {
     out.days = raw.days.slice(0, MAX_TRIP_DAYS).map((d, i) => ({
       label: str(d && d.label, 80) || `Day ${i + 1}`,
@@ -190,7 +199,7 @@ router.post('/', requireUser, async (req, res, next) => {
   // Free tier: `saved_guides` plans total. Enforced only once Stripe is
   // configured (before that entitlements resolve to preview/unlimited);
   // fails open on gate errors.
-  const ent = await entitlementsFor(req.ownerId).catch(() => null);
+  const ent = await entitlementsFor(req.user || req.ownerId).catch(() => null);
   if (ent && ent.saved_guides != null) {
     try {
       let existing;
@@ -281,7 +290,7 @@ router.get('/', requireUser, async (req, res, next) => {
       console.warn('[guides] list fell back to memory:', err.message);
       rows = await memoryStore.listGuides(req.ownerId);
     }
-    const ent = await entitlementsFor(req.ownerId).catch(() => null);
+    const ent = await entitlementsFor(req.user || req.ownerId).catch(() => null);
     res.json({
       guides: rows.map(r => guideResponse(req, r)),
       limit: ent ? ent.saved_guides : null, // null = unlimited
@@ -294,7 +303,7 @@ router.get('/', requireUser, async (req, res, next) => {
 // (Free users can edit locally in the client; persisting the edit is Pro.)
 router.put('/:id', requireUser, async (req, res, next) => {
   try {
-    const ent = await entitlementsFor(req.ownerId).catch(() => null);
+    const ent = await entitlementsFor(req.user || req.ownerId).catch(() => null);
     if (billing.isConfigured() && (!ent || !ent.can_edit_saved_guides)) {
       return res.status(402).json({
         error: 'UPGRADE_REQUIRED',

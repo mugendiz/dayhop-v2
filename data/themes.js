@@ -25,13 +25,20 @@ const THEMES = [
   },
   {
     theme: 'adrenaline',
-    triggers: ['adventure', 'adventurous', 'adrenaline', 'thrill', 'exciting', 'extreme',
-      'zipline', 'climb', 'climbing', 'karting', 'skydive', 'helicopter', 'daring'],
-    placesQueries: ['zipline aerial adventure park', 'rock climbing gym',
-      'go kart racing', 'trampoline park'],
+    triggers: ['adventure', 'adventurous', 'adrenaline', 'thrill', 'thrilling', 'exciting',
+      'extreme', 'zipline', 'ziplining', 'climb', 'climbing', 'bouldering', 'karting',
+      'go-kart', 'go kart', 'kart', 'skydive', 'skydiving', 'helicopter', 'daring',
+      'mountain bike', 'mountain biking', 'bmx', 'axe', 'rafting', 'bungee', 'coaster',
+      'rollercoaster', 'roller coaster', 'trampoline', 'escape room', 'ski', 'skiing',
+      'snowboard', 'tubing', 'atv', 'paraglide', 'paragliding', 'parasail'],
+    placesQueries: ['zipline aerial adventure park', 'rock climbing bouldering gym',
+      'go kart racing track', 'axe throwing escape room', 'mountain bike park',
+      'trampoline park'],
     categories: ['adventures'],
-    tags: ['adrenaline', 'thrill', 'zipline', 'climbing', 'karting', 'helicopter',
-      'skydiving', 'treetop', 'ropes course', 'trampoline']
+    tags: ['adrenaline', 'thrill', 'zipline', 'climbing', 'bouldering', 'karting',
+      'helicopter', 'skydiving', 'treetop', 'ropes course', 'trampoline',
+      'mountain bike', 'axe throwing', 'escape room', 'coaster', 'ski', 'snowboard',
+      'tubing', 'racing', 'vr']
   },
   {
     theme: 'kids-outdoor',

@@ -216,3 +216,16 @@ create policy "own guides" on public.guides
 -- server using the anon client keyed on share_id).
 create policy "guides shared read" on public.guides
   for select to anon, authenticated using (is_public);
+
+-- ---------- banned_users (admin moderation) ----------
+-- Keyed the same way events are: a user id, a guest id, or "ip-<addr>".
+-- NO anon/authenticated policies on purpose: rows are read and written
+-- exclusively server-side with SUPABASE_SERVICE_KEY (the ban list must be
+-- invisible to clients and unwritable by them).
+create table if not exists public.banned_users (
+  owner_key   text primary key,
+  reason      text,
+  banned_by   text,
+  created_at  timestamptz not null default now()
+);
+alter table public.banned_users enable row level security;

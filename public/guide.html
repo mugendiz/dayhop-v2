@@ -51,37 +51,70 @@
   .guide-meta { font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.06em; color: var(--ink-soft); margin-top: 10px; }
   .guide-start { margin-top: 20px; font-size: 15px; }
   .guide-start strong { color: var(--coral-dark); }
+  .weather-chip {
+    display: inline-block; margin-top: 12px; font-size: 13.5px; color: var(--ink-soft);
+    background: white; border: 1px solid var(--line); border-radius: var(--radius-pill);
+    padding: 5px 13px;
+  }
 
-  .stops { margin-top: 30px; display: flex; flex-direction: column; gap: 22px; }
+  /* At-a-glance overview */
+  .overview {
+    margin-top: 22px; background: white; border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 15px 18px;
+  }
+  .overview h3 {
+    font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--ink-soft); margin-bottom: 8px;
+  }
+  .overview .ov-day { font-weight: 600; font-size: 13.5px; margin: 8px 0 2px; }
+  .overview ol { list-style: none; }
+  .overview li { display: flex; gap: 12px; font-size: 13.5px; padding: 2.5px 0; }
+  .overview .ov-time { font-family: var(--mono); font-size: 12px; color: var(--coral-dark); min-width: 74px; white-space: nowrap; }
+
+  .stops { margin-top: 26px; display: flex; flex-direction: column; gap: 22px; }
   .stop {
     display: grid; grid-template-columns: 44px 1fr; gap: 14px;
     background: white; border: 1px solid var(--line); border-radius: var(--radius);
     padding: 18px;
   }
+  .stop-side { display: flex; flex-direction: column; align-items: center; gap: 10px; }
   .stop-marker {
     font-family: var(--mono); font-size: 15px; font-weight: 500; color: var(--coral-dark);
     width: 44px; height: 44px; border: 1.5px solid var(--coral); border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
+    display: flex; align-items: center; justify-content: center; flex: none;
   }
+  /* Done-checkbox: tappable on screen (progress kept on this device),
+     an empty square on paper. */
+  .stop-check {
+    width: 26px; height: 26px; border: 2px solid var(--line-strong); border-radius: 7px;
+    background: white; cursor: pointer; font-size: 15px; line-height: 1; color: white;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .stop.done .stop-check { background: var(--coral); border-color: var(--coral); }
+  .stop.done h2 { text-decoration: line-through; text-decoration-thickness: 1.5px; opacity: 0.65; }
   .stop-time { font-family: var(--mono); font-size: 12px; letter-spacing: 0.07em; color: var(--ink-soft); text-transform: uppercase; }
   .stop h2 { font-family: var(--serif); font-weight: 650; font-size: 21px; margin: 2px 0 6px; }
+  .stop-address { font-size: 13.5px; color: var(--ink-soft); margin-bottom: 6px; }
   .stop-photo { margin: 10px 0; border-radius: var(--radius-md); overflow: hidden; }
   .stop-photo img { width: 100%; max-height: 240px; object-fit: cover; display: block; }
   .stop-why { font-size: 14.5px; color: var(--ink-soft); }
   .stop-wow { font-size: 14px; margin-top: 8px; color: var(--coral-dark); }
   .stop-facts { margin-top: 10px; font-size: 13.5px; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: 6px 14px; }
   .stop-facts span { white-space: nowrap; }
-  .stop-links { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 10px; }
+  .stop-links { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   .stop-links a {
     font-size: 13px; font-weight: 600; text-decoration: none;
     border: 1px solid var(--line-strong); border-radius: var(--radius-pill);
     padding: 6px 13px; color: var(--ink);
   }
   .stop-links a.primary { background: var(--coral); border-color: var(--coral); color: white; }
+  .stop-qr { display: none; }
   .transition {
     grid-column: 2; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line);
     font-size: 13.5px; color: var(--ink-soft); font-style: italic;
   }
+  /* Ruled write-in lines (paper only) */
+  .write-lines { display: none; }
 
   .guide-notes {
     margin-top: 28px; background: var(--paper-dim); border-radius: var(--radius);
@@ -100,8 +133,34 @@
     background: var(--paper-dim); border-radius: var(--radius-md); padding: 7px 10px;
   }
 
+  /* Companion cards: cost, packing, good-to-know, notes */
+  .companion {
+    margin-top: 26px; background: white; border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 16px 18px;
+  }
+  .companion h3 {
+    font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--ink-soft); margin-bottom: 10px;
+  }
+  .cost-row { display: flex; justify-content: space-between; gap: 14px; font-size: 13.5px; padding: 3px 0; }
+  .cost-row .c-name { color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cost-row .c-val { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+  .cost-total { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 8px; font-weight: 600; }
+  .cost-foot { font-size: 12px; color: var(--ink-soft); margin-top: 6px; }
+
+  .pack-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; }
+  @media (max-width: 480px) { .pack-grid { grid-template-columns: 1fr; } }
+  .pack-item { display: flex; align-items: center; gap: 9px; font-size: 13.5px; padding: 2.5px 0; }
+  .pack-box { width: 15px; height: 15px; border: 1.5px solid var(--line-strong); border-radius: 4px; flex: none; }
+
+  .gtk-line { display: flex; align-items: baseline; gap: 10px; font-size: 13.5px; padding: 7px 0; }
+  .gtk-line .gtk-label { color: var(--ink-soft); white-space: nowrap; }
+  .gtk-line .gtk-fill { flex: 1; border-bottom: 1px solid var(--line-strong); min-height: 1.1em; }
+  .gtk-emergency { font-size: 12px; color: var(--ink-soft); margin-top: 8px; }
+
   .footer-cta { margin-top: 40px; text-align: center; font-size: 14px; color: var(--ink-soft); }
   .footer-cta a { font-weight: 600; }
+  .print-footer { display: none; }
 
   /* ---------- export bar ---------- */
   .export-bar {
@@ -129,14 +188,54 @@
   }
   .toast.show { opacity: 1; }
 
+  /* ---------- print: the keepable trip companion ---------- */
+  @page { margin: 13mm; }
   @media print {
     .export-bar, .footer-cta, .toast { display: none !important; }
-    body { background: white; }
+    body { background: white; font-size: 12.5px; line-height: 1.45; }
     .wrap { padding: 0; max-width: none; }
-    .stop { break-inside: avoid; border-color: #ccc; }
-    .stop-photo { display: none; } /* keep printed guides ink-friendly */
+    .brand { margin-bottom: 14px; padding-bottom: 10px; }
+    .guide-head h1 { font-size: 26px; }
+    .guide-meta { margin-top: 4px; }
+    .weather-chip { margin-top: 8px; padding: 2px 10px; border-color: #ccc; }
+
+    .overview { margin-top: 14px; padding: 10px 14px; border-color: #bbb; break-inside: avoid; }
+    .overview li { font-size: 12px; padding: 1.5px 0; }
+
+    .stops { margin-top: 14px; gap: 10px; }
+    .stop { break-inside: avoid; border-color: #bbb; padding: 12px 14px; border-radius: 10px; }
+    .stop-photo { display: none; } /* ink-friendly */
+    .stop h2 { font-size: 16.5px; }
+    .stop-why { font-size: 12px; }
+    .stop-facts { font-size: 11.5px; gap: 4px 12px; margin-top: 6px; }
+    .stop-marker { width: 34px; height: 34px; font-size: 12px; }
+    .stop-check { width: 22px; height: 22px; cursor: default; }
+    .stop.done .stop-check::after { content: '✓'; color: white; font-size: 13px; }
+    .stop-links a { border: none; padding: 0; font-weight: 400; font-size: 11px; color: #444; }
+    .stop-links a.primary { background: none; color: #444; }
+    .stop-links a::after { content: ' ' attr(href); font-size: 10px; color: #777; word-break: break-all; }
+    /* When the stop has a QR (which encodes the map link), the printed map
+       URL is redundant noise — the QR + address carry it. Booking URLs stay. */
+    .stop.has-qr .stop-links a:not(.primary) { display: none; }
+    .stop-qr { display: block; width: 58px; height: 58px; margin-top: 6px; }
+    .stop-qr svg { width: 100%; height: 100%; display: block; }
+    .transition { margin-top: 6px; padding-top: 6px; font-size: 11.5px; }
+    .write-lines { display: block; margin-top: 8px; }
+    .write-lines .wl { border-bottom: 1px solid #ccc; height: 17px; }
+    .wl + .wl { margin-top: 4px; }
+
+    .companion { break-inside: avoid; border-color: #bbb; margin-top: 12px; padding: 12px 14px; border-radius: 10px; }
+    /* Multi-day trips: each day on its own sheet (class set by JS — a
+       :last-of-type selector can't see past the sibling companion divs). */
+    .day-section--page { break-after: page; }
+
     a { color: var(--ink); text-decoration: none; }
-    .stop-links a.primary { background: none; color: var(--ink); border: 1px solid #999; }
+    .print-footer {
+      display: flex; align-items: center; gap: 14px; margin-top: 18px;
+      border-top: 1px solid #ccc; padding-top: 12px; font-size: 11px; color: #555;
+    }
+    .print-footer .qr { width: 72px; height: 72px; flex: none; }
+    .print-footer .qr svg { width: 100%; height: 100%; display: block; }
   }
 </style>
 </head>
@@ -163,12 +262,14 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <script>
 (function () {
   'use strict';
 
   var guide = null;
-  var pageUrl = window.location.href.split('#')[0];
+  var pageUrl = window.location.href.split('#')[0].split('?')[0];
+  var shareId = window.location.pathname.split('/').filter(Boolean).pop();
 
   function esc(s) {
     return String(s == null ? '' : s)
@@ -183,13 +284,36 @@
     setTimeout(function () { el.classList.remove('show'); }, 2200);
   }
 
+  // QR as inline SVG — empty string when the generator didn't load (offline),
+  // so the guide degrades to plain URLs.
+  function qrSvg(url) {
+    if (typeof qrcode !== 'function' || !url) return '';
+    try {
+      var qr = qrcode(0, 'M');
+      qr.addData(url);
+      qr.make();
+      var n = qr.getModuleCount();
+      var cells = [];
+      for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) {
+        if (qr.isDark(r, c)) cells.push('<rect x="' + c + '" y="' + r + '" width="1" height="1"/>');
+      }
+      return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + n + ' ' + n + '" shape-rendering="crispEdges" fill="#102A2E">' + cells.join('') + '</svg>';
+    } catch (e) { return ''; }
+  }
+
+  function mapsUrl(idea, stop) {
+    if (idea.maps_url) return idea.maps_url;
+    var q = [stop.title, idea.venue, idea.location, (guide.guide || {}).city].filter(Boolean).join(', ');
+    return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
+  }
+
   function factsLine(idea) {
     var bits = [];
-    if (idea.location) bits.push('📍 ' + esc(idea.location));
     if (idea.duration_minutes) bits.push('⏱ ~' + Math.round(idea.duration_minutes / 60 * 10) / 10 + ' h');
     if (idea.cost_tier) bits.push('💳 ' + esc(idea.cost_tier));
     if (idea.price_from != null) bits.push('from ' + esc(String(idea.price_from)) + (idea.currency ? ' ' + esc(idea.currency) : ''));
     if (idea.rating != null) bits.push('★ ' + esc(String(idea.rating)));
+    if (idea.good_for_ages) bits.push('👶 ' + esc(idea.good_for_ages));
     return bits.map(function (b) { return '<span>' + b + '</span>'; }).join('');
   }
 
@@ -200,13 +324,36 @@
     return [{ label: null, start_time: g.start_time || '', notes: '', stops: g.stops || [] }];
   }
 
-  function stopHtml(stop, i) {
+  function allStops(g) {
+    return dayGroups(g).reduce(function (acc, d) { return acc.concat(d.stops || []); }, []);
+  }
+
+  // ---------- done-checkbox progress (per guide, this device only) ----------
+  var PROGRESS_KEY = 'dayhop_guide_done_' + shareId;
+  function doneSet() {
+    try { return new Set(JSON.parse(localStorage.getItem(PROGRESS_KEY)) || []); } catch (e) { return new Set(); }
+  }
+  function saveDone(set) {
+    try { localStorage.setItem(PROGRESS_KEY, JSON.stringify([...set])); } catch (e) {}
+  }
+
+  function stopHtml(stop, i, globalIndex, done) {
     var idea = stop.idea || {};
-    return '<div class="stop">' +
-      '<div class="stop-marker">' + String(i + 1).padStart(2, '0') + '</div>' +
+    var mUrl = mapsUrl(idea, stop);
+    var qr = qrSvg(mUrl);
+    var address = idea.venue && idea.location && idea.venue !== idea.location
+      ? idea.venue + ' · ' + idea.location
+      : (idea.location || idea.venue || '');
+    return '<div class="stop' + (done.has(globalIndex) ? ' done' : '') + (qr ? ' has-qr' : '') + '" data-gi="' + globalIndex + '">' +
+      '<div class="stop-side">' +
+        '<div class="stop-marker">' + String(i + 1).padStart(2, '0') + '</div>' +
+        '<button class="stop-check" type="button" title="Mark as done" aria-label="Mark stop as done">✓</button>' +
+        '<div class="stop-qr">' + qr + '</div>' +
+      '</div>' +
       '<div class="stop-body">' +
         (stop.suggested_time ? '<span class="stop-time">' + esc(stop.suggested_time) + '</span>' : '') +
         '<h2>' + esc(stop.title) + '</h2>' +
+        (address ? '<p class="stop-address">📍 ' + esc(address) + '</p>' : '') +
         (idea.image_url ? '<div class="stop-photo"><img src="' + esc(idea.image_url) + '" alt="" loading="lazy"></div>' : '') +
         (idea.why ? '<p class="stop-why">' + esc(idea.why) + '</p>' : '') +
         (idea.wow_reason ? '<p class="stop-wow">✨ ' + esc(idea.wow_reason) + '</p>' : '') +
@@ -214,11 +361,86 @@
         '<div class="stop-facts">' + factsLine(idea) + '</div>' +
         '<div class="stop-links">' +
           (idea.booking_url ? '<a class="primary" href="' + esc(idea.booking_url) + '" target="_blank" rel="noopener noreferrer sponsored">Book ↗</a>' : '') +
-          (idea.maps_url ? '<a href="' + esc(idea.maps_url) + '" target="_blank" rel="noopener noreferrer">Map ↗</a>' : '') +
+          '<a href="' + esc(mUrl) + '" target="_blank" rel="noopener noreferrer">Map ↗</a>' +
         '</div>' +
+        '<div class="write-lines"><div class="wl"></div><div class="wl"></div></div>' +
       '</div>' +
       (stop.transition_note ? '<div class="transition">→ ' + esc(stop.transition_note) + '</div>' : '') +
     '</div>';
+  }
+
+  // ---------- companion sections ----------
+  function overviewHtml(g) {
+    var groups = dayGroups(g);
+    var body = groups.map(function (day) {
+      var rows = (day.stops || []).map(function (stop, i) {
+        return '<li><span class="ov-time">' + esc(stop.suggested_time || '·') + '</span><span>' +
+          String(i + 1).padStart(2, '0') + ' — ' + esc(stop.title) + '</span></li>';
+      }).join('');
+      return (day.label ? '<p class="ov-day">' + esc(day.label) + '</p>' : '') + '<ol>' + rows + '</ol>';
+    }).join('');
+    return '<div class="overview"><h3>At a glance</h3>' + body + '</div>';
+  }
+
+  function costHtml(g) {
+    var stops = allStops(g);
+    var rows = '', totalFrom = 0, currency = '', priced = 0, unpriced = 0;
+    stops.forEach(function (stop) {
+      var idea = stop.idea || {};
+      var val = '';
+      if (idea.price_from != null) {
+        val = 'from ' + idea.price_from + (idea.currency ? ' ' + idea.currency : '');
+        totalFrom += Number(idea.price_from) || 0;
+        currency = currency || idea.currency || '';
+        priced++;
+      } else if (idea.cost_tier) {
+        val = idea.cost_tier === 'free' ? 'free' : idea.cost_tier;
+        if (idea.cost_tier !== 'free') unpriced++;
+      } else { unpriced++; val = '—'; }
+      rows += '<div class="cost-row"><span class="c-name">' + esc(stop.title) + '</span><span class="c-val">' + esc(val) + '</span></div>';
+    });
+    if (!priced && !unpriced) return '';
+    var total = priced
+      ? '<div class="cost-row cost-total"><span class="c-name">Estimated day total</span><span class="c-val">from ' + totalFrom + (currency ? ' ' + currency : '') + '</span></div>'
+      : '';
+    var foot = unpriced ? '<p class="cost-foot">+ ' + unpriced + ' stop' + (unpriced > 1 ? 's' : '') + ' with variable cost (meals, pay-what-you-do).</p>' : '';
+    return '<div class="companion"><h3>Cost snapshot</h3>' + rows + total + foot + '</div>';
+  }
+
+  function packingHtml(g) {
+    var text = allStops(g).map(function (s) {
+      var idea = s.idea || {};
+      return [s.title, idea.why, idea.category, idea.good_for_ages].join(' ');
+    }).join(' ').toLowerCase();
+    var w = g.weather || {};
+    var items = ['Phone + charger', 'Water bottle', 'Tickets & confirmations'];
+    var add = function (arr) { arr.forEach(function (x) { if (items.indexOf(x) === -1) items.push(x); }); };
+    if (/beach|swim|splash|pool|paddle|kayak|water park|lake|waterfront/.test(text)) add(['Swimwear & towel', 'Sunscreen', 'Change of clothes']);
+    if (/park|trail|garden|hike|lookout|conservation|zoo|farm|island|falls|picnic/.test(text)) add(['Sunscreen', 'Hat & sunglasses', 'Bug spray', 'Comfortable walking shoes']);
+    if (/zipline|climb|kart|bike|trampoline|axe|adventure|rafting|treetop|paintball/.test(text)) add(['Closed-toe shoes', 'Athletic wear']);
+    if (/kid|child|family|toddler|ages 0|ages 2|ages 3|all ages/.test(text)) add(['Snacks for the kids', 'Wipes & hand sanitizer']);
+    if (/restaurant|dinner|brunch|café|cafe|patio|food|bakery/.test(text)) add(['Check reservations']);
+    if (/rain|drizzle|thunder/i.test((w.condition || '') + ' ' + (w.description || ''))) add(['Umbrella / rain jacket']);
+    if (w.temp_c != null && w.temp_c <= 5) add(['Warm layers']);
+    var cells = items.slice(0, 12).map(function (x) {
+      return '<div class="pack-item"><span class="pack-box"></span>' + esc(x) + '</div>';
+    }).join('');
+    return '<div class="companion"><h3>What to bring</h3><div class="pack-grid">' + cells + '</div></div>';
+  }
+
+  function goodToKnowHtml() {
+    var lineFor = function (label) {
+      return '<div class="gtk-line"><span class="gtk-label">' + label + '</span><span class="gtk-fill"></span></div>';
+    };
+    return '<div class="companion"><h3>Good to know</h3>' +
+      lineFor("Where we're staying") + lineFor('Parking / transit notes') + lineFor('Local contact') +
+      '<p class="gtk-emergency">Emergency in Canada &amp; the US: <strong>911</strong></p></div>';
+  }
+
+  function dayNotesHtml() {
+    var lines = '';
+    for (var i = 0; i < 6; i++) lines += '<div class="gtk-line"><span class="gtk-fill"></span></div>';
+    return '<div class="companion"><h3>Notes from the day</h3>' + lines + '</div>';
   }
 
   function render(data) {
@@ -230,12 +452,28 @@
     if (g.days && g.days.length > 1) meta.push(g.days.length + '-day trip');
     if (created) meta.push(created.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }));
 
-    var sectionsHtml = dayGroups(g).map(function (day) {
-      var stopsHtml = (day.stops || []).map(stopHtml).join('');
-      return (day.label ? '<h2 class="day-header">' + esc(day.label) + '</h2>' : '') +
+    var weatherChip = '';
+    if (g.weather && (g.weather.description || g.weather.temp_c != null)) {
+      var wBits = [];
+      if (g.weather.temp_c != null) wBits.push(g.weather.temp_c + '°C');
+      if (g.weather.description) wBits.push(g.weather.description);
+      weatherChip = '<span class="weather-chip">🌤 Planned for: ' + esc(wBits.join(', ')) + '</span>';
+    }
+
+    var done = doneSet();
+    var globalIndex = 0;
+    var groups = dayGroups(g);
+    var sectionsHtml = groups.map(function (day) {
+      var stopsHtml = (day.stops || []).map(function (stop, i) {
+        return stopHtml(stop, i, globalIndex++, done);
+      }).join('');
+      var pageBreak = groups.length > 1 && day !== groups[groups.length - 1];
+      return '<div class="day-section' + (pageBreak ? ' day-section--page' : '') + '">' +
+        (day.label ? '<h2 class="day-header">' + esc(day.label) + '</h2>' : '') +
         (day.label && day.start_time ? '<p class="day-start">Starts around <strong>' + esc(day.start_time) + '</strong></p>' : '') +
         '<div class="stops">' + stopsHtml + '</div>' +
-        (day.notes ? '<div class="guide-notes">💬 ' + esc(day.notes) + '</div>' : '');
+        (day.notes ? '<div class="guide-notes">💬 ' + esc(day.notes) + '</div>' : '') +
+      '</div>';
     }).join('');
 
     document.title = (g.title || 'DayHop Guide') + ' — DayHop';
@@ -243,10 +481,31 @@
       '<div class="guide-head">' +
         '<h1>' + esc(g.title || 'Your day, mapped out') + '</h1>' +
         '<p class="guide-meta">' + meta.join(' · ') + '</p>' +
+        weatherChip +
         (!g.days && g.start_time ? '<p class="guide-start">Starts around <strong>' + esc(g.start_time) + '</strong></p>' : '') +
       '</div>' +
+      overviewHtml(g) +
       sectionsHtml +
-      (g.notes ? '<div class="guide-notes">💬 ' + esc(g.notes) + '</div>' : '');
+      (g.notes ? '<div class="guide-notes">💬 ' + esc(g.notes) + '</div>' : '') +
+      costHtml(g) +
+      packingHtml(g) +
+      goodToKnowHtml() +
+      dayNotesHtml() +
+      '<div class="print-footer"><div class="qr">' + qrSvg(pageUrl) + '</div>' +
+        '<div>Scan to reopen this guide with live maps &amp; booking links.<br>' + esc(pageUrl) +
+        '<br>Made with DayHop — plan your perfect day in one sentence.</div></div>';
+
+    // Done-checkboxes: tap to tick off a stop; survives reloads on this device.
+    document.querySelectorAll('.stop-check').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var stopEl = btn.closest('.stop');
+        var gi = Number(stopEl.dataset.gi);
+        var set = doneSet();
+        if (set.has(gi)) set.delete(gi); else set.add(gi);
+        saveDone(set);
+        stopEl.classList.toggle('done', set.has(gi));
+      });
+    });
 
     wireExports();
     document.getElementById('export-bar').hidden = false;
@@ -298,7 +557,7 @@
         if (idea.location) md.push('- 📍 ' + idea.location);
         if (stop.note) md.push('- 📝 ' + stop.note);
         if (idea.booking_url) md.push('- [Book](' + idea.booking_url + ')');
-        if (idea.maps_url) md.push('- [Map](' + idea.maps_url + ')');
+        md.push('- [Map](' + mapsUrl(idea, stop) + ')');
         if (stop.transition_note) md.push('- → ' + stop.transition_note);
         md.push('');
       });
@@ -367,7 +626,6 @@
       '<p><a href="/">Plan your own day with DayHop →</a></p></div>';
   }
 
-  var shareId = window.location.pathname.split('/').filter(Boolean).pop();
   fetch('/api/guides/shared/' + encodeURIComponent(shareId))
     .then(function (res) {
       if (!res.ok) throw new Error(res.status === 404 ? 'This guide does not exist or is no longer shared.' : 'Could not load this guide right now.');

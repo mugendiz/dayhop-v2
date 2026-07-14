@@ -183,6 +183,9 @@ button, .filter-chip {
 .auth-btn:hover { background: var(--glass-strong); }
 .auth-btn:active { transform: scale(0.96); }
 
+/* Topbar admin entry — an <a> wearing the auth-btn look. */
+.admin-link { text-decoration: none; display: inline-flex; align-items: center; }
+
 /* The Z-scan terminal: eyes sweep logo → top-right, so the money button
    sits there and breathes just enough to register without shouting. */
 .go-pro-btn {
@@ -729,6 +732,62 @@ button, .filter-chip {
 
 @media (prefers-reduced-motion: reduce) {
   .skeleton::after { animation: none; }
+}
+
+/* ---------- Progressive loader ---------- */
+/* Progress bar + staged status line shown above the skeletons (and inside
+   the plan/replan panels as the --compact variant) while a request runs. */
+.progress-loader {
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass-strong);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-soft);
+  transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
+}
+.progress-loader--done { opacity: 0; transform: translateY(-4px); }
+.progress-loader--compact { padding: 10px 12px; margin: 0 0 10px; box-shadow: none; }
+
+.progress-loader-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.progress-loader-stage {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+.progress-loader--compact .progress-loader-stage { font-size: 0.88rem; }
+.progress-loader-pct {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.progress-loader-track {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--paper-dim);
+  overflow: hidden;
+}
+.progress-loader-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--marigold), var(--coral));
+  transition: width 0.24s var(--ease);
+}
+.progress-loader-hint {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
 }
 
 /* Inspiring category photo banner at the top of each card */

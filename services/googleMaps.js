@@ -219,6 +219,45 @@ async function getPlaceDetails(placeId) {
   };
 }
 
+// Find a real venue photo for an idea that arrived without one (curated
+// catalog, open-data events). Photos-only field mask + single result keeps
+// this the cheapest possible Text Search; results (including misses) are
+// cached by query so the static catalog converges on zero API calls.
+const photoSearchCache = new Map();
+const PHOTO_SEARCH_TTL_MS = 24 * 60 * 60 * 1000;
+const PHOTO_SEARCH_CACHE_MAX = 2000;
+
+async function findPhotoUrl({ query, lat, lng }) {
+  assertConfigured();
+  const key = String(query).trim().toLowerCase();
+  const cached = photoSearchCache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.url;
+
+  const body = { textQuery: query, maxResultCount: 1 };
+  if (lat != null && lng != null) {
+    body.locationBias = {
+      circle: { center: { latitude: lat, longitude: lng }, radius: 30000 }
+    };
+  }
+
+  const res = await axios.post(`${PLACES_BASE}/places:searchText`, body, {
+    timeout: 7000,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY,
+      'X-Goog-FieldMask': 'places.photos'
+    }
+  });
+
+  const photoName = res.data?.places?.[0]?.photos?.[0]?.name || null;
+  const url = photoName ? `/api/photo?name=${encodeURIComponent(photoName)}` : null;
+  if (photoSearchCache.size >= PHOTO_SEARCH_CACHE_MAX) {
+    photoSearchCache.delete(photoSearchCache.keys().next().value);
+  }
+  photoSearchCache.set(key, { url, expires: Date.now() + PHOTO_SEARCH_TTL_MS });
+  return url;
+}
+
 // Resolve a Places photo resource name ("places/…/photos/…") to its
 // image URI. Cached in-memory so repeat card renders don't re-hit Google.
 const photoUriCache = new Map();
@@ -243,4 +282,4 @@ async function getPhotoUri(photoName, { maxWidthPx = 800 } = {}) {
   return uri;
 }
 
-module.exports = { geocode, searchPlaces, getPlaceDetails, getPhotoUri, reverseGeocode };
+module.exports = { geocode, searchPlaces, getPlaceDetails, getPhotoUri, findPhotoUrl, reverseGeocode };

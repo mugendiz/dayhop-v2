@@ -13,6 +13,7 @@ const router = express.Router();
 const analytics = require('../services/analytics');
 const { normalizeMode } = require('../services/grok');
 const { gatherCandidates, sanitizeCoords, fallbackIdea, DEFAULT_CITY } = require('../services/candidates');
+const { enrichIdeaImages } = require('../services/ideaPhotos');
 
 // One entry per (city|coords-grid|daypart). 30 minutes keeps partner-API
 // usage flat while staying fresh enough for weather/daypart shifts.
@@ -43,6 +44,9 @@ router.post('/', async (req, res) => {
       await gatherCandidates(syntheticPrompt(part, mode), city, '', null, coords);
 
     const ideas = buildSections(candidates, { near: Boolean(coords), weather, part, mode }).slice(0, FEED_CAP);
+    // Real venue photos for curated/open-data cards; the enriched feed is
+    // what gets cached, so the lookups are paid once per cache window.
+    await enrichIdeaImages(ideas, { city: resolvedCity || city, coords });
     const payload = {
       ideas,
       weather: weather || null,

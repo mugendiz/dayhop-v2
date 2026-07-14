@@ -22,6 +22,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 const { attachUser } = require('./middleware/auth');
 app.use(attachUser);
 
+// Moderation: banned callers get 403 on the API (admin/config routes and the
+// Stripe webhook — mounted above — stay reachable; admins are never blocked).
+const { banGuard } = require('./services/moderation');
+app.use('/api', banGuard);
+
 // Generous but real limit on the AI endpoint — it's the expensive one.
 const generateLimiter = rateLimit({
   windowMs: 60 * 1000,

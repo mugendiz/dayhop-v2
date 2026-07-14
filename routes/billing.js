@@ -39,8 +39,13 @@ router.get('/status', async (req, res) => {
   const configured = billing.isConfigured();
   // Entitlements and price ride along so the client can show the right
   // limits and upgrade prompts without hardcoding tier rules or amounts.
-  const entitlements = await entitlementsFor(req.user && req.user.id).catch(() => null);
+  const entitlements = await entitlementsFor(req.user).catch(() => null);
   const price = await billing.getPriceInfo().catch(() => null);
+  // Super admins are Pro-and-then-some with no subscription behind it: report
+  // pro so the client never shows upgrade chrome, and admin for admin chrome.
+  if (entitlements && entitlements.tier === 'admin') {
+    return res.json({ configured, pro: true, admin: true, status: 'admin', entitlements, price });
+  }
   if (!req.user) return res.json({ configured, pro: false, status: null, entitlements, price });
   try {
     const sub = await billing.getSubscription(req.user.id);

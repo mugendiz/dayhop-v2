@@ -1,0 +1,62 @@
+# render.yaml — DayHop V2 deployment blueprint
+# Render (render.com) reads this when you create a new Blueprint from the
+# GitHub repo. Free tier: sleeps after ~15 min idle, ~30 s cold start.
+# Every secret is sync:false — Render prompts for the value in the dashboard
+# on first deploy; nothing sensitive lives in the repo.
+services:
+  - type: web
+    name: dayhop
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /health
+    autoDeploy: true # every push to main redeploys
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # AI planning (required — the app is a 503 without it)
+      - key: GROK_API_KEY
+        sync: false
+      - key: GROK_MODEL
+        sync: false
+      # Grounding + weather (optional, degrade gracefully)
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: OPENWEATHER_API_KEY
+        sync: false
+      - key: TICKETMASTER_API_KEY
+        sync: false
+      - key: EVENTBRITE_PRIVATE_TOKEN
+        sync: false
+      - key: EVENTBRITE_ORG_IDS
+        sync: false
+      - key: VIATOR_API_KEY
+        sync: false
+      # Auth + persistence
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      # Billing (point the Stripe webhook at <url>/api/billing/webhook)
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_PRICE_ID
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      # Admin: super-admin emails (comma-separated; founder account is baked
+      # into the code) and the metrics-endpoint key fallback.
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: ADMIN_KEY
+        sync: false
+      # Location defaults
+      - key: DEFAULT_CITY
+        value: Richmond Hill
+      - key: DEFAULT_REGION
+        value: Ontario

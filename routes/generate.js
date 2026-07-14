@@ -14,6 +14,7 @@ const { entitlementsFor } = require('../services/entitlements');
 const {
   gatherCandidates, sanitizeCoords, shortAddress, fallbackIdea, DEFAULT_CITY
 } = require('../services/candidates');
+const { enrichIdeaImages } = require('../services/ideaPhotos');
 
 // Who is asking, for usage limits + analytics: authenticated user id, else
 // the client's guest id, else the IP as a last resort.
@@ -53,7 +54,7 @@ router.post('/', async (req, res) => {
   // pre-Stripe preview mode). Any gate error fails open — the paywall must
   // never break the product.
   try {
-    const ent = await entitlementsFor(req.user && req.user.id);
+    const ent = await entitlementsFor(req.user);
     if (ent.daily_generates != null) {
       const usedToday = await analytics.countToday('prompt_generated', ownerKey);
       if (usedToday >= ent.daily_generates) {
@@ -99,6 +100,11 @@ router.post('/', async (req, res) => {
     } else {
       ideas = await grok.generateIdeas({ prompt, filter, mode, city: cityForGrok });
     }
+
+    // Cards without a photo (curated catalog, open-data events, ungrounded
+    // picks) get a real venue image; anything still missing falls back to
+    // the frontend's category stock photo.
+    await enrichIdeaImages(ideas, { city: cityForGrok, coords: userCoords });
 
     analytics.recordEvent({
       type: 'prompt_generated',
@@ -187,7 +193,7 @@ router.post('/plan', async (req, res) => {
   // error — a Grok multi-day call costs real money, so unknown tier = free.
   const days = Math.min(Math.max(Number(req.body.days) || 1, 1), 3);
   if (days > 1) {
-    const ent = await entitlementsFor(req.user && req.user.id).catch(() => null);
+    const ent = await entitlementsFor(req.user).catch(() => null);
     if (!ent || days > ent.max_trip_days) {
       return res.status(402).json({
         error: 'UPGRADE_REQUIRED',
@@ -243,7 +249,7 @@ router.post('/replan', async (req, res) => {
   // Replan gate: free tier gets a daily taste, Pro is unlimited. Fails open
   // like the generate gate.
   try {
-    const ent = await entitlementsFor(req.user && req.user.id);
+    const ent = await entitlementsFor(req.user);
     if (ent.daily_replans != null) {
       const usedToday = await analytics.countToday('plan_replanned', ownerKey);
       if (usedToday >= ent.daily_replans) {

@@ -38,12 +38,32 @@ const PRO_TIER = Object.freeze({
 // Pre-Stripe preview mode: Pro capabilities without the Pro label.
 const PREVIEW_TIER = Object.freeze(Object.assign({}, PRO_TIER, { tier: 'preview' }));
 
+// Super admins: everything Pro has, free forever, no Stripe involved. The
+// founder account is baked in so it survives any env misconfiguration;
+// ADMIN_EMAILS (comma-separated) extends the list per deployment.
+const ADMIN_TIER = Object.freeze(Object.assign({}, PRO_TIER, { tier: 'admin' }));
+const ADMIN_EMAILS = new Set(
+  ['mugendiz@gmail.com', ...String(process.env.ADMIN_EMAILS || '').split(',')]
+    .map(e => e.trim().toLowerCase())
+    .filter(Boolean)
+);
+
+// Admin status comes from the verified Supabase JWT (attachUser), never
+// from anything client-supplied.
+function isAdmin(user) {
+  return Boolean(user && user.email && ADMIN_EMAILS.has(String(user.email).toLowerCase()));
+}
+
 /**
- * Resolve the capability set for a caller. `userId` is the authenticated
- * user id, or null/undefined for guests (guests are always free tier once
+ * Resolve the capability set for a caller. Accepts the authenticated user
+ * object ({ id, email }) when available — needed for the admin check — or a
+ * bare user id; null/undefined means guest (guests are always free tier once
  * billing is configured — Pro requires an account to attach the sub to).
  */
-async function entitlementsFor(userId) {
+async function entitlementsFor(userOrId) {
+  const user = userOrId && typeof userOrId === 'object' ? userOrId : null;
+  const userId = user ? user.id : userOrId;
+  if (isAdmin(user)) return ADMIN_TIER;
   if (!billing.isConfigured()) return PREVIEW_TIER;
   if (!userId) return FREE_TIER;
   try {
@@ -54,4 +74,4 @@ async function entitlementsFor(userId) {
   }
 }
 
-module.exports = { entitlementsFor, FREE_TIER, PRO_TIER, PREVIEW_TIER, MAX_TRIP_DAYS };
+module.exports = { entitlementsFor, isAdmin, FREE_TIER, PRO_TIER, PREVIEW_TIER, ADMIN_TIER, MAX_TRIP_DAYS };

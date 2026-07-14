@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DayHop — Plan your perfect GTA day</title>
 <meta name="description" content="DayHop turns a sentence into a realistic family day plan around Richmond Hill and the GTA — World Cup watch parties, splash pads, patios, and more.">
+<meta name="theme-color" content="#102A2E">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
@@ -22,6 +26,7 @@
     <span class="logo">DayHop<span id="pro-badge" class="pro-badge" hidden>PRO</span></span>
     <div class="topbar-right">
       <span class="topbar-tag" id="location-tag">Greater Toronto Area</span>
+      <a class="auth-btn admin-link" id="admin-link" href="/admin.html" hidden>🛠 Admin</a>
       <button class="go-pro-btn" id="go-pro-btn" type="button" hidden>Go Pro ✨</button>
       <button class="auth-btn my-plans-btn" id="my-plans-btn" type="button" hidden>🗂 My Plans</button>
       <button class="auth-btn" id="auth-btn" type="button" hidden>Sign in</button>
@@ -335,5 +340,28 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/auth.js"></script>
 <script src="/app.js"></script>
+<script>
+// Offline support: once visited, the app shell (and your saved plans,
+// shortlist, and mode — all in localStorage) opens without a connection.
+// Skipped on localhost — the stale-while-revalidate cache would show the
+// previous build on every first load, which is miserable for development.
+if ('serviceWorker' in navigator) {
+  const isDev = ['localhost', '127.0.0.1'].includes(location.hostname);
+  window.addEventListener('load', () => {
+    if (isDev) {
+      navigator.serviceWorker.getRegistrations()
+        .then(regs => regs.forEach(r => r.unregister()))
+        .catch(() => {});
+      if (window.caches) {
+        caches.keys()
+          .then(keys => keys.forEach(k => { if (k.startsWith('dayhop-')) caches.delete(k); }))
+          .catch(() => {});
+      }
+      return;
+    }
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+</script>
 </body>
 </html>

@@ -3,115 +3,499 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DayHop — Internal Metrics</title>
+<title>DayHop — Admin Analytics</title>
 <meta name="robots" content="noindex">
 <style>
-  :root { --ink:#102A2E; --soft:#2C4A4E; --paper:#FBF7EE; --line:rgba(16,42,46,0.16); --coral:#FF6B4A; }
+  /* Light-only by design — matches the product's dusk-park palette.
+     Series colors validated (CVD + contrast) on the white card surface:
+     coral #E1502F · green #12855C · gold #C98500 · blue #1471B8. */
+  :root {
+    --ink:#102A2E; --soft:#2C4A4E; --muted:#6B7F82;
+    --paper:#FBF7EE; --card:#FFFFFF; --line:rgba(16,42,46,0.14);
+    --grid:#ECE7DA; --baseline:#C9C2B0;
+    --s1:#E1502F; --s2:#12855C; --s3:#C98500; --s4:#1471B8;
+    --coral:#FF6B4A;
+  }
   * { box-sizing: border-box; }
-  body { margin:0; padding:32px 20px 64px; background:var(--paper); color:var(--ink);
-         font-family: Inter, system-ui, sans-serif; }
-  main { max-width: 860px; margin: 0 auto; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  .sub { color: var(--soft); font-size: 13px; margin: 0 0 24px; }
-  form { display:flex; gap:8px; margin-bottom:24px; }
-  input { flex:1; max-width:320px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; }
-  button { padding:10px 18px; border:none; border-radius:10px; background:var(--coral); color:white; font-weight:600; cursor:pointer; }
-  table { width:100%; border-collapse:collapse; background:white; border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:24px; }
-  caption { text-align:left; font-weight:600; padding:12px 14px 4px; font-size:14px; }
-  th, td { text-align:left; padding:9px 14px; font-size:13.5px; border-top:1px solid var(--line); }
-  th { color:var(--soft); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.04em; border-top:none; }
-  td.num, th.num { text-align:right; font-variant-numeric: tabular-nums; }
-  .note { font-size:12.5px; color:var(--soft); }
-  #error { color:#B3301B; font-size:13.5px; min-height:18px; margin-bottom:12px; }
+  body { margin:0; padding:28px 20px 72px; background:var(--paper); color:var(--ink);
+         font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing:-0.02em; }
+  h2 { font-size: 14px; margin: 0 0 12px; color: var(--soft); font-weight:600;
+       text-transform: uppercase; letter-spacing: 0.05em; }
+  .sub { color: var(--soft); font-size: 13px; margin: 0 0 22px; }
+  .sub strong { color: var(--ink); font-weight: 600; }
+
+  /* Access gate (key fallback when not signed in as an admin) */
+  #gate { margin: 0 0 24px; }
+  #gate form { display:flex; gap:8px; }
+  #gate input { flex:1; max-width:320px; padding:10px 12px; border:1px solid var(--line);
+                border-radius:10px; font-size:14px; background:var(--card); }
+  #gate button { padding:10px 18px; border:none; border-radius:10px; background:var(--coral);
+                 color:white; font-weight:600; cursor:pointer; }
+  #gate .hint { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+  #error { color:#B3301B; font-size:13.5px; min-height:18px; margin: 8px 0 12px; }
+
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px;
+          padding:18px; margin-bottom:18px; }
+
+  /* Stat tiles */
+  .tiles { display:grid; grid-template-columns:repeat(auto-fill, minmax(148px,1fr));
+           gap:12px; margin-bottom:18px; }
+  .tile { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; }
+  .tile .v { font-size:26px; font-weight:700; letter-spacing:-0.02em; line-height:1.1; }
+  .tile .l { font-size:12px; color:var(--soft); margin-top:4px; }
+
+  /* Charts */
+  .chart-wrap { position:relative; }
+  svg { display:block; width:100%; height:auto; }
+  .legend { display:flex; flex-wrap:wrap; gap:14px; margin:0 0 10px; font-size:12.5px; color:var(--soft); }
+  .legend .dot { display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px; vertical-align:0; }
+  #tooltip { position:absolute; pointer-events:none; background:var(--card);
+             border:1px solid var(--line); border-radius:10px; box-shadow:0 6px 18px rgba(16,42,46,0.14);
+             padding:8px 11px; font-size:12.5px; line-height:1.5; z-index:5; display:none; min-width:130px; }
+  #tooltip .t { font-weight:600; margin-bottom:2px; }
+  #tooltip .r { display:flex; justify-content:space-between; gap:14px; color:var(--soft); }
+  #tooltip .r b { color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums; }
+
+  /* Horizontal bar lists (funnel, cities, sources) */
+  .hbars { display:grid; gap:8px; }
+  .hbar { display:grid; grid-template-columns: 150px 1fr 56px; align-items:center; gap:10px; font-size:13px; }
+  .hbar .name { color:var(--soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hbar .track { height:16px; border-radius:4px; background:transparent; }
+  .hbar .fill { height:100%; border-radius:4px; min-width:2px; }
+  .hbar .val { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+  .rate { font-size:12.5px; color:var(--muted); margin-top:10px; }
+
+  /* Mode split */
+  .split { display:flex; height:22px; border-radius:6px; overflow:hidden; gap:2px; background:var(--paper); }
+  .split div { min-width:2px; }
+
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media (max-width: 720px) { .grid2 { grid-template-columns:1fr; } .hbar { grid-template-columns: 110px 1fr 50px; } }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:8px 10px; border-top:1px solid var(--grid); }
+  th { color:var(--soft); font-weight:600; font-size:11.5px; text-transform:uppercase;
+       letter-spacing:0.04em; border-top:none; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .overflow { overflow-x:auto; }
+  .note { font-size:12px; color:var(--muted); margin-top:16px; }
+  #refresh { float:right; border:1px solid var(--line); background:var(--card); color:var(--soft);
+             border-radius:8px; padding:6px 12px; font-size:12.5px; cursor:pointer; }
+  .mini-btn { border:1px solid var(--line); background:var(--card); color:var(--soft);
+              border-radius:7px; padding:4px 10px; font-size:12px; cursor:pointer; }
+  .mini-btn.danger { color:#B3301B; border-color:rgba(179,48,27,0.35); }
+  .badge-banned { color:#B3301B; font-weight:600; font-size:12px; }
+  code { font-size:12px; background:var(--paper); padding:2px 5px; border-radius:5px; }
 </style>
 </head>
 <body>
 <main>
-  <h1>DayHop — Internal Metrics</h1>
-  <p class="sub">Prompt → shortlist → booking funnel, daily activity, and billing status. Not linked from the app.</p>
+  <button id="refresh" hidden>↻ Refresh</button>
+  <h1>DayHop — Admin Analytics</h1>
+  <p class="sub" id="who">Signed-in super admins load automatically; otherwise use the admin key.</p>
 
-  <form id="key-form">
-    <input id="key" type="password" placeholder="Admin key" autocomplete="off">
-    <button type="submit">Load metrics</button>
-  </form>
+  <div id="gate">
+    <form id="key-form">
+      <input id="key" type="password" placeholder="Admin key" autocomplete="off">
+      <button type="submit">Load metrics</button>
+    </form>
+    <p class="hint">Super admin? <a href="/">Sign in inside the app</a> first, then come back — no key needed.</p>
+  </div>
   <p id="error"></p>
 
   <div id="report" hidden>
-    <table>
-      <caption>Totals</caption>
-      <tbody id="totals"></tbody>
-    </table>
+    <div class="tiles" id="tiles"></div>
 
-    <table>
-      <caption>Funnel</caption>
-      <tbody id="funnel"></tbody>
-    </table>
+    <div class="card">
+      <h2>Daily activity — last 30 days</h2>
+      <div class="legend" id="daily-legend"></div>
+      <div class="chart-wrap" id="daily-chart-wrap">
+        <svg id="daily-chart" viewBox="0 0 920 260" role="img" aria-label="Daily activity line chart"></svg>
+        <div id="tooltip"></div>
+      </div>
+    </div>
 
-    <table>
-      <caption>Daily (last 30 days)</caption>
-      <thead>
-        <tr><th>Day</th><th class="num">Prompts</th><th class="num">Shortlist adds</th>
-            <th class="num">Outbound clicks</th><th class="num">Plans built</th>
-            <th class="num">Active users</th><th class="num">New users</th></tr>
-      </thead>
-      <tbody id="daily"></tbody>
-    </table>
+    <div class="grid2">
+      <div class="card">
+        <h2>Engagement funnel</h2>
+        <div class="hbars" id="funnel"></div>
+        <p class="rate" id="funnel-rates"></p>
+      </div>
+      <div class="card">
+        <h2>Upgrade funnel</h2>
+        <div class="hbars" id="upgrade-funnel"></div>
+        <p class="rate" id="upgrade-rates"></p>
+        <h2 style="margin-top:18px">Mode split (searches + feeds)</h2>
+        <div class="split" id="mode-split"></div>
+        <div class="legend" id="mode-legend" style="margin-top:8px"></div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>Top cities</h2>
+        <div class="hbars" id="cities"></div>
+      </div>
+      <div class="card">
+        <h2>Booking clicks by source</h2>
+        <div class="hbars" id="sources"></div>
+      </div>
+    </div>
+
+    <div class="card overflow">
+      <h2>Daily detail</h2>
+      <table>
+        <thead>
+          <tr><th>Day</th><th class="num">Prompts</th><th class="num">Browse feeds</th>
+              <th class="num">Shortlist adds</th><th class="num">Outbound clicks</th>
+              <th class="num">Plans built</th><th class="num">Active users</th><th class="num">New users</th></tr>
+        </thead>
+        <tbody id="daily-table"></tbody>
+      </table>
+    </div>
+
+    <div class="card overflow">
+      <h2>Users &amp; moderation</h2>
+      <p class="rate" style="margin:0 0 10px">Pseudonymous activity per signed-in user, guest, or IP key.
+         Banning blocks all API access for that key; admin routes stay open so it's always reversible.</p>
+      <table>
+        <thead>
+          <tr><th>Owner key</th><th>Kind</th><th>Last seen</th><th class="num">Prompts</th>
+              <th class="num">Adds</th><th class="num">Clicks</th><th class="num">Plans</th>
+              <th>Top city</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody id="users-table"></tbody>
+      </table>
+    </div>
+
+    <div class="card overflow">
+      <h2>All events by type</h2>
+      <table>
+        <thead><tr><th>Event</th><th class="num">Count</th></tr></thead>
+        <tbody id="events-table"></tbody>
+      </table>
+    </div>
 
     <p class="note" id="source"></p>
   </div>
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function () {
   'use strict';
   const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  const fmt = n => Number(n || 0).toLocaleString('en-CA');
 
-  function row(label, value) {
-    return '<tr><td>' + label + '</td><td class="num">' + value + '</td></tr>';
-  }
+  // Fixed series assignment — color follows the entity, never rank.
+  const SERIES = [
+    { key: 'prompts',        label: 'Prompts',         color: 'var(--s1)', hex: '#E1502F' },
+    { key: 'shortlist_adds', label: 'Shortlist adds',  color: 'var(--s2)', hex: '#12855C' },
+    { key: 'booking_clicks', label: 'Outbound clicks', color: 'var(--s3)', hex: '#C98500' },
+    { key: 'plans_built',    label: 'Plans built',     color: 'var(--s4)', hex: '#1471B8' }
+  ];
 
-  async function load(key) {
-    $('error').textContent = '';
+  let lastAuth = null;
+
+  async function boot() {
+    // Convenience: /admin.html?key=… loads straight away (internal tool).
+    const qk = new URLSearchParams(location.search).get('key');
+    if (qk && await load({ 'x-admin-key': qk })) return;
+    // Preferred path: reuse the app's Supabase session — super admins are
+    // recognized server-side from the verified JWT, no key handling at all.
     try {
-      const res = await fetch('/api/admin/metrics', { headers: { 'x-admin-key': key } });
-      const data = await res.json();
-      if (!res.ok) { $('error').textContent = data.message || ('Error ' + res.status); return; }
-
-      const t = data.totals || {};
-      $('totals').innerHTML =
-        row('Prompts generated', t.prompts || 0) +
-        row('Shortlist adds', t.shortlist_adds || 0) +
-        row('Booking clicks', t.booking_clicks || 0) +
-        row('Maps clicks', t.maps_clicks || 0) +
-        row('Day plans built', t.plans_built || 0) +
-        row('Distinct users/guests', t.distinct_users || 0) +
-        row('Billing configured', data.billing && data.billing.configured ? 'yes' : 'no');
-
-      const f = data.funnel || {};
-      $('funnel').innerHTML =
-        row('Prompts', f.prompts || 0) +
-        row('→ Shortlist adds', f.shortlist_adds || 0) +
-        row('→ Outbound clicks', f.outbound_clicks || 0) +
-        row('Shortlist adds per prompt', f.prompt_to_shortlist == null ? '—' : f.prompt_to_shortlist) +
-        row('Clicks per shortlist add', f.shortlist_to_click == null ? '—' : f.shortlist_to_click);
-
-      $('daily').innerHTML = (data.daily || []).map(d =>
-        '<tr><td>' + d.day + '</td><td class="num">' + d.prompts + '</td><td class="num">' + d.shortlist_adds +
-        '</td><td class="num">' + d.booking_clicks + '</td><td class="num">' + d.plans_built +
-        '</td><td class="num">' + d.active_users + '</td><td class="num">' + d.new_users + '</td></tr>'
-      ).join('') || '<tr><td colspan="7">No activity yet.</td></tr>';
-
-      $('source').textContent = 'Data source: ' + data.source + ' · generated ' + data.generated_at;
-      $('report').hidden = false;
-    } catch (e) {
-      $('error').textContent = 'Could not reach the metrics endpoint.';
-    }
+      const cfg = await fetch('/api/config').then(r => r.json());
+      if (cfg.authEnabled && window.supabase) {
+        const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey,
+          { auth: { persistSession: true, autoRefreshToken: false } });
+        const { data } = await sb.auth.getSession();
+        const token = data && data.session && data.session.access_token;
+        if (token) {
+          const email = data.session.user && data.session.user.email;
+          const ok = await load({ Authorization: 'Bearer ' + token }, email);
+          if (ok) return;
+        }
+      }
+    } catch (e) { /* fall through to key form */ }
+    $('gate').hidden = false;
   }
 
   $('key-form').addEventListener('submit', (e) => {
     e.preventDefault();
-    load($('key').value.trim());
+    load({ 'x-admin-key': $('key').value.trim() });
   });
+  $('refresh').addEventListener('click', () => lastAuth && load(lastAuth.headers, lastAuth.email));
+
+  async function load(headers, email) {
+    $('error').textContent = '';
+    try {
+      const res = await fetch('/api/admin/metrics', { headers });
+      const data = await res.json();
+      if (!res.ok) { $('error').textContent = data.message || ('Error ' + res.status); return false; }
+      lastAuth = { headers, email };
+      render(data, email);
+      return true;
+    } catch (e) {
+      $('error').textContent = 'Could not reach the metrics endpoint.';
+      return false;
+    }
+  }
+
+  function render(data, email) {
+    $('gate').hidden = true;
+    $('report').hidden = false;
+    $('refresh').hidden = false;
+    $('who').innerHTML = email
+      ? 'Signed in as <strong>' + esc(email) + '</strong> (super admin)'
+      : 'Authenticated with the admin key.';
+
+    renderTiles(data.totals || {}, data.billing || {});
+    renderDailyChart(data.daily || []);
+    renderFunnel(data.funnel || {});
+    renderUpgradeFunnel(data.upgrade_funnel || {});
+    renderModeSplit(data.mode_split || []);
+    renderHBars($('cities'), data.top_cities || [], 'var(--s4)');
+    renderHBars($('sources'), data.booking_sources || [], 'var(--s3)');
+    renderDailyTable(data.daily || []);
+    renderEventsTable(data.events_by_type || {});
+    loadUsers();
+    $('source').textContent = 'Data source: ' + data.source + ' · billing ' +
+      (data.billing && data.billing.configured ? 'configured' : 'not configured') +
+      ' · generated ' + data.generated_at;
+  }
+
+  function renderTiles(t, billing) {
+    const tiles = [
+      ['Prompts', t.prompts], ['Browse feeds', t.browses], ['Shortlist adds', t.shortlist_adds],
+      ['Booking clicks', t.booking_clicks], ['Plans built', t.plans_built], ['Re-plans', t.replans],
+      ['Plans saved', t.guides_saved], ['Signups', t.signups], ['Distinct users', t.distinct_users]
+    ];
+    $('tiles').innerHTML = tiles.map(([l, v]) =>
+      '<div class="tile"><div class="v">' + fmt(v) + '</div><div class="l">' + l + '</div></div>').join('');
+  }
+
+  // ----- Daily activity line chart (inline SVG, crosshair + tooltip) -----
+  const M = { l: 42, r: 130, t: 14, b: 30 }, W = 920, H = 260;
+
+  function renderDailyChart(daily) {
+    const svg = $('daily-chart');
+    $('daily-legend').innerHTML = SERIES.map(s =>
+      '<span><span class="dot" style="background:' + s.color + '"></span>' + s.label + '</span>').join('');
+    if (!daily.length) {
+      svg.innerHTML = '<text x="460" y="130" text-anchor="middle" fill="#6B7F82" font-size="13">No activity yet.</text>';
+      return;
+    }
+
+    const iw = W - M.l - M.r, ih = H - M.t - M.b;
+    const max = Math.max(1, ...daily.flatMap(d => SERIES.map(s => d[s.key] || 0)));
+    const yMax = niceMax(max);
+    const x = i => M.l + (daily.length === 1 ? iw / 2 : (i / (daily.length - 1)) * iw);
+    const y = v => M.t + ih - (v / yMax) * ih;
+
+    let out = '';
+    // Recessive grid + baseline; tick count shrinks with yMax so count data
+    // never gets fractional tick labels.
+    const ticks = Math.min(4, yMax);
+    for (let g = 1; g <= ticks; g++) {
+      const gy = M.t + ih - (g / ticks) * ih;
+      out += line(M.l, gy, W - M.r, gy, '#ECE7DA', 1);
+      out += text(M.l - 8, gy + 4, fmt(yMax * g / ticks), 'end');
+    }
+    out += line(M.l, M.t + ih, W - M.r, M.t + ih, '#C9C2B0', 1);
+    const step = Math.max(1, Math.ceil(daily.length / 6));
+    daily.forEach((d, i) => {
+      if (i % step === 0 || i === daily.length - 1) {
+        out += text(x(i), H - 8, d.day.slice(5), 'middle');
+      }
+    });
+
+    // 2px series lines + ink end-labels with a color chip carrying identity.
+    const ends = [];
+    SERIES.forEach(s => {
+      if (daily.length === 1) {
+        // A one-point polyline draws nothing — show a dot instead.
+        out += `<circle cx="${x(0)}" cy="${y(daily[0][s.key] || 0)}" r="4" fill="${s.hex}" stroke="#fff" stroke-width="1.5"/>`;
+      } else {
+        const pts = daily.map((d, i) => `${x(i)},${y(d[s.key] || 0)}`).join(' ');
+        out += `<polyline points="${pts}" fill="none" stroke="${s.hex}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+      }
+      ends.push({ y: y(daily[daily.length - 1][s.key] || 0), label: s.label, hex: s.hex });
+    });
+    // Nudge end labels apart so they never collide.
+    ends.sort((a, b) => a.y - b.y);
+    for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 14) ends[i].y = ends[i - 1].y + 14;
+    ends.forEach(e => {
+      out += `<rect x="${W - M.r + 8}" y="${e.y - 4}" width="8" height="8" rx="2" fill="${e.hex}"/>`;
+      out += `<text x="${W - M.r + 21}" y="${e.y + 4}" font-size="11.5" fill="#2C4A4E">${e.label}</text>`;
+    });
+
+    out += `<g id="crosshair" style="display:none"><line id="ch-line" y1="${M.t}" y2="${M.t + ih}" stroke="#C9C2B0" stroke-width="1"/>` +
+      SERIES.map((s, i) => `<circle id="ch-dot-${i}" r="4" fill="${s.hex}" stroke="#fff" stroke-width="2"/>`).join('') + '</g>';
+    out += `<rect id="hover-zone" x="${M.l}" y="${M.t}" width="${iw}" height="${ih}" fill="transparent"/>`;
+    svg.innerHTML = out;
+    wireCrosshair(svg, daily, x, y);
+  }
+
+  function wireCrosshair(svg, daily, x, y) {
+    const wrap = $('daily-chart-wrap'), tip = $('tooltip');
+    const zone = svg.querySelector('#hover-zone'), ch = svg.querySelector('#crosshair');
+    zone.addEventListener('mousemove', (ev) => {
+      const box = svg.getBoundingClientRect();
+      const sx = (ev.clientX - box.left) * (W / box.width);
+      let best = 0, bd = Infinity;
+      daily.forEach((d, i) => { const dd = Math.abs(x(i) - sx); if (dd < bd) { bd = dd; best = i; } });
+      const d = daily[best], cx = x(best);
+      ch.style.display = '';
+      const chl = svg.querySelector('#ch-line');
+      chl.setAttribute('x1', cx); chl.setAttribute('x2', cx);
+      SERIES.forEach((s, i) => {
+        const dot = svg.querySelector('#ch-dot-' + i);
+        dot.setAttribute('cx', cx); dot.setAttribute('cy', y(d[s.key] || 0));
+      });
+      tip.innerHTML = '<div class="t">' + d.day + '</div>' + SERIES.map(s =>
+        '<div class="r"><span>' + s.label + '</span><b>' + fmt(d[s.key]) + '</b></div>').join('');
+      tip.style.display = 'block';
+      const px = (cx / W) * box.width;
+      tip.style.left = Math.min(px + 14, box.width - tip.offsetWidth - 4) + 'px';
+      tip.style.top = Math.max(4, (ev.clientY - box.top) - tip.offsetHeight - 12) + 'px';
+    });
+    zone.addEventListener('mouseleave', () => { ch.style.display = 'none'; tip.style.display = 'none'; });
+  }
+
+  function niceMax(v) {
+    const pow = Math.pow(10, Math.floor(Math.log10(v)));
+    for (const m of [1, 2, 4, 5, 10]) if (m * pow >= v) return m * pow;
+    return 10 * pow;
+  }
+  function line(x1, y1, x2, y2, stroke, w) {
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="${w}"/>`;
+  }
+  function text(x, y, s, anchor) {
+    return `<text x="${x}" y="${y}" font-size="11" fill="#6B7F82" text-anchor="${anchor}">${s}</text>`;
+  }
+
+  // ----- Horizontal bar lists (single hue = magnitude; names carry identity) -----
+  function renderHBars(el, items, color) {
+    if (!items.length) { el.innerHTML = '<p class="rate">No data yet.</p>'; return; }
+    const max = Math.max(...items.map(i => i.count), 1);
+    el.innerHTML = items.map(i =>
+      '<div class="hbar"><span class="name" title="' + esc(i.name) + '">' + esc(i.name) + '</span>' +
+      '<div class="track"><div class="fill" style="width:' + Math.max(1, (i.count / max) * 100) + '%;background:' + color + '"></div></div>' +
+      '<span class="val">' + fmt(i.count) + '</span></div>').join('');
+  }
+
+  function renderFunnel(f) {
+    const stages = [
+      { name: 'Prompts', count: f.prompts || 0 },
+      { name: '→ Shortlist adds', count: f.shortlist_adds || 0 },
+      { name: '→ Outbound clicks', count: f.outbound_clicks || 0 }
+    ];
+    renderHBars($('funnel'), stages, 'var(--s1)');
+    $('funnel-rates').textContent =
+      'Shortlist adds per prompt: ' + (f.prompt_to_shortlist == null ? '—' : f.prompt_to_shortlist) +
+      ' · Clicks per shortlist add: ' + (f.shortlist_to_click == null ? '—' : f.shortlist_to_click);
+  }
+
+  function renderUpgradeFunnel(u) {
+    renderHBars($('upgrade-funnel'), [
+      { name: 'Upgrade viewed', count: u.viewed || 0 },
+      { name: '→ Checkout started', count: u.started || 0 }
+    ], 'var(--s2)');
+    $('upgrade-rates').textContent = 'View → checkout: ' +
+      (u.view_to_start == null ? '—' : Math.round(u.view_to_start * 100) + '%');
+  }
+
+  function renderModeSplit(split) {
+    const el = $('mode-split'), legend = $('mode-legend');
+    const rr = (split.find(s => s.name === 'rr') || {}).count || 0;
+    const adv = (split.find(s => s.name === 'adventure') || {}).count || 0;
+    const total = rr + adv;
+    if (!total) { el.innerHTML = ''; legend.innerHTML = '<span>No mode data yet.</span>'; return; }
+    el.innerHTML =
+      '<div style="width:' + (rr / total) * 100 + '%;background:var(--s2)" title="R&amp;R"></div>' +
+      '<div style="width:' + (adv / total) * 100 + '%;background:var(--s1)" title="Adventure"></div>';
+    legend.innerHTML =
+      '<span><span class="dot" style="background:var(--s2)"></span>R&amp;R ' + Math.round((rr / total) * 100) + '%</span>' +
+      '<span><span class="dot" style="background:var(--s1)"></span>Adventure ' + Math.round((adv / total) * 100) + '%</span>';
+  }
+
+  function renderDailyTable(daily) {
+    $('daily-table').innerHTML = daily.slice().reverse().map(d =>
+      '<tr><td>' + d.day + '</td><td class="num">' + fmt(d.prompts) + '</td><td class="num">' + fmt(d.browses) +
+      '</td><td class="num">' + fmt(d.shortlist_adds) + '</td><td class="num">' + fmt(d.booking_clicks) +
+      '</td><td class="num">' + fmt(d.plans_built) + '</td><td class="num">' + fmt(d.active_users) +
+      '</td><td class="num">' + fmt(d.new_users) + '</td></tr>'
+    ).join('') || '<tr><td colspan="8">No activity yet.</td></tr>';
+  }
+
+  // ----- Users & moderation -----
+  async function loadUsers() {
+    try {
+      const res = await fetch('/api/admin/users', { headers: lastAuth.headers });
+      const data = await res.json();
+      if (res.ok) renderUsers(data.users || []);
+    } catch (e) { /* users table just stays empty */ }
+  }
+
+  function renderUsers(users) {
+    const body = $('users-table');
+    if (!users.length) { body.innerHTML = '<tr><td colspan="10">No user activity yet.</td></tr>'; return; }
+    body.innerHTML = users.map((u, i) =>
+      '<tr>' +
+      '<td title="' + esc(u.owner_key) + '"><code>' + esc(shortKey(u.owner_key)) + '</code></td>' +
+      '<td>' + esc(u.kind || '—') + '</td>' +
+      '<td>' + (u.last_seen ? esc(String(u.last_seen).slice(0, 16).replace('T', ' ')) : '—') + '</td>' +
+      '<td class="num">' + fmt(u.prompts) + '</td>' +
+      '<td class="num">' + fmt(u.shortlist_adds) + '</td>' +
+      '<td class="num">' + fmt(u.booking_clicks) + '</td>' +
+      '<td class="num">' + fmt(u.plans_built) + '</td>' +
+      '<td>' + esc(u.top_city || '—') + '</td>' +
+      '<td>' + (u.banned
+        ? '<span class="badge-banned" title="' + esc((u.ban && u.ban.reason) || '') + '">⛔ banned</span>'
+        : 'active') + '</td>' +
+      '<td><button class="mini-btn' + (u.banned ? '' : ' danger') + '" data-i="' + i + '">' +
+        (u.banned ? 'Unban' : 'Ban') + '</button></td>' +
+      '</tr>').join('');
+    body.querySelectorAll('button[data-i]').forEach(btn => {
+      btn.addEventListener('click', () => moderate(users[Number(btn.dataset.i)]));
+    });
+  }
+
+  function shortKey(k) {
+    return k.length > 18 ? k.slice(0, 15) + '…' : k;
+  }
+
+  async function moderate(u) {
+    const action = u.banned ? 'unban' : 'ban';
+    const bodyData = { owner_key: u.owner_key };
+    if (action === 'ban') {
+      const reason = window.prompt('Ban ' + u.owner_key + '?\nOptional reason:');
+      if (reason === null) return; // cancelled
+      bodyData.reason = reason.trim() || undefined;
+    }
+    try {
+      const res = await fetch('/api/admin/' + action, {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, lastAuth.headers),
+        body: JSON.stringify(bodyData)
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.message || ('Error ' + res.status)); return; }
+      loadUsers();
+    } catch (e) { alert('Could not reach the moderation endpoint.'); }
+  }
+
+  function renderEventsTable(byType) {
+    $('events-table').innerHTML = Object.entries(byType)
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, count]) => '<tr><td>' + esc(type) + '</td><td class="num">' + fmt(count) + '</td></tr>')
+      .join('') || '<tr><td colspan="2">No events yet.</td></tr>';
+  }
+
+  boot();
 })();
 </script>
 </body>
