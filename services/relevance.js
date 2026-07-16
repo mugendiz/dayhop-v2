@@ -44,12 +44,40 @@ function textHits(tokens, text) {
   return hits;
 }
 
+// ---------- Mode affinity ----------
+// R&R and Adventure are two different products sharing one pool. The mode
+// nudges which half of the pool rises: calm categories for R&R, thrill
+// categories for Adventure. A nudge, not a wall — a standout item from the
+// "wrong" half can still earn a slot on merit.
+const MODE_CATEGORY_BOOST = {
+  rr: { water: 1.5, culture: 1.5, patios: 1, food: 1, general: 0.5 },
+  adventure: { adventures: 2.5, water: 1, cruises: 1, kids: 0.5 }
+};
+const RR_CALM_WORDS = /\b(garden|trail|park|lookout|scenic|beach|conservatory|arboretum|greenhouse|spa|quiet|calm|walk|stroll|nature)\b/i;
+const ADVENTURE_WORDS = /\b(zipline|zip-line|climb|kayak|paddle|rafting|karting|go-kart|trampoline|skydiv|paraglid|bike|bungee|axe|archery|treetop|adrenaline|racing)\b/i;
+
+// ---------- Prompt intent ----------
+// Cheap, deterministic reads of the constraints people actually type.
+function readIntent(prompt) {
+  const p = String(prompt || '').toLowerCase();
+  return {
+    budget: /\b(free|cheap|budget|no money|broke|inexpensive|affordable)\b/.test(p),
+    kids: /\b(kid|kids|toddler|child|children|family|baby|stroller|year[- ]old)\b/.test(p),
+    indoor: /\b(rain|raining|rainy|indoor|indoors|inside|snow|cold day)\b/.test(p),
+    romantic: /\b(date|romantic|anniversary|partner|couple)\b/.test(p)
+  };
+}
+
 /**
  * Score candidates against the prompt, matched themes (data/themes.js
- * shapes) and the active category filter. Returns [{ candidate, score }].
+ * shapes), the active category filter, and the R&R/Adventure mode.
+ * Returns [{ candidate, score }].
  */
-function scoreCandidates(candidates, { prompt, themes = [], filter } = {}) {
+function scoreCandidates(candidates, { prompt, themes = [], filter, mode } = {}) {
   const tokens = tokenize(prompt);
+  const intent = readIntent(prompt);
+  const modeBoost = MODE_CATEGORY_BOOST[mode] || null;
+  const modeWords = mode === 'adventure' ? ADVENTURE_WORDS : (mode === 'rr' ? RR_CALM_WORDS : null);
   const themeTags = new Set();
   const themeCategories = new Set();
   for (const theme of themes) {
@@ -96,6 +124,26 @@ function scoreCandidates(candidates, { prompt, themes = [], filter } = {}) {
     // Keep genuine discovery entries alive even with zero token overlap.
     if (candidate.wow === true) score += 1;
     if (candidate.civic === true || candidate.cost_tier === 'free') score += 0.5;
+
+    // Mode personality: the active mode's home categories rise, and titles
+    // that speak the mode's vocabulary rise further.
+    if (modeBoost && modeBoost[candidate.category]) score += modeBoost[candidate.category];
+    if (modeWords) {
+      const modeText = `${candidate.title || ''} ${candidate.description || ''}`;
+      if (modeWords.test(modeText)) score += 2;
+    }
+
+    // Explicit constraints in the prompt are promises to keep, not hints:
+    // a "free things to do" prompt should never rank a $90 tour above a
+    // great free park.
+    if (intent.budget) {
+      if (candidate.cost_tier === 'free') score += 3;
+      else if (candidate.price_from != null && candidate.price_from > 60) score -= 2;
+    }
+    if (intent.kids && candidate.category === 'kids') score += 2;
+    if (intent.kids && /\b(kid|family|children|all ages)\b/i.test(candidate.good_for_ages || '')) score += 1;
+    if (intent.indoor && /\b(museum|gallery|aquarium|indoor|arcade|science|library|market|conservatory)\b/i
+      .test(`${candidate.title || ''} ${candidate.description || ''} ${candidate.category || ''}`)) score += 2;
 
     // Proximity (set when the user shared their location). A top-tier
     // signal, not a tiebreaker: for family and R&R days, "20 minutes away"

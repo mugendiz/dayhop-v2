@@ -76,7 +76,7 @@ function qualityGate(scored) {
   return [...strict, ...rest];
 }
 
-async function gatherCandidates(prompt, locationText, eventKeyword, filter, userCoords) {
+async function gatherCandidates(prompt, locationText, eventKeyword, filter, userCoords, mode) {
   let geo = null;
   let weather = null;
   // With shared coordinates the locality comes from reverse geocoding and
@@ -203,7 +203,7 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   // Quality gate BEFORE the cap, so the pool fills with excellent
   // candidates instead of capping first and filtering what's left.
   const candidates = relevance.selectTop(
-    qualityGate(relevance.scoreCandidates(pool, { prompt, themes, filter })),
+    qualityGate(relevance.scoreCandidates(pool, { prompt, themes, filter, mode })),
     CANDIDATE_POOL_CAP
   );
   return { candidates, weather, usedGrounding: candidates.length > 0, resolvedCity };

@@ -12,7 +12,10 @@
 
 const billing = require('./billing');
 
-const FREE_DAILY_GENERATES = Number(process.env.FREE_DAILY_GENERATES || 5);
+// 3 generates/day: enough to plan a real day (first try + two refinements),
+// scarce enough that the daily reset is felt — the "come back tomorrow"
+// rhythm is the retention loop, and the third plan is the upgrade moment.
+const FREE_DAILY_GENERATES = Number(process.env.FREE_DAILY_GENERATES || 3);
 // 5 saved plans (was 2): enough room to form a habit before hitting the
 // gate — the upgrade moment should come from love, not from a wall.
 const FREE_GUIDE_LIMIT = Number(process.env.FREE_GUIDE_LIMIT || 5);

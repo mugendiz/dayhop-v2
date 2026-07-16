@@ -255,24 +255,42 @@
   }
 
   // ---------- Mode toggle behavior ----------
+  const prefersReducedMotion = () =>
+    window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   function setMode(mode) {
     if (!MODES[mode] || mode === state.mode) return;
     state.mode = mode;
     persist();
     track('mode_switch', { id: mode, source: mode });
     if (navigator.vibrate) navigator.vibrate(8);
-    applyModeUi();
-    // The chip set changes with the mode, so an active filter no longer
-    // means anything — reset quietly.
-    state.currentFilter = 'all';
-    renderFilterChips();
-    refreshFeedForMode();
+
+    const applyAll = () => {
+      applyModeUi();
+      // The chip set changes with the mode, so an active filter no longer
+      // means anything — reset quietly.
+      state.currentFilter = 'all';
+      renderFilterChips();
+      refreshFeedForMode();
+    };
+
+    // View Transitions API: the whole page cross-fades between the two
+    // personalities in one composited pass (styles in main.css). Browsers
+    // without it (or users who prefer less motion) get the instant swap.
+    if (document.startViewTransition && !prefersReducedMotion()) {
+      document.startViewTransition(applyAll);
+    } else {
+      applyAll();
+    }
   }
 
   // Everything mode-flavored in the chrome: accent (body[data-mode] drives
   // the CSS), toggle position, hint line, prompt placeholder, example chips.
   function applyModeUi() {
     document.body.dataset.mode = state.mode;
+    // The browser chrome follows the mode too (mobile address bar tint).
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeMeta) themeMeta.content = state.mode === 'adventure' ? '#8A3418' : '#102A2E';
     document.querySelectorAll('#mode-toggle .mode-option').forEach(btn =>
       btn.setAttribute('aria-checked', String(btn.dataset.mode === state.mode)));
     const hint = document.getElementById('mode-hint');
@@ -1051,6 +1069,19 @@
       });
     };
 
+    // Prompt results open with the Best Match hero: the single strongest
+    // direct answer, pulled out of the grid and given real estate + the
+    // evidence for why it won. Only when there's a real field to beat.
+    let heroIdea = null;
+    if (!state.browseMode && !ideas.some(i => i.section)) {
+      const onTargetAll = ideas.filter(i => !i.wow_reason);
+      if (onTargetAll.length >= 3) heroIdea = onTargetAll[0];
+    }
+    if (heroIdea) {
+      feed.appendChild(createBestMatchCard(heroIdea, animate));
+      if (animate && window.DayHopMotion) window.DayHopMotion.bestMatchIn(feed.lastElementChild);
+    }
+
     if (state.browseMode && ideas.some(i => i.section)) {
       // Browse feed: server-assigned sections, in server order. STOP numbers
       // continue across sections so the trail metaphor stays intact.
@@ -1063,17 +1094,15 @@
       });
       order.forEach(label => appendSection(label, groups.get(label), order.length > 1));
     } else {
-      // Prompt results: the direct answers first, then the "didn't know you
-      // could do that" stretch picks.
-      const onTarget = ideas.filter(i => !i.wow_reason);
+      // Prompt results: the direct answers first (minus the hero, which is
+      // already on stage), then the "didn't know you could do that" picks.
+      const onTarget = ideas.filter(i => !i.wow_reason && (!heroIdea || i.id !== heroIdea.id));
       const beyond = ideas.filter(i => i.wow_reason);
       const showHeaders = onTarget.length > 0 && beyond.length > 0;
-      // Crown the top direct answers so the eye lands on "start here"
-      // instead of a flat grid. Only when there's a real field to beat —
-      // 1 badge from 3+ results, 2 from 5+.
-      const bestCount = onTarget.length >= 5 ? 2 : (onTarget.length >= 3 ? 1 : 0);
-      const bestIds = new Set(onTarget.slice(0, bestCount).map(i => i.id));
-      appendSection('Right on target', onTarget, showHeaders, bestIds);
+      // Runner-up crown: with the hero extracted, badge the next-best pick
+      // only when the remaining field is big enough for it to mean something.
+      const bestIds = new Set(onTarget.length >= 4 ? [onTarget[0].id] : []);
+      appendSection(heroIdea ? 'Also right on target' : 'Right on target', onTarget, showHeaders, bestIds);
       appendSection('Beyond what you asked ✨', beyond, showHeaders);
     }
 
@@ -1098,10 +1127,16 @@
     card.setAttribute('role', 'group');
     card.setAttribute('aria-label', idea.title);
 
-    if (animate) {
+    if (animate && index < 4) {
+      // Above the fold: staggered JS-timed arrival.
       card.classList.add('is-entering');
       // Strip the class once it finishes so transform is free for swipe/dismiss.
       card.addEventListener('animationend', () => card.classList.remove('is-entering'), { once: true });
+    } else if (index >= 4) {
+      // Below the fold: native scroll-driven reveal (animation-timeline:
+      // view() in main.css) — each card fades up as it enters the viewport,
+      // zero JS per frame. Harmless no-op where unsupported.
+      card.classList.add('scroll-in');
     }
 
     const categoryLabel = CATEGORY_LABELS[idea.category] || CATEGORY_LABELS.general;
@@ -1162,6 +1197,97 @@
     });
 
     addSwipeListeners(card, idea);
+    return card;
+  }
+
+  // ---------- Best Match hero ----------
+  // Evidence, not assertion: the hero card explains WHY it won — distance,
+  // the user's own words, rating depth, price, timing. Max 4 chips.
+  const REASON_STOPWORDS = new Set([
+    'with', 'that', 'this', 'then', 'them', 'some', 'somewhere', 'something',
+    'after', 'before', 'near', 'nearby', 'want', 'like', 'need', 'hours',
+    'kids', 'day', 'morning', 'afternoon', 'evening', 'relaxed', 'easy'
+  ]);
+
+  function matchReasons(idea) {
+    const reasons = [];
+
+    if (idea.distance_km != null) {
+      reasons.push(idea.distance_km <= 1.5
+        ? '📍 Right around the corner'
+        : `📍 ${idea.distance_km} km from you`);
+    }
+
+    // Their own words, reflected back: prompt words found in the idea.
+    const ideaText = `${idea.title || ''} ${idea.why || ''} ${idea.category || ''}`.toLowerCase();
+    const echoed = (state.lastPrompt || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, ' ')
+      .split(/[\s-]+/)
+      .filter(w => w.length > 3 && !REASON_STOPWORDS.has(w) && ideaText.includes(w));
+    if (echoed.length) {
+      reasons.push(`💬 You said “${[...new Set(echoed)].slice(0, 2).join('”, “')}”`);
+    }
+
+    if (idea.rating >= 4.5) reasons.push(`★ ${idea.rating} — loved by locals`);
+    else if (idea.rating != null) reasons.push(`★ ${idea.rating}`);
+
+    if (String(idea.cost_tier).toLowerCase() === 'free') reasons.push('🎟 Completely free');
+    else if (idea.price_from != null) reasons.push(`💳 from ${idea.price_from}${idea.currency ? ' ' + idea.currency : ''}`);
+
+    if (idea.date) reasons.push(`📅 ${formatEventDate(idea.date)}`);
+
+    // Weather fit — the plan already adjusted for today's sky; say so.
+    if (state.lastWeather && state.lastWeather.condition === 'Clear' && !reasons.length) {
+      reasons.push('☀️ Perfect for today');
+    }
+
+    return reasons.slice(0, 4);
+  }
+
+  function createBestMatchCard(idea, animate) {
+    const card = document.createElement('article');
+    card.className = 'best-match';
+    card.dataset.id = idea.id;
+    card.setAttribute('role', 'group');
+    card.setAttribute('aria-label', `Best match: ${idea.title}`);
+    // CSS entrance as the default; motion.js strips it and runs the GSAP
+    // timeline instead when the full motion stack is available.
+    if (animate) card.classList.add('is-entering');
+
+    const reasons = matchReasons(idea);
+    card.innerHTML = `
+      <div class="best-match-inner">
+        <div class="best-match-photo">
+          <img src="${escapeAttr(idea.image_url || categoryImage(idea.category, 1200))}" alt="" decoding="async" fetchpriority="high">
+          <span class="best-match-flag">✦ Best match for you</span>
+        </div>
+        <div class="best-match-body">
+          <span class="best-match-kicker">${state.mode === 'adventure' ? 'Start your adventure here' : 'Start your day here'}</span>
+          <h3>${escapeHtml(idea.title)}</h3>
+          <p class="why">${escapeHtml(idea.why || '')}</p>
+          ${reasons.length ? `<div class="match-reasons">${reasons.map(r => `<span class="match-reason">${escapeHtml(r)}</span>`).join('')}</div>` : ''}
+          <div class="card-meta">
+            ${idea.location ? `<span>${escapeHtml(idea.location)}</span>` : ''}
+            ${idea.duration_minutes ? `<span>${formatDuration(idea.duration_minutes)}</span>` : ''}
+            ${idea.cost_tier ? `<span>${escapeHtml(idea.cost_tier)}</span>` : ''}
+          </div>
+          ${bookingLinksHtml(idea, 'card')}
+          <div class="best-match-actions">
+            <button class="btn-dismiss" type="button" title="Not for us">✕ Skip</button>
+            <button class="btn-detail" type="button" title="See details">Details</button>
+            <button class="btn-add" type="button" title="Add to your day">Add to my day →</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const img = card.querySelector('.best-match-photo img');
+    img.addEventListener('error', () => { img.src = categoryImage(idea.category, 1200); }, { once: true });
+
+    card.querySelector('.btn-dismiss').addEventListener('click', () => dismissIdea(idea, card));
+    card.querySelector('.btn-detail').addEventListener('click', () => openDetail(idea));
+    card.querySelector('.btn-add').addEventListener('click', () => addToShortlist(idea, card));
     return card;
   }
 
@@ -1894,6 +2020,13 @@
     const saved = await saveCurrentGuide();
     renderPlanView();
     if (saved) {
+      // Soft confirmation: a quiet ring blooms out of the save button.
+      const btn = document.getElementById('plan-save-btn');
+      if (btn) {
+        btn.classList.remove('save-bloom');
+        void btn.offsetWidth;
+        btn.classList.add('save-bloom');
+      }
       showToast('Plan saved to My Plans 🗂', {
         duration: 4500,
         actionLabel: 'Copy link',
@@ -1925,6 +2058,11 @@
       document.getElementById('replan-input').value = '';
       const panel = document.querySelector('#dayplan-panel .panel-sheet');
       if (panel) panel.scrollTo({ top: 0, behavior: 'smooth' });
+      // Re-plan celebration: GSAP settles the "what changed" panel in with
+      // a stagger (motion.js); plain toast either way.
+      if (window.DayHopMotion) {
+        window.DayHopMotion.celebrateReplan(document.getElementById('plan-change-summary'));
+      }
       showToast('Plan updated ✨');
     } catch (err) {
       progress.fail();
@@ -2061,7 +2199,7 @@
     } else if (!isLoggedIn()) {
       hint.textContent = 'Sign in to save this as a shareable guide.';
     } else if (state.billingConfigured && !state.isPro) {
-      hint.textContent = `Exporting saves this plan (free includes ${freeLimit != null ? freeLimit : 2} — Pro is unlimited).`;
+      hint.textContent = `Exporting saves this plan (free includes ${freeLimit != null ? freeLimit : 5} — Pro is unlimited).`;
     } else {
       hint.textContent = 'Exporting saves this as a shareable guide with a public link.';
     }
@@ -2332,11 +2470,13 @@
       renderWeatherStrip(data.weather);
       renderResultsHeader();
       renderFeed(true);
+      bumpGeneratesUsed();
       document.getElementById('results-header').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (err) {
       progress.fail();
       errorEl.textContent = err.message || 'Something went wrong. Please try again.';
       if (err.code === 'UPGRADE_REQUIRED') {
+        bumpGeneratesUsed(true);
         showUpgradeModal('generate');
       } else {
         showToast(err.message || 'Could not generate ideas right now.', { duration: 3500 });
@@ -2471,13 +2611,16 @@
     try {
       // Works signed-out too: the route still reports whether billing is
       // configured, which is what decides if the Go Pro button appears.
-      const res = await fetch('/api/billing/status', { headers: isLoggedIn() ? authHeaders() : {} });
+      // owner_id lets the server report today's usage for guests too.
+      const res = await fetch(`/api/billing/status?owner_id=${encodeURIComponent(getOwnerId())}`,
+        { headers: isLoggedIn() ? authHeaders() : {} });
       const data = await res.json();
       const pro = Boolean(res.ok && isLoggedIn() && data.pro);
       state.billingConfigured = Boolean(res.ok && data.configured);
       state.isPro = pro;
       state.entitlements = (res.ok && data.entitlements) || null;
       state.price = (res.ok && data.price) || null;
+      state.usage = (res.ok && data.usage) || null;
       if (badge) badge.hidden = !pro;
       if (goProBtn) goProBtn.hidden = !(res.ok && data.configured && !pro);
       if (adminLink) adminLink.hidden = !(res.ok && isLoggedIn() && data.admin);
@@ -2490,6 +2633,43 @@
     // valid choice and refresh all PRO chips.
     if (state.planDays > 1 && state.billingConfigured && !state.isPro) setPlanDays(1);
     updateProUi();
+    renderPlansLeft();
+  }
+
+  // ---------- Plans-left meter ----------
+  // Honest scarcity under the prompt box: one lit dot per free plan left
+  // today. Only rendered for free-tier callers once billing is live — Pro,
+  // preview, and admin never see it.
+  function renderPlansLeft() {
+    const el = document.getElementById('plans-left');
+    if (!el) return;
+    const ent = state.entitlements;
+    const gated = state.billingConfigured && !state.isPro && ent && ent.daily_generates != null;
+    if (!gated) { el.hidden = true; return; }
+
+    const limit = ent.daily_generates;
+    const used = Math.min(limit, (state.usage && state.usage.generates_today) || 0);
+    const left = limit - used;
+    const dots = Array.from({ length: limit }, (_, i) =>
+      `<span class="plans-left-dot${i < used ? ' plans-left-dot--spent' : ''}"></span>`).join('');
+
+    el.innerHTML = left > 0
+      ? `<span class="plans-left-dots">${dots}</span><span>${left} of ${limit} free plan${limit === 1 ? '' : 's'} left today</span>`
+      : `<span class="plans-left-dots">${dots}</span><span>Back tomorrow — or</span><button type="button" class="linklike" id="plans-left-upgrade">go Pro for unlimited ✨</button>`;
+    const up = document.getElementById('plans-left-upgrade');
+    if (up) up.addEventListener('click', () => showUpgradeModal('generate'));
+    el.hidden = false;
+  }
+
+  // Local bump after a successful/blocked generate so the meter never waits
+  // on a round-trip to feel truthful.
+  function bumpGeneratesUsed(setToLimit) {
+    if (!state.entitlements || state.entitlements.daily_generates == null) return;
+    state.usage = state.usage || { generates_today: 0, replans_today: 0 };
+    state.usage.generates_today = setToLimit
+      ? state.entitlements.daily_generates
+      : (state.usage.generates_today || 0) + 1;
+    renderPlansLeft();
   }
 
   // Returning from Stripe Checkout (?billing=success|cancelled).
@@ -2622,6 +2802,14 @@
   function renderWeatherStrip(weather) {
     const el = document.getElementById('weather-strip');
     if (!el) return;
+    // Environmental feedback: today's actual sky tints the hero (CSS keys
+    // off body[data-weather]) — subtle, but the interface feels the day.
+    const tintFor = { Rain: 'rain', Drizzle: 'rain', Thunderstorm: 'rain', Snow: 'snow', Clouds: 'clouds', Clear: 'clear' };
+    if (weather && tintFor[weather.condition]) {
+      document.body.dataset.weather = tintFor[weather.condition];
+    } else {
+      delete document.body.dataset.weather;
+    }
     if (!weather) {
       el.hidden = true;
       return;
@@ -2638,33 +2826,100 @@
   // ---------- Booking retention ----------
   // Every booking link opens in a new tab, so a Book click is a save signal,
   // not a goodbye: shortlist the idea (deduped; localStorage for guests, the
-  // account for signed-in users) and show one combined toast that confirms
-  // the save and offers the way back into planning. Plan stops are exempt —
-  // they're already part of a built day.
+  // account for signed-in users), then raise the return sheet — a soft
+  // "your plan is safe, come back when you're ready" moment with one clear
+  // way back into planning. Plan stops are exempt — they're already part of
+  // a built day.
+  const returnSheet = { timer: null, lastIdea: null, clickedAt: 0, welcomedBack: false };
+
+  function showReturnSheet({ idea, title, sub }) {
+    const el = document.getElementById('return-sheet');
+    if (!el) return;
+    const thumb = document.getElementById('return-thumb');
+    const src = (idea && (idea.image_url || categoryImage(idea.category, 200))) || categoryImage('general', 200);
+    thumb.src = src;
+    thumb.onerror = () => { thumb.src = categoryImage((idea && idea.category) || 'general', 200); };
+    document.getElementById('return-title').textContent = title;
+    document.getElementById('return-sub').textContent = sub;
+
+    const DISMISS_MS = 9000;
+    el.style.setProperty('--return-ms', DISMISS_MS + 'ms');
+    el.hidden = false;
+    // Force a restart of the visible state (and its timer hairline) even if
+    // the sheet was already up for a previous idea.
+    el.classList.remove('return-sheet--visible');
+    void el.offsetWidth;
+    requestAnimationFrame(() => el.classList.add('return-sheet--visible'));
+    clearTimeout(returnSheet.timer);
+    returnSheet.timer = setTimeout(hideReturnSheet, DISMISS_MS);
+  }
+
+  function hideReturnSheet() {
+    const el = document.getElementById('return-sheet');
+    if (!el) return;
+    clearTimeout(returnSheet.timer);
+    el.classList.remove('return-sheet--visible');
+    setTimeout(() => { el.hidden = true; }, 320);
+  }
+
+  function wireReturnSheet() {
+    const cont = document.getElementById('return-continue');
+    const dismiss = document.getElementById('return-dismiss');
+    if (cont) cont.addEventListener('click', () => {
+      hideReturnSheet();
+      track('booking_return_continue', returnSheet.lastIdea || {});
+      renderShortlistPanel();
+      openPanel('shortlist-panel');
+    });
+    if (dismiss) dismiss.addEventListener('click', hideReturnSheet);
+
+    // The welcome-back beat: they booked, toured the partner site, and came
+    // back to this tab — greet them once with their plan intact.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      const since = Date.now() - returnSheet.clickedAt;
+      if (!returnSheet.clickedAt || returnSheet.welcomedBack) return;
+      if (since < 4000 || since > 20 * 60 * 1000) return; // real trip away, not a flick
+      returnSheet.welcomedBack = true;
+      const idea = returnSheet.lastIdea;
+      showReturnSheet({
+        idea,
+        title: 'Welcome back 👋',
+        sub: idea && idea.title
+          ? `${idea.title} is safe on your shortlist — pick up right where you left off.`
+          : 'Your shortlist is right where you left it.'
+      });
+    });
+  }
+
   function handleBookingRetention(ideaRef, link, card) {
+    const fromPlan = Boolean(link.closest('.plan-stop-links'));
+    const id = ideaRef.id != null ? String(ideaRef.id) : null;
+    let idea = id ? state.allIdeas.find(i => String(i.id) === id) : null;
     let saved = false;
-    if (!link.closest('.plan-stop-links')) {
-      const id = ideaRef.id != null ? String(ideaRef.id) : null;
+
+    if (!fromPlan) {
       const alreadySaved = id && state.shortlist.some(i => String(i.id) === id);
-      const idea = !alreadySaved && id
-        ? state.allIdeas.find(i => String(i.id) === id)
-        : null;
-      if (idea) {
+      if (idea && !alreadySaved) {
         addToShortlist(idea, card, { silent: true });
         track('idea_auto_saved_on_booking', idea);
         saved = true;
+      } else if (alreadySaved) {
+        idea = state.shortlist.find(i => String(i.id) === id) || idea;
       }
     }
+
+    returnSheet.lastIdea = idea || null;
+    returnSheet.clickedAt = Date.now();
+    returnSheet.welcomedBack = false;
     track('booking_return_prompt_shown', ideaRef);
-    showToast(saved
-      ? 'Booking opened in a new tab — saved to your shortlist ✨'
-      : 'Booking opened in a new tab', {
-      duration: 6000,
-      actionLabel: 'Keep planning →',
-      onAction: () => {
-        renderShortlistPanel();
-        openPanel('shortlist-panel');
-      }
+
+    showReturnSheet({
+      idea,
+      title: saved ? 'Saved to your day ✨' : 'Booking opened in a new tab',
+      sub: saved
+        ? `The booking tab is open — ${idea.title} is on your shortlist, so nothing gets lost.`
+        : 'Take your time over there. Your plan is waiting right here.'
     });
   }
 
@@ -2798,6 +3053,7 @@
     document.getElementById('surprise-me-btn').addEventListener('click', handleSurpriseMe);
     document.getElementById('new-shortlist-btn').addEventListener('click', handleNewShortlist);
     wireExportBar();
+    wireReturnSheet();
 
     // Freemium surfaces: My Plans, plan editing, smart re-planning, trip
     // length, and the shared upgrade modal.

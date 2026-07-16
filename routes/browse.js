@@ -41,7 +41,7 @@ router.post('/', async (req, res) => {
 
   try {
     const { candidates, weather, resolvedCity } =
-      await gatherCandidates(syntheticPrompt(part, mode), city, '', null, coords);
+      await gatherCandidates(syntheticPrompt(part, mode), city, '', null, coords, mode);
 
     const ideas = buildSections(candidates, { near: Boolean(coords), weather, part, mode }).slice(0, FEED_CAP);
     // Real venue photos for curated/open-data cards; the enriched feed is

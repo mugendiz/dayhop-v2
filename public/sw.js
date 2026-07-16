@@ -10,12 +10,13 @@
 //   - /api/* is never cached — live data must never go stale silently, and
 //     the app already degrades gracefully when those fetches fail.
 // Bump the version to invalidate every cached asset on the next visit.
-const CACHE = 'dayhop-shell-v1';
+const CACHE = 'dayhop-shell-v2';
 
 const SHELL = [
   '/',
   '/app.js',
   '/auth.js',
+  '/motion.js',
   '/css/main.css',
   '/manifest.webmanifest',
   '/icons/icon.svg'

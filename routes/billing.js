@@ -35,6 +35,26 @@ router.post('/checkout', requireUser, async (req, res) => {
   }
 });
 
+// Today's spend against the free daily limits, so the client can show a
+// truthful "2 of 3 plans left" without keeping its own tally. Guests pass
+// their stable guest id as ?owner_id (same key the generate route counts
+// against). Best-effort: any failure just omits usage.
+async function usageFor(req, entitlements) {
+  if (!entitlements || entitlements.daily_generates == null) return undefined; // unlimited tier
+  const ownerKey = (req.user && req.user.id) ||
+    (typeof req.query.owner_id === 'string' && req.query.owner_id.trim().slice(0, 80)) || null;
+  if (!ownerKey) return undefined;
+  try {
+    const [generates, replans] = await Promise.all([
+      analytics.countToday('prompt_generated', ownerKey),
+      analytics.countToday('plan_replanned', ownerKey)
+    ]);
+    return { generates_today: generates, replans_today: replans };
+  } catch (err) {
+    return undefined;
+  }
+}
+
 router.get('/status', async (req, res) => {
   const configured = billing.isConfigured();
   // Entitlements and price ride along so the client can show the right
@@ -46,7 +66,8 @@ router.get('/status', async (req, res) => {
   if (entitlements && entitlements.tier === 'admin') {
     return res.json({ configured, pro: true, admin: true, status: 'admin', entitlements, price });
   }
-  if (!req.user) return res.json({ configured, pro: false, status: null, entitlements, price });
+  const usage = await usageFor(req, entitlements);
+  if (!req.user) return res.json({ configured, pro: false, status: null, entitlements, price, usage });
   try {
     const sub = await billing.getSubscription(req.user.id);
     res.json({
@@ -55,11 +76,12 @@ router.get('/status', async (req, res) => {
       status: sub ? sub.status : null,
       current_period_end: sub ? sub.current_period_end : null,
       entitlements,
-      price
+      price,
+      usage
     });
   } catch (err) {
     console.warn('[billing] status failed:', err.message);
-    res.json({ configured, pro: false, status: null, entitlements, price });
+    res.json({ configured, pro: false, status: null, entitlements, price, usage });
   }
 });
 

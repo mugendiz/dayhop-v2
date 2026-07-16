@@ -61,7 +61,7 @@ router.post('/', async (req, res) => {
         return res.status(402).json({
           error: 'UPGRADE_REQUIRED',
           feature: 'generate',
-          message: `You've used your ${ent.daily_generates} free day plans for today. Go Pro for unlimited planning.`,
+          message: `That's all ${ent.daily_generates} free plans for today — tomorrow brings ${ent.daily_generates} more, or Pro plans as much as you dream.`,
           limit: ent.daily_generates
         });
       }
@@ -72,7 +72,7 @@ router.post('/', async (req, res) => {
 
   try {
     const { candidates, weather, usedGrounding, resolvedCity } =
-      await gatherCandidates(prompt, targetLocation, eventKeyword, filter, userCoords);
+      await gatherCandidates(prompt, targetLocation, eventKeyword, filter, userCoords, mode);
     const cityForGrok = resolvedCity || targetLocation;
 
     let ideas;
@@ -276,7 +276,8 @@ router.post('/replan', async (req, res) => {
     let weather = null;
     try {
       const gathered = await gatherCandidates(
-        trimmedInstruction, targetLocation, '', null, sanitizeCoords(req.body.coords)
+        trimmedInstruction, targetLocation, '', null, sanitizeCoords(req.body.coords),
+        grok.normalizeMode(req.body.mode)
       );
       candidates = gathered.candidates;
       weather = gathered.weather;

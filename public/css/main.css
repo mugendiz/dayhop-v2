@@ -2175,3 +2175,507 @@ body[data-mode="adventure"] .mode-thumb { transform: translateX(100%); }
   letter-spacing: 0.06em;
   margin: 0;
 }
+
+/* =====================================================================
+   ELEVATION LAYER — breathtaking pass
+   Scroll-driven reveals (native CSS), View Transition mode switching,
+   the Best Match hero, the booking return sheet, the plans-left meter,
+   weather-tinted chrome, and soft confirmation moments.
+   Everything motion-related respects prefers-reduced-motion.
+   ===================================================================== */
+
+/* ---------- Registered custom properties (typed CSS) ----------
+   @property lets the conic ring angle interpolate as a real animatable
+   value instead of snapping. */
+@property --bm-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* ---------- Fluid, balanced type ---------- */
+.hero h1, .results-header h2, .empty-state h3 { text-wrap: balance; }
+.subtitle, .results-sub, .empty-state p { text-wrap: pretty; }
+
+/* ---------- First impression: the page settles into place ----------
+   One soft, sequenced arrival — eyebrow, toggle, headline, prompt box —
+   so the first paint feels composed instead of dumped. Runs once. */
+@media (prefers-reduced-motion: no-preference) {
+  .hero .eyebrow,
+  .hero .mode-toggle,
+  .hero .mode-hint,
+  .hero h1,
+  .hero .subtitle,
+  .hero .prompt-box,
+  .hero .prompt-hint {
+    animation: heroSettle 0.7s var(--ease) both;
+  }
+  .hero .mode-toggle { animation-delay: 0.06s; }
+  .hero .mode-hint { animation-delay: 0.1s; }
+  .hero h1 { animation-delay: 0.14s; }
+  .hero .subtitle { animation-delay: 0.2s; }
+  .hero .prompt-box { animation-delay: 0.26s; }
+  .hero .prompt-hint { animation-delay: 0.3s; }
+}
+@keyframes heroSettle {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Native scroll-driven animations ----------
+   Cards below the fold reveal as they enter the viewport — the animation
+   runs on the compositor, costs no JS, and is driven by the card's own
+   position (animation-timeline: view()). Cards above the fold keep the
+   staggered .is-entering arrival. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .idea-card.scroll-in {
+      animation: scrollReveal linear both;
+      animation-timeline: view();
+      /* Start as the card's top clears the bottom edge; done by ~2/3 in. */
+      animation-range: entry 0% entry 68%;
+    }
+
+    .feed-section-header {
+      animation: scrollReveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 90%;
+    }
+
+    /* The trail line's stop-dots breathe in with their cards. */
+    .idea-card.scroll-in::before {
+      animation: dotPop linear both;
+      animation-timeline: view();
+      animation-range: entry 10% entry 80%;
+    }
+
+    /* Collections shelf drifts up as it arrives. */
+    .collection-card {
+      animation: scrollReveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 75%;
+    }
+
+    /* The hero recedes as you scroll into the feed — content sinks and
+       softens slightly, giving the page depth without a single scroll
+       listener. */
+    .hero-content {
+      animation: heroRecede linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 480px;
+    }
+  }
+}
+
+/* Independent transform properties (translate/scale), NOT transform: the
+   reveal keeps running on the compositor while leaving `transform` free
+   for the card's swipe gesture (inline styles) — the two never fight. */
+@keyframes scrollReveal {
+  from { opacity: 0; translate: 0 26px; scale: 0.985; }
+  to   { opacity: 1; translate: 0 0; scale: 1; }
+}
+
+@keyframes dotPop {
+  from { scale: 0; opacity: 0; }
+  to   { scale: 1; opacity: 1; }
+}
+
+@keyframes heroRecede {
+  to { opacity: 0.45; transform: translateY(28px) scale(0.985); }
+}
+
+/* ---------- View Transition: mode switching ----------
+   document.startViewTransition wraps setMode's repaint; the whole page
+   cross-fades while the hero does a gentle vertical pass — R&R and
+   Adventure feel like two rooms in one house, not two websites. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.45s;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .hero { view-transition-name: dayhop-hero; }
+  ::view-transition-old(dayhop-hero) {
+    animation: vtHeroOut 0.4s cubic-bezier(0.4, 0, 1, 1) both;
+  }
+  ::view-transition-new(dayhop-hero) {
+    animation: vtHeroIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+@keyframes vtHeroOut {
+  to { opacity: 0; transform: translateY(-10px); }
+}
+@keyframes vtHeroIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Best Match hero ----------
+   The one card that answers "where do I start?" — full-width, photo-led,
+   wrapped in a slowly turning conic ring in the mode's accent. Entrance
+   is handled by GSAP when available (motion.js), CSS otherwise. */
+.best-match {
+  position: relative;
+  grid-column: 1 / -1;
+  margin: 6px 0 10px;
+  border-radius: calc(var(--radius) + 4px);
+  padding: 3px; /* the ring's visible thickness */
+  background:
+    conic-gradient(from var(--bm-angle),
+      var(--mode-accent) 0%,
+      var(--marigold) 28%,
+      var(--mode-accent) 55%,
+      transparent 75%,
+      var(--mode-accent) 100%);
+  box-shadow: 0 24px 60px -18px var(--mode-tint), var(--shadow);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .best-match { animation: ringTurn 9s linear infinite; }
+  /* CSS-only entrance (used when GSAP isn't available) keeps the ring turning. */
+  .best-match.is-entering {
+    animation: cardIn 0.55s var(--ease) both, ringTurn 9s linear infinite;
+  }
+}
+@keyframes ringTurn { to { --bm-angle: 360deg; } }
+
+.best-match-inner {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 46%) 1fr;
+  gap: 0;
+  background: white;
+  border-radius: calc(var(--radius) + 2px);
+  overflow: hidden;
+}
+
+.best-match-photo {
+  position: relative;
+  min-height: 280px;
+  overflow: hidden;
+}
+
+.best-match-photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 112%; /* headroom for the GSAP parallax drift */
+  object-fit: cover;
+}
+
+.best-match-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(200deg, rgba(16,42,46,0.05) 40%, rgba(16,42,46,0.42) 100%);
+  pointer-events: none;
+}
+
+.best-match-flag {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--paper);
+  background: color-mix(in srgb, var(--mode-accent) 88%, black);
+  padding: 6px 12px;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(16,42,46,0.35);
+}
+
+.best-match-body {
+  padding: 26px 26px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.best-match-kicker {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--mode-accent);
+}
+
+.best-match-body h3 {
+  font-size: clamp(22px, 3vw, 30px);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.best-match-body .why {
+  display: block;              /* undo the 2-line clamp — this card earns its words */
+  -webkit-line-clamp: unset;
+  font-size: 15.5px;
+  line-height: 1.6;
+  overflow: visible;
+}
+
+/* Why THIS one: evidence chips — distance, rating, exact words matched. */
+.match-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.match-reason {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--mode-accent-deep);
+  background: var(--mode-tint);
+  border: 1px solid color-mix(in srgb, var(--mode-accent) 30%, transparent);
+  padding: 5px 11px;
+  border-radius: 999px;
+}
+
+.best-match-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.best-match-actions .btn-add { flex: 1; }
+
+.best-match .card-booking-link { margin-top: 0; }
+
+@media (max-width: 720px) {
+  .best-match-inner { grid-template-columns: 1fr; }
+  .best-match-photo { min-height: 0; height: 220px; }
+  .best-match-photo img { height: 118%; }
+  .best-match-body { padding: 20px 18px 18px; }
+}
+
+/* Match the feed cards' thumb-territory pattern: primary action full-width
+   on top once the row gets cramped. */
+@media (max-width: 420px) {
+  .best-match-actions { flex-wrap: wrap; }
+  .best-match-actions .btn-add { flex: 1 0 100%; }
+}
+
+/* ---------- Booking return sheet ----------
+   A Book click opens a new tab — this tab becomes the "your plan is safe"
+   moment: a soft sheet rises with the saved idea and one clear way back
+   into planning. A hairline timer shows it will excuse itself. */
+.return-sheet {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translate(-50%, 24px);
+  z-index: 65;
+  width: min(520px, calc(100vw - 24px));
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 14px 16px;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: saturate(1.6) blur(24px);
+  backdrop-filter: saturate(1.6) blur(24px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.32s var(--ease), transform 0.32s var(--ease);
+}
+
+.return-sheet--visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.return-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  background: var(--paper-dim);
+  box-shadow: var(--shadow-soft);
+}
+
+.return-text { display: grid; gap: 3px; min-width: 0; }
+
+.return-text strong {
+  font-family: var(--display);
+  font-size: 14.5px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.return-text span {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.return-actions { display: flex; align-items: center; gap: 6px; }
+
+.return-continue {
+  border: none;
+  border-radius: var(--radius-btn);
+  background: var(--mode-accent);
+  color: var(--paper);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 14px;
+  white-space: nowrap;
+  transition: filter 0.15s ease, transform 0.15s var(--ease);
+}
+.return-continue:hover { filter: brightness(1.08); }
+.return-continue:active { transform: scale(0.96); }
+
+.return-dismiss {
+  background: transparent;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 14px;
+  padding: 8px;
+  border-radius: 50%;
+  line-height: 1;
+}
+.return-dismiss:hover { background: var(--paper-dim); }
+
+/* Auto-dismiss hairline: runs while the sheet is visible. */
+.return-timer {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 7px;
+  height: 2.5px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+.return-timer::after {
+  content: '';
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--mode-accent);
+  transform-origin: left;
+  transform: scaleX(0);
+}
+.return-sheet--visible .return-timer::after {
+  animation: returnTimer var(--return-ms, 9000ms) linear forwards;
+}
+@keyframes returnTimer {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+@media (max-width: 480px) {
+  .return-sheet { grid-template-columns: 48px 1fr; }
+  .return-thumb { width: 48px; height: 48px; }
+  .return-actions { grid-column: 1 / -1; justify-content: stretch; }
+  .return-continue { flex: 1; }
+}
+
+/* ---------- Plans-left meter ----------
+   Honest scarcity, gently: three dots under the prompt box, lit while a
+   free plan remains today. Appears only when billing is live and the
+   caller is on the free tier. */
+.plans-left {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 12px auto 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.plans-left-dots { display: inline-flex; gap: 5px; }
+
+.plans-left-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--mode-accent);
+  transition: background 0.4s ease, transform 0.4s var(--ease);
+}
+.plans-left-dot--spent {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+  transform: scale(0.85);
+}
+
+.plans-left .linklike {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--coral-dark);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* ---------- Environmental feedback: weather on the chrome ----------
+   The day's actual sky tints the hero — barely, but you feel it. Set as
+   body[data-weather] whenever a search returns conditions. */
+body[data-weather] .hero::before { transition: filter 1.2s ease; }
+body[data-weather="rain"] .hero::before { filter: saturate(0.72) brightness(0.94) hue-rotate(-8deg); }
+body[data-weather="snow"] .hero::before { filter: saturate(0.6) brightness(1.06); }
+body[data-weather="clouds"] .hero::before { filter: saturate(0.85); }
+body[data-weather="clear"] .hero::before { filter: saturate(1.12) brightness(1.03); }
+
+/* ---------- Soft confirmation: the save bloom ----------
+   Saving a plan blooms a quiet ring out of the button — a breath of
+   "that's safe now", not a firework. */
+@keyframes saveBloom {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--mode-accent) 55%, transparent); }
+  100% { box-shadow: 0 0 0 26px transparent; }
+}
+.save-bloom { animation: saveBloom 0.8s var(--ease); }
+
+/* Replan "what changed" panel gets a settle-in shimmer via GSAP; this is
+   the reduced-motion-safe resting style. */
+.change-summary { transform-origin: top center; }
+
+/* ---------- Small refinements ---------- */
+/* Booking links get a quiet lift so the affiliate action feels premium. */
+.card-booking-link {
+  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease), filter 0.18s ease;
+}
+.card-booking-link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(255, 182, 39, 0.4);
+  filter: brightness(1.04);
+}
+.card-booking-link--secondary:hover { box-shadow: var(--shadow-soft); }
+
+/* Weather strip reads as part of the prompt box family. */
+.weather-strip { transition: opacity 0.4s ease; }
+
+/* Lenis html hooks (https://lenis.darkroom.engineering) */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: hidden; }

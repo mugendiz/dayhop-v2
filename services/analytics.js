@@ -21,8 +21,11 @@ const EVENT_TYPES = new Set([
   'upgrade_viewed', 'guide_export',
   // Instant discovery feed served (server-truth, includes cache hits).
   'browse_feed',
-  // Booking retention: click → prompt shown → (maybe) idea auto-saved.
-  'booking_return_prompt_shown', 'idea_auto_saved_on_booking'
+  // Booking retention: click → prompt shown → (maybe) idea auto-saved →
+  // "keep planning" tapped (the retention win).
+  'booking_return_prompt_shown', 'idea_auto_saved_on_booking', 'booking_return_continue',
+  // Product-identity + zero-state engagement.
+  'mode_switch', 'sample_plan_viewed'
 ]);
 
 // ---------- in-memory mirror ----------
