@@ -69,6 +69,9 @@
     panel.hidden = false;
     requestAnimationFrame(() => panel.classList.add('modal--open'));
     document.body.style.overflow = 'hidden';
+    // Join app.js's overlay↔history handling so the back button closes
+    // this modal too (guarded — app.js loads after us).
+    if (window.DayHopOverlayNav) window.DayHopOverlayNav.opened('auth-panel');
     const email = $('auth-email');
     if (email) setTimeout(() => email.focus(), 60);
   }
@@ -78,15 +81,18 @@
     panel.classList.remove('modal--open');
     document.body.style.overflow = '';
     setTimeout(() => { panel.hidden = true; }, 200);
+    if (window.DayHopOverlayNav) window.DayHopOverlayNav.closed('auth-panel');
   }
 
   function setMode(next) {
     mode = next;
     const signup = mode === 'signup';
-    $('auth-title').textContent = signup ? 'Create your account' : 'Welcome back';
+    // Neutral default — most visitors are new, so never open with
+    // "Welcome back"; lead with what signing in gets them.
+    $('auth-title').textContent = signup ? 'Create your account' : 'Save your plans';
     $('auth-sub').textContent = signup
       ? 'Save your shortlist and day plans, synced across devices.'
-      : 'Sign in to save your shortlist and plans across devices.';
+      : 'Sign in — or create a free account — to keep your shortlist and plans on every device.';
     $('auth-submit').querySelector('.btn-label').textContent = signup ? 'Create account' : 'Sign in';
     $('auth-toggle-text').textContent = signup ? 'Already have an account?' : 'New to DayHop?';
     $('auth-toggle-btn').textContent = signup ? 'Sign in' : 'Create an account';

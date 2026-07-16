@@ -116,6 +116,19 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Keep-alive: Render's free tier spins the instance down after ~15 min
+// without inbound traffic, and the next visitor eats a 30-60 s cold start —
+// fatal for a shared or demo link. While the process is up, pinging our own
+// public URL counts as inbound traffic and keeps it warm. Render injects
+// RENDER_EXTERNAL_URL automatically; set KEEP_ALIVE_URL to override, or
+// KEEP_ALIVE_URL=off to disable (e.g. after moving to a paid instance).
+const keepAliveBase = process.env.KEEP_ALIVE_URL || process.env.RENDER_EXTERNAL_URL;
+if (isProd && keepAliveBase && keepAliveBase !== 'off') {
+  const ping = () => fetch(new URL('/health', keepAliveBase)).catch(() => {});
+  setInterval(ping, 10 * 60 * 1000).unref();
+  console.log(`[keepalive] pinging ${keepAliveBase}/health every 10 min`);
+}
+
 app.listen(PORT, () => {
   console.log(`🚀 DayHop V2 running on http://localhost:${PORT}`);
   if (!process.env.GROK_API_KEY) {

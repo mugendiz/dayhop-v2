@@ -2068,3 +2068,103 @@ body[data-mode="adventure"] .mode-thumb { transform: translateX(100%); }
   .mode-icon { font-size: 19px; }
   .mode-text strong { font-size: 14px; }
 }
+
+/* =====================================================
+   Zero-state sample plan teaser, site footer, and the
+   upgrade table's "not included" mark
+   ===================================================== */
+
+/* "Or see the payoff first" — a finished-plan preview in the empty state */
+.sample-plan {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 34px;
+}
+
+.sample-plan-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+  width: min(420px, 100%);
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+
+.sample-plan-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--coral); }
+.sample-plan-card:active { transform: translateY(0) scale(0.99); }
+
+.sample-plan-title {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--ink);
+}
+
+.sample-plan-stops {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+
+.sample-plan-stops em {
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink);
+  margin-right: 6px;
+}
+
+.sample-plan-cta {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--coral-dark);
+}
+
+/* Upgrade table: muted "not included" mark on the Free column */
+.compare-no { opacity: 0.45; }
+
+/* Site footer — the trust layer under the app */
+.site-footer {
+  border-top: 1px solid var(--line);
+  background: var(--paper-dim);
+  text-align: center;
+  padding: 32px 20px 96px; /* bottom clears the floating shortlist button */
+  color: var(--ink-soft);
+}
+
+.footer-about {
+  max-width: 480px;
+  margin: 0 auto 14px;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  font-size: 13.5px;
+  margin-bottom: 12px;
+}
+
+.footer-links a { color: var(--ink); text-decoration: none; font-weight: 500; }
+.footer-links a:hover { color: var(--coral-dark); text-decoration: underline; }
+
+.footer-fineprint {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  margin: 0;
+}

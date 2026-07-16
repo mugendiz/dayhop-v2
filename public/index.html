@@ -82,10 +82,10 @@
         id="grok-prompt"
         rows="2"
         maxlength="600"
-        placeholder="3 hours with my 4-year-old near the water. A World Cup watch party, a splash pad, and somewhere relaxed to eat after."
+        placeholder="3 unhurried hours near the water — a quiet garden, a scenic lookout, and somewhere relaxed to eat after."
         required></textarea>
       <button type="submit" class="primary-btn" id="generate-btn">
-        <span class="btn-label">✨ View My Plan</span>
+        <span class="btn-label">✨ Plan my day</span>
         <span class="btn-spinner" aria-hidden="true"></span>
       </button>
     </form>
@@ -120,14 +120,30 @@
       <p>Describe the day you're picturing and DayHop lays out a trail of ideas — swipe right to keep, left to skip.</p>
       <div class="example-prompts" id="example-prompts">
         <span class="example-prompts-label">Try one</span>
-        <button class="example-chip" type="button" data-prompt="A rainy Saturday with two kids under 6 — somewhere indoors to burn energy, then an easy lunch nearby.">
-          🌧️ Rainy day with little kids
+        <button class="example-chip" type="button" data-prompt="A slow, restorative morning — a peaceful garden or quiet trail, a scenic lookout, and a calm café to end at.">
+          🌿 Slow morning in nature
         </button>
-        <button class="example-chip" type="button" data-prompt="A World Cup watch party with friends this afternoon — craft beer, big screens, and a patio if the weather holds.">
-          ⚽ World Cup watch party
+        <button class="example-chip" type="button" data-prompt="A rainy Saturday with two kids under 6 — somewhere calm indoors to unwind, then an easy lunch nearby.">
+          🌧️ Rainy day with little kids
         </button>
         <button class="example-chip" type="button" data-prompt="3 relaxed hours near the water with my 4-year-old — a splash pad and somewhere easy to eat after.">
           🏖️ Afternoon by the water
+        </button>
+      </div>
+
+      <!-- Zero-state payoff: a hand-built sample plan a first-time visitor
+           can open in one tap, before typing anything. -->
+      <div class="sample-plan" id="sample-plan-teaser">
+        <span class="example-prompts-label">Or see the payoff first</span>
+        <button class="sample-plan-card" id="sample-plan-btn" type="button">
+          <span class="sample-plan-title">☀️ A perfect Saturday in Leslieville</span>
+          <span class="sample-plan-stops">
+            <span><em>9:30</em> Bonjour Brioche — flaky start on Queen East</span>
+            <span><em>11:00</em> Tommy Thompson Park — car-free lakeside trail</span>
+            <span><em>1:30</em> Patio lunch &amp; indie shops on Queen</span>
+            <span><em>3:30</em> Cherry Beach — golden-hour wind-down</span>
+          </span>
+          <span class="sample-plan-cta">See the full sample plan →</span>
         </button>
       </div>
     </div>
@@ -170,7 +186,7 @@
     <div class="panel-footer">
       <button id="surprise-me-btn" class="ghost-btn surprise-btn" type="button">✨ Surprise me</button>
       <button id="build-day-btn" class="primary-btn" type="button" disabled>
-        <span class="btn-label">View My Plan</span>
+        <span class="btn-label">Build my day</span>
         <span class="btn-spinner" aria-hidden="true"></span>
       </button>
     </div>
@@ -287,7 +303,7 @@
       </div>
       <div class="compare-row" data-context="edit_guide" role="row">
         <span role="cell">✏️ Edit saved plans</span>
-        <span class="compare-free" role="cell">—</span>
+        <span class="compare-free compare-no" role="cell"><span aria-hidden="true">✕</span><span class="sr-only">Not included</span></span>
         <span class="compare-pro" role="cell">✓</span>
       </div>
     </div>
@@ -302,7 +318,7 @@
   <div class="modal-backdrop" data-close-auth></div>
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="auth-title">
     <button class="panel-close modal-close" data-close-auth aria-label="Close">✕</button>
-    <h2 id="auth-title">Welcome back</h2>
+    <h2 id="auth-title">Save your plans</h2>
     <p class="auth-sub" id="auth-sub">Sign in to save your shortlist and plans across devices.</p>
 
     <button class="google-btn" id="google-btn" type="button">
@@ -334,6 +350,18 @@
     </p>
   </div>
 </div>
+
+<footer class="site-footer">
+  <p class="footer-about">DayHop is a Toronto-built day planner — real venues, live weather, and AI that plans like a thoughtful local friend.</p>
+  <nav class="footer-links" aria-label="Legal and contact">
+    <a href="/privacy.html">Privacy</a>
+    <span aria-hidden="true">·</span>
+    <a href="/terms.html">Terms</a>
+    <span aria-hidden="true">·</span>
+    <a href="mailto:zokaamazon@gmail.com">Contact</a>
+  </nav>
+  <p class="footer-fineprint">© 2026 DayHop · Made in the GTA 🍁</p>
+</footer>
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 

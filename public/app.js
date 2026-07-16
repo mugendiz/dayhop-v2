@@ -80,6 +80,12 @@
     }
   };
 
+  // FIFA World Cup 2026 wraps with the July 19 final — after that, the
+  // branding sweeps itself to summer (eyebrow + filter chips) so the site
+  // never looks stale while nobody is watching.
+  const WORLD_CUP_ENDS = Date.parse('2026-07-20T08:00:00Z');
+  const worldCupLive = () => Date.now() < WORLD_CUP_ENDS;
+
   // GTA coverage — "Across the GTA" is the default, then grouped by region.
   const GTA_WIDE = 'Across the GTA';
   const GTA_LOCATIONS = [
@@ -89,6 +95,88 @@
     { region: 'Halton', cities: ['Oakville', 'Burlington', 'Milton', 'Halton Hills'] },
     { region: 'Durham', cities: ['Pickering', 'Ajax', 'Whitby', 'Oshawa'] }
   ];
+
+  // ---------- Sample plan (zero-state payoff) ----------
+  // Hand-built from real Toronto places so a first-time visitor sees a full
+  // finished plan in one tap — before typing anything or waiting on the AI.
+  // Shaped exactly like a guide, so the normal plan panel (and even smart
+  // re-planning) works on it unchanged.
+  const SAMPLE_GUIDE = {
+    title: '☀️ A perfect Saturday in Leslieville',
+    city: 'Toronto (Downtown)',
+    start_time: '9:30 AM',
+    notes: 'This is a sample of what DayHop builds. Describe your own day above and it plans around live weather, real venues, and exactly what you feel like doing.',
+    stops: [
+      {
+        title: 'Breakfast at Bonjour Brioche',
+        suggested_time: '9:30 AM – 10:45 AM',
+        transition_note: '15 min drive (or a scenic ride down Leslie St) to the park gates',
+        note: '',
+        idea: {
+          id: 'sample-brioche',
+          title: 'Bonjour Brioche',
+          location: 'Queen St E, Riverside',
+          why: 'A neighbourhood-institution French bakery — croissants worth the weekend line, and the people-watching on Queen East is free.',
+          duration_minutes: 75,
+          cost_tier: '$$',
+          category: 'food',
+          image_url: categoryImage('food'),
+          maps_url: 'https://maps.google.com/?q=Bonjour+Brioche,+Toronto'
+        }
+      },
+      {
+        title: 'Walk the spit at Tommy Thompson Park',
+        suggested_time: '11:00 AM – 1:00 PM',
+        transition_note: '10 min back up to Queen East for lunch',
+        note: '',
+        idea: {
+          id: 'sample-tommy-thompson',
+          title: 'Tommy Thompson Park',
+          location: 'Leslie Street Spit, Toronto',
+          why: 'A car-free peninsula jutting 5 km into Lake Ontario — skyline views, cottonwood trails, and more birds than people.',
+          duration_minutes: 120,
+          cost_tier: 'Free',
+          category: 'general',
+          image_url: categoryImage('general'),
+          maps_url: 'https://maps.google.com/?q=Tommy+Thompson+Park,+Toronto'
+        }
+      },
+      {
+        title: 'Patio lunch & indie shops on Queen',
+        suggested_time: '1:30 PM – 3:00 PM',
+        transition_note: '8 min south to the beach for golden hour',
+        note: '',
+        idea: {
+          id: 'sample-leslieville-lunch',
+          title: 'Leslieville patios & shops',
+          location: 'Queen St E, Leslieville',
+          why: 'Pick any patio that catches your eye, then wander the record shops, vintage stores, and bakeries between Logan and Greenwood.',
+          duration_minutes: 90,
+          cost_tier: '$$',
+          category: 'patios',
+          image_url: categoryImage('patios'),
+          maps_url: 'https://maps.google.com/?q=Queen+St+E+%26+Logan+Ave,+Toronto'
+        }
+      },
+      {
+        title: 'Golden hour at Cherry Beach',
+        suggested_time: '3:30 PM – 5:30 PM',
+        transition_note: '',
+        note: '',
+        idea: {
+          id: 'sample-cherry-beach',
+          title: 'Cherry Beach',
+          location: 'Unwin Ave, Port Lands',
+          why: 'A locals\' beach with real sand, calm water, and shady trees — the unhurried way to close out a Saturday.',
+          duration_minutes: 120,
+          cost_tier: 'Free',
+          category: 'water',
+          image_url: categoryImage('water'),
+          maps_url: 'https://maps.google.com/?q=Cherry+Beach,+Toronto'
+        }
+      }
+    ]
+  };
 
   const state = {
     mode: 'rr',          // 'rr' (default) | 'adventure' — see MODES
@@ -216,7 +304,9 @@
     const wrap = document.getElementById('filters');
     if (!wrap) return;
     wrap.innerHTML = '';
-    MODES[state.mode].filters.forEach(({ filter, label }) => {
+    MODES[state.mode].filters
+      .filter(({ filter }) => filter !== 'worldcup' || worldCupLive())
+      .forEach(({ filter, label }) => {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'filter-chip' + (state.currentFilter === filter ? ' active' : '');
@@ -579,18 +669,75 @@
     setTimeout(() => { el.hidden = true; }, 200);
   }
 
+  // ---------- Overlay ↔ history integration ----------
+  // One synthetic history entry exists while any panel/modal is open, so the
+  // phone's back button closes the overlay instead of leaving DayHop.
+  // Stacked overlays (e.g. the upgrade modal over the shortlist) all close on
+  // one back — predictable, and never traps the user in the history stack.
+  const overlayNav = {
+    open: new Set(),
+    owned: false,      // we pushed the entry that's currently on top
+    ignorePop: false,  // the next popstate is our own history.back()
+    opened(id) {
+      this.open.add(id);
+      if (!this.owned) {
+        this.owned = true;
+        history.pushState({ dayhopOverlay: true }, '');
+      }
+    },
+    closed(id) {
+      this.open.delete(id);
+      // Deferred so a close immediately followed by an open (shortlist →
+      // plan) keeps the entry instead of bouncing history around.
+      setTimeout(() => {
+        if (this.owned && this.open.size === 0) {
+          this.owned = false;
+          this.ignorePop = true;
+          history.back();
+        }
+      }, 0);
+    }
+  };
+
+  // Close the overlay's DOM without touching history — used by the popstate
+  // handler (the entry is already gone) and shared by panels and modals.
+  function domCloseOverlay(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('panel--open', 'modal--open');
+    document.body.style.overflow = '';
+    setTimeout(() => { el.hidden = true; }, 200);
+  }
+
+  window.addEventListener('popstate', () => {
+    if (overlayNav.ignorePop) { overlayNav.ignorePop = false; return; }
+    if (!overlayNav.owned) return;
+    overlayNav.owned = false;
+    overlayNav.open.forEach(domCloseOverlay);
+    overlayNav.open.clear();
+  });
+
+  // auth.js owns its own modal; these hooks let it join the same history
+  // behavior without importing anything.
+  window.DayHopOverlayNav = {
+    opened: (id) => overlayNav.opened(id),
+    closed: (id) => overlayNav.closed(id)
+  };
+
   // ---------- Panels ----------
   function openPanel(id) {
     const panel = document.getElementById(id);
     panel.hidden = false;
     requestAnimationFrame(() => panel.classList.add('panel--open'));
     document.body.style.overflow = 'hidden';
+    overlayNav.opened(id);
   }
 
   function closePanel(panelEl) {
     panelEl.classList.remove('panel--open');
     document.body.style.overflow = '';
     setTimeout(() => { panelEl.hidden = true; }, 200);
+    overlayNav.closed(panelEl.id);
   }
 
   function wirePanelClosers() {
@@ -1502,6 +1649,21 @@
     return g;
   }
 
+  // The zero-state "see the payoff first" plan: rendered through the normal
+  // plan panel, so saving, exporting, and re-planning all work on it — the
+  // sample IS the demo.
+  function showSamplePlan() {
+    track('sample_plan_viewed', {});
+    state.lastPlan = null;
+    state.currentGuide = JSON.parse(JSON.stringify(SAMPLE_GUIDE));
+    state.currentGuideId = null;
+    state.savedGuide = null;
+    state.lastChangeSummary = null;
+    state.editMode = false;
+    renderPlanView();
+    openPanel('dayplan-panel');
+  }
+
   function renderDayPlan(plan) {
     state.lastPlan = plan;
     state.currentGuide = guideFromPlan(plan);
@@ -1905,7 +2067,7 @@
   async function ensureGuideSaved() {
     if (state.savedGuide) return state.savedGuide;
     if (!state.currentGuide) {
-      showToast('Build a day plan first — add ideas and tap "View My Plan".');
+      showToast('Build a day plan first — add ideas and tap "Build my day".');
       return null;
     }
     const saved = await saveCurrentGuide();
@@ -2219,12 +2381,14 @@
       : 'Go Pro ✨';
     modal.hidden = false;
     requestAnimationFrame(() => modal.classList.add('modal--open'));
+    overlayNav.opened('upgrade-panel');
   }
 
   function hideUpgradeModal() {
     const modal = document.getElementById('upgrade-panel');
     modal.classList.remove('modal--open');
     setTimeout(() => { modal.hidden = true; }, 200);
+    overlayNav.closed('upgrade-panel');
   }
 
   function wireUpgradeModal() {
@@ -2257,7 +2421,7 @@
     document.querySelectorAll('.day-choice').forEach(btn =>
       btn.classList.toggle('active', Number(btn.dataset.days) === days));
     const label = document.querySelector('#build-day-btn .btn-label');
-    if (label) label.textContent = days > 1 ? `View My ${days}-Day Plan` : 'View My Plan';
+    if (label) label.textContent = days > 1 ? `Build my ${days}-day plan` : 'Build my day';
   }
 
   function wireDaySelector() {
@@ -2582,6 +2746,20 @@
     updateWhereEmphasis();
     updateShortlistCount();
     wirePanelClosers();
+
+    // A refresh while an overlay was open leaves our synthetic history entry
+    // on top — clear the marker so back behaves normally again.
+    if (history.state && history.state.dayhopOverlay) history.replaceState(null, '');
+
+    // Post-tournament sweep: the World Cup eyebrow becomes plain summer.
+    if (!worldCupLive()) {
+      const eyebrow = document.querySelector('.hero .eyebrow');
+      if (eyebrow) eyebrow.textContent = 'Greater Toronto Area · Summer 2026';
+    }
+
+    // Zero-state sample plan — one tap to see a finished plan.
+    const sampleBtn = document.getElementById('sample-plan-btn');
+    if (sampleBtn) sampleBtn.addEventListener('click', showSamplePlan);
 
     // React to auth (auth.js dispatches on initial session + every change).
     document.addEventListener('dayhop:auth', (e) => handleAuthChange(e.detail));
