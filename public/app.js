@@ -1038,7 +1038,7 @@
     const ideas = visibleIdeas();
 
     let stopIndex = 0;
-    const appendSection = (label, group, showHeaders) => {
+    const appendSection = (label, group, showHeaders, bestIds) => {
       if (group.length === 0) return;
       if (showHeaders) {
         const header = document.createElement('h3');
@@ -1047,7 +1047,7 @@
         feed.appendChild(header);
       }
       group.forEach(idea => {
-        feed.appendChild(createIdeaCard(idea, stopIndex++, animate));
+        feed.appendChild(createIdeaCard(idea, stopIndex++, animate, Boolean(bestIds && bestIds.has(idea.id))));
       });
     };
 
@@ -1068,7 +1068,12 @@
       const onTarget = ideas.filter(i => !i.wow_reason);
       const beyond = ideas.filter(i => i.wow_reason);
       const showHeaders = onTarget.length > 0 && beyond.length > 0;
-      appendSection('Right on target', onTarget, showHeaders);
+      // Crown the top direct answers so the eye lands on "start here"
+      // instead of a flat grid. Only when there's a real field to beat —
+      // 1 badge from 3+ results, 2 from 5+.
+      const bestCount = onTarget.length >= 5 ? 2 : (onTarget.length >= 3 ? 1 : 0);
+      const bestIds = new Set(onTarget.slice(0, bestCount).map(i => i.id));
+      appendSection('Right on target', onTarget, showHeaders, bestIds);
       appendSection('Beyond what you asked ✨', beyond, showHeaders);
     }
 
@@ -1084,7 +1089,7 @@
     renderCollections();
   }
 
-  function createIdeaCard(idea, index, animate = false) {
+  function createIdeaCard(idea, index, animate = false, bestMatch = false) {
     const card = document.createElement('article');
     card.className = 'idea-card';
     card.dataset.id = idea.id;
@@ -1106,6 +1111,7 @@
       <div class="card-photo">
         <img src="${escapeAttr(idea.image_url || categoryImage(idea.category))}" alt="" loading="lazy" decoding="async">
         <span class="card-stamp">STOP ${stopNumber}</span>
+        ${bestMatch ? '<span class="card-badge card-badge--best">🎯 Best match for you</span>' : ''}
         ${idea.wow_reason ? '<span class="card-badge card-badge--wow">✨ Unexpected find</span>' : ''}
         <span class="card-category">${categoryLabel}</span>
       </div>
@@ -2344,13 +2350,15 @@
   // One upgrade modal for every Pro gate: a contextual first line (what just
   // hit the limit) above the full benefits list, so the prompt always answers
   // "why am I seeing this" AND "what do I get".
+  // Outcome language, not feature language: each line names the day the
+  // user was about to have, then removes the thing standing in its way.
   const UPGRADE_CONTEXTS = {
-    generate: "You've used today's free day plans — Pro plans without limits.",
-    saved_guides: 'Your free saved plans are full — Pro keeps every plan you make.',
-    edit_guide: 'Your edits look great — saving a customized plan is a Pro feature.',
-    multi_day: 'Weekend and multi-day trips are a Pro feature.',
-    replan: "You've used today's free re-plan — Pro re-plans as often as the weather changes.",
-    new_shortlist: 'Starting fresh shortlists anytime is a Pro feature.'
+    generate: "You're out of plans for today — with Pro, a great day is never more than a sentence away.",
+    saved_guides: 'Never lose a perfect day again — Pro keeps every plan you make, forever.',
+    edit_guide: "You've made this plan yours — Pro saves your version so it's ready next weekend.",
+    multi_day: 'Turn a great day into a great weekend — Pro plans 2–3 day getaways.',
+    replan: 'Weather changed? Kids changed the mood? Pro re-plans as often as your day does.',
+    new_shortlist: 'Start fresh whenever inspiration strikes — unlimited shortlists with Pro.'
   };
 
   function showUpgradeModal(context) {

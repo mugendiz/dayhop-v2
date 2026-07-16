@@ -13,7 +13,9 @@
 const billing = require('./billing');
 
 const FREE_DAILY_GENERATES = Number(process.env.FREE_DAILY_GENERATES || 5);
-const FREE_GUIDE_LIMIT = Number(process.env.FREE_GUIDE_LIMIT || 2);
+// 5 saved plans (was 2): enough room to form a habit before hitting the
+// gate — the upgrade moment should come from love, not from a wall.
+const FREE_GUIDE_LIMIT = Number(process.env.FREE_GUIDE_LIMIT || 5);
 const FREE_DAILY_REPLANS = Number(process.env.FREE_DAILY_REPLANS || 1);
 const MAX_TRIP_DAYS = 3;
 

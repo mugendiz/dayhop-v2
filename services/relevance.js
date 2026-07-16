@@ -97,12 +97,17 @@ function scoreCandidates(candidates, { prompt, themes = [], filter } = {}) {
     if (candidate.wow === true) score += 1;
     if (candidate.civic === true || candidate.cost_tier === 'free') score += 0.5;
 
-    // Proximity (set when the user shared their location): "around the
-    // corner" beats "across the region" for equally relevant candidates.
+    // Proximity (set when the user shared their location). A top-tier
+    // signal, not a tiebreaker: for family and R&R days, "20 minutes away"
+    // IS relevance — nearby beats marginally-better-but-distant, and
+    // anything past ~35 km (an hour across the GTA) must earn its place
+    // on merit. ≤20 km ≈ the 20-30 min drive most day plans tolerate.
     if (candidate.distance_km != null) {
-      if (candidate.distance_km <= 2) score += 2.5;
-      else if (candidate.distance_km <= 5) score += 1.5;
-      else if (candidate.distance_km <= 10) score += 0.5;
+      if (candidate.distance_km <= 2) score += 6;
+      else if (candidate.distance_km <= 5) score += 4.5;
+      else if (candidate.distance_km <= 10) score += 3;
+      else if (candidate.distance_km <= 20) score += 1.5;
+      else if (candidate.distance_km > 35) score -= 2;
     }
 
     return { candidate, score };

@@ -875,6 +875,13 @@ button, .filter-chip {
   box-shadow: 0 2px 8px rgba(16,42,46,0.3);
 }
 
+/* Top 1-2 direct answers to the prompt — the "start here" crown. */
+.card-badge--best {
+  color: var(--paper);
+  background: var(--coral-dark);
+  box-shadow: 0 2px 8px rgba(16,42,46,0.3);
+}
+
 /* One-line "you asked for X — did you know…" hook under the why. */
 .wow-line {
   font-size: 13.5px;
