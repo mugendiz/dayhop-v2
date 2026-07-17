@@ -104,14 +104,26 @@ Return 8 to 12 ideas — quality over quantity. Every idea must be one you would
  * not fabricate. This is what makes DayHop trustworthy with real venues
  * instead of just confidently wrong.
  */
-function buildGroundedSystemPrompt({ city, weatherHint, mode }) {
+// Shared advisory rules for every prompt that receives an advisoriesHint.
+// Safety-first but not alarmist: honor the advisory, still serve the user.
+// Written as hard numeric constraints — the fast non-reasoning model
+// follows "at most 3" far more reliably than "prefer".
+function advisoryRules(advisoriesHint) {
+  if (!advisoriesHint) return '';
+  return `- ADVISORIES ARE IN EFFECT (see ACTIVE ADVISORIES above). Serve the user's request, but honestly: every outdoor/open-air pick's "why" MUST end with a short practical clause acknowledging the advisory (e.g. "— one to save for when the smoke clears" or "— go early before the heat peaks"). Never claim an outdoor place is protected or unaffected (no "sheltered from the smoke" for an open park), and never call an outdoor pick perfect for today.
+- Also include 2-3 of the best indoor or genuinely covered candidates as advisory-safe alternatives, even if the request leaned outdoor — the user may not know about the advisory yet.
+- Warm and practical, never alarmist: one short clause per affected pick is enough.
+`;
+}
+
+function buildGroundedSystemPrompt({ city, weatherHint, advisoriesHint, mode }) {
   return `You are the planning engine behind DayHop, a trusted AI local adventure companion, currently planning for ${city}.
 
-You will be given a user request plus a JSON list of REAL candidate places, live local events, and bookable activities (from Google Places, Ticketmaster, Eventbrite, city open-data event calendars, Viator, GetYourGuide, and DayHop's curated list). ${weatherHint || ''}
+You will be given a user request plus a JSON list of REAL candidate places, live local events, and bookable activities (from Google Places, Ticketmaster, Eventbrite, city open-data event calendars, Viator, GetYourGuide, and DayHop's curated list). ${weatherHint || ''}${advisoriesHint ? `\n\n${advisoriesHint}` : ''}
 
 Hard rules:
 - Only recommend items that appear in the provided candidate list. Do not invent venues that are not in the candidates.
-${modeDirective(mode)}
+${advisoryRules(advisoriesHint)}${modeDirective(mode)}
 - If the candidates don't cover something the user asked for, say so honestly in that idea's "why" rather than fabricating a match — or simply omit that angle.
 - Use the live weather context to favor indoor or outdoor picks appropriately, and mention it briefly in "why" when it materially affected the choice.
 - Preserve each selected item's "id" and "source" fields exactly as given so we can re-attach booking/map links.
@@ -220,14 +232,14 @@ JSON shape:
  * and replacements by candidate_id so the caller can re-attach full idea
  * payloads (photos, booking links) without trusting the model to copy them.
  */
-function buildReplanSystemPrompt({ city, weatherHint, hasCandidates, multiDay, mode }) {
+function buildReplanSystemPrompt({ city, weatherHint, advisoriesHint, hasCandidates, multiDay, mode }) {
   const where = whereLabel(city);
-  return `You are DayHop's smart re-planning engine for ${where}. You will receive a family's CURRENT itinerary ("current_plan"), their adjustment request ("request")${hasCandidates ? ', and a list of REAL candidate places/activities ("candidates") you may swap in' : ''}. ${weatherHint || ''}
+  return `You are DayHop's smart re-planning engine for ${where}. You will receive a family's CURRENT itinerary ("current_plan"), their adjustment request ("request")${hasCandidates ? ', and a list of REAL candidate places/activities ("candidates") you may swap in' : ''}. ${weatherHint || ''}${advisoriesHint ? `\n\n${advisoriesHint}` : ''}
 
 Your job: revise the plan to honor the request while keeping everything that still works. Change what needs changing — no more, no less.
 
 Hard rules:
-${modeDirective(mode)}
+${advisoryRules(advisoriesHint)}${modeDirective(mode)}
 - Each output stop is EITHER a kept stop (set "keep_id" to that stop's original id — copy it exactly) OR ${hasCandidates ? 'a swap-in from the candidates (set "candidate_id" to the candidate\'s id — copy it exactly)' : 'a kept stop; with no candidates provided you may only reorder, retime, remove, or annotate stops'}. Never both, and NEVER invent a venue that is in neither list.
 - Kept stops may be reordered, retimed, or given new transition notes. Keep their titles as-is.
 - Remove stops that conflict with the request (e.g. outdoor stops when rain-proofing, pricey stops for a budget version) — removal is often the right move.
@@ -332,7 +344,7 @@ async function generateIdeas({ prompt, city = DEFAULT_CITY, region = DEFAULT_REG
  * @param {Array} opts.candidates - normalized candidate objects, each tagged with a `source`
  * @param {Object} [opts.weather] - output of services/weather.getConditions
  */
-async function generateGroundedIdeas({ prompt, filter, city = DEFAULT_CITY, candidates, weather, mode }) {
+async function generateGroundedIdeas({ prompt, filter, city = DEFAULT_CITY, candidates, weather, advisories, mode }) {
   if (!prompt || !prompt.trim()) {
     const err = new Error('Prompt is required');
     err.code = 'INVALID_INPUT';
@@ -345,6 +357,7 @@ async function generateGroundedIdeas({ prompt, filter, city = DEFAULT_CITY, cand
   }
 
   const weatherHint = weather ? require('./weather').toPromptHint(weather) : '';
+  const advisoriesHint = require('./advisories').toPromptHint(advisories);
 
   const userMessage = JSON.stringify({
     request: prompt,
@@ -353,7 +366,7 @@ async function generateGroundedIdeas({ prompt, filter, city = DEFAULT_CITY, cand
   });
 
   const messages = [
-    { role: 'system', content: buildGroundedSystemPrompt({ city, weatherHint, mode }) },
+    { role: 'system', content: buildGroundedSystemPrompt({ city, weatherHint, advisoriesHint, mode }) },
     { role: 'user', content: userMessage }
   ];
 
@@ -395,7 +408,7 @@ async function buildDayPlan({ items, city = DEFAULT_CITY, days = 1, mode }) {
  * the contract; the caller re-attaches full idea payloads by keep_id /
  * candidate_id and must treat unknown ids as hallucinations.
  */
-async function replanPlan({ current, instruction, city = DEFAULT_CITY, weather, candidates, mode }) {
+async function replanPlan({ current, instruction, city = DEFAULT_CITY, weather, advisories, candidates, mode }) {
   if (!instruction || !String(instruction).trim()) {
     const err = new Error('Tell DayHop what to change first');
     err.code = 'INVALID_INPUT';
@@ -408,13 +421,14 @@ async function replanPlan({ current, instruction, city = DEFAULT_CITY, weather, 
   }
 
   const weatherHint = weather ? require('./weather').toPromptHint(weather) : '';
+  const advisoriesHint = require('./advisories').toPromptHint(advisories);
   const pool = Array.isArray(candidates) ? candidates.slice(0, 40) : [];
   const multiDay = Array.isArray(current.days) && current.days.length > 0;
 
   const messages = [
     {
       role: 'system',
-      content: buildReplanSystemPrompt({ city, weatherHint, hasCandidates: pool.length > 0, multiDay, mode })
+      content: buildReplanSystemPrompt({ city, weatherHint, advisoriesHint, hasCandidates: pool.length > 0, multiDay, mode })
     },
     {
       role: 'user',

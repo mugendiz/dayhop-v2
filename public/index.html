@@ -96,6 +96,9 @@
     <!-- Free-tier meter: "N of 3 free plans left today" — JS fills & shows. -->
     <p class="plans-left" id="plans-left" hidden></p>
     <p class="weather-strip" id="weather-strip" hidden></p>
+      <!-- Advisories & closures: the "should I even go today?" banner.
+           JS fills with the highest-severity active advisory. -->
+      <div class="advisory-strip" id="advisory-strip" role="status" aria-live="polite" hidden></div>
   </div>
 </header>
 

@@ -71,7 +71,7 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const { candidates, weather, usedGrounding, resolvedCity } =
+    const { candidates, weather, usedGrounding, resolvedCity, advisories, advisoriesStatus } =
       await gatherCandidates(prompt, targetLocation, eventKeyword, filter, userCoords, mode);
     const cityForGrok = resolvedCity || targetLocation;
 
@@ -85,7 +85,8 @@ router.post('/', async (req, res) => {
           mode,
           city: cityForGrok,
           candidates: candidates.map(toGrokCandidate),
-          weather
+          weather,
+          advisories
         });
         ideas = mergeWithCandidates(selected, candidates);
       } catch (err) {
@@ -117,6 +118,8 @@ router.post('/', async (req, res) => {
       grounded: usedGrounding,
       degraded: degraded || undefined,
       weather: weather || null,
+      advisories: advisories || [],
+      advisories_status: advisoriesStatus || 'unavailable',
       near: userCoords ? resolvedCity || null : null,
       generated_at: new Date().toISOString()
     });
@@ -274,6 +277,8 @@ router.post('/replan', async (req, res) => {
     // still reorder/retime/remove with an empty pool.
     let candidates = [];
     let weather = null;
+    let advisories = [];
+    let advisoriesStatus = 'unavailable';
     try {
       const gathered = await gatherCandidates(
         trimmedInstruction, targetLocation, '', null, sanitizeCoords(req.body.coords),
@@ -281,6 +286,8 @@ router.post('/replan', async (req, res) => {
       );
       candidates = gathered.candidates;
       weather = gathered.weather;
+      advisories = gathered.advisories || [];
+      advisoriesStatus = gathered.advisoriesStatus || 'unavailable';
     } catch (err) {
       console.warn('[replan] candidate gathering failed (re-planning without swaps):', err.message);
     }
@@ -291,6 +298,7 @@ router.post('/replan', async (req, res) => {
       city: targetLocation,
       mode: grok.normalizeMode(req.body.mode),
       weather,
+      advisories,
       candidates: candidates.map(toGrokCandidate)
     });
 
@@ -310,7 +318,9 @@ router.post('/replan', async (req, res) => {
     res.json({
       guide: merged,
       change_summary: Array.isArray(revised.change_summary) ? revised.change_summary.slice(0, 6).map(s => String(s).slice(0, 200)) : [],
-      weather: weather || null
+      weather: weather || null,
+      advisories,
+      advisories_status: advisoriesStatus
     });
   } catch (err) {
     handleGrokError(err, res);

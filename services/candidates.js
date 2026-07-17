@@ -9,6 +9,7 @@
 
 const maps = require('./googleMaps');
 const weatherSvc = require('./weather');
+const advisoriesSvc = require('./advisories');
 const viator = require('./viator');
 const gyg = require('./getYourGuide');
 const ticketmaster = require('./ticketmaster');
@@ -112,6 +113,21 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
     }
   }
 
+  // Advisories ("should I even go today?"): air quality + condition-derived
+  // warnings for the target area. Resolved BEFORE the source batch — cheap
+  // (one cached air-quality call; the rest derives from the weather we
+  // already hold) and worth it, because a shelter-level advisory changes
+  // WHAT we search for, not just how results rank.
+  let advisoryResult = { advisories: [], status: 'unavailable' };
+  if (geo) {
+    try {
+      advisoryResult = await advisoriesSvc.getAdvisories({ lat: geo.lat, lng: geo.lng, conditions: weather });
+    } catch (err) {
+      console.warn('[candidates] advisories unavailable:', err.message);
+    }
+  }
+  const advisoryPressure = advisoriesSvc.advisoryEffects(advisoryResult.advisories);
+
   // The GTA-only sources (open data, curated, org-scoped Eventbrite) would be
   // wrong grounding for a request about some other city — skip them there.
   // A typed postal code ("L4C 1J8") won't name a town, so also check the
@@ -124,6 +140,16 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   // just its literal words.
   const themes = matchThemes(prompt);
   const themeQueries = themes.flatMap(t => t.placesQueries).slice(0, 4);
+
+  // Under a warning+ "stay out of the open air" advisory (smoke, dangerous
+  // heat/wind), a nature-first prompt would fill the pool with exactly the
+  // places users shouldn't visit today. One extra indoor-refuge search
+  // guarantees the ranked pool contains genuine alternatives to offer.
+  // Unshifted, not pushed: the google_places source cap trims from the end,
+  // and refuge results must survive it.
+  if (advisoryPressure.avoid_outdoor >= 2) {
+    themeQueries.unshift('best indoor attractions museums galleries aquariums');
+  }
 
   // One parallel batch: each source is independently optional — a failed or
   // unconfigured source logs one warning and contributes nothing.
@@ -188,7 +214,14 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   // Dedup first (interleave order only decides which duplicate wins), then
   // rank the whole pool against the prompt so the cap trims the least
   // relevant candidates instead of whichever source came last.
-  const pool = dedupCandidates(interleave(bySource));
+  // Closed places are dropped before any of that — DayHop never recommends
+  // (or spends a pool slot on) a place Google lists as closed.
+  const pool = dedupCandidates(interleave(bySource))
+    .filter(c => {
+      const closed = advisoriesSvc.closureAdvisory(c.business_status, { place_id: c.id, title: c.title });
+      if (closed) console.log(`[candidates] dropping closed place: ${c.title} (${c.business_status})`);
+      return !closed;
+    });
 
   // With shared coordinates, distance becomes a first-class signal: shown on
   // cards, boosted by the scorer, and visible to Grok as km_away.
@@ -203,10 +236,19 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   // Quality gate BEFORE the cap, so the pool fills with excellent
   // candidates instead of capping first and filtering what's left.
   const candidates = relevance.selectTop(
-    qualityGate(relevance.scoreCandidates(pool, { prompt, themes, filter, mode })),
+    qualityGate(relevance.scoreCandidates(pool, {
+      prompt, themes, filter, mode, advisoryPressure
+    })),
     CANDIDATE_POOL_CAP
   );
-  return { candidates, weather, usedGrounding: candidates.length > 0, resolvedCity };
+  return {
+    candidates,
+    weather,
+    usedGrounding: candidates.length > 0,
+    resolvedCity,
+    advisories: advisoryResult.advisories,
+    advisoriesStatus: advisoryResult.status
+  };
 }
 
 // Coordinates from the browser (already rounded client-side). Anything

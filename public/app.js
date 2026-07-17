@@ -202,6 +202,8 @@
     entitlements: null,      // limits from /api/billing/status (free vs pro)
     lastPrompt: '',
     lastWeather: null,
+    lastAdvisories: [],          // active advisories for the current area
+    lastAdvisoriesStatus: null,  // 'ok' | 'partial' | 'unavailable'
     coords: null,        // { lat, lng } rounded to ~110 m, only if user opted in
     coordsAt: 0,
     locationLabel: null, // e.g. "Richmond Hill · L4C"
@@ -1302,6 +1304,8 @@
   // the primary "Location · Time · Cost" meta line for cleaner scanning.
   function buildCardChips(idea) {
     const chips = [];
+    const conflict = advisoryConflictChip(idea);
+    if (conflict) chips.push(`<span class="card-chip card-chip--advisory" title="An advisory is in effect for this area">⚠️ Outdoors — ${escapeHtml(conflict)}</span>`);
     if (idea.distance_km != null) chips.push(`<span class="card-chip card-chip--near">📍 ${escapeHtml(String(idea.distance_km))} km</span>`);
     if (idea.date) chips.push(`<span class="card-chip card-chip--date">📅 ${escapeHtml(formatEventDate(idea.date))}</span>`);
     if (idea.rating != null) chips.push(`<span class="card-chip">★ ${escapeHtml(String(idea.rating))}</span>`);
@@ -1767,6 +1771,9 @@
         description: state.lastWeather.description || ''
       };
     }
+    // Advisory snapshot rides along too — the trust line and the printed
+    // guide both show what the plan was built around.
+    stampGuideAdvisories(g);
     if (Array.isArray(plan.days) && plan.days.length) {
       g.days = plan.days.map((d, i) => ({
         label: (d && d.label) || `Day ${i + 1}`,
@@ -1883,6 +1890,7 @@
       ? `<p class="plan-start">Starts around <strong>${escapeHtml(guide.start_time)}</strong></p>` : '';
 
     content.innerHTML = `
+      ${planAdvisoryHtml(guide)}
       ${startLine}
       ${sections}
       ${guide.notes ? `<div class="plan-notes">💬 ${escapeHtml(guide.notes)}</div>` : ''}
@@ -2051,6 +2059,15 @@
       const data = await apiReplan(state.currentGuide, text);
       progress.finish();
       state.currentGuide = data.guide;
+      // A re-plan re-checks conditions — carry the fresh advisory snapshot
+      // onto the revised guide so the trust line reflects what it was
+      // actually re-planned around.
+      if (Array.isArray(data.advisories)) {
+        state.lastAdvisories = data.advisories;
+        state.lastAdvisoriesStatus = data.advisories_status || null;
+        stampGuideAdvisories(state.currentGuide);
+        renderAdvisoryStrip();
+      }
       state.lastChangeSummary = data.change_summary || [];
       state.savedGuide = null; // new version → stale save
       state.editMode = false;
@@ -2408,7 +2425,10 @@
       state.dismissedIds = new Set();
       state.lastPrompt = '';
       state.lastWeather = data.weather || null;
+      state.lastAdvisories = data.advisories || [];
+      state.lastAdvisoriesStatus = data.advisories_status || null;
       renderWeatherStrip(data.weather);
+      renderAdvisoryStrip();
       renderResultsHeader();
       renderFeed(true);
     } catch (err) {
@@ -2467,7 +2487,10 @@
       state.dismissedIds = new Set();
       state.lastPrompt = prompt;
       state.lastWeather = data.weather || null;
+      state.lastAdvisories = data.advisories || [];
+      state.lastAdvisoriesStatus = data.advisories_status || null;
       renderWeatherStrip(data.weather);
+      renderAdvisoryStrip();
       renderResultsHeader();
       renderFeed(true);
       bumpGeneratesUsed();
@@ -2821,6 +2844,108 @@
   function weatherEmoji(condition) {
     const map = { Rain: '🌧️', Drizzle: '🌦️', Thunderstorm: '⛈️', Snow: '❄️', Clear: '☀️', Clouds: '☁️' };
     return map[condition] || '🌤️';
+  }
+
+  // ---------- Advisories & closures ----------
+  // The "should I even go today?" layer. One banner (highest severity),
+  // extras behind "+N more", always sourced — and a failed check is shown
+  // as "couldn't verify", never silently absent.
+  const ADVISORY_RANK = { info: 0, caution: 1, warning: 2, danger: 3 };
+  const ADVISORY_EMOJI = { weather: '⚠️', air_quality: '😷', closure: '🚫', fire: '🔥', other: '⚠️' };
+
+  function advisorySort(list) {
+    return [...(list || [])].sort((a, b) => (ADVISORY_RANK[b.severity] || 0) - (ADVISORY_RANK[a.severity] || 0));
+  }
+
+  // Banner-worthy advisories: caution and up. `info` stays in the details.
+  function bannerAdvisories() {
+    return advisorySort(state.lastAdvisories).filter(a => (ADVISORY_RANK[a.severity] || 0) >= ADVISORY_RANK.caution);
+  }
+
+  function advisoryLineHtml(a) {
+    const src = a.source === 'derived'
+      ? 'DayHop estimate from current conditions'
+      : (a.source_name || 'verified source');
+    return `<strong>${escapeHtml(ADVISORY_EMOJI[a.type] || '⚠️')} ${escapeHtml(a.title)}</strong> — ${escapeHtml(a.message)} <span class="advisory-source">${escapeHtml(src)}</span>`;
+  }
+
+  function renderAdvisoryStrip() {
+    const el = document.getElementById('advisory-strip');
+    if (!el) return;
+    const list = bannerAdvisories();
+
+    if (!list.length) {
+      // Nothing active. Only speak up if we genuinely couldn't check —
+      // implying "all clear" after a failed check would be a false promise.
+      if (state.lastAdvisoriesStatus === 'unavailable' && state.allIdeas.length) {
+        el.className = 'advisory-strip advisory-strip--unavailable';
+        el.innerHTML = '<span class="advisory-main">Couldn\'t verify local advisories right now — check conditions before heading out.</span>';
+        el.hidden = false;
+      } else {
+        el.hidden = true;
+        el.innerHTML = '';
+      }
+      return;
+    }
+
+    const top = list[0];
+    const rest = list.slice(1);
+    el.className = `advisory-strip advisory-strip--${top.severity}`;
+    el.innerHTML = `
+      <span class="advisory-main">${advisoryLineHtml(top)}</span>
+      ${rest.length ? `<button type="button" class="advisory-more" aria-expanded="false">+${rest.length} more</button>
+      <div class="advisory-details" hidden>${rest.map(a => `<p>${advisoryLineHtml(a)}</p>`).join('')}</div>` : ''}
+    `;
+    el.hidden = false;
+
+    const moreBtn = el.querySelector('.advisory-more');
+    if (moreBtn) moreBtn.addEventListener('click', () => {
+      const details = el.querySelector('.advisory-details');
+      const open = details.hidden;
+      details.hidden = !open;
+      moreBtn.setAttribute('aria-expanded', String(open));
+      moreBtn.textContent = open ? 'less' : `+${rest.length} more`;
+    });
+  }
+
+  // A card-level conflict chip: only when a warning+ area advisory says
+  // "stay out of the open air" AND this idea clearly lives in it. Closed
+  // places never reach the feed (filtered server-side), so this is about
+  // exposure, not closures.
+  const ADVISORY_OUTDOOR_RE = /\b(park|trail|beach|garden|patio|splash|zoo|hik(e|ing)|outdoor|playground|conservation|falls|island|pier|boardwalk|farm|orchard|lookout|picnic|marina|paddle|kayak|canoe|bike|zipline|treetop|rooftop)\b/i;
+
+  function advisoryConflictChip(idea) {
+    const active = bannerAdvisories().filter(a =>
+      (ADVISORY_RANK[a.severity] || 0) >= ADVISORY_RANK.warning &&
+      a.effects && (a.effects.avoid_outdoor || a.effects.avoid_strenuous));
+    if (!active.length) return null;
+    const text = `${idea.title || ''} ${idea.why || ''} ${idea.category || ''}`;
+    if (!ADVISORY_OUTDOOR_RE.test(text) && idea.category !== 'adventures') return null;
+    return active[0].title; // e.g. "Extreme heat", "Smoky air today"
+  }
+
+  // Snapshot the advisory context onto a guide, so a saved/printed plan
+  // carries what it was built (or re-planned) around.
+  function stampGuideAdvisories(guide) {
+    if (!guide) return;
+    guide.advisories = bannerAdvisories()
+      .filter(a => (ADVISORY_RANK[a.severity] || 0) >= ADVISORY_RANK.warning)
+      .slice(0, 3)
+      .map(a => ({ type: a.type, severity: a.severity, title: a.title, source_name: a.source_name || null, source: a.source }));
+    guide.advisories_checked = state.lastAdvisoriesStatus === 'ok';
+  }
+
+  // The plan view's advisory trust line: what was checked, what was found.
+  function planAdvisoryHtml(guide) {
+    if (Array.isArray(guide.advisories) && guide.advisories.length) {
+      const titles = guide.advisories.map(a => a.title).join(', ');
+      const cls = guide.advisories.some(a => a.severity === 'danger') ? 'danger' : 'warning';
+      return `<div class="plan-advisory plan-advisory--${cls}">⚠️ Heads up: ${escapeHtml(titles)} — this plan works around it, but conditions can change fast. Ask DayHop to re-plan if they do.</div>`;
+    }
+    if (guide.advisories_checked) {
+      return '<div class="plan-advisory plan-advisory--clear">✓ No active advisories for this area when this plan was made</div>';
+    }
+    return '';
   }
 
   // ---------- Booking retention ----------

@@ -56,6 +56,28 @@ const MODE_CATEGORY_BOOST = {
 const RR_CALM_WORDS = /\b(garden|trail|park|lookout|scenic|beach|conservatory|arboretum|greenhouse|spa|quiet|calm|walk|stroll|nature)\b/i;
 const ADVENTURE_WORDS = /\b(zipline|zip-line|climb|kayak|paddle|rafting|karting|go-kart|trampoline|skydiv|paraglid|bike|bungee|axe|archery|treetop|adrenaline|racing)\b/i;
 
+// ---------- Advisory pressure ----------
+// When an active advisory says "avoid outdoor" or "avoid strenuous"
+// (services/advisories.js — smoke, extreme heat/cold, high wind), candidates
+// that clearly fit that profile sink and indoor refuges rise. A demotion,
+// not a wall: a standout outdoor pick can still surface, and Grok gets the
+// advisory context to make the final judgment call.
+const OUTDOOR_WORDS = /\b(park|trail|beach|garden|patio|splash|zoo|hik(e|ing)|outdoor|playground|conservation|falls|island|pier|boardwalk|farm|orchard|lookout|campground|picnic|marina|paddle|kayak|canoe|bike|zipline|treetop|rooftop)\b/i;
+const INDOOR_REFUGE_WORDS = /\b(museum|gallery|aquarium|indoor|arcade|science|library|market|conservatory|cinema|theatre|theater|bowling|mall|pottery|studio|escape room)\b/i;
+
+function advisoryAdjustment(candidate, pressure) {
+  if (!pressure || (!pressure.avoid_outdoor && !pressure.avoid_strenuous)) return 0;
+  const text = `${candidate.title || ''} ${candidate.description || ''} ${candidate.category || ''}`;
+  let delta = 0;
+  // Weights must beat the mode/theme boosts (+2..+3.5) at warning level —
+  // in a nature-first app the pool is mostly outdoor, so a timid demotion
+  // changes nothing and the feed contradicts its own smoke banner.
+  if (pressure.avoid_outdoor && OUTDOOR_WORDS.test(text)) delta -= 2.5 * pressure.avoid_outdoor;
+  if (pressure.avoid_strenuous && ADVENTURE_WORDS.test(text)) delta -= 2 * pressure.avoid_strenuous;
+  if (pressure.avoid_outdoor >= 2 && INDOOR_REFUGE_WORDS.test(text)) delta += 3;
+  return delta;
+}
+
 // ---------- Prompt intent ----------
 // Cheap, deterministic reads of the constraints people actually type.
 function readIntent(prompt) {
@@ -73,7 +95,7 @@ function readIntent(prompt) {
  * shapes), the active category filter, and the R&R/Adventure mode.
  * Returns [{ candidate, score }].
  */
-function scoreCandidates(candidates, { prompt, themes = [], filter, mode } = {}) {
+function scoreCandidates(candidates, { prompt, themes = [], filter, mode, advisoryPressure } = {}) {
   const tokens = tokenize(prompt);
   const intent = readIntent(prompt);
   const modeBoost = MODE_CATEGORY_BOOST[mode] || null;
@@ -157,6 +179,10 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode } = {})
       else if (candidate.distance_km <= 20) score += 1.5;
       else if (candidate.distance_km > 35) score -= 2;
     }
+
+    // Active advisories (smoke, extreme heat/cold, high wind) push the day
+    // indoors: exposed candidates sink, indoor refuges rise.
+    score += advisoryAdjustment(candidate, advisoryPressure);
 
     return { candidate, score };
   });

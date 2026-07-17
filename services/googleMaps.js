@@ -74,6 +74,7 @@ async function searchPlaces({ query, lat, lng, radiusMeters = 15000, maxResults 
         'places.types',
         'places.googleMapsUri',
         'places.photos',
+        'places.businessStatus',
         'places.regularOpeningHours.weekdayDescriptions'
       ].join(',')
     }
@@ -118,6 +119,9 @@ function normalizePlace(p) {
     cost_tier: PRICE_LEVEL_TO_TIER[p.priceLevel] || null,
     types,
     maps_url: p.googleMapsUri || null,
+    // OPERATIONAL | CLOSED_TEMPORARILY | CLOSED_PERMANENTLY — the candidate
+    // pipeline drops non-operational places so we never recommend one.
+    business_status: p.businessStatus || null,
     open_hours: p.regularOpeningHours?.weekdayDescriptions || null
   };
 }

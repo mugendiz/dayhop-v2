@@ -516,6 +516,63 @@ button, .filter-chip {
   color: var(--ink-soft);
 }
 
+/* ---------- Advisories & closures ---------- */
+/* One banner, highest severity first; extras collapse behind "+N more".
+   Severity is the visual language: amber = adjust plans, red = do not go. */
+.advisory-strip {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+  border: 1px solid transparent;
+}
+.advisory-strip--caution {
+  background: rgba(255, 182, 39, 0.12);
+  border-color: rgba(255, 182, 39, 0.35);
+  color: var(--ink);
+}
+.advisory-strip--warning {
+  background: rgba(217, 119, 6, 0.14);
+  border-color: rgba(217, 119, 6, 0.45);
+  color: var(--ink);
+}
+.advisory-strip--danger {
+  background: rgba(190, 42, 30, 0.14);
+  border-color: rgba(190, 42, 30, 0.55);
+  color: var(--ink);
+}
+.advisory-strip--unavailable {
+  background: rgba(120, 120, 120, 0.08);
+  border-color: rgba(120, 120, 120, 0.2);
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.advisory-source {
+  display: inline-block;
+  margin-left: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  opacity: 0.75;
+}
+.advisory-more {
+  margin-top: 6px;
+  margin-left: 8px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.85;
+}
+.advisory-details { margin-top: 8px; }
+.advisory-details p { margin: 6px 0 0; }
+
 /* ---------- Filters ---------- */
 .app { max-width: 1040px; margin: 0 auto; padding: 0 24px 100px; }
 
@@ -530,6 +587,14 @@ button, .filter-chip {
   scrollbar-width: none;
 }
 .filters::-webkit-scrollbar { display: none; }
+
+/* The negative tuck above only fits the zero state (nothing rendered above the
+   chips). Once the results header or collections are showing, the tuck drags
+   the chips over their text — cancel it. Wins over the mobile override too. */
+#results-header:not([hidden]) ~ .filters,
+#collections:not([hidden]) ~ .filters {
+  margin-top: 0;
+}
 
 .filter-chip {
   flex: 0 0 auto;
@@ -960,6 +1025,7 @@ button, .filter-chip {
 
 .card-chip--free { background: rgba(63,111,92,0.14); color: var(--moss); font-weight: 600; }
 .card-chip--date { background: rgba(255,182,39,0.16); color: var(--ink); }
+.card-chip--advisory { background: rgba(217,119,6,0.14); color: #8a4b04; font-weight: 600; }
 .card-chip--near { background: rgba(255,107,74,0.12); color: var(--coral-dark); font-weight: 600; }
 
 /* Location dropdown action rows (use-my-location / free-text search). */
@@ -1279,6 +1345,30 @@ button, .filter-chip {
   padding: 12px 14px;
   font-size: 13.5px;
   color: var(--ink);
+}
+
+/* Advisory trust line at the top of a plan: what was checked, what was
+   found. The "all clear" state is a feature, not filler. */
+.plan-advisory {
+  margin-bottom: 12px;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+.plan-advisory--warning {
+  background: rgba(217,119,6,0.14);
+  border: 1px solid rgba(217,119,6,0.45);
+}
+.plan-advisory--danger {
+  background: rgba(190,42,30,0.14);
+  border: 1px solid rgba(190,42,30,0.55);
+}
+.plan-advisory--clear {
+  background: rgba(63,111,92,0.1);
+  border: 1px solid rgba(63,111,92,0.3);
+  color: var(--moss, #3f6f5c);
+  font-size: 12.5px;
 }
 
 /* Full-guide enrichments inside each plan stop */

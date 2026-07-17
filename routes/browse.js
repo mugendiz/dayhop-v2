@@ -40,16 +40,18 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const { candidates, weather, resolvedCity } =
+    const { candidates, weather, resolvedCity, advisories, advisoriesStatus } =
       await gatherCandidates(syntheticPrompt(part, mode), city, '', null, coords, mode);
 
-    const ideas = buildSections(candidates, { near: Boolean(coords), weather, part, mode }).slice(0, FEED_CAP);
+    const ideas = buildSections(candidates, { near: Boolean(coords), weather, part, mode, advisories }).slice(0, FEED_CAP);
     // Real venue photos for curated/open-data cards; the enriched feed is
     // what gets cached, so the lookups are paid once per cache window.
     await enrichIdeaImages(ideas, { city: resolvedCity || city, coords });
     const payload = {
       ideas,
       weather: weather || null,
+      advisories: advisories || [],
+      advisories_status: advisoriesStatus || 'unavailable',
       city: resolvedCity || city,
       near: Boolean(coords),
       generated_at: new Date().toISOString()
@@ -119,7 +121,13 @@ function cacheKey(city, coords, part, mode) {
 
 // Assign ranked candidates to named sections, first match wins (a card never
 // repeats across sections). Section order is the display order.
-function buildSections(candidates, { near, weather, part, mode }) {
+function buildSections(candidates, { near, weather, part, mode, advisories }) {
+  // A warning+ "stay out of the open air" advisory (smoke, dangerous heat,
+  // damaging wind) reshapes the feed the same way rain does: the lead
+  // section becomes indoor refuges, and the outdoor showcase steps back.
+  const shelter = (advisories || []).some(a =>
+    (a.severity === 'warning' || a.severity === 'danger') &&
+    a.effects && a.effects.avoid_outdoor);
   const used = new Set();
   const ideas = [];
   const take = (label, list, n) => {
@@ -153,26 +161,33 @@ function buildSections(candidates, { near, weather, part, mode }) {
   // leans into the active mode without discarding anything.
   const prefer = mode === 'adventure' ? isThrill : isCalm;
   const pool = [...candidates.filter(prefer), ...candidates.filter(c => !prefer(c))];
+  // Genuinely sheltered: indoor markers AND no outdoor ones — a "music
+  // garden" matching an indoor word is still an outdoor place.
+  const isSheltered = c => isIndoor(c) && !isOutdoor(c);
 
   if (near) {
     // The pool is already ranked against the daypart+mode prompt, so "right
-    // now" is simply its top — filtered to indoor picks when it's raining.
-    const rightNow = weather && weather.is_rainy ? pool.filter(isIndoor) : pool;
-    take(rightNowLabel(part, weather), rightNow, 4);
+    // now" is simply its top — filtered to indoor picks when it's raining
+    // or when an advisory says to stay out of the open air.
+    const rightNow = shelter ? pool.filter(isSheltered)
+      : (weather && weather.is_rainy) ? pool.filter(isIndoor) : pool;
+    take(rightNowLabel(part, weather, shelter), rightNow, 4);
     take('Within 15 minutes 📍',
       pool.filter(c => c.distance_km != null && c.distance_km <= 10)
         .slice().sort((a, b) => a.distance_km - b.distance_km), 4);
     take('On today 📅', pool.filter(hasDate), 3);
     take('Hidden gems ✨', pool.filter(isGem), 3);
   } else if (mode === 'adventure') {
+    if (shelter) take('Indoor thrills right now 😷', pool.filter(isSheltered), 4);
     take('Top thrills ⚡', pool, 4);
-    take('Get outside 🌊', pool.filter(isOutdoor), 3);
+    if (!shelter) take('Get outside 🌊', pool.filter(isOutdoor), 3);
     take('On now 📅', pool.filter(hasDate), 3);
     take('Hidden gems ✨', pool.filter(isGem), 2);
     take('Refuel 🍴', pool.filter(isFood), 2);
   } else {
+    if (shelter) take('Sheltered picks right now 😷', pool.filter(isSheltered), 4);
     take('Restorative picks 🌿', pool, 4);
-    take('Outdoors & nature 🌳', pool.filter(isOutdoor), 3);
+    if (!shelter) take('Outdoors & nature 🌳', pool.filter(isOutdoor), 3);
     take('Food & drink 🍴', pool.filter(isFood), 3);
     take('On now 📅', pool.filter(hasDate), 3);
     take('Hidden gems ✨', pool.filter(isGem), 3);
@@ -180,7 +195,8 @@ function buildSections(candidates, { near, weather, part, mode }) {
   return ideas;
 }
 
-function rightNowLabel(part, weather) {
+function rightNowLabel(part, weather, shelter) {
+  if (shelter) return 'Sheltered picks right now 😷';
   if (weather && weather.is_rainy) return 'Rain-proof right now ☔';
   if (weather && weather.is_extreme_heat) return 'Beat the heat right now 🥵';
   if (part === 'morning') return 'Perfect this morning ☀️';
