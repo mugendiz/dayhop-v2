@@ -272,6 +272,16 @@
     <div id="myplans-empty" class="shortlist-empty" hidden>
       <p>No saved plans yet. Build a day from your shortlist, then save it here to edit, share, and reuse it.</p>
     </div>
+    <!-- Quest shelf: every not-yet-visited place across all saved plans,
+         deduped — the "look what's still out there" reminder. -->
+    <div id="stilltovisit" class="stilltovisit" hidden>
+      <div class="stilltovisit-header">
+        <h3>🧭 Still on your list</h3>
+        <span id="stilltovisit-count" class="stilltovisit-count"></span>
+      </div>
+      <p class="stilltovisit-hint">Places from your saved plans you haven't checked off yet.</p>
+      <div id="stilltovisit-list"></div>
+    </div>
   </div>
 </div>
 

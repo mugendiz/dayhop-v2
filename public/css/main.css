@@ -1390,6 +1390,135 @@ button, .filter-chip {
 .plan-stop-facts { font-size: 12.5px; color: var(--ink-soft); margin-top: 6px; }
 .plan-stop-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 
+/* ---------- "Been there" quest layer ---------- */
+.plan-done-btn {
+  float: right;
+  margin: 0 0 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 4px 11px;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.12s var(--ease);
+}
+.plan-done-btn:hover { border-color: var(--moss); color: var(--moss); }
+.plan-done-btn:active { transform: scale(0.94); }
+.plan-done-btn .plan-done-tick { font-weight: 700; }
+.plan-done-btn.is-done {
+  background: var(--moss);
+  border-color: var(--moss);
+  color: var(--paper);
+}
+
+/* Done stop: photo folds away, the card shrinks and settles into moss —
+   the visual "stamp in the passport". */
+.plan-stop--done .plan-stop-body {
+  background: rgba(63, 111, 92, 0.10);
+  border: 1px solid rgba(63, 111, 92, 0.28);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+.plan-stop--done .plan-stop-photo {
+  max-height: 0;
+  margin: 0;
+  opacity: 0;
+}
+.plan-stop-photo {
+  max-height: 160px;
+  transition: max-height 0.35s var(--ease), opacity 0.3s ease, margin 0.35s var(--ease);
+}
+.plan-stop--done .plan-stop-why,
+.plan-stop--done .plan-stop-links,
+.plan-stop--done .plan-transition { display: none; }
+.plan-stop--done h3 { color: var(--moss); }
+.plan-stop--done .plan-stop-time { color: var(--moss); }
+.plan-stop--done .plan-stop-marker { background: var(--moss); }
+
+/* Quest progress: X of N explored + a thin trail-progress bar. */
+.plan-quest { margin: 2px 0 16px; }
+.plan-quest-line {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+.plan-quest--complete .plan-quest-line { color: var(--moss); font-weight: 600; }
+.plan-quest-bar {
+  margin-top: 6px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--paper-dim);
+  overflow: hidden;
+}
+.plan-quest-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--moss);
+  transition: width 0.4s var(--ease);
+}
+
+/* "Still on your list" shelf in My Plans: unvisited places across all
+   saved plans. */
+.stilltovisit { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }
+.stilltovisit-header { display: flex; align-items: baseline; gap: 10px; }
+.stilltovisit-header h3 { font-size: 17px; }
+.stilltovisit-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+}
+.stilltovisit-hint { font-size: 12.5px; color: var(--ink-soft); margin-top: 4px; }
+.stilltovisit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px dotted var(--line);
+}
+.stilltovisit-row:last-child { border-bottom: none; }
+.stilltovisit-check {
+  flex: 0 0 auto;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  background: transparent;
+  color: transparent;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.stilltovisit-check:hover { border-color: var(--moss); color: var(--moss); }
+.stilltovisit-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.stilltovisit-text strong { font-size: 14px; color: var(--ink); }
+.stilltovisit-text span {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stilltovisit-map {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--coral-dark);
+  text-decoration: none;
+}
+.stilltovisit-map:hover { text-decoration: underline; }
+
 /* Export bar at the bottom of the guide panel */
 .guide-export {
   margin-top: 18px;

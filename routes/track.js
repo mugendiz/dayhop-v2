@@ -16,7 +16,9 @@ const CLIENT_TYPES = new Set([
   // auto-saved to the shortlist by that click.
   'booking_return_prompt_shown', 'idea_auto_saved_on_booking',
   // Mode toggle: which of the two product personalities users switch into.
-  'mode_switch'
+  'mode_switch',
+  // Quest layer: a plan stop checked off as "been here".
+  'place_visited'
 ]);
 
 router.post('/', (req, res) => {

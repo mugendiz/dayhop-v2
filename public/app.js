@@ -208,7 +208,8 @@
     coordsAt: 0,
     locationLabel: null, // e.g. "Richmond Hill · L4C"
     locationChosen: false, // user must explicitly pick a location before searching
-    browseMode: false    // feed is showing the instant discovery feed, not prompt results
+    browseMode: false,   // feed is showing the instant discovery feed, not prompt results
+    visited: {}          // "been there" quest marks: placeKey → ISO timestamp
   };
 
   const COORDS_FRESH_MS = 30 * 60 * 1000;
@@ -222,6 +223,7 @@
       if (!raw) return;
       const saved = JSON.parse(raw);
       state.shortlist = saved.shortlist || [];
+      if (saved.visited && typeof saved.visited === 'object') state.visited = saved.visited;
       if (saved.city) state.city = saved.city;
       // Remember the last used mode across visits (first launch = R&R).
       if (MODES[saved.mode]) state.mode = saved.mode;
@@ -244,6 +246,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         shortlist: state.shortlist,
+        visited: state.visited,
         mode: state.mode,
         city: state.city,
         coords: state.coords,
@@ -1830,6 +1833,43 @@
     updateSaveButton();
   }
 
+  // ---------- "Been there" quest marks ----------
+  // Keyed by place (title|location), not by plan — checking off a park in one
+  // plan checks it off everywhere it appears. Falls back to the idea id for
+  // title-less stops. Marks live in localStorage alongside the shortlist.
+  function placeKey(stopOrIdea) {
+    const idea = stopOrIdea.idea || stopOrIdea;
+    const title = String(stopOrIdea.title || idea.title || '').trim().toLowerCase();
+    const loc = String(idea.location || '').trim().toLowerCase();
+    return title ? `${title}|${loc}` : String(idea.id || '');
+  }
+
+  function isVisited(key) {
+    return Boolean(key && state.visited[key]);
+  }
+
+  function toggleVisited(stopOrIdea) {
+    const key = placeKey(stopOrIdea);
+    if (!key) return;
+    if (state.visited[key]) {
+      delete state.visited[key];
+    } else {
+      state.visited[key] = new Date().toISOString();
+      track('place_visited', stopOrIdea.idea || stopOrIdea);
+      if (navigator.vibrate) navigator.vibrate(8);
+    }
+    persist();
+  }
+
+  function questStats(guide) {
+    if (!guide) return { done: 0, total: 0 };
+    const stops = guideStopGroups(guide).flatMap(g => g.stops);
+    return {
+      done: stops.filter(s => isVisited(placeKey(s))).length,
+      total: stops.length
+    };
+  }
+
   function planStopHtml(stop, index, groupIndex) {
     const idea = stop.idea || {};
     const facts = [];
@@ -1853,10 +1893,20 @@
       ? `<textarea class="plan-note-input" data-group="${groupIndex}" data-index="${index}" data-field="note" rows="1" maxlength="500" placeholder="Add a note — parking tips, snacks, who to text…" aria-label="Your note">${escapeHtml(stop.note || '')}</textarea>`
       : (stop.note ? `<p class="plan-stop-note">📝 ${escapeHtml(stop.note)}</p>` : '');
 
+    const key = placeKey(stop);
+    const done = !state.editMode && isVisited(key);
+    const number = String(index + 1).padStart(2, '0');
+    const doneBtn = !state.editMode && key ? `
+      <button class="plan-done-btn${done ? ' is-done' : ''}" type="button"
+        data-group="${groupIndex}" data-index="${index}" aria-pressed="${done}"
+        title="${done ? 'You’ve been here — tap to undo' : 'Been here? Check it off'}">
+        <span class="plan-done-tick">✓</span>${done ? 'Been here' : 'Done'}</button>` : '';
+
     return `
-      <div class="plan-stop${stop.changed ? ' plan-stop--changed' : ''}">
-        <div class="plan-stop-marker">${String(index + 1).padStart(2, '0')}</div>
+      <div class="plan-stop${done ? ' plan-stop--done' : ''}${stop.changed ? ' plan-stop--changed' : ''}">
+        <div class="plan-stop-marker" data-number="${number}">${done ? '✓' : number}</div>
         <div class="plan-stop-body">
+          ${doneBtn}
           ${stop.changed ? '<span class="plan-changed-badge">✨ Updated</span>' : ''}
           ${timeHtml}
           <h3>${escapeHtml(stop.title || idea.title || '')}</h3>
@@ -1891,6 +1941,7 @@
 
     content.innerHTML = `
       ${planAdvisoryHtml(guide)}
+      ${state.editMode ? '' : '<div class="plan-quest" id="plan-quest" hidden></div>'}
       ${startLine}
       ${sections}
       ${guide.notes ? `<div class="plan-notes">💬 ${escapeHtml(guide.notes)}</div>` : ''}
@@ -1899,6 +1950,8 @@
 
     renderChangeSummary();
     wireEditControls(content);
+    wireDoneButtons(content);
+    updatePlanQuest();
 
     // Toolbar + re-plan bar + export live below/around the content.
     const toolbar = document.getElementById('plan-toolbar');
@@ -1908,6 +1961,50 @@
     document.getElementById('replan-bar').hidden = state.editMode;
     updateExportHint();
     document.getElementById('guide-export').hidden = state.editMode;
+  }
+
+  // The quest line: progress toward having actually been everywhere the plan
+  // goes. Deliberately playful — most people never finish, and that's fine;
+  // the unfinished list is what pulls them back.
+  function updatePlanQuest() {
+    const el = document.getElementById('plan-quest');
+    if (!el) return;
+    const { done, total } = questStats(state.currentGuide);
+    if (!total) { el.hidden = true; return; }
+    const pct = Math.round((done / total) * 100);
+    const line = done === total
+      ? '🎉 Quest complete — you’ve been to every stop!'
+      : done
+        ? `🏅 ${done} of ${total} explored — keep going!`
+        : `🏅 ${done} of ${total} explored — check stops off as you go`;
+    el.innerHTML = `<p class="plan-quest-line">${line}</p>
+      <div class="plan-quest-bar"><span style="width:${pct}%"></span></div>`;
+    el.classList.toggle('plan-quest--complete', done === total);
+    el.hidden = false;
+  }
+
+  // Toggle in place (no full re-render) so the collapse animates and the
+  // panel doesn't jump scroll position.
+  function wireDoneButtons(content) {
+    content.querySelectorAll('.plan-done-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const groups = guideStopGroups(state.currentGuide);
+        const group = groups[Number(btn.dataset.group)];
+        const stop = group && group.stops[Number(btn.dataset.index)];
+        if (!stop) return;
+        toggleVisited(stop);
+        const done = isVisited(placeKey(stop));
+        const stopEl = btn.closest('.plan-stop');
+        stopEl.classList.toggle('plan-stop--done', done);
+        btn.classList.toggle('is-done', done);
+        btn.setAttribute('aria-pressed', String(done));
+        btn.innerHTML = `<span class="plan-done-tick">✓</span>${done ? 'Been here' : 'Done'}`;
+        btn.title = done ? 'You’ve been here — tap to undo' : 'Been here? Check it off';
+        const marker = stopEl.querySelector('.plan-stop-marker');
+        if (marker) marker.textContent = done ? '✓' : marker.dataset.number;
+        updatePlanQuest();
+      });
+    });
   }
 
   function updateSaveButton() {
@@ -2129,7 +2226,10 @@
     }
   }
 
+  let lastPlansLimit = null; // so the still-to-visit shelf can re-render the list
+
   function renderMyPlans(limit) {
+    lastPlansLimit = limit;
     const list = document.getElementById('myplans-list');
     const empty = document.getElementById('myplans-empty');
     const footnote = document.getElementById('myplans-footnote');
@@ -2156,10 +2256,14 @@
       if (g.day_count > 1) bits.push(`${g.day_count} days`);
       bits.push(`${g.stop_count} stop${g.stop_count === 1 ? '' : 's'}`);
       if (when) bits.push(formatEventDate(when));
+      const q = questStats(g.guide);
+      const questChip = q.done
+        ? ` <span class="card-chip card-chip--free">${q.done === q.total ? '🎉 Complete' : `✓ ${q.done}/${q.total} explored`}</span>`
+        : '';
       row.innerHTML = `
         <button class="myplans-open" type="button">
           <strong>${escapeHtml(g.title)}</strong>
-          <span class="myplans-meta">${bits.join(' · ')}${g.day_count > 1 ? ' <span class="card-chip card-chip--date">🌅 Multi-day</span>' : ''}</span>
+          <span class="myplans-meta">${bits.join(' · ')}${g.day_count > 1 ? ' <span class="card-chip card-chip--date">🌅 Multi-day</span>' : ''}${questChip}</span>
         </button>
         <div class="myplans-actions">
           <button class="btn-move" type="button" data-act="share" title="Copy share link" aria-label="Copy share link">🔗</button>
@@ -2170,6 +2274,59 @@
       row.querySelector('[data-act="delete"]').addEventListener('click', () => deleteSavedGuide(g));
       list.appendChild(row);
     });
+
+    renderStillToVisit();
+  }
+
+  // "Still on your list": every place across the saved plans that hasn't been
+  // checked off yet, deduped — the reminder shelf, so nobody has to re-browse
+  // to rediscover a spot they already chose once.
+  function renderStillToVisit() {
+    const wrap = document.getElementById('stilltovisit');
+    const list = document.getElementById('stilltovisit-list');
+    if (!wrap || !list) return;
+
+    const unvisited = new Map(); // placeKey → { stop, planTitle }
+    for (const g of state.myGuides) {
+      for (const group of guideStopGroups(g.guide || {})) {
+        for (const stop of group.stops) {
+          const key = placeKey(stop);
+          if (!key || isVisited(key) || unvisited.has(key)) continue;
+          unvisited.set(key, { stop, planTitle: g.title || '' });
+        }
+      }
+    }
+
+    if (!unvisited.size) {
+      wrap.hidden = true;
+      return;
+    }
+    wrap.hidden = false;
+    document.getElementById('stilltovisit-count').textContent =
+      `${unvisited.size} place${unvisited.size === 1 ? '' : 's'}`;
+    list.innerHTML = '';
+    for (const { stop, planTitle } of unvisited.values()) {
+      const idea = stop.idea || {};
+      const title = stop.title || idea.title || '';
+      const sub = [idea.location, planTitle ? `from “${planTitle}”` : '']
+        .filter(Boolean).map(escapeHtml).join(' · ');
+      const row = document.createElement('div');
+      row.className = 'stilltovisit-row';
+      row.innerHTML = `
+        <button class="stilltovisit-check" type="button" title="Been here? Check it off"
+          aria-label="Mark ${escapeAttr(title)} as been">✓</button>
+        <div class="stilltovisit-text">
+          <strong>${escapeHtml(title)}</strong>
+          ${sub ? `<span>${sub}</span>` : ''}
+        </div>
+        ${idea.maps_url ? `<a class="stilltovisit-map" href="${escapeAttr(idea.maps_url)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${escapeAttr(title)} in Google Maps">Map ↗</a>` : ''}`;
+      row.querySelector('.stilltovisit-check').addEventListener('click', () => {
+        toggleVisited(stop);
+        showToast(`✓ ${title} checked off`, { duration: 2000 });
+        renderMyPlans(lastPlansLimit); // refreshes rows' quest chips + this shelf
+      });
+      list.appendChild(row);
+    }
   }
 
   function openSavedGuide(g) {
