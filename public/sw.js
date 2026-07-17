@@ -10,7 +10,7 @@
 //   - /api/* is never cached — live data must never go stale silently, and
 //     the app already degrades gracefully when those fetches fail.
 // Bump the version to invalidate every cached asset on the next visit.
-const CACHE = 'dayhop-shell-v4'; // v4: filter chips no longer overlap the results header
+const CACHE = 'dayhop-shell-v6'; // v6: card booking link no longer glued to the chip row
 
 const SHELL = [
   '/',

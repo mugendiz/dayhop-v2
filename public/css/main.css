@@ -980,6 +980,7 @@ button, .filter-chip {
 }
 
 .why {
+  margin-top: 4px;
   font-size: 14.5px;
   color: var(--ink-soft);
   line-height: 1.5;
@@ -991,6 +992,7 @@ button, .filter-chip {
 }
 
 .card-meta {
+  margin-top: 8px;
   display: flex;
   flex-wrap: wrap;
   font-family: var(--mono);
@@ -1008,6 +1010,7 @@ button, .filter-chip {
 }
 
 .card-chips {
+  margin-top: 8px;
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
@@ -1075,7 +1078,12 @@ button, .filter-chip {
   font-size: 13px;
   padding: 10px;
   border-radius: 10px;
-  margin-top: -2px;
+}
+/* In the feed card the link sits directly under the meta/chip rows — give it
+   the same breathing room they have (detail sheet & plan stops space their
+   links with their own flex gap instead). */
+.card-body > .card-booking-link {
+  margin-top: 10px;
 }
 .card-booking-link--secondary {
   background: transparent;
@@ -2511,6 +2519,11 @@ body[data-mode="adventure"] .mode-thumb { transform: translateX(100%); }
   line-height: 1.6;
   overflow: visible;
 }
+
+/* The hero body is a flex column with its own gap — the feed cards' stacking
+   margins would double up here. */
+.best-match-body .why,
+.best-match-body .card-meta { margin-top: 0; }
 
 /* Why THIS one: evidence chips — distance, rating, exact words matched. */
 .match-reasons {
