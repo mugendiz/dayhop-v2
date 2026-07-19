@@ -8,9 +8,12 @@
 //   - Other same-origin static GETs + font/CDN assets are
 //     stale-while-revalidate: instant from cache, refreshed in background.
 //   - /api/* is never cached — live data must never go stale silently, and
-//     the app already degrades gracefully when those fetches fail.
+//     the app already degrades gracefully when those fetches fail. One
+//     exception: /api/guides/shared/* (public, immutable-ish guide JSON) is
+//     stale-while-revalidate so a revisited share link opens instantly even
+//     through a free-tier cold start.
 // Bump the version to invalidate every cached asset on the next visit.
-const CACHE = 'dayhop-shell-v7'; // v7: "been there" quest layer (done stops, still-to-visit shelf)
+const CACHE = 'dayhop-shell-v8'; // v8: arrival fixes (per-URL nav cache, shared-guide caching)
 
 const SHELL = [
   '/',
@@ -51,22 +54,24 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return; // POSTs (generate/browse/track) hit the network
   const url = new URL(req.url);
 
-  // Page loads: freshest available, cached shell when offline.
+  // Page loads: freshest available, cached copy when offline. Cache under
+  // the actual URL — putting every navigation under '/' let a shared-guide
+  // visit replace the app shell in the offline cache.
   if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req)
         .then(res => {
           const copy = res.clone();
-          caches.open(CACHE).then(c => c.put('/', copy));
+          caches.open(CACHE).then(c => c.put(req, copy));
           return res;
         })
-        .catch(() => caches.match('/'))
+        .catch(() => caches.match(req).then(hit => hit || caches.match('/')))
     );
     return;
   }
 
   const cacheable = url.origin === location.origin
-    ? !url.pathname.startsWith('/api/')
+    ? (!url.pathname.startsWith('/api/') || url.pathname.startsWith('/api/guides/shared/'))
     : CDN_HOSTS.has(url.hostname);
   if (!cacheable) return;
 

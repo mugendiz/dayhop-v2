@@ -86,6 +86,18 @@
   const WORLD_CUP_ENDS = Date.parse('2026-07-20T08:00:00Z');
   const worldCupLive = () => Date.now() < WORLD_CUP_ENDS;
 
+  // Server-computed seasonal spotlight (/api/config): World Cup while it's
+  // live, then the next Ontario stat holiday, then the one after — the hero
+  // eyebrow stays current forever without a client redeploy. The hardcoded
+  // sweep above remains as the instant/offline fallback.
+  function applySpotlight(sp) {
+    if (!sp) return;
+    const eyebrow = document.querySelector('.hero .eyebrow');
+    if (eyebrow && sp.eyebrow) {
+      eyebrow.textContent = `Greater Toronto Area · ${sp.eyebrow}`;
+    }
+  }
+
   // GTA coverage — "Across the GTA" is the default, then grouped by region.
   const GTA_WIDE = 'Across the GTA';
   const GTA_LOCATIONS = [
@@ -310,7 +322,7 @@
   // Browse-owned feeds refetch in the new mode; prompt results stay (they
   // cost a daily generate) and a toast explains the new lean instead.
   function refreshFeedForMode() {
-    if (state.locationChosen && (state.browseMode || !state.allIdeas.length)) {
+    if (state.browseMode || !state.allIdeas.length) {
       const feed = document.getElementById('discovery-feed');
       if (feed) {
         feed.classList.add('mode-fading');
@@ -350,8 +362,12 @@
       btn.className = 'example-chip';
       btn.textContent = ex.label;
       btn.addEventListener('click', () => {
-        document.getElementById('grok-prompt').value = ex.prompt;
-        document.getElementById('prompt-form').requestSubmit();
+        // Fill, don't fire: free plans are 3/day, so a curious tap must never
+        // spend one. The user sees the words, tweaks them, submits when ready.
+        const ta = document.getElementById('grok-prompt');
+        ta.value = ex.prompt;
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
       });
       wrap.appendChild(btn);
     });
@@ -2340,6 +2356,25 @@
     openPanel('dayplan-panel');
   }
 
+  // A deleted plan's places shouldn't linger as stale shortlist items —
+  // pull every idea the plan included off the shortlist too (local state +
+  // server copy for signed-in users). Returns how many were cleared.
+  function removePlanItemsFromShortlist(guide) {
+    const planIds = new Set();
+    for (const group of guideStopGroups(guide || {})) {
+      for (const stop of group.stops) {
+        if (stop.idea && stop.idea.id != null) planIds.add(stop.idea.id);
+      }
+    }
+    const removed = state.shortlist.filter(i => planIds.has(i.id));
+    if (!removed.length) return 0;
+    state.shortlist = state.shortlist.filter(i => !planIds.has(i.id));
+    persist();
+    removed.forEach(i => serverShortlistRemove(i.id));
+    updateShortlistCount();
+    return removed.length;
+  }
+
   async function deleteSavedGuide(g) {
     if (!window.confirm(`Delete "${g.title}"? Its share link stops working too.`)) return;
     try {
@@ -2356,8 +2391,11 @@
         state.currentGuideId = null;
         state.savedGuide = null;
       }
+      const cleared = removePlanItemsFromShortlist(g.guide);
       renderMyPlans(state.entitlements ? state.entitlements.saved_guides : null);
-      showToast('Plan deleted');
+      showToast(cleared
+        ? `Plan deleted · ${cleared} place${cleared === 1 ? '' : 's'} cleared from your shortlist`
+        : 'Plan deleted');
     } catch (e) {
       showToast(e.message || 'Could not delete that plan.', { duration: 3500 });
     }
@@ -2515,19 +2553,17 @@
     });
   }
 
-  // "New shortlist" — Pro feature once billing is live (free tier keeps its
-  // single shortlist + one exported guide; fails open pre-Stripe).
+  // "New shortlist" — open to everyone. Walling this behind Pro blocked the
+  // SECOND planning session, exactly the visit that forms the habit; the Pro
+  // differentiator is multiple concurrent shortlists (future), not starting
+  // over. Confirm before dropping picks so a stray tap can't wipe a day.
   function handleNewShortlist() {
-    if (state.billingConfigured && !state.isPro) {
-      if (!isLoggedIn()) {
-        showToast('Sign in first — new shortlists come with Pro.', { duration: 4500 });
-        const authBtn = document.getElementById('auth-btn');
-        if (authBtn && !authBtn.hidden) authBtn.click();
-      } else {
-        showUpgradeModal('new_shortlist');
-      }
+    if (!state.shortlist.length) {
+      showToast('Your shortlist is already fresh ✨');
       return;
     }
+    const n = state.shortlist.length;
+    if (!window.confirm(`Start fresh? Your ${n} current pick${n === 1 ? '' : 's'} will be cleared.`)) return;
     state.shortlist = [];
     state.savedGuide = null;
     state.lastPlan = null;
@@ -2546,7 +2582,7 @@
   // a proactive feature must never nag.
   let browseAbort = null;
   async function loadBrowseFeed() {
-    if (!state.locationChosen || state.isGenerating) return;
+    if (state.isGenerating) return;
     // Prompt results own the feed; browse only fills idle or browse-owned feeds.
     if (state.allIdeas.length && !state.browseMode) return;
     if (browseAbort) browseAbort.abort();
@@ -2566,7 +2602,10 @@
         method: 'POST',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
-          city: state.city,
+          // First-timers see a living GTA-wide feed before ever touching the
+          // location picker (an empty first screen is a dead first screen);
+          // generating still requires an explicit location.
+          city: state.locationChosen ? state.city : GTA_WIDE,
           mode: state.mode,
           coords: coordsFresh ? state.coords : undefined,
           owner_id: getOwnerId()
@@ -2584,6 +2623,7 @@
       state.lastWeather = data.weather || null;
       state.lastAdvisories = data.advisories || [];
       state.lastAdvisoriesStatus = data.advisories_status || null;
+      browseAutoRetried = false; // a success re-arms the auto-retry
       renderWeatherStrip(data.weather);
       renderAdvisoryStrip();
       renderResultsHeader();
@@ -2592,11 +2632,35 @@
       progress.fail();
       if (err.name === 'AbortError') return;
       state.browseMode = false;
-      renderFeed(); // repaints the empty state
+      renderBrowseRetry();
     } finally {
       if (ctl === browseAbort && !state.isGenerating) {
         feed.setAttribute('aria-busy', 'false');
       }
+    }
+  }
+
+  // A failed browse never leaves a silently blank first screen: show a
+  // friendly retry card and quietly try once more on our own — the usual
+  // culprit is the free-tier server (or a partner API) still waking up.
+  let browseAutoRetried = false;
+  function renderBrowseRetry() {
+    const feed = document.getElementById('discovery-feed');
+    if (!feed || state.allIdeas.length) return;
+    feed.innerHTML = `
+      <div class="empty-state">
+        <p class="empty-mark">— · — · — · —</p>
+        <h3>Still waking up 🥱</h3>
+        <p>Couldn't load nearby ideas just now.</p>
+        <button class="ghost-btn" id="browse-retry-btn" type="button">Try again</button>
+      </div>`;
+    const btn = document.getElementById('browse-retry-btn');
+    if (btn) btn.addEventListener('click', () => loadBrowseFeed());
+    if (!browseAutoRetried) {
+      browseAutoRetried = true;
+      setTimeout(() => {
+        if (!state.allIdeas.length && !state.isGenerating) loadBrowseFeed();
+      }, 4000);
     }
   }
 
@@ -2892,7 +2956,7 @@
     if (state.browseMode) {
       document.getElementById('results-headline').textContent = state.coords && state.locationLabel
         ? 'Happening near you 📍'
-        : `Exploring ${state.city === GTA_WIDE ? 'the GTA' : state.city}`;
+        : `Exploring ${(!state.locationChosen || state.city === GTA_WIDE) ? 'the GTA' : state.city}`;
       const bits = [`${state.allIdeas.length} ideas to browse`, 'Describe your day for a tailored set'];
       if (state.lastWeather) {
         bits.splice(1, 0, `${state.lastWeather.temp_c}°C, ${state.lastWeather.description}`);
@@ -3296,11 +3360,17 @@
     // on top — clear the marker so back behaves normally again.
     if (history.state && history.state.dayhopOverlay) history.replaceState(null, '');
 
-    // Post-tournament sweep: the World Cup eyebrow becomes plain summer.
+    // Post-tournament sweep: the World Cup eyebrow becomes plain summer
+    // instantly, then the server spotlight refines it to the next stat
+    // holiday ("Civic Holiday long weekend · Aug 1–3") when config answers.
     if (!worldCupLive()) {
       const eyebrow = document.querySelector('.hero .eyebrow');
       if (eyebrow) eyebrow.textContent = 'Greater Toronto Area · Summer 2026';
     }
+    fetch('/api/config')
+      .then(r => (r.ok ? r.json() : null))
+      .then(cfg => applySpotlight(cfg && cfg.spotlight))
+      .catch(() => {});
 
     // Zero-state sample plan — one tap to see a finished plan.
     const sampleBtn = document.getElementById('sample-plan-btn');
@@ -3375,7 +3445,9 @@
 
     // Instant discovery: a returning visitor with a remembered location
     // lands on a live feed instead of an empty state.
-    if (state.locationChosen && !state.allIdeas.length) loadBrowseFeed();
+    // The feed loads for everyone — first-timers get the GTA-wide default
+    // (loadBrowseFeed falls back when no location is chosen yet).
+    if (!state.allIdeas.length) loadBrowseFeed();
   }
 
   if (document.readyState === 'loading') {
