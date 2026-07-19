@@ -20,6 +20,7 @@ const curatedEvents = require('../data/curatedEvents');
 const curatedCatalog = require('../data/curatedCatalog');
 const { matchThemes } = require('../data/themes');
 const relevance = require('./relevance');
+const { getSpotlight, eventDaysAhead } = require('./spotlight');
 
 const DEFAULT_CITY = process.env.DEFAULT_CITY || 'Richmond Hill';
 
@@ -135,6 +136,11 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   const isGta = GTA_TOWNS.test(String(localityText || '')) ||
     Boolean(geo && GTA_TOWNS.test(String(geo.formatted_address || '')));
 
+  // Seasonal spotlight: World Cup while it's live, then the next Ontario
+  // stat/bank holiday. Widens the event fetch window to cover the long
+  // weekend and boosts events landing on it (relevance.js).
+  const spotlight = getSpotlight();
+
   // Theme expansion: "swimming" fans out to pools, beaches, splash pads,
   // paddling rentals, waterparks — the neighbourhood of the request, not
   // just its literal words.
@@ -174,7 +180,10 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
     {
       name: 'ticketmaster',
       run: () => geo
-        ? ticketmaster.searchEvents({ lat: geo.lat, lng: geo.lng, keyword: eventKeyword || undefined, limit: SOURCE_CAPS.ticketmaster })
+        ? ticketmaster.searchEvents({
+            lat: geo.lat, lng: geo.lng, keyword: eventKeyword || undefined,
+            limit: SOURCE_CAPS.ticketmaster, daysAhead: eventDaysAhead(spotlight)
+          })
         : []
     },
     {
@@ -237,7 +246,7 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   // candidates instead of capping first and filtering what's left.
   const candidates = relevance.selectTop(
     qualityGate(relevance.scoreCandidates(pool, {
-      prompt, themes, filter, mode, advisoryPressure
+      prompt, themes, filter, mode, advisoryPressure, spotlight
     })),
     CANDIDATE_POOL_CAP
   );
@@ -247,7 +256,8 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
     usedGrounding: candidates.length > 0,
     resolvedCity,
     advisories: advisoryResult.advisories,
-    advisoriesStatus: advisoryResult.status
+    advisoriesStatus: advisoryResult.status,
+    spotlight
   };
 }
 

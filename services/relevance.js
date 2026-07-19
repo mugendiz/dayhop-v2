@@ -5,6 +5,8 @@
 // trimmed while an unrelated event survived. Simple additive keyword/tag
 // scoring — no embeddings, no network calls.
 
+const { isAroundSpotlight } = require('./spotlight');
+
 const STOPWORDS = new Set([
   'a', 'an', 'and', 'the', 'to', 'of', 'in', 'on', 'at', 'for', 'with', 'my',
   'our', 'your', 'me', 'us', 'we', 'i', 'is', 'are', 'be', 'this', 'that',
@@ -95,7 +97,7 @@ function readIntent(prompt) {
  * shapes), the active category filter, and the R&R/Adventure mode.
  * Returns [{ candidate, score }].
  */
-function scoreCandidates(candidates, { prompt, themes = [], filter, mode, advisoryPressure } = {}) {
+function scoreCandidates(candidates, { prompt, themes = [], filter, mode, advisoryPressure, spotlight } = {}) {
   const tokens = tokenize(prompt);
   const intent = readIntent(prompt);
   const modeBoost = MODE_CATEGORY_BOOST[mode] || null;
@@ -141,6 +143,18 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
     if (candidate.date) {
       const when = Date.parse(candidate.date);
       if (!Number.isNaN(when) && when >= now - 24 * 3600 * 1000 && when <= soon) score += 1;
+    }
+
+    // Seasonal spotlight (services/spotlight.js): events landing on the
+    // next holiday long weekend rise, and anything speaking the holiday's
+    // vocabulary ("fireworks", "fall fair") gets a nudge — this is how the
+    // engine promotes what's on around the moment people are actually free.
+    if (spotlight) {
+      if (isAroundSpotlight(spotlight, candidate.date)) score += 2.5;
+      if (spotlight.tags && spotlight.tags.length) {
+        const spotText = `${candidate.title || ''} ${candidate.description || ''}`.toLowerCase();
+        if (spotlight.tags.some(t => spotText.includes(t))) score += 1.5;
+      }
     }
 
     // Keep genuine discovery entries alive even with zero token overlap.

@@ -6,13 +6,18 @@
 const express = require('express');
 const router = express.Router();
 
+const { getSpotlight } = require('../services/spotlight');
+
 router.get('/', (req, res) => {
   const supabaseUrl = process.env.SUPABASE_URL || null;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || null;
   res.json({
     supabaseUrl,
     supabaseAnonKey,
-    authEnabled: Boolean(supabaseUrl && supabaseAnonKey)
+    authEnabled: Boolean(supabaseUrl && supabaseAnonKey),
+    // Seasonal spotlight: drives the hero eyebrow and holiday chrome
+    // client-side (World Cup while live, then the next stat holiday).
+    spotlight: getSpotlight()
   });
 });
 

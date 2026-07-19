@@ -14,6 +14,7 @@ const analytics = require('../services/analytics');
 const { normalizeMode } = require('../services/grok');
 const { gatherCandidates, sanitizeCoords, fallbackIdea, DEFAULT_CITY } = require('../services/candidates');
 const { enrichIdeaImages } = require('../services/ideaPhotos');
+const { isAroundSpotlight } = require('../services/spotlight');
 
 // One entry per (city|coords-grid|daypart). 30 minutes keeps partner-API
 // usage flat while staying fresh enough for weather/daypart shifts.
@@ -40,10 +41,10 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const { candidates, weather, resolvedCity, advisories, advisoriesStatus } =
+    const { candidates, weather, resolvedCity, advisories, advisoriesStatus, spotlight } =
       await gatherCandidates(syntheticPrompt(part, mode), city, '', null, coords, mode);
 
-    const ideas = buildSections(candidates, { near: Boolean(coords), weather, part, mode, advisories }).slice(0, FEED_CAP);
+    const ideas = buildSections(candidates, { near: Boolean(coords), weather, part, mode, advisories, spotlight }).slice(0, FEED_CAP);
     // Real venue photos for curated/open-data cards; the enriched feed is
     // what gets cached, so the lookups are paid once per cache window.
     await enrichIdeaImages(ideas, { city: resolvedCity || city, coords });
@@ -54,6 +55,7 @@ router.post('/', async (req, res) => {
       advisories_status: advisoriesStatus || 'unavailable',
       city: resolvedCity || city,
       near: Boolean(coords),
+      spotlight: spotlight || null,
       generated_at: new Date().toISOString()
     };
 
@@ -121,7 +123,7 @@ function cacheKey(city, coords, part, mode) {
 
 // Assign ranked candidates to named sections, first match wins (a card never
 // repeats across sections). Section order is the display order.
-function buildSections(candidates, { near, weather, part, mode, advisories }) {
+function buildSections(candidates, { near, weather, part, mode, advisories, spotlight }) {
   // A warning+ "stay out of the open air" advisory (smoke, dangerous heat,
   // damaging wind) reshapes the feed the same way rain does: the lead
   // section becomes indoor refuges, and the outdoor showcase steps back.
@@ -165,6 +167,15 @@ function buildSections(candidates, { near, weather, part, mode, advisories }) {
   // garden" matching an indoor word is still an outdoor place.
   const isSheltered = c => isIndoor(c) && !isOutdoor(c);
 
+  // Holiday-spotlight shelf: events landing on the next stat-holiday long
+  // weekend get their own named section — the "plan the long weekend" hook
+  // that replaces the World Cup rail once the tournament wraps.
+  const spotLabel = spotlight && spotlight.kind === 'holiday'
+    ? `${spotlight.name}${spotlight.long_weekend ? ' weekend' : ''} ${spotlight.emoji}`
+    : null;
+  const onSpotlight = spotLabel ? pool.filter(c => isAroundSpotlight(spotlight, c.date)) : [];
+  const takeSpotlight = () => { if (spotLabel) take(spotLabel, onSpotlight, 3); };
+
   if (near) {
     // The pool is already ranked against the daypart+mode prompt, so "right
     // now" is simply its top — filtered to indoor picks when it's raining
@@ -175,12 +186,14 @@ function buildSections(candidates, { near, weather, part, mode, advisories }) {
     take('Within 15 minutes 📍',
       pool.filter(c => c.distance_km != null && c.distance_km <= 10)
         .slice().sort((a, b) => a.distance_km - b.distance_km), 4);
+    takeSpotlight();
     take('On today 📅', pool.filter(hasDate), 3);
     take('Hidden gems ✨', pool.filter(isGem), 3);
   } else if (mode === 'adventure') {
     if (shelter) take('Indoor thrills right now 😷', pool.filter(isSheltered), 4);
     take('Top thrills ⚡', pool, 4);
     if (!shelter) take('Get outside 🌊', pool.filter(isOutdoor), 3);
+    takeSpotlight();
     take('On now 📅', pool.filter(hasDate), 3);
     take('Hidden gems ✨', pool.filter(isGem), 2);
     take('Refuel 🍴', pool.filter(isFood), 2);
@@ -189,6 +202,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories }) {
     take('Restorative picks 🌿', pool, 4);
     if (!shelter) take('Outdoors & nature 🌳', pool.filter(isOutdoor), 3);
     take('Food & drink 🍴', pool.filter(isFood), 3);
+    takeSpotlight();
     take('On now 📅', pool.filter(hasDate), 3);
     take('Hidden gems ✨', pool.filter(isGem), 3);
   }

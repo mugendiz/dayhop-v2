@@ -55,6 +55,24 @@ const MODE_PLAN_DIRECTIVES = {
 function modeDirective(mode) { return MODE_DIRECTIVES[normalizeMode(mode)]; }
 function modePlanDirective(mode) { return MODE_PLAN_DIRECTIVES[normalizeMode(mode)]; }
 
+// Seasonal spotlight (services/spotlight.js): what the priority clause
+// promotes — World Cup watch parties while the tournament is live, then
+// events around the next Ontario stat-holiday long weekend, forever.
+const { getSpotlight } = require('./spotlight');
+
+function seasonalPriorityPhrase() {
+  const sp = getSpotlight();
+  if (!sp) return 'seasonal events';
+  if (sp.kind === 'worldcup') return 'World Cup 2026 watch parties/public viewings';
+  return `events and festivals around the ${sp.name}${sp.long_weekend ? ' long weekend' : ''} (${sp.range})`;
+}
+
+// Extra grounded-prompt rule while a holiday spotlight is active.
+function spotlightRule() {
+  const sp = getSpotlight();
+  return sp && sp.kind === 'holiday' ? `- ${sp.prompt_hint}\n` : '';
+}
+
 function assertConfigured() {
   if (!process.env.GROK_API_KEY) {
     const err = new Error('GROK_API_KEY is not set. Add it to your .env file.');
@@ -71,7 +89,7 @@ Your job: turn a parent's natural-language request into a short list of realisti
 Hard rules:
 ${locationRule(city)}
 ${modeDirective(mode)}
-- Prioritize: family-friendly activities, World Cup 2026 watch parties/public viewings, splash pads & playgrounds, patios & rooftops, beaches & waterparks, day cruises, and standout local experiences (helicopter tours, etc.) when relevant to the prompt.
+- Prioritize: family-friendly activities, ${seasonalPriorityPhrase()}, splash pads & playgrounds, patios & rooftops, beaches & waterparks, day cruises, and standout local experiences (helicopter tours, etc.) when relevant to the prompt.
 - Never invent a fake specific business name with false confidence — if unsure of an exact venue, describe the type of place and area generically (e.g. "a family-friendly patio near Yonge & 16th") rather than fabricating a precise address or claiming a brand exists.
 - Keep tone warm, plain, and trustworthy. No hype, no exclamation overload.
 - Each idea's "why" is one short, warm, benefit-driven sentence (max ~110 characters): how it feels and why it fits their request — never a feature list. Good: "Lively sports bar with big screens and great craft beer — perfect for catching the match with friends." Bad: "Sports bar with multiple big screens perfect for afternoon World Cup watch parties with friends and craft beer options."
@@ -128,6 +146,7 @@ ${advisoryRules(advisoriesHint)}${modeDirective(mode)}
 - Use the live weather context to favor indoor or outdoor picks appropriately, and mention it briefly in "why" when it materially affected the choice.
 - Preserve each selected item's "id" and "source" fields exactly as given so we can re-attach booking/map links.
 - Dated events only fit if their date works for the request; prefer sooner over later and mention the date in "why".
+${spotlightRule()}
 - If an "active_filter" is provided in the request, weight your selection toward that category where it genuinely fits, but never force a bad match.
 - Never select two candidates that are effectively the same place or event under slightly different names — keep the one with better data (rating, booking link) and drop the other.
 - When candidates include "km_away" (distance from the user's shared location), prefer closer options when quality is comparable, and you may mention proximity in "why" (e.g. "a five-minute walk from you").
