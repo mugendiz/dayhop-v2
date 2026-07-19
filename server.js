@@ -4,19 +4,41 @@ const express = require('express');
 const path = require('path');
 const compression = require('compression');
 const cors = require('cors');
+const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const isProd = process.env.NODE_ENV === 'production';
 
+// Render terminates TLS at a reverse proxy. Without this, req.ip is the
+// proxy's address for every visitor, so all users share ONE rate-limit
+// bucket (and express-rate-limit v7 flags the mismatch as an error).
+app.set('trust proxy', 1);
+
+app.use(helmet({
+  // The SPA runs inline <script> blocks and pulls GSAP/Supabase/fonts from
+  // jsdelivr, Fontshare, and Google — a real CSP needs its own dedicated
+  // pass. Helmet's other headers (nosniff, frame denial, HSTS, …) apply.
+  contentSecurityPolicy: false
+}));
 app.use(compression());
 app.use(cors());
 // Stripe webhook needs the raw body for signature verification, so it mounts
 // BEFORE the JSON parser. Everything else gets parsed JSON as usual.
 app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), require('./routes/billingWebhook'));
 app.use(express.json({ limit: '100kb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders(res, filePath) {
+    // Icons are effectively immutable — a day of caching is safe. The app
+    // shell (HTML/JS/CSS) stays on ETag revalidation: the service worker
+    // re-downloads it through the HTTP cache on every version bump, so a
+    // long max-age there could pin a stale deploy into the new SW cache.
+    if (/[\\/]icons[\\/]/.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+    }
+  }
+}));
 
 // Attach the signed-in user (if any) to every request before routes run.
 const { attachUser } = require('./middleware/auth');
@@ -96,6 +118,12 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Unknown API paths get a JSON 404 — never the SPA shell with a 200,
+// which silently confuses API clients. Must come after every /api mount.
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'NOT_FOUND', message: 'No such API endpoint.' });
+});
+
 // Public shared-guide page: /g/<share_id> — the page itself fetches the
 // guide JSON from /api/guides/shared/<share_id>.
 app.get('/g/:shareId', (req, res) => {
@@ -129,7 +157,7 @@ if (isProd && keepAliveBase && keepAliveBase !== 'off') {
   console.log(`[keepalive] pinging ${keepAliveBase}/health every 10 min`);
 }
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 DayHop V2 running on http://localhost:${PORT}`);
   if (!process.env.GROK_API_KEY) {
     console.warn('⚠️  GROK_API_KEY not set — AI planning will return 503 until configured.');
@@ -140,4 +168,11 @@ app.listen(PORT, () => {
   if (!isProd) {
     console.log('   Running in development mode.');
   }
+});
+
+// Render sends SIGTERM on every deploy — finish in-flight requests instead
+// of dropping them mid-response.
+process.on('SIGTERM', () => {
+  console.log('[server] SIGTERM received — draining connections');
+  server.close(() => process.exit(0));
 });
