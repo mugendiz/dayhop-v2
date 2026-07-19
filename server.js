@@ -110,6 +110,9 @@ app.get('/health', (req, res) => {
       getyourguide: Boolean(process.env.GETYOURGUIDE_API_KEY),
       ticketmaster: Boolean(process.env.TICKETMASTER_API_KEY),
       eventbrite: Boolean(process.env.EVENTBRITE_PRIVATE_TOKEN && String(process.env.EVENTBRITE_ORG_IDS || '').trim()),
+      seeker: Boolean(process.env.SEEKER_API_KEY && process.env.SEEKER_API_URL),
+      attractions_ontario: true, // keyless WP REST feed, always on for GTA requests
+      civic_calendars: true, // keyless municipal calendars, always on for GTA requests
       toronto_open_data: true, // keyless public feed, always on for GTA requests
       york_open_data: process.env.YORK_OPEN_DATA_ENABLED === 'true',
       stripe: require('./services/billing').status(),

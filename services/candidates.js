@@ -14,6 +14,9 @@ const viator = require('./viator');
 const gyg = require('./getYourGuide');
 const ticketmaster = require('./ticketmaster');
 const eventbrite = require('./eventbrite');
+const seeker = require('./seeker');
+const attractionsOntario = require('./attractionsOntario');
+const civicCalendars = require('./civicCalendars');
 const torontoOpenData = require('./torontoOpenData');
 const yorkOpenData = require('./yorkOpenData');
 const curatedEvents = require('../data/curatedEvents');
@@ -33,6 +36,9 @@ const SOURCE_CAPS = {
   getyourguide: 10,
   ticketmaster: 12,
   eventbrite: 8,
+  seeker: 8,
+  attractions_ontario: 8,
+  civic_calendars: 8,
   toronto_open_data: 12,
   york_open_data: 6,
   curated: 4,
@@ -189,6 +195,25 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
     {
       name: 'eventbrite',
       run: () => isGta ? eventbrite.searchEvents({ limit: SOURCE_CAPS.eventbrite }) : []
+    },
+    {
+      // Hyperlocal community events — works wherever Seeker has coverage,
+      // so gated on geo, not the GTA.
+      name: 'seeker',
+      run: () => geo
+        ? seeker.searchEvents({
+            lat: geo.lat, lng: geo.lng, city: localityText,
+            limit: SOURCE_CAPS.seeker, daysAhead: eventDaysAhead(spotlight)
+          })
+        : []
+    },
+    {
+      name: 'attractions_ontario',
+      run: () => isGta ? attractionsOntario.searchEvents({ limit: SOURCE_CAPS.attractions_ontario }) : []
+    },
+    {
+      name: 'civic_calendars',
+      run: () => isGta ? civicCalendars.searchEvents({ limit: SOURCE_CAPS.civic_calendars }) : []
     },
     {
       name: 'toronto_open_data',

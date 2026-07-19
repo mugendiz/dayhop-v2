@@ -31,6 +31,14 @@ services:
         sync: false
       - key: EVENTBRITE_ORG_IDS
         sync: false
+      # Seeker Events API — request-only access (seeker.io); no-op until both set
+      - key: SEEKER_API_URL
+        sync: false
+      - key: SEEKER_API_KEY
+        sync: false
+      # Municipal calendar feeds override (keyless; defaults baked into code)
+      - key: CIVIC_CALENDAR_FEEDS
+        sync: false
       - key: VIATOR_API_KEY
         sync: false
       # Auth + persistence
