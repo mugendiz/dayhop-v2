@@ -107,6 +107,12 @@ button, .filter-chip {
     linear-gradient(180deg, rgba(253,250,243,0.9) 0%, rgba(251,247,238,0.68) 48%, rgba(251,247,238,0.9) 100%),
     url("https://images.unsplash.com/photo-1517935706615-2717063c2225?auto=format&fit=crop&w=2100&q=80")
       center 22% / cover no-repeat;
+  /* Pinned to the viewport, not the hero box: the skyline holds still while
+     hero-content scrolls over it. .hero's own overflow:hidden clips this to
+     the hero's bounds, so once that box scrolls past — right around where
+     "Exploring ___" takes over — the fixed photo is simply covered by the
+     opaque results feed and normal scrolling resumes. */
+  background-attachment: fixed;
 }
 
 .hero-trail {
@@ -338,6 +344,85 @@ button, .filter-chip {
 @keyframes whereShake {
   25% { transform: translateX(-5px); }
   75% { transform: translateX(5px); }
+}
+
+/* "Date aware" picker — optional, so it stays a quiet collapsed chip until
+   tapped. Opening it defaults the date to today; the user can then pick a
+   different day or switch to a range. Closing it back down (or Clear) drops
+   the filter entirely, back to "any day" — today's implicit default. */
+.prompt-date { margin-bottom: 4px; }
+
+.prompt-date-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--paper-dim);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  padding: 7px 13px;
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.prompt-date-toggle:hover { background: var(--line); }
+.prompt-date-toggle[aria-expanded="true"] {
+  background: rgba(255, 182, 39, 0.18);
+  border-color: var(--marigold);
+  color: var(--ink);
+}
+.prompt-date-icon { font-size: 13px; }
+.prompt-date-chevron {
+  font-size: 10px;
+  opacity: 0.6;
+  transition: transform 0.15s ease;
+}
+.prompt-date-toggle[aria-expanded="true"] .prompt-date-chevron { transform: rotate(180deg); }
+
+.date-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.date-kind-toggle { display: flex; gap: 14px; }
+.date-kind-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.date-kind-option input { accent-color: var(--coral); cursor: pointer; }
+
+.date-inputs { display: flex; align-items: center; gap: 8px; }
+.date-input {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 6px 9px;
+  font-family: var(--body);
+  font-size: 13.5px;
+  color: var(--ink);
+  background: var(--paper);
+}
+.date-input:focus-visible { outline: 2px solid var(--coral); outline-offset: 2px; }
+.date-range-sep { color: var(--ink-soft); font-weight: 600; }
+
+.date-clear-btn { font-size: 12.5px; margin-left: auto; }
+
+@media (max-width: 480px) {
+  .date-fields { flex-direction: column; align-items: flex-start; }
+  .date-clear-btn { margin-left: 0; }
 }
 
 /* Location autocomplete (combobox) */
@@ -2211,6 +2296,7 @@ body[data-mode="adventure"] .hero::before {
     linear-gradient(180deg, rgba(253,235,208,0.84) 0%, rgba(250,224,189,0.52) 48%, rgba(249,224,189,0.88) 100%),
     url("https://images.unsplash.com/photo-1522163182402-834f871fd851?auto=format&fit=crop&w=2100&q=80")
       center 30% / cover no-repeat;
+  background-attachment: fixed;
 }
 
 .mode-toggle {

@@ -134,10 +134,10 @@ function advisoryRules(advisoriesHint) {
 `;
 }
 
-function buildGroundedSystemPrompt({ city, weatherHint, advisoriesHint, mode }) {
+function buildGroundedSystemPrompt({ city, weatherHint, advisoriesHint, dateHint, mode }) {
   return `You are the planning engine behind DayHop, a trusted AI local adventure companion, currently planning for ${city}.
 
-You will be given a user request plus a JSON list of REAL candidate places, live local events, and bookable activities (from Google Places, Ticketmaster, Eventbrite, city open-data event calendars, Viator, GetYourGuide, and DayHop's curated list). ${weatherHint || ''}${advisoriesHint ? `\n\n${advisoriesHint}` : ''}
+You will be given a user request plus a JSON list of REAL candidate places, live local events, and bookable activities (from Google Places, Ticketmaster, Eventbrite, city open-data event calendars, Viator, GetYourGuide, and DayHop's curated list). ${weatherHint || ''}${advisoriesHint ? `\n\n${advisoriesHint}` : ''}${dateHint ? `\n\n${dateHint}` : ''}
 
 Hard rules:
 - Only recommend items that appear in the provided candidate list. Do not invent venues that are not in the candidates.
@@ -251,9 +251,9 @@ JSON shape:
  * and replacements by candidate_id so the caller can re-attach full idea
  * payloads (photos, booking links) without trusting the model to copy them.
  */
-function buildReplanSystemPrompt({ city, weatherHint, advisoriesHint, hasCandidates, multiDay, mode }) {
+function buildReplanSystemPrompt({ city, weatherHint, advisoriesHint, dateHint, hasCandidates, multiDay, mode }) {
   const where = whereLabel(city);
-  return `You are DayHop's smart re-planning engine for ${where}. You will receive a family's CURRENT itinerary ("current_plan"), their adjustment request ("request")${hasCandidates ? ', and a list of REAL candidate places/activities ("candidates") you may swap in' : ''}. ${weatherHint || ''}${advisoriesHint ? `\n\n${advisoriesHint}` : ''}
+  return `You are DayHop's smart re-planning engine for ${where}. You will receive a family's CURRENT itinerary ("current_plan"), their adjustment request ("request")${hasCandidates ? ', and a list of REAL candidate places/activities ("candidates") you may swap in' : ''}. ${weatherHint || ''}${advisoriesHint ? `\n\n${advisoriesHint}` : ''}${dateHint ? `\n\n${dateHint}` : ''}
 
 Your job: revise the plan to honor the request while keeping everything that still works. Change what needs changing — no more, no less.
 
@@ -363,7 +363,7 @@ async function generateIdeas({ prompt, city = DEFAULT_CITY, region = DEFAULT_REG
  * @param {Array} opts.candidates - normalized candidate objects, each tagged with a `source`
  * @param {Object} [opts.weather] - output of services/weather.getConditions
  */
-async function generateGroundedIdeas({ prompt, filter, city = DEFAULT_CITY, candidates, weather, advisories, mode }) {
+async function generateGroundedIdeas({ prompt, filter, city = DEFAULT_CITY, candidates, weather, advisories, dateHint, mode }) {
   if (!prompt || !prompt.trim()) {
     const err = new Error('Prompt is required');
     err.code = 'INVALID_INPUT';
@@ -385,7 +385,7 @@ async function generateGroundedIdeas({ prompt, filter, city = DEFAULT_CITY, cand
   });
 
   const messages = [
-    { role: 'system', content: buildGroundedSystemPrompt({ city, weatherHint, advisoriesHint, mode }) },
+    { role: 'system', content: buildGroundedSystemPrompt({ city, weatherHint, advisoriesHint, dateHint, mode }) },
     { role: 'user', content: userMessage }
   ];
 
@@ -427,7 +427,7 @@ async function buildDayPlan({ items, city = DEFAULT_CITY, days = 1, mode }) {
  * the contract; the caller re-attaches full idea payloads by keep_id /
  * candidate_id and must treat unknown ids as hallucinations.
  */
-async function replanPlan({ current, instruction, city = DEFAULT_CITY, weather, advisories, candidates, mode }) {
+async function replanPlan({ current, instruction, city = DEFAULT_CITY, weather, advisories, candidates, dateHint, mode }) {
   if (!instruction || !String(instruction).trim()) {
     const err = new Error('Tell DayHop what to change first');
     err.code = 'INVALID_INPUT';
@@ -447,7 +447,7 @@ async function replanPlan({ current, instruction, city = DEFAULT_CITY, weather, 
   const messages = [
     {
       role: 'system',
-      content: buildReplanSystemPrompt({ city, weatherHint, advisoriesHint, hasCandidates: pool.length > 0, multiDay, mode })
+      content: buildReplanSystemPrompt({ city, weatherHint, advisoriesHint, dateHint, hasCandidates: pool.length > 0, multiDay, mode })
     },
     {
       role: 'user',

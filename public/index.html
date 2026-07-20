@@ -80,6 +80,34 @@
           <ul id="location-listbox" class="location-listbox" role="listbox" hidden></ul>
         </div>
       </div>
+      <!-- Date aware: optional. Collapsed = "any day" (today's implicit
+           default, unchanged). Opening it defaults to today; the user can
+           then change the day or switch to a range. -->
+      <div class="prompt-date" id="prompt-date">
+        <button type="button" class="prompt-date-toggle" id="date-toggle" aria-expanded="false" aria-controls="date-fields">
+          <span class="prompt-date-icon" aria-hidden="true">📅</span>
+          <span id="date-toggle-label">Any day</span>
+          <span class="prompt-date-chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="date-fields" id="date-fields" hidden>
+          <div class="date-kind-toggle" role="radiogroup" aria-label="One day or a date range">
+            <label class="date-kind-option">
+              <input type="radio" name="date-kind" id="date-kind-single" value="single" checked>
+              <span>One day</span>
+            </label>
+            <label class="date-kind-option">
+              <input type="radio" name="date-kind" id="date-kind-range" value="range">
+              <span>Date range</span>
+            </label>
+          </div>
+          <div class="date-inputs">
+            <input type="date" id="date-start" class="date-input" aria-label="Date">
+            <span class="date-range-sep" id="date-range-sep" hidden>&ndash;</span>
+            <input type="date" id="date-end" class="date-input" aria-label="End date" hidden>
+          </div>
+          <button type="button" class="linklike date-clear-btn" id="date-clear-btn">Clear &mdash; plan for any day</button>
+        </div>
+      </div>
       <label for="grok-prompt" class="sr-only">Describe the day you want</label>
       <textarea
         id="grok-prompt"

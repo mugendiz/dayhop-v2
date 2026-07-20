@@ -12,8 +12,9 @@ const grok = require('../services/grok');
 const analytics = require('../services/analytics');
 const { entitlementsFor } = require('../services/entitlements');
 const {
-  gatherCandidates, sanitizeCoords, shortAddress, fallbackIdea, DEFAULT_CITY
+  gatherCandidates, sanitizeCoords, shortAddress, fallbackIdea, parseDateWindow, DEFAULT_CITY
 } = require('../services/candidates');
+const { formatRange } = require('../services/spotlight');
 const { enrichIdeaImages } = require('../services/ideaPhotos');
 
 // Who is asking, for usage limits + analytics: authenticated user id, else
@@ -29,8 +30,11 @@ router.post('/', async (req, res) => {
   // Frontend's GTA picker sends `city`; older clients may send `location`.
   // `event_keyword` (optional) narrows the event connectors, e.g. "world cup".
   // `mode` is the R&R/Adventure toggle; anything unrecognized falls back to R&R.
-  const { prompt, filter, location, city, event_keyword } = req.body || {};
+  const { prompt, filter, location, city, event_keyword, date, date_end } = req.body || {};
   const mode = grok.normalizeMode(req.body && req.body.mode);
+  // "Date aware" picker (optional): a single day or a range, Toronto-local
+  // YYYY-MM-DD. Left unset, DayHop plans for "any day" as before.
+  const dateWindow = parseDateWindow(date, date_end);
 
   if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
     return res.status(400).json({
@@ -72,8 +76,9 @@ router.post('/', async (req, res) => {
 
   try {
     const { candidates, weather, usedGrounding, resolvedCity, advisories, advisoriesStatus } =
-      await gatherCandidates(prompt, targetLocation, eventKeyword, filter, userCoords, mode);
+      await gatherCandidates(prompt, targetLocation, eventKeyword, filter, userCoords, mode, dateWindow);
     const cityForGrok = resolvedCity || targetLocation;
+    const dateHint = dateHintFor(dateWindow);
 
     let ideas;
     let degraded = false;
@@ -86,7 +91,8 @@ router.post('/', async (req, res) => {
           city: cityForGrok,
           candidates: candidates.map(toGrokCandidate),
           weather,
-          advisories
+          advisories,
+          dateHint
         });
         ideas = mergeWithCandidates(selected, candidates);
       } catch (err) {
@@ -121,12 +127,24 @@ router.post('/', async (req, res) => {
       advisories: advisories || [],
       advisories_status: advisoriesStatus || 'unavailable',
       near: userCoords ? resolvedCity || null : null,
+      date_window: dateWindow || null,
       generated_at: new Date().toISOString()
     });
   } catch (err) {
     handleGrokError(err, res);
   }
 });
+
+// Plain-language nudge for Grok — so a future-dated plan doesn't read like
+// "today", and so it can weigh whether a dated event actually falls in the
+// requested window.
+function dateHintFor(dateWindow) {
+  if (!dateWindow) return '';
+  const range = formatRange(dateWindow);
+  return dateWindow.start === dateWindow.end
+    ? `The user is planning this for ${range} — write "why" copy accordingly (not "today" unless that date is today), and only treat dated events as a fit if they fall on that day.`
+    : `The user is planning this for ${range} — write "why" copy accordingly, and only treat dated events as a fit if they fall within that range.`;
+}
 
 /**
  * Grok returns ideas referencing candidate ids — re-attach the real
@@ -270,6 +288,10 @@ router.post('/replan', async (req, res) => {
 
   const targetLocation = (city && String(city).trim()) || guide.city || DEFAULT_CITY;
   const trimmedInstruction = instruction.trim().slice(0, 300);
+  // Carries the plan's original "date aware" window forward so swap-ins stay
+  // scoped to the same day/range being re-planned.
+  const dateWindow = parseDateWindow(req.body.date, req.body.date_end);
+  const dateHint = dateHintFor(dateWindow);
 
   try {
     // Fresh swap material scoped to the instruction (plus the plan's own
@@ -282,7 +304,7 @@ router.post('/replan', async (req, res) => {
     try {
       const gathered = await gatherCandidates(
         trimmedInstruction, targetLocation, '', null, sanitizeCoords(req.body.coords),
-        grok.normalizeMode(req.body.mode)
+        grok.normalizeMode(req.body.mode), dateWindow
       );
       candidates = gathered.candidates;
       weather = gathered.weather;
@@ -299,6 +321,7 @@ router.post('/replan', async (req, res) => {
       mode: grok.normalizeMode(req.body.mode),
       weather,
       advisories,
+      dateHint,
       candidates: candidates.map(toGrokCandidate)
     });
 

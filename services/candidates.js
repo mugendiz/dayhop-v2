@@ -23,7 +23,7 @@ const curatedEvents = require('../data/curatedEvents');
 const curatedCatalog = require('../data/curatedCatalog');
 const { matchThemes } = require('../data/themes');
 const relevance = require('./relevance');
-const { getSpotlight, eventDaysAhead } = require('./spotlight');
+const { getSpotlight, eventDaysAhead, torontoToday, addDays } = require('./spotlight');
 
 const DEFAULT_CITY = process.env.DEFAULT_CITY || 'Richmond Hill';
 
@@ -46,6 +46,32 @@ const SOURCE_CAPS = {
 };
 
 const CANDIDATE_POOL_CAP = 60;
+
+// ---------- "Date aware" picker: optional planning date/range ----------
+// Toronto-local YYYY-MM-DD, inclusive. Left unset, DayHop plans for "any
+// day" exactly as before (no date filtering, current weather applies).
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_DATE_WINDOW_DAYS = 90;
+
+// Normalizes the picker's raw `date`/`date_end` strings into a validated
+// window, or null when the user never engaged it. A past date clamps to
+// today (DayHop only plans ahead), an end before start clamps to start, and
+// a runaway range caps at 90 days so a stray far-future end can't blow out
+// the event connectors' daysAhead fetch.
+function parseDateWindow(date, dateEnd) {
+  if (!date || !DATE_RE.test(date)) return null;
+  const today = torontoToday();
+  const start = date < today ? today : date;
+  const capEnd = addDays(start, MAX_DATE_WINDOW_DAYS);
+  let end = dateEnd && DATE_RE.test(dateEnd) && dateEnd > start ? dateEnd : start;
+  if (end > capEnd) end = capEnd;
+  return { start, end };
+}
+
+function daysBetween(startStr, endStr) {
+  const toUtc = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d, 12); };
+  return Math.round((toUtc(endStr) - toUtc(startStr)) / 86400000);
+}
 
 // ---------- Quality gate: only "10/10" candidates survive ----------
 // Applied to the ranked pool in every mode, so the browse feed, prompt
@@ -84,7 +110,7 @@ function qualityGate(scored) {
   return [...strict, ...rest];
 }
 
-async function gatherCandidates(prompt, locationText, eventKeyword, filter, userCoords, mode) {
+async function gatherCandidates(prompt, locationText, eventKeyword, filter, userCoords, mode, dateWindow = null) {
   let geo = null;
   let weather = null;
   // With shared coordinates the locality comes from reverse geocoding and
@@ -112,7 +138,13 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
 
   const localityText = resolvedCity || locationText;
 
-  if (geo) {
+  // Current conditions only mean something for a day that includes "now" —
+  // applying today's weather bias to a future date would be a quiet lie, so
+  // skip the call (and any weather-driven indoor/outdoor steering) entirely
+  // when the requested window doesn't cover today.
+  const today = torontoToday();
+  const weatherApplies = !dateWindow || (dateWindow.start <= today && today <= dateWindow.end);
+  if (geo && weatherApplies) {
     try {
       weather = await weatherSvc.getConditions({ lat: geo.lat, lng: geo.lng });
     } catch (err) {
@@ -146,6 +178,13 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   // stat/bank holiday. Widens the event fetch window to cover the long
   // weekend and boosts events landing on it (relevance.js).
   const spotlight = getSpotlight();
+
+  // How far ahead the event connectors should fetch: at least far enough to
+  // cover the spotlight window, and — when the "date aware" picker is set to
+  // something beyond that — at least far enough to reach the requested date.
+  const daysAhead = dateWindow
+    ? Math.max(eventDaysAhead(spotlight), daysBetween(today, dateWindow.end) + 2)
+    : eventDaysAhead(spotlight);
 
   // Theme expansion: "swimming" fans out to pools, beaches, splash pads,
   // paddling rentals, waterparks — the neighbourhood of the request, not
@@ -188,7 +227,7 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
       run: () => geo
         ? ticketmaster.searchEvents({
             lat: geo.lat, lng: geo.lng, keyword: eventKeyword || undefined,
-            limit: SOURCE_CAPS.ticketmaster, daysAhead: eventDaysAhead(spotlight)
+            limit: SOURCE_CAPS.ticketmaster, daysAhead
           })
         : []
     },
@@ -203,7 +242,7 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
       run: () => geo
         ? seeker.searchEvents({
             lat: geo.lat, lng: geo.lng, city: localityText,
-            limit: SOURCE_CAPS.seeker, daysAhead: eventDaysAhead(spotlight)
+            limit: SOURCE_CAPS.seeker, daysAhead
           })
         : []
     },
@@ -250,12 +289,19 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   // relevant candidates instead of whichever source came last.
   // Closed places are dropped before any of that — DayHop never recommends
   // (or spends a pool slot on) a place Google lists as closed.
-  const pool = dedupCandidates(interleave(bySource))
+  let pool = dedupCandidates(interleave(bySource))
     .filter(c => {
       const closed = advisoriesSvc.closureAdvisory(c.business_status, { place_id: c.id, title: c.title });
       if (closed) console.log(`[candidates] dropping closed place: ${c.title} (${c.business_status})`);
       return !closed;
     });
+
+  // "Date aware" picker: dated events outside the requested window are
+  // dropped; evergreen candidates (no fixed date — most venues/activities)
+  // are unaffected, since they're a fine idea on any day in the window.
+  if (dateWindow) {
+    pool = pool.filter(c => !c.date || (c.date >= dateWindow.start && c.date <= dateWindow.end));
+  }
 
   // With shared coordinates, distance becomes a first-class signal: shown on
   // cards, boosted by the scorer, and visible to Grok as km_away.
@@ -282,7 +328,8 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
     resolvedCity,
     advisories: advisoryResult.advisories,
     advisoriesStatus: advisoryResult.status,
-    spotlight
+    spotlight,
+    dateWindow: dateWindow || null
   };
 }
 
@@ -496,6 +543,7 @@ module.exports = {
   sanitizeCoords,
   shortAddress,
   fallbackIdea,
+  parseDateWindow,
   DEFAULT_CITY,
   CANDIDATE_POOL_CAP
 };

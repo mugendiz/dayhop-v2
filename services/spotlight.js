@@ -179,5 +179,10 @@ module.exports = {
   isAroundSpotlight,
   eventDaysAhead,
   ontarioHolidays, // exported for tests/debugging
-  easterSunday
+  easterSunday,
+  // Pure date-math helpers, reused by the "date aware" picker (candidates.js)
+  // to parse/format the user's requested planning date/range.
+  torontoToday,
+  addDays,
+  formatRange
 };

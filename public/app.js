@@ -86,6 +86,12 @@
   const WORLD_CUP_ENDS = Date.parse('2026-07-20T08:00:00Z');
   const worldCupLive = () => Date.now() < WORLD_CUP_ENDS;
 
+  // Toronto-local "today" as YYYY-MM-DD — matches the server's date-window
+  // convention regardless of the device's own timezone.
+  function torontoToday() {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto' }).format(new Date());
+  }
+
   // Server-computed seasonal spotlight (/api/config): World Cup while it's
   // live, then the next Ontario stat holiday, then the one after — the hero
   // eyebrow stays current forever without a client redeploy. The hardcoded
@@ -221,7 +227,11 @@
     locationLabel: null, // e.g. "Richmond Hill · L4C"
     locationChosen: false, // user must explicitly pick a location before searching
     browseMode: false,   // feed is showing the instant discovery feed, not prompt results
-    visited: {}          // "been there" quest marks: placeKey → ISO timestamp
+    visited: {},         // "been there" quest marks: placeKey → ISO timestamp
+    // "Date aware" picker (optional — see prompt-date section): null/null
+    // means "any day", DayHop's implicit default. Toronto-local YYYY-MM-DD.
+    planDate: null,
+    planDateEnd: null
   };
 
   const COORDS_FRESH_MS = 30 * 60 * 1000;
@@ -407,6 +417,117 @@
     // the location combobox, or the toggle's own handler.
     addModeSwipe(document.querySelector('.hero'),
       'input, textarea, button, a, .location-combo, .location-listbox, .mode-toggle');
+  }
+
+  // ---------- "Date aware" picker ----------
+  // Optional: collapsed = "any day" (today's implicit default, unchanged).
+  // A disclosure panel, not an on/off switch — the toggle button only shows
+  // or hides the fields; the filter itself lives in the date inputs and the
+  // Clear button. First open with nothing chosen yet seeds today's date,
+  // which is the "defaults to today" behavior.
+  function wireDatePicker() {
+    const toggle = document.getElementById('date-toggle');
+    const fields = document.getElementById('date-fields');
+    const startInput = document.getElementById('date-start');
+    const endInput = document.getElementById('date-end');
+    const sep = document.getElementById('date-range-sep');
+    const kindSingle = document.getElementById('date-kind-single');
+    const kindRange = document.getElementById('date-kind-range');
+    const clearBtn = document.getElementById('date-clear-btn');
+    if (!toggle || !fields || !startInput || !endInput || !kindSingle || !kindRange || !clearBtn) return;
+
+    startInput.min = torontoToday();
+    endInput.min = torontoToday();
+
+    toggle.addEventListener('click', () => {
+      const opening = fields.hidden;
+      fields.hidden = !opening;
+      toggle.setAttribute('aria-expanded', String(opening));
+      if (opening && !state.planDate) {
+        startInput.value = torontoToday();
+        state.planDate = startInput.value;
+        updateDateToggleLabel();
+        maybeRefreshForDateChange();
+      }
+    });
+
+    kindSingle.addEventListener('change', () => {
+      if (!kindSingle.checked) return;
+      sep.hidden = true;
+      endInput.hidden = true;
+      state.planDateEnd = null;
+      updateDateToggleLabel();
+      maybeRefreshForDateChange();
+    });
+
+    kindRange.addEventListener('change', () => {
+      if (!kindRange.checked) return;
+      sep.hidden = false;
+      endInput.hidden = false;
+      if (!endInput.value || endInput.value < startInput.value) endInput.value = startInput.value || torontoToday();
+      endInput.min = startInput.value || torontoToday();
+      state.planDateEnd = endInput.value;
+      updateDateToggleLabel();
+      maybeRefreshForDateChange();
+    });
+
+    startInput.addEventListener('change', () => {
+      if (!startInput.value) startInput.value = torontoToday();
+      state.planDate = startInput.value;
+      endInput.min = startInput.value;
+      if (endInput.value && endInput.value < startInput.value) endInput.value = startInput.value;
+      if (kindRange.checked) state.planDateEnd = endInput.value;
+      updateDateToggleLabel();
+      maybeRefreshForDateChange();
+    });
+
+    endInput.addEventListener('change', () => {
+      if (endInput.value && endInput.value < startInput.value) endInput.value = startInput.value;
+      state.planDateEnd = endInput.value || startInput.value;
+      updateDateToggleLabel();
+      maybeRefreshForDateChange();
+    });
+
+    clearBtn.addEventListener('click', () => {
+      startInput.value = '';
+      endInput.value = '';
+      kindSingle.checked = true;
+      sep.hidden = true;
+      endInput.hidden = true;
+      state.planDate = null;
+      state.planDateEnd = null;
+      fields.hidden = true;
+      toggle.setAttribute('aria-expanded', 'false');
+      updateDateToggleLabel();
+      maybeRefreshForDateChange();
+    });
+  }
+
+  function updateDateToggleLabel() {
+    const label = document.getElementById('date-toggle-label');
+    if (!label) return;
+    if (!state.planDate) { label.textContent = 'Any day'; return; }
+    if (!state.planDateEnd || state.planDateEnd === state.planDate) {
+      label.textContent = state.planDate === torontoToday() ? 'Today' : formatEventDate(state.planDate);
+    } else {
+      label.textContent = `${formatEventDate(state.planDate)} – ${formatEventDate(state.planDateEnd)}`;
+    }
+  }
+
+  // { date, date_end } to fold into a generate/browse/replan request body —
+  // {} when the picker is untouched ("any day", today's unchanged default).
+  function getDatePayload() {
+    if (!state.planDate) return {};
+    return state.planDateEnd && state.planDateEnd !== state.planDate
+      ? { date: state.planDate, date_end: state.planDateEnd }
+      : { date: state.planDate };
+  }
+
+  // Changing the date while the instant discovery feed owns the screen
+  // refreshes it right away; prompt results wait for the next explicit
+  // "Plan my day" tap rather than re-running an AI call on every edit.
+  function maybeRefreshForDateChange() {
+    if (state.browseMode && !state.isGenerating) loadBrowseFeed();
   }
 
   // ---------- Location autocomplete (combobox) ----------
@@ -861,7 +982,10 @@
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ prompt, filter, mode: state.mode, city: state.city, coords: state.coords || undefined, owner_id: getOwnerId() })
+      body: JSON.stringify(Object.assign(
+        { prompt, filter, mode: state.mode, city: state.city, coords: state.coords || undefined, owner_id: getOwnerId() },
+        getDatePayload()
+      ))
     });
     const data = await res.json();
     if (!res.ok) {
@@ -893,14 +1017,17 @@
     const res = await fetch('/api/generate/replan', {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({
-        guide,
-        instruction,
-        mode: state.mode,
-        city: guide.city || state.city,
-        coords: state.coords || undefined,
-        owner_id: getOwnerId()
-      })
+      body: JSON.stringify(Object.assign(
+        {
+          guide,
+          instruction,
+          mode: state.mode,
+          city: guide.city || state.city,
+          coords: state.coords || undefined,
+          owner_id: getOwnerId()
+        },
+        getDatePayload()
+      ))
     });
     const data = await res.json();
     if (!res.ok) {
@@ -2601,15 +2728,18 @@
       const res = await fetch('/api/browse', {
         method: 'POST',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({
-          // First-timers see a living GTA-wide feed before ever touching the
-          // location picker (an empty first screen is a dead first screen);
-          // generating still requires an explicit location.
-          city: state.locationChosen ? state.city : GTA_WIDE,
-          mode: state.mode,
-          coords: coordsFresh ? state.coords : undefined,
-          owner_id: getOwnerId()
-        }),
+        body: JSON.stringify(Object.assign(
+          {
+            // First-timers see a living GTA-wide feed before ever touching the
+            // location picker (an empty first screen is a dead first screen);
+            // generating still requires an explicit location.
+            city: state.locationChosen ? state.city : GTA_WIDE,
+            mode: state.mode,
+            coords: coordsFresh ? state.coords : undefined,
+            owner_id: getOwnerId()
+          },
+          getDatePayload()
+        )),
         signal: ctl.signal
       });
       if (ctl !== browseAbort) { progress.fail(); return; } // superseded by a newer browse/prompt
@@ -3392,6 +3522,7 @@
     wireModeToggle();
     applyModeUi();
     renderFilterChips();
+    wireDatePicker();
 
     // No-results: clear the active filter and show everything again.
     document.getElementById('reset-filter-btn').addEventListener('click', () => setFilter('all'));
