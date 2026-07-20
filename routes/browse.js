@@ -190,29 +190,29 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     // or when an advisory says to stay out of the open air.
     const rightNow = shelter ? pool.filter(isSheltered)
       : (weather && weather.is_rainy) ? pool.filter(isIndoor) : pool;
-    take(rightNowLabel(part, weather, shelter), rightNow, 4);
+    take(rightNowLabel(part, weather, shelter), rightNow, 6);
     take('Within 15 minutes 📍',
       pool.filter(c => c.distance_km != null && c.distance_km <= 10)
-        .slice().sort((a, b) => a.distance_km - b.distance_km), 4);
+        .slice().sort((a, b) => a.distance_km - b.distance_km), 6);
     takeSpotlight();
-    take(datedLabel, pool.filter(hasDate), 3);
-    take('Hidden gems ✨', pool.filter(isGem), 3);
+    take(datedLabel, pool.filter(hasDate), 4);
+    take('Hidden gems ✨', pool.filter(isGem), 4);
   } else if (mode === 'adventure') {
-    if (shelter) take('Indoor thrills right now 😷', pool.filter(isSheltered), 4);
-    take('Top thrills ⚡', pool, 4);
-    if (!shelter) take('Get outside 🌊', pool.filter(isOutdoor), 3);
+    if (shelter) take('Indoor thrills right now 😷', pool.filter(isSheltered), 5);
+    take('Top thrills ⚡', pool, 6);
+    if (!shelter) take('Get outside 🌊', pool.filter(isOutdoor), 5);
     takeSpotlight();
-    take(datedLabel, pool.filter(hasDate), 3);
-    take('Hidden gems ✨', pool.filter(isGem), 2);
-    take('Refuel 🍴', pool.filter(isFood), 2);
-  } else {
-    if (shelter) take('Sheltered picks right now 😷', pool.filter(isSheltered), 4);
-    take('Restorative picks 🌿', pool, 4);
-    if (!shelter) take('Outdoors & nature 🌳', pool.filter(isOutdoor), 3);
-    take('Food & drink 🍴', pool.filter(isFood), 3);
-    takeSpotlight();
-    take(datedLabel, pool.filter(hasDate), 3);
+    take(datedLabel, pool.filter(hasDate), 4);
     take('Hidden gems ✨', pool.filter(isGem), 3);
+    take('Refuel 🍴', pool.filter(isFood), 3);
+  } else {
+    if (shelter) take('Sheltered picks right now 😷', pool.filter(isSheltered), 5);
+    take('Restorative picks 🌿', pool, 5);
+    if (!shelter) take('Outdoors & nature 🌳', pool.filter(isOutdoor), 4);
+    take('Food & drink 🍴', pool.filter(isFood), 4);
+    takeSpotlight();
+    take(datedLabel, pool.filter(hasDate), 4);
+    take('Hidden gems ✨', pool.filter(isGem), 4);
   }
   return ideas;
 }

@@ -1463,12 +1463,8 @@
   }
 
   // ---------- One-click booking links ----------
-  const SOURCE_BOOK_LABELS = {
-    viator: 'Viator',
-    getyourguide: 'GetYourGuide',
-    ticketmaster: 'Ticketmaster',
-    eventbrite: 'Eventbrite'
-  };
+  // Partner names stay out of the label — "our partner" reads the same
+  // whether the link goes to Viator, Ticketmaster, or anyone else we add.
 
   // Categories where a prefilled Viator search is genuinely useful when the
   // idea has no direct booking link (tours, cruises, big experiences) —
@@ -1496,10 +1492,10 @@
     const compact = mode === 'stop';
     const links = [];
     if (idea.booking_url) {
-      const label = compact ? 'Book ↗' : `Book this on ${SOURCE_BOOK_LABELS[idea.source] || 'our partner'} ↗`;
+      const label = compact ? 'Book ↗' : 'Book with our partner ↗';
       links.push(`<a class="card-booking-link" ${attrs} href="${escapeAttr(idea.booking_url)}" target="_blank" rel="noopener noreferrer sponsored">${label}</a>`);
     } else if (VIATOR_SEARCH_CATEGORIES.has(idea.category)) {
-      const label = compact ? 'Find tickets ↗' : 'Find tickets on Viator ↗';
+      const label = compact ? 'Find tickets ↗' : 'Find tickets with our partner ↗';
       links.push(`<a class="card-booking-link" ${attrs} data-idea-source="viator_search" href="${escapeAttr(viatorSearchUrl(idea))}" target="_blank" rel="noopener noreferrer sponsored">${label}</a>`);
     }
     if (idea.maps_url && (mode !== 'card' || links.length === 0)) {
