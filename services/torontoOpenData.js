@@ -32,14 +32,43 @@ const SELECT = [
 const PAGE_SIZE = 250;
 const MAX_ROWS = 500;
 const TTL_MS = Number(process.env.TORONTO_EVENTS_TTL_MS) || 12 * 60 * 60 * 1000;
+// A failed fetch (all retries exhausted) shouldn't wait out the full 12h TTL
+// before trying again, but also shouldn't retry on every request while
+// Akamai's bot score is hot — this is the cooldown between failed attempts.
+const NEGATIVE_TTL_MS = Number(process.env.TORONTO_EVENTS_NEGATIVE_TTL_MS) || 15 * 60 * 1000;
 const WINDOW_DAYS = 60;
 
 const client = axios.create({ timeout: 5000 });
+const RETRY_DELAYS_MS = [400, 1200, 2800]; // 3 retries — Akamai's bot score is per-request, not sustained, so a few spaced attempts often clear a 403 that a single try wouldn't.
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Akamai 403s this feed intermittently regardless of how "browser-like" the
+// request looks (see file header) — retrying is the only lever we have, so
+// spend it here rather than surfacing a fetch failure to the caller.
+async function getWithRetry(url) {
+  let lastErr;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      return await client.get(url, { headers: HEADERS });
+    } catch (err) {
+      lastErr = err;
+      const status = err.response && err.response.status;
+      const retryable = status === 403 || !status; // 403 (bot score) or network/timeout
+      if (!retryable || attempt === RETRY_DELAYS_MS.length) throw err;
+      console.warn(`[torontoOpenData] attempt ${attempt + 1} failed (${status || err.message}), retrying in ${RETRY_DELAYS_MS[attempt]}ms`);
+      await sleep(RETRY_DELAYS_MS[attempt]);
+    }
+  }
+  throw lastErr;
+}
 
 // Cache holds the in-flight promise (not just data) so N concurrent
 // cold-cache generates share ONE upstream request instead of stampeding
 // a WAF that's already suspicious of us.
-const cache = { promise: null, data: null, fetchedAt: 0 };
+const cache = { promise: null, data: null, fetchedAt: 0, failedAt: 0 };
 let loggedSample = false;
 
 // Feed dates are Toronto-local strings; compare as YYYY-MM-DD strings so the
@@ -124,7 +153,7 @@ async function fetchAllRows() {
   const rows = [];
   for (let skip = 0; skip < MAX_ROWS; skip += PAGE_SIZE) {
     const url = `${FEED_URL}?$format=application/json;odata.metadata=none&$count=false&$top=${PAGE_SIZE}&$skip=${skip}&$select=${SELECT}&$orderby=calendar_date_group%20desc`;
-    const res = await client.get(url, { headers: HEADERS });
+    const res = await getWithRetry(url);
     const page = (res.data && (res.data.value || res.data)) || [];
     if (!Array.isArray(page) || page.length === 0) break;
     if (!loggedSample && page[0]) {
@@ -154,15 +183,22 @@ function toUpcomingEvents(rows) {
 
 async function getUpcomingEvents({ limit = 20, keyword } = {}) {
   const fresh = cache.data && Date.now() - cache.fetchedAt < TTL_MS;
-  if (!fresh) {
+  // Skip the network entirely while a recent failure is on cooldown — Akamai
+  // is already suspicious of us, and every request during a sustained block
+  // just feeds the bot score, worse.
+  const coolingDown = cache.failedAt && Date.now() - cache.failedAt < NEGATIVE_TTL_MS;
+  if (!fresh && !coolingDown) {
     if (!cache.promise) {
       cache.promise = fetchAllRows()
         .then(rows => {
           cache.data = toUpcomingEvents(rows);
           cache.fetchedAt = Date.now();
+          cache.failedAt = 0;
         })
         .catch(err => {
-          console.warn('[torontoOpenData] fetch failed:', err.message, cache.data ? '(serving stale)' : '(no data)');
+          cache.failedAt = Date.now();
+          const cooldownMin = Math.round(NEGATIVE_TTL_MS / 60000);
+          console.warn('[torontoOpenData] fetch failed:', err.message, cache.data ? `(serving stale, retry in ${cooldownMin}m)` : `(no data, retry in ${cooldownMin}m)`);
         })
         .finally(() => { cache.promise = null; });
     }

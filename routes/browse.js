@@ -23,9 +23,9 @@ const CACHE_MAX_ENTRIES = 200;
 const cache = new Map();
 
 // Section size ceilings; overlaps are deduped and the pool is already
-// quality-gated (candidates.js), so the final feed is a tight top-10 —
+// quality-gated (candidates.js), so the final feed is a tight top-20 —
 // only the best, never overwhelming.
-const FEED_CAP = 10;
+const FEED_CAP = 20;
 
 router.post('/', async (req, res) => {
   const city = String((req.body && req.body.city) || '').trim().slice(0, 120) || DEFAULT_CITY;
