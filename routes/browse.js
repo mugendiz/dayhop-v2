@@ -263,7 +263,7 @@ const FEATURED_MAX_KM = 80;
 
 // Coord-less candidates can't prove locality, so only feeds that are local
 // by construction get a pass; everything else must measure up.
-const FEATURED_LOCAL_SOURCES = new Set(['tpl_events', 'civic_calendars', 'curated', 'toronto_open_data', 'york_open_data']);
+const FEATURED_LOCAL_SOURCES = new Set(['tpl_events', 'civic_calendars', 'curated', 'curated_catalog', 'toronto_open_data', 'york_open_data']);
 
 // "Mooney's Bay Park and Beach" vs "Mooney's Bay Beach": different sources,
 // same place. Key on the distinctive words so one survives.
@@ -280,9 +280,12 @@ function pickFeatured(candidates, geo) {
     }
     return FEATURED_LOCAL_SOURCES.has(c.source);
   };
+  // Newly-opened attractions earn a hero slot regardless of the sky/open-air
+  // vocabulary — being brand new IS the featured-worthy story (Phase 3).
   const matches = (candidates || []).filter(c =>
     nearEnough(c) &&
-    FEATURED_MATCH.test(`${c.title || ''} ${c.description || ''} ${c.venue || ''}`));
+    (c.newly_opened === true ||
+      FEATURED_MATCH.test(`${c.title || ''} ${c.description || ''} ${c.venue || ''}`)));
   const seen = new Set();
   const deduped = [];
   for (const c of matches.filter(m => m.image_url).concat(matches.filter(m => !m.image_url))) {

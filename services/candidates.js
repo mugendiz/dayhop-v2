@@ -25,6 +25,7 @@ const curatedEvents = require('../data/curatedEvents');
 const curatedCatalog = require('../data/curatedCatalog');
 const { matchThemes } = require('../data/themes');
 const relevance = require('./relevance');
+const analytics = require('./analytics');
 const { getSpotlight, eventDaysAhead, torontoToday, addDays } = require('./spotlight');
 
 const DEFAULT_CITY = process.env.DEFAULT_CITY || 'Richmond Hill';
@@ -305,8 +306,14 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
       run: () => isGta ? upcomingCuratedEvents(SOURCE_CAPS.curated) : []
     },
     {
+      // Region-aware: GTA browsers get the whole catalog; elsewhere in
+      // Ontario, only entries anchored to the asked place (so an approved
+      // Ottawa opening reaches Ottawa users, and never pollutes Kingston).
       name: 'curated_catalog',
-      run: () => isGta ? catalogCandidates(prompt, themes, SOURCE_CAPS.curated_catalog) : []
+      run: () => catalogCandidates(prompt, themes, SOURCE_CAPS.curated_catalog, {
+        isGta,
+        localityText: String(localityText || (geo && geo.formatted_address) || '')
+      })
     }
   ];
 
@@ -373,6 +380,20 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
         c.distance_km = relevance.haversineKm(userCoords, { lat: c.lat, lng: c.lng });
       }
     }
+  }
+
+  // Discovery Phase 3 feedback loop: newly-opened items carry their last-30d
+  // engagement (shortlist adds + outbound clicks) into scoring, so the
+  // freshness lift grows for openings users actually embrace. Cheap: only
+  // the handful of newly_opened ids are looked up, and the counts cache.
+  const freshIds = pool.filter(c => c.newly_opened).map(c => c.id);
+  if (freshIds.length) {
+    try {
+      const engagement = await analytics.engagementByIdea(freshIds);
+      for (const c of pool) {
+        if (c.newly_opened) c.engagement_30d = engagement[c.id] || 0;
+      }
+    } catch (err) { /* scoring proceeds with the base lift */ }
   }
 
   // Quality gate BEFORE the cap, so the pool fills with excellent
@@ -448,10 +469,21 @@ async function searchPlacesWithThemes(prompt, themeQueries, geo, hyperLocal = fa
 
 // Evergreen curated catalog entries, season-filtered and pre-ranked against
 // the prompt so only the most fitting slice of the catalog joins the pool.
-function catalogCandidates(prompt, themes, limit) {
+function catalogCandidates(prompt, themes, limit, regionOpts) {
   const month = Number(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', month: 'numeric' }).format(new Date()));
   const inSeason = month >= 5 && month <= 9 ? 'summer' : 'winter';
-  const eligible = curatedCatalog.filter(e => !e.seasonal || e.seasonal === inSeason);
+  let eligible = curatedCatalog.filter(e => !e.seasonal || e.seasonal === inSeason);
+
+  // Outside the GTA, only entries anchored to the asked place qualify —
+  // matched by city token against the entry's location/venue/tags. No
+  // token or no matches → the catalog simply contributes nothing there.
+  if (regionOpts && regionOpts.isGta === false) {
+    const token = String(regionOpts.localityText || '').toLowerCase().split(/[,(]/)[0].trim();
+    eligible = token.length >= 3
+      ? eligible.filter(e =>
+          `${e.location || ''} ${e.venue || ''} ${(e.tags || []).join(' ')}`.toLowerCase().includes(token))
+      : [];
+  }
 
   // "Just opened" decay: an entry is new from opened_at until new_until
   // (default one year) — after that the flag simply stops computing.

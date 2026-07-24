@@ -118,7 +118,13 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
     // Freshness: a newly-opened attraction gets a lift so it survives the
     // pool cap and shows up while it's the thing everyone's talking about.
     // The flag itself decays (candidates.js), so the boost self-expires.
-    if (candidate.newly_opened) score += 4;
+    // Real engagement (last-30d shortlist adds + clicks, attached upstream)
+    // grows the lift up to +3 — loved openings rise, ignored ones keep
+    // only the base courtesy. Never a penalty: absence of clicks usually
+    // just means absence of impressions.
+    if (candidate.newly_opened) {
+      score += 4 + Math.min(3, Math.round(Math.log2(1 + (candidate.engagement_30d || 0))));
+    }
 
     // Direct prompt-token overlap: title matches count double.
     score += 2 * textHits(tokens, candidate.title);

@@ -23,7 +23,7 @@ const axios = require('axios');
 
 const TTL_MS = 24 * 60 * 60 * 1000;
 const CACHE_MAX = 300;
-const SUBREDDITS = 'toronto+askTO+ontario+NiagaraFalls+CanadasWonderland';
+const SUBREDDITS = 'toronto+askTO+ontario+ottawa+Hamilton+londonontario+KingstonOntario+Guelph+barrie+waterloo+NiagaraFalls+CanadasWonderland';
 
 const client = axios.create({
   timeout: 8000,

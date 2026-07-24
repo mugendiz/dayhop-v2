@@ -43,6 +43,10 @@ function requireAdmin(req, res, next) {
 // first call in a window takes ~10–20s (feeds + one Grok call).
 router.get('/discovery', requireAdmin, async (req, res) => {
   try {
+    // ?cached=1 → peek only (page-load "N awaiting review"), never scans.
+    if (req.query.cached) {
+      return res.json(newOpenings.peek() || { cached: false, items: [] });
+    }
     res.json(await newOpenings.collect());
   } catch (err) {
     console.error('[admin] discovery failed:', err.message);

@@ -6,8 +6,10 @@
 // inbox, where a human verifies facts (and the opening date) before pasting
 // the entry into data/curatedCatalog.js. Trust contract > coverage.
 //
-// Feeds verified live 2026-07-24 (BlogTO and DailyHive have no public RSS —
-// don't re-add them):
+// Feeds verified live 2026-07-24, Ontario-wide (BlogTO and DailyHive have
+// no public RSS — don't re-add them). Global News regional feeds carry
+// general news; the headline gate + Grok filtering strip the non-attraction
+// noise.
 
 const axios = require('axios');
 const { callGrok } = require('./grok');
@@ -16,12 +18,21 @@ const { scoreBuzz } = require('./buzz');
 const DEFAULT_FEEDS =
   'Curiocity|https://curiocity.com/feed/;' +
   'Narcity Toronto|https://www.narcity.com/feeds/toronto.rss;' +
+  'Narcity Ottawa|https://www.narcity.com/feeds/ottawa.rss;' +
   'NOW Toronto|https://nowtoronto.com/feed/;' +
-  'Streets of Toronto|https://streetsoftoronto.com/feed/';
+  'Streets of Toronto|https://streetsoftoronto.com/feed/;' +
+  'ToDoCanada|https://www.todocanada.ca/feed/;' +
+  'Global Ottawa|https://globalnews.ca/ottawa/feed/;' +
+  'Global Hamilton|https://globalnews.ca/hamilton/feed/;' +
+  'Global London|https://globalnews.ca/london/feed/;' +
+  'Global Kingston|https://globalnews.ca/kingston/feed/;' +
+  'Global Barrie|https://globalnews.ca/barrie/feed/;' +
+  'Global Guelph|https://globalnews.ca/guelph/feed/;' +
+  'Global Peterborough|https://globalnews.ca/peterborough/feed/';
 
 const TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_ITEM_AGE_DAYS = 45;
-const MAX_GATED_ITEMS = 40;
+const MAX_GATED_ITEMS = 60;
 
 // Headline gate: cheap pre-filter so Grok only reads plausible candidates.
 const OPENING_RE = /\b(open(s|ed|ing)?|now open|debuts?|launch(es|ed|ing)?|unveil(s|ed)?|first look|brand.new|grand opening|new (attraction|experience|exhibit|museum|park|ride|restaurant|cafe|café|patio|festival|spot|space))\b/i;
@@ -122,7 +133,7 @@ async function extractCandidates(items) {
   const messages = [
     {
       role: 'system',
-      content: 'You are DayHop\'s new-openings scout for the Greater Toronto Area and Southern Ontario day-trip range (Niagara, Hamilton, Barrie). From local-news items you identify REAL, physical, visitable attractions/venues/experiences that are newly opened or opening — things a person could put on a day plan. Exclude: closures, roundup listicles with no single new place, real-estate/transit/political news, one-night-only events, and anything outside Southern Ontario. Be conservative: when unsure, leave it out. Respond with JSON only.'
+      content: 'You are DayHop\'s new-openings scout for the province of Ontario, Canada (Toronto/GTA, Ottawa, Hamilton, Niagara, London, Kingston, Barrie, Guelph, Peterborough, Muskoka, and everywhere between). From local-news items you identify REAL, physical, visitable attractions/venues/experiences that are newly opened or opening — things a person could put on a day plan. Always include the town/city in "area". Exclude: closures, roundup listicles with no single new place, real-estate/transit/political news, one-night-only events, and anything outside Ontario. Be conservative: when unsure, leave it out. Respond with JSON only.'
     },
     {
       role: 'user',
@@ -223,4 +234,13 @@ async function doCollect() {
   return data;
 }
 
-module.exports = { collect };
+/**
+ * The cached scan, if one exists — never triggers collection. Lets the
+ * admin page show "N awaiting review" on load without a 20s scan.
+ */
+function peek() {
+  if (!cache.data) return null;
+  return Object.assign({ cached: true, cached_at: new Date(cache.at).toISOString() }, cache.data);
+}
+
+module.exports = { collect, peek };

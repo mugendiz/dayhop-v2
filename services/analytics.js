@@ -273,4 +273,51 @@ async function userActivity(limit = 200) {
   return { source, users: rows };
 }
 
-module.exports = { recordEvent, countToday, metrics, userActivity, EVENT_TYPES };
+// ---------- per-idea engagement (discovery Phase 3 feedback loop) ----------
+// How much real love an idea got in the last 30 days: shortlist adds +
+// outbound clicks. Used to tune the newly_opened ranking lift — an opening
+// users embrace keeps rising; one they ignore keeps only the base lift.
+// Mirror is the floor, DB the truth (same max-merge rationale as countToday).
+const ENGAGEMENT_TYPES = ['shortlist_add', 'booking_click', 'maps_click'];
+const engagementCache = new Map(); // idsKey -> { at, value }
+const ENGAGEMENT_TTL_MS = 10 * 60 * 1000;
+
+async function engagementByIdea(ideaIds, { days = 30 } = {}) {
+  const ids = [...new Set((ideaIds || []).filter(Boolean).map(String))].sort();
+  if (!ids.length) return {};
+  const key = ids.join('|');
+  const hit = engagementCache.get(key);
+  if (hit && Date.now() - hit.at < ENGAGEMENT_TTL_MS) return hit.value;
+
+  const sinceMs = Date.now() - days * 24 * 3600 * 1000;
+  const counts = {};
+  for (const id of ids) counts[id] = 0;
+  for (const e of mirror) {
+    if (e.idea_id && counts[e.idea_id] != null &&
+        ENGAGEMENT_TYPES.includes(e.type) && Date.parse(e.created_at) >= sinceMs) {
+      counts[e.idea_id]++;
+    }
+  }
+  if (hasServiceKey()) {
+    try {
+      const { data, error } = await dbClient.getClient()
+        .from('events')
+        .select('idea_id')
+        .in('idea_id', ids)
+        .in('type', ENGAGEMENT_TYPES)
+        .gte('created_at', new Date(sinceMs).toISOString())
+        .limit(5000);
+      if (error) throw error;
+      const dbCounts = {};
+      for (const row of data || []) dbCounts[row.idea_id] = (dbCounts[row.idea_id] || 0) + 1;
+      for (const id of ids) counts[id] = Math.max(counts[id], dbCounts[id] || 0);
+    } catch (err) {
+      console.warn('[analytics] engagementByIdea failed, using mirror:', err.message);
+    }
+  }
+  if (engagementCache.size >= 50) engagementCache.delete(engagementCache.keys().next().value);
+  engagementCache.set(key, { at: Date.now(), value: counts });
+  return counts;
+}
+
+module.exports = { recordEvent, countToday, metrics, userActivity, engagementByIdea, EVENT_TYPES };

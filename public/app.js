@@ -2918,6 +2918,7 @@
 
   // Chip label for algorithmic featured picks (curated items carry their own).
   function featuredChip(f) {
+    if (f.newly_opened) return 'Just opened ✨';
     const t = `${f.title || ''} ${f.description || ''} ${f.venue || ''}`;
     if (/observator|planetari|stargaz|astronom|telescope/i.test(t)) return 'Star nights';
     if (/outdoor (movie|cinema|film|concert)|open[- ]air/i.test(t)) return 'Open air';

@@ -264,11 +264,25 @@
     }
   });
 
+  // On load, surface the cached scan (if the server has one) so the inbox
+  // greets you with "N awaiting review" instead of an empty box. Never
+  // triggers a fresh (slow) scan — that stays on the button.
+  async function peekDiscovery() {
+    if (!lastAuth) return;
+    try {
+      const res = await fetch('/api/admin/discovery?cached=1', { headers: lastAuth.headers });
+      const data = await res.json();
+      if (res.ok && data.cached && (data.items || []).length) renderDiscovery(data);
+    } catch (e) { /* the Scan button still works */ }
+  }
+
   function renderDiscovery(data) {
     const list = $('discovery-list');
     discoveryItems = (data.items || []).filter(it => !it.draft || !dismissedNew.has(it.draft.id));
-    const meta = 'Scanned ' + fmt(data.feeds_scanned) + ' feeds · ' + fmt(data.articles_seen) +
-      ' articles · ' + fmt(data.headlines_gated) + ' opening-flavored' +
+    const meta = fmt(discoveryItems.length) + ' awaiting review · scanned ' + fmt(data.feeds_scanned) +
+      ' feeds · ' + fmt(data.articles_seen) + ' articles · ' + fmt(data.headlines_gated) +
+      ' opening-flavored' +
+      (data.cached_at ? ' · last scan ' + esc(new Date(data.cached_at).toLocaleString('en-CA', { hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' })) : '') +
       (data.error ? ' · ' + esc(data.error) : '');
     if (!discoveryItems.length) {
       list.innerHTML = '<p class="rate">' + meta + ' — nothing new (or everything dismissed).</p>';
@@ -319,6 +333,7 @@
       if (!res.ok) { $('error').textContent = data.message || ('Error ' + res.status); return false; }
       lastAuth = { headers, email };
       render(data, email);
+      peekDiscovery();
       return true;
     } catch (e) {
       $('error').textContent = 'Could not reach the metrics endpoint.';
