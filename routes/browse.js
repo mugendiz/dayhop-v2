@@ -12,9 +12,10 @@ const router = express.Router();
 
 const analytics = require('../services/analytics');
 const { normalizeMode } = require('../services/grok');
-const { gatherCandidates, sanitizeCoords, fallbackIdea, parseDateWindow, DEFAULT_CITY } = require('../services/candidates');
+const { gatherCandidates, sanitizeCoords, fallbackIdea, parseDateWindow, DEFAULT_CITY, GTA_TOWNS } = require('../services/candidates');
 const { enrichIdeaImages } = require('../services/ideaPhotos');
 const { isAroundSpotlight, formatRange } = require('../services/spotlight');
+const { haversineKm } = require('../services/relevance');
 const { getSkyTonight } = require('../services/skyConditions');
 
 // Sky checks anchor to the user's point when shared, else metro Toronto —
@@ -48,16 +49,19 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const [{ candidates, weather, resolvedCity, advisories, advisoriesStatus, spotlight }, sky] =
+    const [{ candidates, weather, resolvedCity, advisories, advisoriesStatus, spotlight, geo }, sky] =
       await Promise.all([
         gatherCandidates(syntheticPrompt(part, mode), city, '', null, coords, mode, dateWindow),
         getSkyTonight(coords || GTA_CENTER)
       ]);
 
     const ideas = buildSections(candidates, { near: Boolean(coords), weather, part, mode, advisories, spotlight, dateWindow }).slice(0, FEED_CAP);
+    const featured = pickFeatured(candidates, geo);
     // Real venue photos for curated/open-data cards; the enriched feed is
-    // what gets cached, so the lookups are paid once per cache window.
-    await enrichIdeaImages(ideas, { city: resolvedCity || city, coords });
+    // what gets cached, so the lookups are paid once per cache window. The
+    // featured picks ride along under the same MAX_LOOKUPS bound — the hero
+    // card is a visual, so its photos matter most.
+    await enrichIdeaImages(ideas.concat(featured), { city: resolvedCity || city, coords });
     const payload = {
       ideas,
       weather: weather || null,
@@ -66,6 +70,10 @@ router.post('/', async (req, res) => {
       city: resolvedCity || city,
       near: Boolean(coords),
       sky: sky || null,
+      featured,
+      // The hand-written GTA sky pool only belongs under GTA skies — for any
+      // other city the algorithmic picks above carry the card alone.
+      featured_curated: GTA_TOWNS.test(String(resolvedCity || city || '')),
       spotlight: spotlight || null,
       date_window: dateWindow || null,
       generated_at: new Date().toISOString()
@@ -229,6 +237,53 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   // into (or above) the best picks.
   take('More to explore 🧭', pool, FEED_CAP);
   return ideas;
+}
+
+// ---------- "Under open skies" featured pool ----------
+// City-agnostic: instead of leaning on a hand-curated GTA list, the hero's
+// rotation draws sky-and-open-air material straight out of the ranked
+// candidate pool for WHATEVER city was asked — observatories, lookouts,
+// beaches, open-air cinema, waterfalls. Photo-bearing picks lead (the card
+// is a visual), relevance order is preserved otherwise, and the client
+// blends these with dated sky events plus (in the GTA) the curated pool.
+const FEATURED_MATCH = /observator|planetari|stargaz|astronom|telescope|night sky|under the stars|lookout|viewpoint|scenic|sunset|golden hour|open[- ]air|outdoor (movie|cinema|film|concert)|rooftop|beach|boardwalk|waterfall|botanical|conservation area/i;
+
+// Text search treats its radius as a bias, not a boundary — a famous garden
+// 400 km away can outrank the local one. The hero card is a "your city"
+// promise, so coord-bearing picks must actually be near the asked city.
+const FEATURED_MAX_KM = 80;
+
+// Coord-less candidates can't prove locality, so only feeds that are local
+// by construction get a pass; everything else must measure up.
+const FEATURED_LOCAL_SOURCES = new Set(['tpl_events', 'civic_calendars', 'curated', 'toronto_open_data', 'york_open_data']);
+
+// "Mooney's Bay Park and Beach" vs "Mooney's Bay Beach": different sources,
+// same place. Key on the distinctive words so one survives.
+const FEATURED_STOPWORDS = new Set(['the', 'a', 'and', 'at', 'of', 'park', 'beach', 'gardens', 'garden']);
+function featuredDupKey(c) {
+  return String(c.title || '').toLowerCase().replace(/[^a-z\s]/g, '')
+    .split(/\s+/).filter(w => w && !FEATURED_STOPWORDS.has(w)).slice(0, 3).join(' ');
+}
+
+function pickFeatured(candidates, geo) {
+  const nearEnough = c => {
+    if (c.lat != null && c.lng != null) {
+      return !geo || haversineKm({ lat: geo.lat, lng: geo.lng }, { lat: c.lat, lng: c.lng }) <= FEATURED_MAX_KM;
+    }
+    return FEATURED_LOCAL_SOURCES.has(c.source);
+  };
+  const matches = (candidates || []).filter(c =>
+    nearEnough(c) &&
+    FEATURED_MATCH.test(`${c.title || ''} ${c.description || ''} ${c.venue || ''}`));
+  const seen = new Set();
+  const deduped = [];
+  for (const c of matches.filter(m => m.image_url).concat(matches.filter(m => !m.image_url))) {
+    const key = featuredDupKey(c);
+    if (key && seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(c);
+  }
+  return deduped.slice(0, 8).map(toBrowseIdea);
 }
 
 function rightNowLabel(part, weather, shelter) {

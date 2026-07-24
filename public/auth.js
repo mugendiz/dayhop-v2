@@ -164,13 +164,19 @@
     }
   }
 
+  // One flow for sign-in AND sign-up: Supabase creates the account on a
+  // first-time Google login, so the same button serves both modes.
   async function handleGoogle() {
     clearError();
     try {
-      await sb.auth.signInWithOAuth({
+      // supabase-js v2 RETURNS errors from signInWithOAuth (it doesn't
+      // throw) — without this check a misconfigured provider makes the
+      // button appear dead.
+      const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: window.location.origin }
       });
+      if (error) throw error;
       // Redirects away; the session is picked up on return.
     } catch (err) {
       setError(err.message || 'Could not start Google sign-in.');

@@ -85,16 +85,9 @@ function normalizeElement(el) {
   };
 }
 
-/**
- * Named nature features near a point, deduped by name. Cached ~11 km /
- * 24 h so neighbours share an entry and Overpass sees us rarely.
- */
-async function getNatureSpots({ lat, lng, limit = 10 } = {}) {
-  if (lat == null || lng == null) return [];
-  const key = `${Math.round(lat * 10) / 10},${Math.round(lng * 10) / 10}`;
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < (hit.failed ? FAIL_TTL_MS : TTL_MS)) return hit.items.slice(0, limit);
+const pending = new Map();
 
+async function refreshSpots(key, lat, lng) {
   try {
     const res = await client.post(OVERPASS_URL, 'data=' + encodeURIComponent(buildQuery(lat, lng)));
     // A busy Overpass returns an HTML error page — sometimes with HTTP 200.
@@ -114,14 +107,33 @@ async function getNatureSpots({ lat, lng, limit = 10 } = {}) {
     }
     if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
     cache.set(key, { at: Date.now(), items });
-    return items.slice(0, limit);
   } catch (err) {
     if (!warned) { console.warn('[osm_nature] unavailable:', err.message); warned = true; }
     // Back off for a while instead of hitting a busy server on every browse.
     if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
     cache.set(key, { at: Date.now(), items: [], failed: true });
-    return [];
   }
+}
+
+/**
+ * Named nature features near a point, deduped by name. Cached ~11 km /
+ * 24 h so neighbours share an entry and Overpass sees us rarely.
+ *
+ * ZERO-LATENCY CONTRACT: never waits on the network. Answers from cache
+ * immediately (empty on a cold key) and refreshes in the background — a
+ * busy Overpass can therefore never slow a browse or plan request; its
+ * results simply join the pool from the next request onward.
+ */
+function getNatureSpots({ lat, lng, limit = 10 } = {}) {
+  if (lat == null || lng == null) return Promise.resolve([]);
+  const key = `${Math.round(lat * 10) / 10},${Math.round(lng * 10) / 10}`;
+  const hit = cache.get(key);
+  const fresh = hit && Date.now() - hit.at < (hit.failed ? FAIL_TTL_MS : TTL_MS);
+  if (!fresh && !pending.has(key)) {
+    const p = refreshSpots(key, lat, lng).finally(() => pending.delete(key));
+    pending.set(key, p);
+  }
+  return Promise.resolve(hit ? hit.items.slice(0, limit) : []);
 }
 
 module.exports = { getNatureSpots };

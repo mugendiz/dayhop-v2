@@ -1236,8 +1236,10 @@ button, .filter-chip {
 
 .btn-dismiss { background: transparent; color: var(--ink-soft); opacity: 0.75; }
 .btn-dismiss:hover { background: var(--paper-dim); color: var(--coral-dark); opacity: 1; }
-.btn-detail { background: var(--paper-dim); color: var(--ink-soft); }
-.btn-detail:hover { background: #E7DFC9; color: var(--ink); }
+/* Details is now the card's gateway to booking/map links (they live in the
+   detail panel), so it wears the brand coral like the other primary actions. */
+.btn-detail { background: var(--coral); color: var(--paper); }
+.btn-detail:hover { background: var(--coral-dark); }
 .btn-add { background: var(--moss); color: var(--paper); flex: 1; }
 .btn-add:hover { background: #335c4c; box-shadow: 0 6px 16px rgba(63, 111, 92, 0.35); transform: translateY(-1px); }
 /* Browse-feed cards only: shortlist this and jump straight into building */

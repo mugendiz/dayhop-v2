@@ -1382,7 +1382,6 @@
           ${idea.cost_tier ? `<span>${escapeHtml(idea.cost_tier)}</span>` : ''}
         </div>
         ${buildCardChips(idea)}
-        ${bookingLinksHtml(idea, 'card')}
       </div>
       <div class="card-actions">
         <button class="btn-dismiss" type="button" title="Not for us">✕ Skip</button>
@@ -1494,7 +1493,6 @@
             ${idea.duration_minutes ? `<span>${formatDuration(idea.duration_minutes)}</span>` : ''}
             ${idea.cost_tier ? `<span>${escapeHtml(idea.cost_tier)}</span>` : ''}
           </div>
-          ${bookingLinksHtml(idea, 'card')}
           <div class="best-match-actions">
             <button class="btn-dismiss" type="button" title="Not for us">✕ Skip</button>
             <button class="btn-detail" type="button" title="See details">Details</button>
@@ -2822,6 +2820,8 @@
     state.lastPrompt = '';
     state.lastWeather = data.weather || null;
     state.lastSky = data.sky || null;
+    state.featuredExtra = data.featured || [];
+    state.featuredCurated = data.featured_curated !== false; // default GTA behavior
     state.lastAdvisories = data.advisories || [];
     state.lastAdvisoriesStatus = data.advisories_status || null;
     renderWeatherStrip(data.weather);
@@ -2915,23 +2915,57 @@
     return n;
   }
 
+  // Chip label for algorithmic featured picks (curated items carry their own).
+  function featuredChip(f) {
+    const t = `${f.title || ''} ${f.description || ''} ${f.venue || ''}`;
+    if (/observator|planetari|stargaz|astronom|telescope/i.test(t)) return 'Star nights';
+    if (/outdoor (movie|cinema|film|concert)|open[- ]air/i.test(t)) return 'Open air';
+    if (/lookout|viewpoint|scenic|sunset|golden hour/i.test(t)) return 'Golden hour';
+    if (/beach|boardwalk|waterfall/i.test(t)) return 'By the water';
+    return 'Under open skies';
+  }
+
+  function isDarkSkyItem(f) {
+    return f.dark_sky === true ||
+      /stargaz|observator|planetari|astronom|night sky|dark sk/i.test(`${f.title || ''} ${f.why || ''} ${f.description || ''}`);
+  }
+
+  // The rotation pool, blended city-agnostically: dated sky events from the
+  // live feed, then the server's algorithmic picks for the chosen city
+  // (observatories, lookouts, beaches, open-air anything), then — under GTA
+  // skies only — the hand-curated pool. Deduped by id and title so the same
+  // place never rotates in twice. On a clear night the dark-sky items lead.
   function featuredPool(ideas) {
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Toronto' });
     const live = (ideas || [])
       .filter(i => i.date && /^\d{4}-\d{2}-\d{2}/.test(i.date) && i.date.slice(0, 10) >= today)
       .filter(i => SKY_MATCH.test(`${i.title || ''} ${i.why || ''} ${i.description || ''}`))
       .sort((a, b) => (a.date < b.date ? -1 : 1));
+    const extra = (state.featuredExtra || [])
+      .map(f => Object.assign({}, f, { schedule: f.schedule || featuredChip(f) }));
+    const curated = state.featuredCurated === false ? [] : SKY_FEATURES;
+
+    const merged = [];
+    const seen = new Set();
+    for (const item of [...live, ...extra, ...curated]) {
+      const idKey = String(item.id || '').toLowerCase();
+      const titleKey = 't:' + String(item.title || '').toLowerCase().trim();
+      if ((idKey && seen.has(idKey)) || seen.has(titleKey)) continue;
+      if (idKey) seen.add(idKey);
+      seen.add(titleKey);
+      merged.push(item);
+    }
+
     // Condition-aware: on a genuinely clear night (Open-Meteo via the browse
     // payload), the dark-sky spots lead the rotation and say why.
-    let curated = SKY_FEATURES;
     const sky = state.lastSky;
     if (sky && sky.clear_tonight) {
       const chip = sky.moon_illumination_pct <= 35 ? 'clear & dark tonight ✨' : 'clear skies tonight ✨';
-      const starry = SKY_FEATURES.filter(f => f.dark_sky)
+      const dark = merged.filter(isDarkSkyItem)
         .map(f => Object.assign({}, f, { schedule: chip }));
-      curated = starry.concat(SKY_FEATURES.filter(f => !f.dark_sky));
+      return dark.concat(merged.filter(f => !isDarkSkyItem(f)));
     }
-    return live.concat(curated);
+    return merged;
   }
 
   function renderFeaturedCard(aside, ev) {

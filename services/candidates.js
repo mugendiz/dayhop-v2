@@ -310,7 +310,21 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
     }
   ];
 
-  const settled = await Promise.allSettled(sources.map(s => Promise.resolve().then(s.run)));
+  // Wall-clock guard: allSettled resolves when the SLOWEST source does, so
+  // a single hung API (a busy Overpass, an Akamai tarpit) used to hold every
+  // browse and plan hostage. 9s is generous for a well-behaved source;
+  // anything slower is cut from THIS request and, thanks to each service's
+  // own cache, usually contributes to the next one instead.
+  const SOURCE_DEADLINE_MS = 9000;
+  const withDeadline = (promise) => {
+    promise.catch(() => {}); // a post-deadline failure must not be an unhandled rejection
+    return Promise.race([
+      promise,
+      new Promise((resolve, reject) =>
+        setTimeout(() => reject(new Error(`source deadline (${SOURCE_DEADLINE_MS}ms) exceeded`)), SOURCE_DEADLINE_MS).unref?.())
+    ]);
+  };
+  const settled = await Promise.allSettled(sources.map(s => withDeadline(Promise.resolve().then(s.run))));
   const bySource = [];
   settled.forEach((result, i) => {
     if (result.status === 'fulfilled') {
@@ -377,7 +391,8 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
     advisories: advisoryResult.advisories,
     advisoriesStatus: advisoryResult.status,
     spotlight,
-    dateWindow: dateWindow || null
+    dateWindow: dateWindow || null,
+    geo: geo ? { lat: geo.lat, lng: geo.lng } : null
   };
 }
 
@@ -593,5 +608,6 @@ module.exports = {
   fallbackIdea,
   parseDateWindow,
   DEFAULT_CITY,
-  CANDIDATE_POOL_CAP
+  CANDIDATE_POOL_CAP,
+  GTA_TOWNS
 };
