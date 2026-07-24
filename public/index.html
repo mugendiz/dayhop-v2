@@ -25,23 +25,37 @@
 
 <header class="hero">
   <div class="hero-trail" aria-hidden="true"></div>
+  <!-- Header hierarchy (calmest frame that still sells): logo anchors left
+       with the location as quiet context beside it; the right side steps
+       down My Plans (text) → Go Pro (the one accent) → avatar (account
+       menu: email, admin, sign out). One accent, no toolbar. -->
   <nav class="topbar">
-    <span class="logo">DayHop<span id="pro-badge" class="pro-badge" hidden>PRO</span></span>
-    <div class="topbar-right">
+    <div class="topbar-left">
+      <span class="logo">DayHop<span id="pro-badge" class="pro-badge" hidden>PRO</span></span>
       <span class="topbar-tag" id="location-tag">Greater Toronto Area</span>
-      <a class="auth-btn admin-link" id="admin-link" href="/admin.html" hidden>🛠 Admin</a>
-      <button class="go-pro-btn" id="go-pro-btn" type="button" hidden>Go Pro ✨</button>
-      <button class="auth-btn my-plans-btn" id="my-plans-btn" type="button" hidden>🗂 My Plans</button>
+    </div>
+    <div class="topbar-right">
+      <button class="auth-btn my-plans-btn" id="my-plans-btn" type="button" hidden>My Plans</button>
+      <button class="go-pro-btn" id="go-pro-btn" type="button" hidden>Go Pro</button>
       <button class="auth-btn" id="auth-btn" type="button" hidden>Sign in</button>
       <div class="user-chip" id="user-chip" hidden>
-        <span class="user-email" id="user-email"></span>
-        <button class="signout-btn" id="signout-btn" type="button">Sign out</button>
+        <button class="user-avatar" id="user-avatar" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Account menu">
+          <span id="user-initial" aria-hidden="true">•</span>
+        </button>
+        <div class="user-menu" id="user-menu" role="menu" hidden>
+          <span class="user-email" id="user-email"></span>
+          <a class="user-menu-item admin-link" id="admin-link" href="/admin.html" hidden>🛠 Admin</a>
+          <button class="user-menu-item signout-btn" id="signout-btn" type="button" role="menuitem">Sign out</button>
+        </div>
       </div>
     </div>
   </nav>
 
-  <div class="hero-content">
+  <div class="hero-content hero-content--split">
     <div class="eyebrow">Greater Toronto Area · World Cup 2026</div>
+
+    <div class="hero-columns">
+    <div class="hero-left">
 
     <!-- Mode toggle: R&R vs Adventure — the two equal halves of DayHop.
          Tap to switch; on touch devices the hero also accepts a horizontal
@@ -57,38 +71,49 @@
         <span class="mode-text"><strong>Adventure</strong><small>Thrills &amp; action</small></span>
       </button>
     </div>
-    <p class="mode-hint" id="mode-hint" aria-live="polite"></p>
+    <div class="mode-hint-row">
+      <p class="mode-hint" id="mode-hint" aria-live="polite"></p>
+      <!-- app.js appends the one-time "tap for <other mode>" nudge here -->
+    </div>
 
     <h1>Plan your perfect day<span>in one sentence.</span></h1>
     <p class="subtitle">Real places, real weather, real plans — like a thoughtful local friend who knows the city.</p>
 
     <form class="prompt-box" id="prompt-form">
-      <div class="prompt-location" id="prompt-location">
-        <label for="location-input" class="prompt-location-label">📍 Where?</label>
-        <div class="location-combo" id="location-combo">
-          <input
-            id="location-input"
-            class="location-input"
-            type="text"
-            role="combobox"
-            aria-expanded="false"
-            aria-autocomplete="list"
-            aria-controls="location-listbox"
-            aria-label="Choose where to plan — share your location or type a city, address, or postal code"
-            autocomplete="off"
-            placeholder="Across the GTA — or 📍 near you">
-          <ul id="location-listbox" class="location-listbox" role="listbox" hidden></ul>
+      <!-- Where & when: one conjoined tray of optional tuning. Location and
+           date sit side by side in a single dashed frame — clearly one group,
+           clearly skippable. The date fields unfold full-width inside it. -->
+      <div class="prompt-meta">
+        <span class="prompt-meta-label">Optional &middot; where &amp; when</span>
+        <div class="prompt-meta-row">
+          <div class="prompt-location" id="prompt-location">
+            <label for="location-input" class="prompt-location-label">📍 Where?</label>
+            <div class="location-combo" id="location-combo">
+              <input
+                id="location-input"
+                class="location-input"
+                type="text"
+                role="combobox"
+                aria-expanded="false"
+                aria-autocomplete="list"
+                aria-controls="location-listbox"
+                aria-label="Choose where to plan — share your location or type a city, address, or postal code"
+                autocomplete="off"
+                placeholder="Across the GTA — or 📍 near you">
+              <ul id="location-listbox" class="location-listbox" role="listbox" hidden></ul>
+            </div>
+          </div>
+          <!-- Date aware: optional. Collapsed = "any day" (today's implicit
+               default, unchanged). Opening it defaults to today; the user can
+               then change the day or switch to a range. -->
+          <div class="prompt-date" id="prompt-date">
+            <button type="button" class="prompt-date-toggle" id="date-toggle" aria-expanded="false" aria-controls="date-fields">
+              <span class="prompt-date-icon" aria-hidden="true">📅</span>
+              <span id="date-toggle-label">Select Day</span>
+              <span class="prompt-date-chevron" aria-hidden="true">▾</span>
+            </button>
+          </div>
         </div>
-      </div>
-      <!-- Date aware: optional. Collapsed = "any day" (today's implicit
-           default, unchanged). Opening it defaults to today; the user can
-           then change the day or switch to a range. -->
-      <div class="prompt-date" id="prompt-date">
-        <button type="button" class="prompt-date-toggle" id="date-toggle" aria-expanded="false" aria-controls="date-fields">
-          <span class="prompt-date-icon" aria-hidden="true">📅</span>
-          <span id="date-toggle-label">Any day</span>
-          <span class="prompt-date-chevron" aria-hidden="true">▾</span>
-        </button>
         <div class="date-fields" id="date-fields" hidden>
           <div class="date-kind-toggle" role="radiogroup" aria-label="One day or a date range">
             <label class="date-kind-option">
@@ -127,10 +152,23 @@
       <!-- Advisories & closures: the "should I even go today?" banner.
            JS fills with the highest-severity active advisory. -->
       <div class="advisory-strip" id="advisory-strip" role="status" aria-live="polite" hidden></div>
+
+    </div><!-- /.hero-left -->
+
+    <!-- Featured event: the soonest upcoming dated event from the Toronto
+         feeds (open data + civic calendars + partners), rendered by app.js
+         once the browse payload lands. Hidden until there's one to show. -->
+    <aside class="hero-featured" id="hero-featured" aria-label="Featured event" hidden></aside>
+
+    </div><!-- /.hero-columns -->
   </div>
 </header>
 
 <main class="app">
+
+  <!-- Draft rescue: an unsaved built plan survives the panel closing (and the
+       tab closing) — this strip offers it back until saved or dismissed. -->
+  <div id="draft-resume" hidden></div>
 
   <div id="results-header" class="results-header" hidden>
     <h2 id="results-headline"></h2>
@@ -222,7 +260,7 @@
     <div class="panel-footer">
       <button id="surprise-me-btn" class="ghost-btn surprise-btn" type="button">✨ Surprise me</button>
       <button id="build-day-btn" class="primary-btn" type="button" disabled>
-        <span class="btn-label">Build my day</span>
+        <span class="btn-label">Make my day</span>
         <span class="btn-spinner" aria-hidden="true"></span>
       </button>
     </div>

@@ -13,6 +13,7 @@
 // status instead of silently returning an empty list.
 
 const axios = require('axios');
+const eccc = require('./ecccAlerts');
 
 const AIR_URL = 'https://api.openweathermap.org/data/2.5/air_pollution';
 
@@ -239,20 +240,47 @@ function closureAdvisory(businessStatus, { place_id, title } = {}) {
  */
 async function getAdvisories({ lat, lng, conditions }) {
   let airOk = false;
+  let ecccOk = false;
   const advisories = [];
 
-  try {
-    if (process.env.OPENWEATHER_API_KEY) {
-      const air = await fetchAirQuality({ lat, lng });
-      airOk = true;
-      const adv = airAdvisory(air);
-      if (adv) advisories.push(adv);
-    }
-  } catch (err) {
-    console.warn('[advisories] air quality unavailable:', err.message);
+  // Air quality and official ECCC alerts fetch in parallel — both cached,
+  // both independently optional.
+  const [airResult, ecccResult] = await Promise.allSettled([
+    process.env.OPENWEATHER_API_KEY ? fetchAirQuality({ lat, lng }) : Promise.resolve(null),
+    eccc.fetchAlerts({ lat, lng })
+  ]);
+
+  if (airResult.status === 'fulfilled' && process.env.OPENWEATHER_API_KEY) {
+    airOk = true;
+    const adv = airAdvisory(airResult.value);
+    if (adv) advisories.push(adv);
+  } else if (airResult.status === 'rejected') {
+    console.warn('[advisories] air quality unavailable:', airResult.reason && airResult.reason.message);
   }
 
-  advisories.push(...derivedAdvisories(conditions));
+  // Official government alerts (Phase 2). fetchAlerts returns null when it
+  // couldn't answer (or outside Canada) — an empty array is a real "no
+  // active alerts".
+  const ecccCategories = new Set();
+  if (ecccResult.status === 'fulfilled' && Array.isArray(ecccResult.value)) {
+    ecccOk = true;
+    for (const a of ecccResult.value) {
+      advisories.push(makeAdvisory(a));
+      if (a.category) ecccCategories.add(a.category);
+    }
+  }
+
+  // Derived estimates stand down where an official alert covers the same
+  // risk — "per Environment Canada" beats "our thermometer math" and the
+  // user never sees the same risk twice.
+  const DERIVED_CATEGORY = { heat: /heat/, cold: /cold/, wind: /wind/, storm: /storm/ };
+  const derived = derivedAdvisories(conditions).filter(d => {
+    for (const [cat, re] of Object.entries(DERIVED_CATEGORY)) {
+      if (re.test(d.id) && ecccCategories.has(cat)) return false;
+    }
+    return true;
+  });
+  advisories.push(...derived);
 
   // Expiry is honored at read time so a cached entry can't outlive itself.
   const now = Date.now();
@@ -260,8 +288,9 @@ async function getAdvisories({ lat, lng, conditions }) {
   active.sort((a, b) => severityRank(b.severity) - severityRank(a.severity));
 
   const haveConditions = Boolean(conditions);
-  const status = airOk && haveConditions ? 'ok'
-    : (airOk || haveConditions) ? 'partial'
+  const sourceOk = airOk || ecccOk;
+  const status = sourceOk && haveConditions ? 'ok'
+    : (sourceOk || haveConditions) ? 'partial'
     : 'unavailable';
 
   return { advisories: active, status };

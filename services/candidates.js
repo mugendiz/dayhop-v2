@@ -19,6 +19,8 @@ const attractionsOntario = require('./attractionsOntario');
 const civicCalendars = require('./civicCalendars');
 const torontoOpenData = require('./torontoOpenData');
 const yorkOpenData = require('./yorkOpenData');
+const tplEvents = require('./tplEvents');
+const osmNature = require('./osmNature');
 const curatedEvents = require('../data/curatedEvents');
 const curatedCatalog = require('../data/curatedCatalog');
 const { matchThemes } = require('../data/themes');
@@ -41,6 +43,8 @@ const SOURCE_CAPS = {
   civic_calendars: 8,
   toronto_open_data: 12,
   york_open_data: 6,
+  tpl_events: 8,
+  osm_nature: 10,
   curated: 4,
   curated_catalog: 12
 };
@@ -71,6 +75,28 @@ function parseDateWindow(date, dateEnd) {
 function daysBetween(startStr, endStr) {
   const toUtc = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d, 12); };
   return Math.round((toUtc(endStr) - toUtc(startStr)) / 86400000);
+}
+
+// ---------- Description cleanup: vendor boilerplate never reaches a card ----------
+// Partner feeds ship descriptions full of purchase mechanics ("**PLEASE
+// NOTE** tickets are subject to a delivery delay…"), refund policies, and
+// markdown artifacts. None of that is a reason to visit a place, and raw
+// asterisks next to DayHop's hand-written copy read as broken. Sentences
+// about logistics are dropped; whatever remains is what describes the day.
+const BOILERPLATE_RE = /\b(please note|important note|disclaimer|terms (and|&) conditions|refund|non.?refundable|all sales (are )?final|ticket delivery|delivery delay|prevent fraud|processing fee|convenience fee|service charge|box office|will.?call|id required|must be \d+|age restriction|no re.?entry|subject to (change|availability)|check.?in (opens|closes|required)|confirmation (email|number)|voucher|redeem)\b/i;
+
+function cleanDescription(text) {
+  if (!text || typeof text !== 'string') return text;
+  let s = text
+    .replace(/\*\*|__|\*|~~|#+\s/g, ' ')      // markdown emphasis/heading artifacts
+    .replace(/<[^>]+>/g, ' ')                  // stray HTML
+    .replace(/\s+/g, ' ')
+    .trim();
+  // Sentence-level pass: keep what sells the experience, drop the fine print.
+  const sentences = s.split(/(?<=[.!?])\s+/);
+  const kept = sentences.filter(sn => !BOILERPLATE_RE.test(sn));
+  s = (kept.length ? kept : sentences).join(' ').trim();
+  return s;
 }
 
 // ---------- Quality gate: only "10/10" candidates survive ----------
@@ -263,6 +289,18 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
       run: () => isGta ? yorkOpenData.getCivicPlaces({ limit: SOURCE_CAPS.york_open_data, keyword: eventKeyword || undefined }) : []
     },
     {
+      // Free library programming across every Toronto branch — kids clubs,
+      // workshops, talks. GTA-gated (it's one library system).
+      name: 'tpl_events',
+      run: () => isGta ? tplEvents.getUpcomingEvents({ limit: SOURCE_CAPS.tpl_events }) : []
+    },
+    {
+      // OSM lookouts/waterfalls/beaches/reserves — works anywhere there are
+      // coordinates, so gated on geo, not the GTA.
+      name: 'osm_nature',
+      run: () => geo ? osmNature.getNatureSpots({ lat: geo.lat, lng: geo.lng, limit: SOURCE_CAPS.osm_nature }) : []
+    },
+    {
       name: 'curated',
       run: () => isGta ? upcomingCuratedEvents(SOURCE_CAPS.curated) : []
     },
@@ -295,6 +333,16 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
       if (closed) console.log(`[candidates] dropping closed place: ${c.title} (${c.business_status})`);
       return !closed;
     });
+
+  for (const c of pool) c.description = cleanDescription(c.description);
+
+  // A dated event in the past is never a valid recommendation, whatever the
+  // picker says — one stale card poisons trust in the whole feed.
+  pool = pool.filter(c => {
+    const past = c.date && DATE_RE.test(c.date) && c.date < today;
+    if (past) console.log(`[candidates] dropping past event: ${c.title} (${c.date})`);
+    return !past;
+  });
 
   // "Date aware" picker: dated events outside the requested window are
   // dropped; evergreen candidates (no fixed date — most venues/activities)

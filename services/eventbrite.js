@@ -16,8 +16,19 @@ const axios = require('axios');
 const BASE_URL = 'https://www.eventbriteapi.com/v3';
 const client = axios.create({ timeout: 5000 });
 
+// Starter set of PUBLIC GTA organizer ids (verified live on eventbrite.ca
+// 2026-07-24), used when EVENTBRITE_ORG_IDS is unset. Env overrides —
+// growing this list is pure config. Note the connector still needs
+// EVENTBRITE_PRIVATE_TOKEN to make any calls at all.
+const DEFAULT_ORG_IDS = [
+  '105342665751',  // Evergreen Brickworks Events
+  '8121178075',    // Evergreen (org-wide)
+  '11951813124',   // Toronto Events
+  '121182382014'   // Toronto Creative Events
+].join(',');
+
 function orgIds() {
-  return String(process.env.EVENTBRITE_ORG_IDS || '')
+  return String(process.env.EVENTBRITE_ORG_IDS || DEFAULT_ORG_IDS)
     .split(',')
     .map(s => s.trim())
     .filter(Boolean);

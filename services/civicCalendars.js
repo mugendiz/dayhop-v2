@@ -22,10 +22,19 @@ const axios = require('axios');
 
 // "Label|https://calendar.town.ca/calendarName" pairs, semicolon-separated.
 // The label doubles as the address so ranking/geo can tell towns apart.
+// Towns verified live on the iCreate platform 2026-07-24 (each returned
+// events from /default/_List): Aurora, Milton, Burlington, Caledon.
+// Probed and NOT on this platform (skip; don't re-add): Vaughan, Markham,
+// Newmarket, Whitby, Oakville, Mississauga, Brampton, Georgina, Clarington
+// (no calendar.<town>.ca DNS), Ajax (times out), Pickering (308 loop).
 const DEFAULT_FEEDS =
   'Richmond Hill|https://calendar.richmondhill.ca/default;' +
   'Durham Region|https://calendar.durham.ca/tourismevents;' +
-  'Oshawa|https://calendar.oshawa.ca/default';
+  'Oshawa|https://calendar.oshawa.ca/default;' +
+  'Aurora|https://calendar.aurora.ca/default;' +
+  'Milton|https://calendar.milton.ca/default;' +
+  'Burlington|https://calendar.burlington.ca/default;' +
+  'Caledon|https://calendar.caledon.ca/default';
 
 const WINDOW_DAYS = 45;
 const TTL_MS = 6 * 60 * 60 * 1000;

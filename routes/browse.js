@@ -15,6 +15,11 @@ const { normalizeMode } = require('../services/grok');
 const { gatherCandidates, sanitizeCoords, fallbackIdea, parseDateWindow, DEFAULT_CITY } = require('../services/candidates');
 const { enrichIdeaImages } = require('../services/ideaPhotos');
 const { isAroundSpotlight, formatRange } = require('../services/spotlight');
+const { getSkyTonight } = require('../services/skyConditions');
+
+// Sky checks anchor to the user's point when shared, else metro Toronto —
+// close enough for a "clear tonight?" answer anywhere in the GTA.
+const GTA_CENTER = { lat: 43.6532, lng: -79.3832 };
 
 // One entry per (city|coords-grid|daypart). 30 minutes keeps partner-API
 // usage flat while staying fresh enough for weather/daypart shifts.
@@ -23,9 +28,10 @@ const CACHE_MAX_ENTRIES = 200;
 const cache = new Map();
 
 // Section size ceilings; overlaps are deduped and the pool is already
-// quality-gated (candidates.js), so the final feed is a tight top-20 —
-// only the best, never overwhelming.
-const FEED_CAP = 20;
+// quality-gated (candidates.js). The named sections stay tight and curated
+// up top; everything else in the ranked pool pours into a catch-all
+// "More to explore" shelf at the bottom, in relevance order, up to this cap.
+const FEED_CAP = 40;
 
 router.post('/', async (req, res) => {
   const city = String((req.body && req.body.city) || '').trim().slice(0, 120) || DEFAULT_CITY;
@@ -42,8 +48,11 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const { candidates, weather, resolvedCity, advisories, advisoriesStatus, spotlight } =
-      await gatherCandidates(syntheticPrompt(part, mode), city, '', null, coords, mode, dateWindow);
+    const [{ candidates, weather, resolvedCity, advisories, advisoriesStatus, spotlight }, sky] =
+      await Promise.all([
+        gatherCandidates(syntheticPrompt(part, mode), city, '', null, coords, mode, dateWindow),
+        getSkyTonight(coords || GTA_CENTER)
+      ]);
 
     const ideas = buildSections(candidates, { near: Boolean(coords), weather, part, mode, advisories, spotlight, dateWindow }).slice(0, FEED_CAP);
     // Real venue photos for curated/open-data cards; the enriched feed is
@@ -56,6 +65,7 @@ router.post('/', async (req, res) => {
       advisories_status: advisoriesStatus || 'unavailable',
       city: resolvedCity || city,
       near: Boolean(coords),
+      sky: sky || null,
       spotlight: spotlight || null,
       date_window: dateWindow || null,
       generated_at: new Date().toISOString()
@@ -214,6 +224,10 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     take(datedLabel, pool.filter(hasDate), 4);
     take('Hidden gems ✨', pool.filter(isGem), 4);
   }
+  // Catch-all: whatever survived quality gating but missed the curated
+  // shelves lands here in relevance order — more to browse, never mixed
+  // into (or above) the best picks.
+  take('More to explore 🧭', pool, FEED_CAP);
   return ideas;
 }
 

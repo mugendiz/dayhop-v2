@@ -124,14 +124,24 @@ button, .filter-chip {
   pointer-events: none;
 }
 
+/* ---------- Header: a quiet frame, not a toolbar ----------
+   One accent (Go Pro), one identity anchor (logo + muted location), one
+   account entry (avatar). Everything else earns its quietness. */
 .topbar {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 22px 24px 0;
+  padding: 28px 24px 0;
   max-width: 1040px;
   margin: 0 auto;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  min-width: 0;
 }
 
 .logo {
@@ -157,87 +167,129 @@ button, .filter-chip {
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 18px;
 }
 
+/* Location: context, not a control — plain muted text riding the logo's
+   baseline, set off by a soft dot. */
 .topbar-tag {
   font-family: var(--mono);
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-soft);
-  border: 1px solid var(--glass-border);
-  background: var(--glass);
-  -webkit-backdrop-filter: var(--blur);
-  backdrop-filter: var(--blur);
-  padding: 5px 10px;
-  border-radius: var(--radius-btn);
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.topbar-tag::before { content: '· '; opacity: 0.6; }
 
+/* Quiet text actions (My Plans, Sign in): readable, unboxed, hover reveals. */
 .auth-btn {
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  -webkit-backdrop-filter: var(--blur);
-  backdrop-filter: var(--blur);
-  color: var(--ink);
-  font-size: 13px;
+  background: transparent;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 13.5px;
   font-weight: 500;
-  padding: 7px 14px;
+  padding: 7px 4px;
   border-radius: var(--radius-btn);
-  transition: background 0.15s ease, transform 0.15s var(--ease);
+  transition: color 0.15s ease, transform 0.15s var(--ease);
 }
-.auth-btn:hover { background: var(--glass-strong); }
+.auth-btn:hover { color: var(--ink); }
 .auth-btn:active { transform: scale(0.96); }
 
 /* Topbar admin entry — an <a> wearing the auth-btn look. */
 .admin-link { text-decoration: none; display: inline-flex; align-items: center; }
 
-/* The Z-scan terminal: eyes sweep logo → top-right, so the money button
-   sits there and breathes just enough to register without shouting. */
+/* The one accent in the header: compact, solid, and still — presence
+   through contrast with a quiet field, not through animation. */
 .go-pro-btn {
   background: var(--coral);
   border: 1px solid var(--coral);
   color: var(--paper);
-  font-size: 13px;
-  font-weight: 600;
-  padding: 7px 14px;
-  border-radius: var(--radius-btn);
-  transition: filter 0.15s ease, transform 0.15s var(--ease);
-  animation: goProGlow 5s ease-in-out infinite;
-}
-.go-pro-btn:hover { filter: brightness(1.08); animation: none; }
-.go-pro-btn:active { transform: scale(0.96); }
-
-@keyframes goProGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 74, 0); }
-  50% { box-shadow: 0 4px 18px 2px rgba(255, 107, 74, 0.38); }
-}
-
-.user-chip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.user-email {
   font-size: 12.5px;
   font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 7px 16px;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 2px 10px rgba(255, 107, 74, 0.22);
+  transition: filter 0.15s ease, transform 0.15s var(--ease), box-shadow 0.15s ease;
+}
+.go-pro-btn:hover { filter: brightness(1.06); box-shadow: 0 4px 14px rgba(255, 107, 74, 0.3); }
+.go-pro-btn:active { transform: scale(0.96); }
+
+/* Account: one 32px circle; identity details live in its dropdown. */
+.user-chip { position: relative; display: flex; align-items: center; }
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--line-strong);
   color: var(--ink);
-  max-width: 150px;
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s var(--ease);
+}
+.user-avatar:hover { border-color: var(--ink-soft); }
+.user-avatar:active { transform: scale(0.94); }
+.user-avatar[aria-expanded="true"] { border-color: var(--ink); }
+
+.user-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 60;
+  min-width: 200px;
+  padding: 6px;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+}
+
+.user-email {
+  display: block;
+  padding: 8px 10px 9px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.signout-btn {
+
+.user-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
   background: transparent;
-  border: 1px solid var(--line-strong);
-  color: var(--ink-soft);
-  font-size: 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
   font-weight: 500;
-  padding: 6px 11px;
-  border-radius: var(--radius-btn);
-  transition: background 0.15s ease;
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.12s ease;
 }
-.signout-btn:hover { background: rgba(255,255,255,0.7); }
+.user-menu-item:hover { background: rgba(16, 42, 46, 0.07); }
+
+.signout-btn { color: var(--ink-soft); }
 
 .hero-content {
   position: relative;
@@ -306,17 +358,44 @@ button, .filter-chip {
   text-align: left;
 }
 
-/* The Where field is step one — framed in coral so nobody searches
-   location-less, and pulsing until a location is explicitly chosen. */
+/* Where & when: one conjoined tray of optional tuning. The dashed frame and
+   whisper-label read "fill in only if you like" — the sentence below stays
+   the main event. Location and date are siblings of the same quiet family. */
+.prompt-meta {
+  margin-bottom: 12px;
+  padding: 10px 12px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(16, 42, 46, 0.08);
+}
+
+.prompt-meta-label {
+  display: block;
+  margin-bottom: 8px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  opacity: 0.8;
+}
+
+.prompt-meta-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .prompt-location {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 1 1 220px;
   padding: 10px 14px;
-  margin-bottom: 12px;
-  border: 2px solid var(--coral);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  background: rgba(255,107,74,0.07);
+  background: rgba(255, 255, 255, 0.55);
   transition: border-color 0.2s ease, background 0.2s ease;
 }
 
@@ -326,7 +405,7 @@ button, .filter-chip {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--coral-dark);
+  color: var(--ink-soft);
   white-space: nowrap;
 }
 
@@ -350,16 +429,16 @@ button, .filter-chip {
    tapped. Opening it defaults the date to today; the user can then pick a
    different day or switch to a range. Closing it back down (or Clear) drops
    the filter entirely, back to "any day" — today's implicit default. */
-.prompt-date { margin-bottom: 4px; }
+.prompt-date { display: flex; margin-bottom: 0; }
 
 .prompt-date-toggle {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  background: var(--paper-dim);
+  background: rgba(255, 255, 255, 0.55);
   border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  padding: 7px 13px;
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
   font-family: var(--body);
   font-size: 13px;
   font-weight: 600;
@@ -530,6 +609,10 @@ button, .filter-chip {
 }
 
 .prompt-box textarea::placeholder { color: #8A9594; }
+
+/* Same optical weight as the featured card's "Add to my day" — the two CTAs
+   sit level across the hero and should read as siblings. */
+.prompt-box .primary-btn { padding: 10px 16px; font-size: 14px; }
 
 /* Primary CTA: bottom-right of the prompt box — the terminal fixation of the
    hero's Z-scan (read headline → read placeholder → land here). A resting
@@ -883,6 +966,15 @@ button, .filter-chip {
 @media (prefers-reduced-motion: reduce) {
   .skeleton::after { animation: none; }
 }
+
+/* Detail panel "second course" loading screen: a shimmer strip + lines that
+   mirror the photos, summary, and facts about to arrive. */
+.detail-more-skeleton { display: grid; gap: 10px; margin-top: 4px; }
+.detail-more-skeleton .detail-more-loading { margin: 0 0 2px; }
+.detail-skel-photos { height: 96px; border-radius: var(--radius-md); }
+.detail-skel-line { height: 12px; }
+.detail-skel-line--w80 { width: 80%; }
+.detail-skel-line--w60 { width: 60%; }
 
 /* ---------- Progressive loader ---------- */
 /* Progress bar + staged status line shown above the skeletons (and inside
@@ -2303,7 +2395,7 @@ body[data-mode="adventure"] .hero::before {
   position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  width: min(440px, 100%);
+  width: 100%; /* spans the column, same width as the prompt box below */
   margin: 0 auto 14px;
   padding: 6px;
   background: var(--glass-strong);
@@ -2362,14 +2454,52 @@ body[data-mode="adventure"] .mode-thumb { transform: translateX(100%); }
   margin-top: 1px;
 }
 
+.mode-hint-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 26px;
+}
+@media (min-width: 880px) {
+  .hero-content--split .mode-hint-row { justify-content: flex-start; }
+}
+
 .mode-hint {
   font-family: var(--mono);
   font-size: 11.5px;
   letter-spacing: 0.05em;
   color: var(--ink-soft);
-  margin: 0 0 26px;
+  margin: 0;
   min-height: 15px;
 }
+
+/* First-visit discoverability: a small tappable tag riding beside the mode
+   hint, gently bobbing, inviting the OTHER mode by name. Gone for good once
+   the user switches modes (app.js sets a localStorage flag). */
+.mode-nudge {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--paper);
+  background: var(--mode-accent);
+  border: none;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-soft);
+  animation: nudgeFloat 2.4s ease-in-out infinite;
+  transition: opacity 0.5s ease, background 0.35s ease;
+}
+.mode-nudge.is-leaving { opacity: 0; }
+@keyframes nudgeFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@media (prefers-reduced-motion: reduce) { .mode-nudge { animation: none; } }
 
 /* Active filter chip picks up the mode accent (was flat ink). */
 .filter-chip.active {
@@ -2997,3 +3127,157 @@ html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
 .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
 .lenis.lenis-stopped { overflow: hidden; }
+
+/* ---------- Draft plan rescue strip ---------- */
+/* An unsaved built plan offered back on the home screen — quiet card, one
+   clear action. Sits above the results header inside <main>. */
+#draft-resume { margin-top: 26px; }
+.draft-resume-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--coral);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  box-shadow: var(--shadow-soft);
+}
+.draft-resume-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.draft-resume-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--coral);
+}
+.draft-resume-text strong {
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.draft-resume-meta { font-size: 13px; color: var(--ink-soft, rgba(16,42,46,0.65)); }
+.draft-resume-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.draft-resume-actions .primary-btn { align-self: auto; padding: 10px 18px; font-size: 14px; }
+.draft-resume-dismiss { padding: 10px 12px; }
+
+/* ---------- Split hero: planner left, featured event right ---------- */
+/* Mobile-first: single column (featured card stacks under the prompt box).
+   From 1000px the hero opens into two columns and the left rail left-aligns. */
+.hero-content--split { max-width: 720px; }
+.hero-columns { display: grid; grid-template-columns: 1fr; gap: 32px; align-items: start; }
+
+@media (min-width: 880px) {
+  .hero-content--split { max-width: 1120px; }
+  /* Golden-ish split, equal heights: the card's photo flexes to soak up
+     whatever height the planner column sets, so the two columns always
+     share top and bottom edges — no orphaned whitespace under the card. */
+  .hero-columns { grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.85fr); gap: 48px; align-items: stretch; }
+  .hero-content--split .hero-left { text-align: left; }
+  .hero-content--split .hero-left .mode-toggle { margin-left: 0; }
+  .hero-content--split .hero-left h1 { text-align: left; }
+  .hero-content--split .hero-left .subtitle { margin-left: 0; }
+  .hero-featured { display: flex; flex-direction: column; }
+  .hero-featured .featured-card { flex: 1; display: flex; flex-direction: column; }
+  /* Photo takes the lion's share but never more than ~60% of the card;
+     whatever's left flows into the body, whose CTA pins to the bottom edge
+     so the card's baseline matches the planner's "Plan my day" row. */
+  /* Height comes from app.js (--featured-photo-h): the photo's bottom edge
+     aligns with the prompt box's top edge across the hero. */
+  .hero-featured .featured-card-photo { aspect-ratio: auto; flex: 0 0 auto; height: var(--featured-photo-h, 55%); min-height: 140px; }
+  .hero-featured .featured-card-body { flex: 1 0 auto; padding: 20px 20px 22px; gap: 12px; justify-content: space-between; }
+  .hero-featured .featured-card-desc { -webkit-line-clamp: 3; }
+}
+
+/* Lives ON the photo (top-right), opposite the schedule/date chip — a
+   frosted ink pill so it reads over any sky. */
+.hero-featured-eyebrow {
+  position: absolute;
+  top: 12px; right: 12px;
+  z-index: 1;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--paper);
+  background: rgba(16, 42, 46, 0.55);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+}
+
+/* Same frosted-glass family as the prompt box, so the two columns read as
+   one composed hero rather than a card floating in from another app. */
+.featured-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.62);
+  -webkit-backdrop-filter: saturate(1.6) blur(20px);
+  backdrop-filter: saturate(1.6) blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+.featured-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+.featured-card:focus-visible { outline: 3px solid var(--coral); outline-offset: 2px; }
+
+/* Auto-rotation crossfade: app.js adds .is-swapping to fade the old card
+   out, swaps the content while fully transparent, then removes the class a
+   frame later so the incoming card fades in — one continuous breath. */
+.hero-featured .featured-card { transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), opacity 2.2s ease-in-out; }
+.hero-featured.is-swapping .featured-card { opacity: 0; }
+
+.featured-card-photo { position: relative; aspect-ratio: 16 / 9; background: linear-gradient(180deg, #E8E2D4, #D9D3C4); }
+.featured-card-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.featured-card-date {
+  position: absolute;
+  top: 12px; left: 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-soft);
+}
+.featured-card-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 8px; }
+.featured-card-title { font-size: 19px; font-weight: 700; line-height: 1.25; margin: 0; }
+.featured-card-desc {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.featured-card-venue {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.featured-card-actions { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.featured-card-actions .primary-btn { align-self: auto; padding: 10px 16px; font-size: 14px; }

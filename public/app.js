@@ -281,6 +281,80 @@
     }
   }
 
+  // ---------- Draft plan rescue ----------
+  // A freshly built (or edited-but-unsaved) plan is the most valuable thing
+  // a user makes here — it must survive the panel closing, a refresh, or the
+  // tab dying. Every unsaved plan is mirrored to localStorage and offered
+  // back via a "resume" strip on the home screen until it's saved, replaced,
+  // or dismissed. Saved guides live server-side and don't need the net.
+  const DRAFT_KEY = 'dayhop_draft_guide_v1';
+  const DRAFT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+  function persistDraft() {
+    if (!state.currentGuide || state.currentGuideId) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ guide: state.currentGuide, at: Date.now() }));
+    } catch (e) { /* quota — the in-memory copy still works this session */ }
+    renderDraftResume();
+  }
+
+  function readDraft() {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return null;
+      const draft = JSON.parse(raw);
+      if (!draft || !draft.guide || Date.now() - (draft.at || 0) > DRAFT_MAX_AGE_MS) return null;
+      return draft;
+    } catch (e) { return null; }
+  }
+
+  function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* ignore */ }
+    renderDraftResume();
+  }
+
+  function draftStopCount(guide) {
+    if (Array.isArray(guide.days)) return guide.days.reduce((n, d) => n + ((d.stops || []).length), 0);
+    return (guide.stops || []).length;
+  }
+
+  function renderDraftResume() {
+    const wrap = document.getElementById('draft-resume');
+    if (!wrap) return;
+    const draft = readDraft();
+    if (!draft) { wrap.hidden = true; wrap.innerHTML = ''; return; }
+    const stops = draftStopCount(draft.guide);
+    wrap.innerHTML = `
+      <div class="draft-resume-card">
+        <div class="draft-resume-text">
+          <span class="draft-resume-label">Unsaved plan</span>
+          <strong>${escapeHtml(draft.guide.title || 'Your day, mapped out')}</strong>
+          <span class="draft-resume-meta">${stops} stop${stops === 1 ? '' : 's'} — picks up right where you left off</span>
+        </div>
+        <div class="draft-resume-actions">
+          <button class="primary-btn draft-resume-open" type="button">Resume →</button>
+          <button class="ghost-btn draft-resume-dismiss" type="button" aria-label="Discard this draft">✕</button>
+        </div>
+      </div>`;
+    wrap.hidden = false;
+    wrap.querySelector('.draft-resume-open').addEventListener('click', () => {
+      track('draft_resumed', {});
+      state.isSample = false;
+      state.lastPlan = null;
+      state.currentGuide = draft.guide;
+      state.currentGuideId = null;
+      state.savedGuide = null;
+      state.lastChangeSummary = null;
+      state.editMode = false;
+      renderPlanView();
+      openPanel('dayplan-panel');
+    });
+    wrap.querySelector('.draft-resume-dismiss').addEventListener('click', () => {
+      clearDraft();
+      showToast('Draft discarded');
+    });
+  }
+
   // ---------- Mode toggle behavior ----------
   const prefersReducedMotion = () =>
     window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -506,7 +580,7 @@
   function updateDateToggleLabel() {
     const label = document.getElementById('date-toggle-label');
     if (!label) return;
-    if (!state.planDate) { label.textContent = 'Any day'; return; }
+    if (!state.planDate) { label.textContent = 'Select Day'; return; }
     if (!state.planDateEnd || state.planDateEnd === state.planDate) {
       label.textContent = state.planDate === torontoToday() ? 'Today' : formatEventDate(state.planDate);
     } else {
@@ -1491,10 +1565,13 @@
     const attrs = `data-idea-id="${escapeAttr(idea.id)}" data-idea-source="${escapeAttr(idea.source || '')}"`;
     const compact = mode === 'stop';
     const links = [];
+    // CTA truthfulness: a card labelled Free never shows a ticket button —
+    // a button that lies once teaches users to stop clicking all of them.
+    const isFree = String(idea.cost_tier || '').toLowerCase() === 'free';
     if (idea.booking_url) {
       const label = compact ? 'Book ↗' : 'Book with our partner ↗';
       links.push(`<a class="card-booking-link" ${attrs} href="${escapeAttr(idea.booking_url)}" target="_blank" rel="noopener noreferrer sponsored">${label}</a>`);
-    } else if (VIATOR_SEARCH_CATEGORIES.has(idea.category)) {
+    } else if (!isFree && VIATOR_SEARCH_CATEGORIES.has(idea.category)) {
       const label = compact ? 'Find tickets ↗' : 'Find tickets with our partner ↗';
       links.push(`<a class="card-booking-link" ${attrs} data-idea-source="viator_search" href="${escapeAttr(viatorSearchUrl(idea))}" target="_blank" rel="noopener noreferrer sponsored">${label}</a>`);
     }
@@ -1656,7 +1733,13 @@
       </dl>
       ${bookingLinksHtml(idea, 'detail')}
       <div class="detail-more" id="detail-more">
-        <p class="detail-more-loading">✨ Digging up the good stuff…</p>
+        <div class="detail-more-skeleton" role="status" aria-label="Loading photos, facts, and local tips">
+          <p class="detail-more-loading">✨ Finding photos, facts &amp; local tips…</p>
+          <div class="skeleton detail-skel-photos"></div>
+          <div class="skeleton detail-skel-line"></div>
+          <div class="skeleton detail-skel-line detail-skel-line--w80"></div>
+          <div class="skeleton detail-skel-line detail-skel-line--w60"></div>
+        </div>
       </div>
     `;
     openPanel('detail-panel');
@@ -1935,6 +2018,7 @@
   // sample IS the demo.
   function showSamplePlan() {
     track('sample_plan_viewed', {});
+    state.isSample = true; // the demo never overwrites a user's draft
     state.lastPlan = null;
     state.currentGuide = JSON.parse(JSON.stringify(SAMPLE_GUIDE));
     state.currentGuideId = null;
@@ -1947,6 +2031,7 @@
 
   function renderDayPlan(plan) {
     state.lastPlan = plan;
+    state.isSample = false;
     state.currentGuide = guideFromPlan(plan);
     state.currentGuideId = null; // fresh plan, not saved yet
     state.savedGuide = null;
@@ -2091,6 +2176,11 @@
     wireEditControls(content);
     wireDoneButtons(content);
     updatePlanQuest();
+
+    // Mirror every unsaved (non-demo) plan to the draft slot — building,
+    // editing, and re-planning all repaint through here, so the draft always
+    // matches what's on screen.
+    if (!state.isSample && !state.currentGuideId) persistDraft();
 
     // Toolbar + re-plan bar + export live below/around the content.
     const toolbar = document.getElementById('plan-toolbar');
@@ -2250,6 +2340,7 @@
       }
       state.savedGuide = data;
       state.currentGuideId = data.id;
+      clearDraft(); // it lives in My Plans now — the rescue strip retires
       updateExportHint();
       updateSaveButton();
       return data;
@@ -2469,6 +2560,7 @@
   }
 
   function openSavedGuide(g) {
+    state.isSample = false;
     state.currentGuide = g.guide;
     state.currentGuideId = g.id;
     state.savedGuide = g;
@@ -2546,7 +2638,7 @@
   async function ensureGuideSaved() {
     if (state.savedGuide) return state.savedGuide;
     if (!state.currentGuide) {
-      showToast('Build a day plan first — add ideas and tap "Build my day".');
+      showToast('Build a day plan first — add ideas and tap "Make my day".');
       return null;
     }
     const saved = await saveCurrentGuide();
@@ -2704,11 +2796,378 @@
   // sectioned server-side. Failures fall back silently to the empty state —
   // a proactive feature must never nag.
   let browseAbort = null;
+  // ---------- Browse feed cache ----------
+  // The R&R ⇄ Adventure toggle is the product's signature interaction; it
+  // should feel like flipping a card, not re-asking the server (~6 s). Each
+  // (mode|city|coords|dates) payload is kept for the session, and after a
+  // successful render the *other* mode is quietly prefetched — so the first
+  // toggle is already instant.
+  const BROWSE_CACHE_TTL_MS = 10 * 60 * 1000;
+  const browseCache = new Map();
+  let browsePrefetchKey = null;
+
+  function browseCacheKey(mode) {
+    const coordsFresh = state.coords && Date.now() - state.coordsAt < COORDS_FRESH_MS;
+    // ~2 km rounding mirrors the server cache grid, so a GPS jitter doesn't
+    // count as a new location.
+    const grid = coordsFresh ? `${Math.round(state.coords.lat * 50) / 50},${Math.round(state.coords.lng * 50) / 50}` : '';
+    const city = state.locationChosen ? state.city : GTA_WIDE;
+    return `${mode}|${city}|${grid}|${JSON.stringify(getDatePayload())}`;
+  }
+
+  function applyBrowsePayload(data) {
+    state.allIdeas = data.ideas || [];
+    state.browseMode = true;
+    state.dismissedIds = new Set();
+    state.lastPrompt = '';
+    state.lastWeather = data.weather || null;
+    state.lastSky = data.sky || null;
+    state.lastAdvisories = data.advisories || [];
+    state.lastAdvisoriesStatus = data.advisories_status || null;
+    renderWeatherStrip(data.weather);
+    renderAdvisoryStrip();
+    renderResultsHeader();
+    renderFeed(true);
+    renderFeaturedEvent(data.ideas || []);
+  }
+
+  // ---------- Hero featured: nights under the open sky ----------
+  // The right rail of the split hero rotates through stargazing spots,
+  // observatories, and open-air gatherings around the GTA. The pool is a
+  // hand-curated evergreen set, topped up with any matching dated events
+  // from the live Toronto feeds (soonest first). It rotates two ways:
+  // each visit starts one step further through the pool, and within a
+  // visit the card gently advances every ~10s (paused on hover/focus,
+  // skipped entirely under prefers-reduced-motion).
+  const FEATURED_ROT_KEY = 'dayhop_featured_rot_v1';
+  let featuredRotBumped = false;
+  let featuredOffset = 0;
+  let featuredTimer = null;
+
+  // Live-feed events that belong under this banner.
+  const SKY_MATCH = /\b(stargaz|observator|astronom|telescope|planetari|night sky|under the stars|moonlit|full moon|open[- ]air|outdoor (movie|cinema|film|concert))/i;
+
+  const SKY_FEATURES = [
+    {
+      id: 'sky-ddo', category: 'culture', schedule: 'Public star nights', dark_sky: true,
+      title: 'David Dunlap Observatory',
+      venue: 'David Dunlap Observatory, Richmond Hill',
+      location: '123 Hillsview Dr, Richmond Hill',
+      why: 'Stand under the great dome of Canada’s largest optical telescope — guided public star nights with real deep-sky viewing, minutes from downtown Richmond Hill.',
+      image_url: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=900&q=70',
+      maps_url: 'https://www.google.com/maps/search/?api=1&query=David+Dunlap+Observatory+Richmond+Hill'
+    },
+    {
+      id: 'sky-carswell', category: 'culture', schedule: 'Wednesday evenings', dark_sky: true,
+      title: 'Allan I. Carswell Observatory',
+      venue: 'York University, North York',
+      location: 'York University Keele Campus',
+      why: 'York University opens its campus telescopes to the public on Wednesday evenings — free, volunteer-guided, and surprisingly deep views of the night sky from the city.',
+      image_url: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?auto=format&fit=crop&w=900&q=70',
+      maps_url: 'https://www.google.com/maps/search/?api=1&query=Allan+I+Carswell+Observatory+York+University'
+    },
+    {
+      id: 'sky-tommy-thompson', category: 'water', schedule: 'Clear nights', dark_sky: true,
+      title: 'Stargazing on the Leslie Spit',
+      venue: 'Tommy Thompson Park, Toronto',
+      location: 'Tommy Thompson Park, 1 Leslie St',
+      why: 'The car-free spit is downtown’s darkest sky — walk out toward the lighthouse with a blanket and watch the stars come up over the lake while the skyline glows behind you.',
+      image_url: 'https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?auto=format&fit=crop&w=900&q=70',
+      maps_url: 'https://www.google.com/maps/search/?api=1&query=Tommy+Thompson+Park+Toronto'
+    },
+    {
+      id: 'sky-rouge', category: 'general', schedule: 'Dark-sky nights', dark_sky: true,
+      title: 'Dark skies in Rouge Park',
+      venue: 'Rouge National Urban Park, Scarborough',
+      location: 'Rouge National Urban Park',
+      why: 'Canada’s first national urban park gets properly dark — bring a red flashlight, find a meadow, and catch the Milky Way rising over the Little Rouge valley.',
+      image_url: 'https://images.unsplash.com/photo-1475274047050-1d0c0975c63e?auto=format&fit=crop&w=900&q=70',
+      maps_url: 'https://www.google.com/maps/search/?api=1&query=Rouge+National+Urban+Park'
+    },
+    {
+      id: 'sky-christie-pits', category: 'culture', schedule: 'Summer Sundays',
+      title: 'Open-air films at Christie Pits',
+      venue: 'Christie Pits Park, Toronto',
+      location: 'Christie Pits Park, 750 Bloor St W',
+      why: 'Open-air cinema on the hillside — arrive at dusk with a blanket and watch a film under the summer sky with half the neighbourhood spread out around you.',
+      image_url: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=900&q=70',
+      maps_url: 'https://www.google.com/maps/search/?api=1&query=Christie+Pits+Park+Toronto'
+    },
+    {
+      id: 'sky-trillium', category: 'water', schedule: 'Warm evenings',
+      title: 'Sunset evenings at Trillium Park',
+      venue: 'Trillium Park, Ontario Place',
+      location: 'Trillium Park, 955 Lake Shore Blvd W',
+      why: 'A carved-granite point on the old Ontario Place grounds — sunset picnics, skyline views, and open lawns that fill with easy-going crowds as the light goes gold.',
+      image_url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=70',
+      maps_url: 'https://www.google.com/maps/search/?api=1&query=Trillium+Park+Toronto'
+    }
+  ];
+
+  function featuredRotation() {
+    let n = 0;
+    try { n = parseInt(localStorage.getItem(FEATURED_ROT_KEY), 10) || 0; } catch (e) { /* ignore */ }
+    if (!featuredRotBumped) {
+      featuredRotBumped = true;
+      n += 1;
+      try { localStorage.setItem(FEATURED_ROT_KEY, String(n)); } catch (e) { /* ignore */ }
+    }
+    return n;
+  }
+
+  function featuredPool(ideas) {
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Toronto' });
+    const live = (ideas || [])
+      .filter(i => i.date && /^\d{4}-\d{2}-\d{2}/.test(i.date) && i.date.slice(0, 10) >= today)
+      .filter(i => SKY_MATCH.test(`${i.title || ''} ${i.why || ''} ${i.description || ''}`))
+      .sort((a, b) => (a.date < b.date ? -1 : 1));
+    // Condition-aware: on a genuinely clear night (Open-Meteo via the browse
+    // payload), the dark-sky spots lead the rotation and say why.
+    let curated = SKY_FEATURES;
+    const sky = state.lastSky;
+    if (sky && sky.clear_tonight) {
+      const chip = sky.moon_illumination_pct <= 35 ? 'clear & dark tonight ✨' : 'clear skies tonight ✨';
+      const starry = SKY_FEATURES.filter(f => f.dark_sky)
+        .map(f => Object.assign({}, f, { schedule: chip }));
+      curated = starry.concat(SKY_FEATURES.filter(f => !f.dark_sky));
+    }
+    return live.concat(curated);
+  }
+
+  function renderFeaturedCard(aside, ev) {
+    const fallback = categoryImage(ev.category, 900);
+    aside.innerHTML = `
+      <div class="featured-card" role="button" tabindex="0" aria-label="Featured: ${escapeAttr(ev.title)}">
+        <div class="featured-card-photo">
+          <img src="${escapeAttr(ev.image_url || fallback)}" alt="" loading="lazy"
+            onerror="this.onerror=null;this.src='${escapeAttr(fallback)}'">
+          <span class="featured-card-date">${escapeHtml(ev.date ? formatEventDate(ev.date) : (ev.schedule || ''))}</span>
+          <span class="hero-featured-eyebrow">🌌 Under open skies</span>
+        </div>
+        <div class="featured-card-body">
+          <h3 class="featured-card-title">${escapeHtml(ev.title)}</h3>
+          ${ev.why || ev.description ? `<p class="featured-card-desc">${escapeHtml(ev.why || ev.description)}</p>` : ''}
+          ${ev.venue || ev.location ? `<span class="featured-card-venue">${escapeHtml(ev.venue || ev.location)}</span>` : ''}
+          <div class="featured-card-actions">
+            <button type="button" class="primary-btn featured-add-btn">Add to my day →</button>
+          </div>
+        </div>
+      </div>`;
+    aside.hidden = false;
+
+    const card = aside.querySelector('.featured-card');
+    const open = () => { track('featured_event_open', ev); openDetail(ev); };
+    card.addEventListener('click', open);
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+    });
+    aside.querySelector('.featured-add-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      addToShortlist(ev, null);
+      showToast(`Added "${ev.title}" to your day`);
+      renderFeed();
+    });
+  }
+
+  // ---------- Mode discoverability nudge ----------
+  // A small tag on the toggle telling first-time visitors the two modes are
+  // tappable. It stays (bobbing gently) until the user switches modes once,
+  // then dismisses permanently.
+  const MODE_NUDGE_KEY = 'dayhop_mode_nudge_done_v1';
+
+  function wireModeNudge() {
+    let done = false;
+    try { done = localStorage.getItem(MODE_NUDGE_KEY) === '1'; } catch (e) { /* ignore */ }
+    const toggle = document.getElementById('mode-toggle');
+    const hint = document.getElementById('mode-hint');
+    if (!toggle || !hint || done) return;
+    const row = hint.closest('.mode-hint-row') || hint.parentElement;
+
+    const tag = document.createElement('button');
+    tag.type = 'button';
+    tag.className = 'mode-nudge';
+    // Invite the mode the user ISN'T in — re-synced whenever the hint line
+    // changes (i.e. on every mode switch, click or swipe).
+    const sync = () => {
+      tag.textContent = state.mode === 'adventure' ? '↔ tap for R&R' : '↔ tap for Adventure';
+    };
+    sync();
+    const obs = new MutationObserver(sync);
+    obs.observe(hint, { childList: true });
+    row.appendChild(tag);
+
+    const dismiss = () => {
+      try { localStorage.setItem(MODE_NUDGE_KEY, '1'); } catch (e) { /* ignore */ }
+      obs.disconnect();
+      tag.classList.add('is-leaving');
+      setTimeout(() => tag.remove(), 600);
+      toggle.removeEventListener('click', dismiss);
+    };
+    toggle.addEventListener('click', dismiss);
+    // The tag does what it says: switch to the other mode (the synthetic
+    // click bubbles through the toggle, which also dismisses the nudge).
+    tag.addEventListener('click', () => {
+      const other = toggle.querySelector('.mode-option[aria-checked="false"]');
+      if (other) other.click();
+    });
+  }
+
+  let featuredDeferObs = null;
+
+  // Split-hero alignment: the featured card spans exactly from the mode
+  // toggle's top edge to the prompt box's bottom edge, so the two columns
+  // read as one composed unit. Re-measured whenever the planner column
+  // changes shape (date tray opening, font load, mode switch) or the
+  // window resizes. Below the split breakpoint the card sizes naturally.
+  function syncFeaturedHeight() {
+    const aside = document.getElementById('hero-featured');
+    const toggle = document.getElementById('mode-toggle');
+    const form = document.getElementById('prompt-form');
+    if (!aside || !toggle || !form) return;
+    if (!window.matchMedia('(min-width: 880px)').matches) {
+      aside.style.height = '';
+      aside.style.removeProperty('--featured-photo-h');
+      return;
+    }
+    const t = toggle.getBoundingClientRect();
+    const f = form.getBoundingClientRect();
+    const h = Math.round(f.bottom - t.top);
+    if (h > 240) { aside.style.height = `${h}px`; aside.style.minHeight = ''; }
+    // The photo's bottom edge sits level with the prompt box's top edge, so
+    // photo ↔ (toggle+headline) and card body ↔ prompt box pair up as two
+    // matched bands across the hero. Set as a CSS variable on the aside so
+    // it survives the rotation's innerHTML swaps.
+    const photoH = Math.round(f.top - t.top);
+    if (photoH > 120) aside.style.setProperty('--featured-photo-h', `${photoH}px`);
+  }
+
+  function wireFeaturedHeightSync() {
+    const left = document.querySelector('.hero-left');
+    if ('ResizeObserver' in window && left) {
+      new ResizeObserver(() => syncFeaturedHeight()).observe(left);
+    }
+    window.addEventListener('resize', syncFeaturedHeight);
+    syncFeaturedHeight();
+  }
+
+  function featuredOffscreen(aside) {
+    const r = aside.getBoundingClientRect();
+    return r.bottom <= 0 || r.top >= window.innerHeight;
+  }
+
+  function renderFeaturedEvent(ideas) {
+    const aside = document.getElementById('hero-featured');
+    if (!aside) return;
+    const pool = featuredPool(ideas);
+    if (!pool.length) { aside.hidden = true; aside.innerHTML = ''; return; }
+
+    const apply = () => {
+      renderFeaturedCard(aside, pool[(featuredRotation() + featuredOffset) % pool.length]);
+      startFeaturedTimer(aside, pool);
+    };
+
+    // Never re-render the hero while the reader is scrolled past it — the
+    // layout shift disturbs the pinned-hero scroll math and yanks the page
+    // back to the top. Hold the update until the card is back in view.
+    if (featuredDeferObs) { featuredDeferObs.disconnect(); featuredDeferObs = null; }
+    if (!aside.hidden && featuredOffscreen(aside) && 'IntersectionObserver' in window) {
+      featuredDeferObs = new IntersectionObserver((entries) => {
+        if (!entries.some(e => e.isIntersecting)) return;
+        featuredDeferObs.disconnect();
+        featuredDeferObs = null;
+        if (!aside.style.height) aside.style.minHeight = `${aside.offsetHeight}px`;
+        apply();
+      });
+      featuredDeferObs.observe(aside);
+      return;
+    }
+    apply();
+  }
+
+  function startFeaturedTimer(aside, pool) {
+    if (featuredTimer) clearInterval(featuredTimer);
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    featuredTimer = setInterval(() => {
+      // Hold still while the reader is engaging with the card, and never
+      // swap off-screen (same pinned-hero concern as above).
+      if (featuredOffscreen(aside)) return;
+      if (aside.matches(':hover') || aside.contains(document.activeElement)) return;
+      featuredOffset += 1;
+      const next = pool[(featuredRotation() + featuredOffset) % pool.length];
+      // Preload the incoming photo BEFORE fading, so the card never sits
+      // blank waiting on the network mid-rotation.
+      const pre = new Image();
+      const swap = () => {
+        aside.classList.add('is-swapping'); // fade the old card out…
+        setTimeout(() => {
+          // Freeze the column height across the swap so the hero's layout
+          // doesn't shift under the reader (skipped when the split-hero
+          // sync already fixes the height).
+          if (!aside.style.height) aside.style.minHeight = `${aside.offsetHeight}px`;
+          // …swap while fully transparent, then release the class a frame
+          // later so the new card FADES in instead of popping in. The
+          // double-rAF guarantees the browser paints an opacity-0 frame
+          // with the new content before the transition back to 1 starts.
+          renderFeaturedCard(aside, next);
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            aside.classList.remove('is-swapping');
+          }));
+        }, 2250);
+      };
+      pre.onload = swap;
+      pre.onerror = swap;
+      pre.src = next.image_url || categoryImage(next.category, 900);
+    }, 16000);
+  }
+
+  function prefetchOtherModeFeed() {
+    const other = state.mode === 'adventure' ? 'rr' : 'adventure';
+    const key = browseCacheKey(other);
+    const hit = browseCache.get(key);
+    if ((hit && Date.now() - hit.at < BROWSE_CACHE_TTL_MS) || browsePrefetchKey === key) return;
+    browsePrefetchKey = key;
+    // A beat after render so the visible feed's images win the bandwidth.
+    setTimeout(() => {
+      const coordsFresh = state.coords && Date.now() - state.coordsAt < COORDS_FRESH_MS;
+      fetch('/api/browse', {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(Object.assign(
+          {
+            city: state.locationChosen ? state.city : GTA_WIDE,
+            mode: other,
+            coords: coordsFresh ? state.coords : undefined,
+            owner_id: getOwnerId()
+          },
+          getDatePayload()
+        ))
+      })
+        .then(res => (res.ok ? res.json() : null))
+        .then(data => { if (data && (data.ideas || []).length) browseCache.set(key, { at: Date.now(), data }); })
+        .catch(() => {})
+        .finally(() => { if (browsePrefetchKey === key) browsePrefetchKey = null; });
+    }, 1500);
+  }
+
   async function loadBrowseFeed() {
     if (state.isGenerating) return;
     // Prompt results own the feed; browse only fills idle or browse-owned feeds.
     if (state.allIdeas.length && !state.browseMode) return;
     if (browseAbort) browseAbort.abort();
+
+    // Cache hit → instant swap, no skeletons, no spinner, no network.
+    const cacheHit = browseCache.get(browseCacheKey(state.mode));
+    if (cacheHit && Date.now() - cacheHit.at < BROWSE_CACHE_TTL_MS) {
+      browseAbort = null;
+      document.getElementById('empty-state').hidden = true;
+      document.getElementById('noresults-state').hidden = true;
+      applyBrowsePayload(cacheHit.data);
+      const feedEl = document.getElementById('discovery-feed');
+      if (feedEl) feedEl.setAttribute('aria-busy', 'false');
+      prefetchOtherModeFeed();
+      return;
+    }
+
     const ctl = new AbortController();
     browseAbort = ctl;
 
@@ -2742,18 +3201,10 @@
       if (!res.ok) throw new Error('browse failed');
       const data = await res.json();
       progress.finish();
-      state.allIdeas = data.ideas || [];
-      state.browseMode = true;
-      state.dismissedIds = new Set();
-      state.lastPrompt = '';
-      state.lastWeather = data.weather || null;
-      state.lastAdvisories = data.advisories || [];
-      state.lastAdvisoriesStatus = data.advisories_status || null;
+      if ((data.ideas || []).length) browseCache.set(browseCacheKey(state.mode), { at: Date.now(), data });
       browseAutoRetried = false; // a success re-arms the auto-retry
-      renderWeatherStrip(data.weather);
-      renderAdvisoryStrip();
-      renderResultsHeader();
-      renderFeed(true);
+      applyBrowsePayload(data);
+      prefetchOtherModeFeed();
     } catch (err) {
       progress.fail();
       if (err.name === 'AbortError') return;
@@ -2826,6 +3277,11 @@
 
     setLoading(true);
     const progress = startProgress('generate');
+    // The staged loader + skeleton cards live in the feed, below the hero —
+    // bring them into view immediately so the wait is never a lone button
+    // spinner (or worse, a blank viewport) with the real feedback off-screen.
+    const loader = document.querySelector('.progress-loader');
+    if (loader) loader.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
     try {
       const data = await apiGenerateIdeas(prompt, state.currentFilter);
       progress.finish();
@@ -2841,7 +3297,9 @@
       renderResultsHeader();
       renderFeed(true);
       bumpGeneratesUsed();
-      document.getElementById('results-header').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Snap, don't glide: a long smooth scroll through the page reads as a
+      // blank screen on slower devices right at the moment of payoff.
+      document.getElementById('results-header').scrollIntoView({ behavior: 'auto', block: 'start' });
     } catch (err) {
       progress.fail();
       errorEl.textContent = err.message || 'Something went wrong. Please try again.';
@@ -2939,7 +3397,7 @@
     document.querySelectorAll('.day-choice').forEach(btn =>
       btn.classList.toggle('active', Number(btn.dataset.days) === days));
     const label = document.querySelector('#build-day-btn .btn-label');
-    if (label) label.textContent = days > 1 ? `Build my ${days}-day plan` : 'Build my day';
+    if (label) label.textContent = days > 1 ? `Make my ${days}-day plan` : 'Make my day';
   }
 
   function wireDaySelector() {
@@ -3467,6 +3925,7 @@
     state.currentGuide = null;
     state.currentGuideId = null;
     state.savedGuide = null;
+    clearDraft(); // same shared-device rule as the shortlist
     persist();
     updateShortlistCount();
     renderShortlistPanel();
@@ -3477,6 +3936,10 @@
   // ---------- Init ----------
   function init() {
     loadPersisted();
+    renderDraftResume(); // an unsaved plan from last time greets them by name
+    renderFeaturedEvent([]); // curated sky pool shows before the feed lands
+    wireFeaturedHeightSync();
+    wireModeNudge();
     setupLocationCombo();
     updateWhereEmphasis();
     updateShortlistCount();

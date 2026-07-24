@@ -36,6 +36,7 @@
 
     show('auth-btn', true); // reveal sign-in entry point
     wireUI();
+    wireAccountMenu();
 
     const { data } = await sb.auth.getSession();
     setSession(data.session, 'INITIAL');
@@ -58,7 +59,30 @@
     if (signedIn) {
       const emailEl = $('user-email');
       if (emailEl) emailEl.textContent = current.user.email || 'Signed in';
+      const initEl = $('user-initial');
+      if (initEl) initEl.textContent = (current.user.email || '?').trim().charAt(0).toUpperCase();
     }
+  }
+
+  // Account menu: the avatar circle opens a small dropdown holding the
+  // email, admin link, and sign-out — identity details stay out of the bar.
+  function wireAccountMenu() {
+    const avatar = $('user-avatar');
+    const menu = $('user-menu');
+    if (!avatar || !menu) return;
+    const close = () => { menu.hidden = true; avatar.setAttribute('aria-expanded', 'false'); };
+    avatar.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const opening = menu.hidden;
+      menu.hidden = !opening;
+      avatar.setAttribute('aria-expanded', String(opening));
+    });
+    document.addEventListener('click', (e) => {
+      if (!menu.hidden && !menu.contains(e.target)) close();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !menu.hidden) close();
+    });
   }
 
   // ---------- modal ----------
