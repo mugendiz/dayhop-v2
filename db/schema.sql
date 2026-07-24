@@ -166,9 +166,12 @@ create table if not exists public.subscriptions (
   stripe_customer_id     text,
   stripe_subscription_id text,
   status                 text not null default 'inactive',
+  cancel_at_period_end   boolean not null default false,
   current_period_end     timestamptz,
   updated_at             timestamptz not null default now()
 );
+-- Migration for pre-existing databases (idempotent):
+alter table public.subscriptions add column if not exists cancel_at_period_end boolean not null default false;
 create index if not exists subscriptions_stripe_sub_idx on public.subscriptions (stripe_subscription_id);
 
 alter table public.subscriptions enable row level security;

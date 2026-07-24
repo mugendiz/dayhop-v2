@@ -534,5 +534,6 @@ module.exports = {
   generateGroundedIdeas,
   buildDayPlan,
   replanPlan,
-  placeFacts
+  placeFacts,
+  callGrok // generic JSON-mode completion (used by services/newOpenings.js)
 };

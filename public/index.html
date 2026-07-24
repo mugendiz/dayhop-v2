@@ -48,6 +48,7 @@
         </button>
         <div class="user-menu" id="user-menu" role="menu" hidden>
           <span class="user-email" id="user-email"></span>
+          <button class="user-menu-item" id="manage-membership-btn" type="button" role="menuitem" hidden>Manage membership</button>
           <a class="user-menu-item admin-link" id="admin-link" href="/admin.html" hidden>🛠 Admin</a>
           <button class="user-menu-item signout-btn" id="signout-btn" type="button" role="menuitem">Sign out</button>
         </div>
@@ -398,6 +399,29 @@
     <button class="primary-btn upgrade-cta" id="upgrade-cta" type="button">Go Pro ✨</button>
     <p class="upgrade-reassure">Cancel anytime — your saved plans stay yours.</p>
     <button class="linklike upgrade-later" id="upgrade-later" type="button">Maybe later</button>
+  </div>
+</div>
+
+<!-- Membership: status + hassle-free cancel/resume. One inline confirm,
+     no surveys, no retention maze. Cancelling keeps Pro until the paid
+     period ends and stays reversible until then. -->
+<div id="membership-panel" class="modal" hidden>
+  <div class="modal-backdrop" data-close-membership></div>
+  <div class="modal-card membership-card" role="dialog" aria-modal="true" aria-labelledby="membership-title">
+    <button class="panel-close modal-close" data-close-membership aria-label="Close">✕</button>
+    <span class="pro-badge upgrade-badge">PRO</span>
+    <h2 id="membership-title">Your membership</h2>
+    <p class="membership-status" id="membership-status"></p>
+    <p class="membership-error" id="membership-error" role="alert" aria-live="polite"></p>
+    <button class="primary-btn membership-resume-btn" id="membership-resume-btn" type="button" hidden>
+      <span class="btn-label">Keep my membership</span>
+      <span class="btn-spinner" aria-hidden="true"></span>
+    </button>
+    <button class="ghost-btn membership-cancel-btn" id="membership-cancel-btn" type="button" hidden>
+      <span class="btn-label">Cancel membership</span>
+      <span class="btn-spinner" aria-hidden="true"></span>
+    </button>
+    <p class="membership-reassure">Cancelling stops future charges — nothing disappears today. You keep Pro until the end of what you've paid for, and your saved plans stay yours forever.</p>
   </div>
 </div>
 

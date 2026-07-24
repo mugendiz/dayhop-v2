@@ -35,6 +35,39 @@ router.post('/checkout', requireUser, async (req, res) => {
   }
 });
 
+// Hassle-free cancellation: one call, cancels at period end (no immediate
+// loss, no proration surprises), fully reversible until the period lapses.
+router.post('/cancel', requireUser, async (req, res) => {
+  if (!billing.isConfigured()) return notConfigured(res);
+  try {
+    const sub = await billing.setCancelAtPeriodEnd(req.ownerId, true);
+    analytics.recordEvent({ type: 'membership_cancelled', ownerKey: req.ownerId });
+    res.json({ status: sub.status, cancel_at_period_end: true, current_period_end: sub.current_period_end });
+  } catch (err) {
+    if (err.code === 'NO_SUBSCRIPTION') {
+      return res.status(404).json({ error: 'NO_SUBSCRIPTION', message: 'No membership on file for this account.' });
+    }
+    console.error('[billing] cancel failed:', err.message);
+    res.status(502).json({ error: 'CANCEL_FAILED', message: 'Could not update your membership. Please try again.' });
+  }
+});
+
+// The change of heart, equally hassle-free: renewal switches back on.
+router.post('/resume', requireUser, async (req, res) => {
+  if (!billing.isConfigured()) return notConfigured(res);
+  try {
+    const sub = await billing.setCancelAtPeriodEnd(req.ownerId, false);
+    analytics.recordEvent({ type: 'membership_resumed', ownerKey: req.ownerId });
+    res.json({ status: sub.status, cancel_at_period_end: false, current_period_end: sub.current_period_end });
+  } catch (err) {
+    if (err.code === 'NO_SUBSCRIPTION') {
+      return res.status(404).json({ error: 'NO_SUBSCRIPTION', message: 'No membership on file for this account.' });
+    }
+    console.error('[billing] resume failed:', err.message);
+    res.status(502).json({ error: 'RESUME_FAILED', message: 'Could not update your membership. Please try again.' });
+  }
+});
+
 // Today's spend against the free daily limits, so the client can show a
 // truthful "2 of 3 plans left" without keeping its own tally. Guests pass
 // their stable guest id as ?owner_id (same key the generate route counts
@@ -74,6 +107,7 @@ router.get('/status', async (req, res) => {
       configured,
       pro: Boolean(sub && ['active', 'trialing'].includes(sub.status)),
       status: sub ? sub.status : null,
+      cancel_at_period_end: sub ? Boolean(sub.cancel_at_period_end) : false,
       current_period_end: sub ? sub.current_period_end : null,
       entitlements,
       price,

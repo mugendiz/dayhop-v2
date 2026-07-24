@@ -202,6 +202,11 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   const onSpotlight = spotLabel ? pool.filter(c => isAroundSpotlight(spotlight, c.date)) : [];
   const takeSpotlight = () => { if (spotLabel) take(spotLabel, onSpotlight, 3); };
 
+  // "Just opened" shelf (Phase 0 of the discovery plan): newly-opened
+  // attractions get their own early shelf in every branch — the feed's
+  // answer to "it's all over socials but not in DayHop".
+  const takeJustOpened = () => take('Just opened ✨', pool.filter(c => c.newly_opened), 3);
+
   if (near) {
     // The pool is already ranked against the daypart+mode prompt, so "right
     // now" is simply its top — filtered to indoor picks when it's raining
@@ -209,6 +214,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     const rightNow = shelter ? pool.filter(isSheltered)
       : (weather && weather.is_rainy) ? pool.filter(isIndoor) : pool;
     take(rightNowLabel(part, weather, shelter), rightNow, 6);
+    takeJustOpened();
     take('Within 15 minutes 📍',
       pool.filter(c => c.distance_km != null && c.distance_km <= 10)
         .slice().sort((a, b) => a.distance_km - b.distance_km), 6);
@@ -218,6 +224,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   } else if (mode === 'adventure') {
     if (shelter) take('Indoor thrills right now 😷', pool.filter(isSheltered), 5);
     take('Top thrills ⚡', pool, 6);
+    takeJustOpened();
     if (!shelter) take('Get outside 🌊', pool.filter(isOutdoor), 5);
     takeSpotlight();
     take(datedLabel, pool.filter(hasDate), 4);
@@ -226,6 +233,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   } else {
     if (shelter) take('Sheltered picks right now 😷', pool.filter(isSheltered), 5);
     take('Restorative picks 🌿', pool, 5);
+    takeJustOpened();
     if (!shelter) take('Outdoors & nature 🌳', pool.filter(isOutdoor), 4);
     take('Food & drink 🍴', pool.filter(isFood), 4);
     takeSpotlight();
@@ -310,6 +318,7 @@ function toBrowseIdea(c) {
     civic: c.civic === true || undefined,
     also_from: c.also_from || undefined,
     wow: c.wow === true || undefined,
+    newly_opened: c.newly_opened === true || undefined,
     distance_km: c.distance_km != null ? c.distance_km : undefined
   });
 }

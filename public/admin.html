@@ -178,6 +178,18 @@
       </table>
     </div>
 
+    <div class="card" id="discovery-card">
+      <h2>Discovery inbox — new openings</h2>
+      <p class="rate" style="margin:0 0 10px">
+        Scans local-media RSS (Curiocity, Narcity, NOW, Streets of Toronto) for newly-opened
+        attractions and drafts catalog entries with Grok. <strong>Verify facts and the opening
+        date (two sources), fill in <code>opened_at</code>, then paste into
+        <code>data/curatedCatalog.js</code>.</strong> Nothing publishes automatically.
+      </p>
+      <button id="discovery-scan" type="button">Scan feeds</button>
+      <div id="discovery-list" style="margin-top:12px"></div>
+    </div>
+
     <p class="note" id="source"></p>
   </div>
 </main>
@@ -228,6 +240,76 @@
     load({ 'x-admin-key': $('key').value.trim() });
   });
   $('refresh').addEventListener('click', () => lastAuth && load(lastAuth.headers, lastAuth.email));
+
+  // ---------- Discovery inbox (new openings) ----------
+  let discoveryItems = [];
+  const dismissedNew = new Set(JSON.parse(localStorage.getItem('dayhop_discovery_dismissed') || '[]'));
+
+  $('discovery-scan').addEventListener('click', async () => {
+    if (!lastAuth) return;
+    const btn = $('discovery-scan');
+    const list = $('discovery-list');
+    btn.disabled = true;
+    btn.textContent = 'Scanning feeds… (~20s)';
+    try {
+      const res = await fetch('/api/admin/discovery', { headers: lastAuth.headers });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || ('Error ' + res.status));
+      renderDiscovery(data);
+    } catch (e) {
+      list.innerHTML = '<p class="rate">' + esc(e.message) + '</p>';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Scan feeds';
+    }
+  });
+
+  function renderDiscovery(data) {
+    const list = $('discovery-list');
+    discoveryItems = (data.items || []).filter(it => !it.draft || !dismissedNew.has(it.draft.id));
+    const meta = 'Scanned ' + fmt(data.feeds_scanned) + ' feeds · ' + fmt(data.articles_seen) +
+      ' articles · ' + fmt(data.headlines_gated) + ' opening-flavored' +
+      (data.error ? ' · ' + esc(data.error) : '');
+    if (!discoveryItems.length) {
+      list.innerHTML = '<p class="rate">' + meta + ' — nothing new (or everything dismissed).</p>';
+      return;
+    }
+    list.innerHTML = '<p class="rate">' + meta + '</p>' + discoveryItems.map((it, i) =>
+      '<div style="border-top:1px solid var(--line, #ddd); padding:10px 0" data-idx="' + i + '">' +
+        '<strong>' + esc(it.name) + '</strong>' +
+        ' <span class="rate">· ' + esc([it.area, it.kind, it.opened_hint].filter(Boolean).join(' · ')) + '</span>' +
+        (it.buzz ? ' <span class="rate" title="0–100 from Google News' +
+          (it.buzz.reddit ? ' + Reddit' : '') + (it.buzz.youtube ? ' + YouTube' : '') +
+          ' mentions, last 30 days">· 🔥 ' + fmt(it.buzz.score) + '/100 (' +
+          [it.buzz.news ? fmt(it.buzz.news.articles) + ' news' : null,
+           it.buzz.reddit ? fmt(it.buzz.reddit.posts) + ' reddit' : null,
+           it.buzz.youtube ? fmt(it.buzz.youtube.videos) + ' yt' : null]
+            .filter(Boolean).join(' · ') + ')</span>' : '') +
+        '<p class="rate" style="margin:4px 0">' + esc(it.summary || '') +
+          (it.article && it.article.url
+            ? ' — <a href="' + esc(it.article.url) + '" target="_blank" rel="noopener">' + esc(it.article.source || 'source') + '</a>'
+            : '') + '</p>' +
+        (it.draft
+          ? '<button type="button" data-copy="' + i + '">Copy catalog entry</button> ' +
+            '<button type="button" data-dismiss="' + esc(it.draft.id) + '">Dismiss</button>'
+          : '') +
+      '</div>').join('');
+
+    list.querySelectorAll('[data-copy]').forEach(btn => btn.addEventListener('click', () => {
+      const it = discoveryItems[Number(btn.dataset.copy)];
+      const entry = JSON.stringify(it.draft, null, 2)
+        .replace(/"([a-z_]+)":/g, '$1:'); // read closer to the catalog's JS style
+      navigator.clipboard.writeText(entry).then(() => {
+        btn.textContent = 'Copied ✓';
+        setTimeout(() => { btn.textContent = 'Copy catalog entry'; }, 1800);
+      });
+    }));
+    list.querySelectorAll('[data-dismiss]').forEach(btn => btn.addEventListener('click', () => {
+      dismissedNew.add(btn.dataset.dismiss);
+      localStorage.setItem('dayhop_discovery_dismissed', JSON.stringify([...dismissedNew]));
+      btn.closest('[data-idx]').remove();
+    }));
+  }
 
   async function load(headers, email) {
     $('error').textContent = '';

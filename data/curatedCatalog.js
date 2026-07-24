@@ -20,7 +20,57 @@
 
 const mapsSearch = q => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 
+// Optional per-entry fields for the "Just opened" layer (Phase 0 of the
+// social-signal discovery plan):
+//   opened_at    'YYYY-MM-DD' — when the attraction opened to the public
+//   new_until    'YYYY-MM-DD' — badge/shelf expiry (default opened_at + 1y)
+//   booking_url  official ticket page (curated entries may carry one)
+// candidates.js derives `newly_opened` from these at request time, so the
+// badge decays on its own — no cleanup pass needed.
+
 module.exports = [
+  // ---------- Just opened (verified 2026-07-24; sources in commit) ----------
+  {
+    id: 'cur-niagara-takes-flight',
+    title: "Niagara Takes Flight — the new flying theatre at the Falls",
+    category: 'adventures',
+    tags: ['flight', 'flying', 'ride', 'immersive', 'indoor', 'niagara', 'falls', 'simulator', 'family', 'rainy', 'new'],
+    location: "Table Rock Centre, Niagara Falls",
+    venue: "Niagara Parks — Table Rock Centre",
+    description: "The $25M flying-theatre ride at the brink of the Horseshoe Falls — a motion gondola soars the whole Niagara River on a 17-m dome, narrated by James Cameron.",
+    cost_tier: '$$', good_for_ages: '5+',
+    maps_url: mapsSearch('Table Rock Centre Niagara Falls'),
+    booking_url: 'https://www.niagaraparks.com/visit/attractions/niagaratakesflight',
+    opened_at: '2025-08-29',
+    wow: true, seasonal: null
+  },
+  {
+    id: 'cur-monet-immersive',
+    title: "Claude Monet: The Immersive Experience",
+    category: 'culture',
+    tags: ['immersive', 'art', 'exhibit', 'monet', 'indoor', 'rainy', 'projection', 'museum', 'date', 'new'],
+    location: "YZD (Downsview), Toronto",
+    venue: "Claude Monet: The Immersive Experience",
+    description: "300+ Monet works turned into room-scale light and sound — 20,000 sq ft of projection plus a VR walk through Giverny. Opened February 2026.",
+    cost_tier: '$$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('30 Hanover Road Toronto'),
+    booking_url: 'https://monetexpo.com/toronto/',
+    opened_at: '2026-02-26',
+    wow: true, seasonal: null
+  },
+  {
+    id: 'cur-arcadia-earth',
+    title: "Arcadia Earth — immersive journey through 17 worlds",
+    category: 'culture',
+    tags: ['immersive', 'art', 'nature', 'environment', 'indoor', 'rainy', 'projection', 'kids', 'family'],
+    location: "Downtown, Toronto",
+    venue: "Arcadia Earth Toronto",
+    description: "Seventeen rooms of projection, augmented reality, and art built from reclaimed materials — a nature story that lands with kids and adults alike.",
+    cost_tier: '$$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Arcadia Earth Toronto'),
+    booking_url: 'https://www.arcadiaearth.ca/',
+    wow: true, seasonal: null
+  },
   // ---------- Water & paddling (the "swimming → whole lake" pack) ----------
   {
     id: 'cur-harbourfront-kayak',

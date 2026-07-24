@@ -65,6 +65,23 @@ async function upsertSubscription(row) {
         .from('subscriptions').upsert(record, { onConflict: 'owner_id' });
       if (error) throw error;
     } catch (err) {
+      // Pre-migration databases lack cancel_at_period_end — retry without it
+      // so the core row still persists (the flag survives in memory and is
+      // re-derived from Stripe webhooks after a restart).
+      if ('cancel_at_period_end' in record && /cancel_at_period_end/i.test(err.message || '')) {
+        try {
+          const slim = Object.assign({}, record);
+          delete slim.cancel_at_period_end;
+          const { error } = await dbClient.getClient()
+            .from('subscriptions').upsert(slim, { onConflict: 'owner_id' });
+          if (error) throw error;
+          console.warn('[billing] persisted without cancel_at_period_end — run the schema migration to keep it across restarts.');
+          return record;
+        } catch (err2) {
+          console.warn('[billing] upsertSubscription persist failed (kept in memory):', err2.message);
+          return record;
+        }
+      }
       console.warn('[billing] upsertSubscription persist failed (kept in memory):', err.message);
     }
   }
@@ -140,6 +157,34 @@ async function createCheckoutSession({ ownerId, email, origin }) {
 }
 
 /**
+ * Cancel (or un-cancel) at period end — the hassle-free path: no proration
+ * puzzles, no immediate loss. Pro stays active until the paid-for period
+ * ends, and flipping `cancel` back re-activates renewal in one call.
+ * Stripe's response is the source of truth; the local row mirrors it.
+ */
+async function setCancelAtPeriodEnd(ownerId, cancel) {
+  const sub = await getSubscription(ownerId);
+  if (!sub || !sub.stripe_subscription_id) {
+    const err = new Error('No subscription on file for this account.');
+    err.code = 'NO_SUBSCRIPTION';
+    throw err;
+  }
+  const updated = await getStripe().subscriptions.update(sub.stripe_subscription_id, {
+    cancel_at_period_end: Boolean(cancel)
+  });
+  return upsertSubscription({
+    owner_id: ownerId,
+    stripe_subscription_id: updated.id,
+    stripe_customer_id: typeof updated.customer === 'string' ? updated.customer : sub.stripe_customer_id || null,
+    status: updated.status,
+    cancel_at_period_end: Boolean(updated.cancel_at_period_end),
+    current_period_end: updated.current_period_end
+      ? new Date(updated.current_period_end * 1000).toISOString()
+      : sub.current_period_end || null
+  });
+}
+
+/**
  * Verify + handle a webhook. `rawBody` must be the unparsed request body.
  * Returns a short string describing what was handled (for logs).
  */
@@ -175,15 +220,16 @@ async function handleWebhook(rawBody, signature) {
         stripe_subscription_id: sub.id,
         stripe_customer_id: typeof sub.customer === 'string' ? sub.customer : null,
         status: event.type.endsWith('deleted') ? 'canceled' : sub.status,
+        cancel_at_period_end: Boolean(sub.cancel_at_period_end),
         current_period_end: sub.current_period_end
           ? new Date(sub.current_period_end * 1000).toISOString()
           : null
       });
-      return `subscription ${sub.id} → ${sub.status}`;
+      return `subscription ${sub.id} → ${sub.status}${sub.cancel_at_period_end ? ' (cancels at period end)' : ''}`;
     }
     default:
       return `ignored ${event.type}`;
   }
 }
 
-module.exports = { isConfigured, status, isPro, getSubscription, getPriceInfo, createCheckoutSession, handleWebhook };
+module.exports = { isConfigured, status, isPro, getSubscription, getPriceInfo, createCheckoutSession, setCancelAtPeriodEnd, handleWebhook };

@@ -115,6 +115,11 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
   return candidates.map(candidate => {
     let score = 0;
 
+    // Freshness: a newly-opened attraction gets a lift so it survives the
+    // pool cap and shows up while it's the thing everyone's talking about.
+    // The flag itself decays (candidates.js), so the boost self-expires.
+    if (candidate.newly_opened) score += 4;
+
     // Direct prompt-token overlap: title matches count double.
     score += 2 * textHits(tokens, candidate.title);
     score += textHits(tokens, candidate.description);

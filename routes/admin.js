@@ -12,6 +12,7 @@ const router = express.Router();
 const analytics = require('../services/analytics');
 const billing = require('../services/billing');
 const moderation = require('../services/moderation');
+const newOpenings = require('../services/newOpenings');
 const { isAdmin } = require('../services/entitlements');
 
 function keyMatches(provided) {
@@ -36,6 +37,18 @@ function requireAdmin(req, res, next) {
   }
   next();
 }
+
+// Discovery inbox (Phase 1): RSS scan + Grok entity extraction → candidate
+// new openings with paste-ready catalog drafts. Cached 6h server-side; the
+// first call in a window takes ~10–20s (feeds + one Grok call).
+router.get('/discovery', requireAdmin, async (req, res) => {
+  try {
+    res.json(await newOpenings.collect());
+  } catch (err) {
+    console.error('[admin] discovery failed:', err.message);
+    res.status(500).json({ error: 'DISCOVERY_FAILED', message: 'Could not scan feeds right now.' });
+  }
+});
 
 router.get('/metrics', requireAdmin, async (req, res) => {
   try {

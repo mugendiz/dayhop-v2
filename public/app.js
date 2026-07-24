@@ -1526,6 +1526,7 @@
     if (conflict) chips.push(`<span class="card-chip card-chip--advisory" title="An advisory is in effect for this area">⚠️ Outdoors — ${escapeHtml(conflict)}</span>`);
     if (idea.distance_km != null) chips.push(`<span class="card-chip card-chip--near">📍 ${escapeHtml(String(idea.distance_km))} km</span>`);
     if (idea.date) chips.push(`<span class="card-chip card-chip--date">📅 ${escapeHtml(formatEventDate(idea.date))}</span>`);
+    if (idea.newly_opened) chips.push('<span class="card-chip card-chip--new" title="Recently opened">✨ Just opened</span>');
     if (idea.rating != null) chips.push(`<span class="card-chip">★ ${escapeHtml(String(idea.rating))}</span>`);
     if (idea.price_from != null) chips.push(`<span class="card-chip">from ${escapeHtml(String(idea.price_from))}${idea.currency ? ' ' + escapeHtml(idea.currency) : ''}</span>`);
     if (idea.cost_tier === 'free') chips.push('<span class="card-chip card-chip--free">Free</span>');
@@ -3410,6 +3411,117 @@
     document.querySelectorAll('[data-close-upgrade]').forEach(el => el.addEventListener('click', hideUpgradeModal));
   }
 
+  // ---------- Membership: hassle-free cancel / resume ----------
+  // Principles: state the facts (what you have, when it renews or ends),
+  // one inline confirmation on the same button, zero surveys or retention
+  // mazes, and a change of heart is one click until the period lapses.
+  function membershipEndDate() {
+    const iso = state.billingInfo && state.billingInfo.current_period_end;
+    if (!iso) return null;
+    const d = new Date(iso);
+    return isNaN(d) ? null : d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+  }
+
+  function renderMembership() {
+    const statusEl = document.getElementById('membership-status');
+    const cancelBtn = document.getElementById('membership-cancel-btn');
+    const resumeBtn = document.getElementById('membership-resume-btn');
+    if (!statusEl || !cancelBtn || !resumeBtn) return;
+    document.getElementById('membership-error').textContent = '';
+    const info = state.billingInfo || {};
+    const end = membershipEndDate();
+    const cancelling = Boolean(info.cancel_at_period_end);
+
+    if (cancelling) {
+      statusEl.textContent = end
+        ? `Pro stays active until ${end}, then won't renew. No further charges.`
+        : `Pro stays active until the end of your current period, then won't renew.`;
+      cancelBtn.hidden = true;
+      resumeBtn.hidden = false;
+    } else {
+      statusEl.textContent = end
+        ? `You're Pro — unlimited plans, re-plans, and multi-day trips. Renews ${end}.`
+        : `You're Pro — unlimited plans, re-plans, and multi-day trips.`;
+      cancelBtn.hidden = false;
+      resumeBtn.hidden = true;
+    }
+    // Reset any half-finished confirm state.
+    cancelBtn.classList.remove('is-confirming');
+    cancelBtn.querySelector('.btn-label').textContent = 'Cancel membership';
+  }
+
+  function showMembershipModal() {
+    renderMembership();
+    const modal = document.getElementById('membership-panel');
+    modal.hidden = false;
+    requestAnimationFrame(() => modal.classList.add('modal--open'));
+    overlayNav.opened('membership-panel');
+  }
+
+  function hideMembershipModal() {
+    const modal = document.getElementById('membership-panel');
+    modal.classList.remove('modal--open');
+    setTimeout(() => { modal.hidden = true; }, 200);
+    overlayNav.closed('membership-panel');
+  }
+
+  async function membershipRequest(path, btn, doneMsg) {
+    const errEl = document.getElementById('membership-error');
+    btn.classList.add('is-loading');
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/api/billing/${path}`, { method: 'POST', headers: authHeaders() });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Could not update your membership.');
+      state.billingInfo = Object.assign({}, state.billingInfo, {
+        cancel_at_period_end: data.cancel_at_period_end,
+        current_period_end: data.current_period_end
+      });
+      renderMembership();
+      showToast(doneMsg);
+      refreshProStatus(); // keep badges/entitlements in sync
+    } catch (err) {
+      errEl.textContent = err.message;
+    } finally {
+      btn.classList.remove('is-loading');
+      btn.disabled = false;
+    }
+  }
+
+  function wireMembership() {
+    const menuBtn = document.getElementById('manage-membership-btn');
+    const cancelBtn = document.getElementById('membership-cancel-btn');
+    const resumeBtn = document.getElementById('membership-resume-btn');
+    if (!menuBtn || !cancelBtn || !resumeBtn) return;
+
+    menuBtn.addEventListener('click', () => {
+      const menu = document.getElementById('user-menu');
+      if (menu) menu.hidden = true;
+      showMembershipModal();
+    });
+    document.querySelectorAll('[data-close-membership]').forEach(el =>
+      el.addEventListener('click', hideMembershipModal));
+
+    // Two taps on the SAME button: "Cancel membership" → "Yes, cancel — keep
+    // Pro until <date>". No nested dialogs, no guilt copy.
+    cancelBtn.addEventListener('click', () => {
+      if (!cancelBtn.classList.contains('is-confirming')) {
+        cancelBtn.classList.add('is-confirming');
+        const end = membershipEndDate();
+        cancelBtn.querySelector('.btn-label').textContent =
+          end ? `Yes, cancel — keep Pro until ${end}` : 'Yes, cancel my membership';
+        return;
+      }
+      const end = membershipEndDate();
+      membershipRequest('cancel', cancelBtn,
+        end ? `Done — no more charges. Pro stays active until ${end}.` : 'Done — no more charges.');
+    });
+
+    resumeBtn.addEventListener('click', () => {
+      membershipRequest('resume', resumeBtn, 'Welcome back — your membership will renew as usual ✨');
+    });
+  }
+
   // Keep every Pro-dependent bit of chrome in sync with the current tier:
   // PRO chips on gated controls appear only for free users with billing live.
   function updateProUi() {
@@ -3483,13 +3595,20 @@
       state.entitlements = (res.ok && data.entitlements) || null;
       state.price = (res.ok && data.price) || null;
       state.usage = (res.ok && data.usage) || null;
+      state.billingInfo = res.ok ? data : null;
       if (badge) badge.hidden = !pro;
       if (goProBtn) goProBtn.hidden = !(res.ok && data.configured && !pro);
       if (adminLink) adminLink.hidden = !(res.ok && isLoggedIn() && data.admin);
+      // Manage membership: only for real subscribers (admins have Pro
+      // without a subscription behind it — nothing to manage).
+      const manageBtn = document.getElementById('manage-membership-btn');
+      if (manageBtn) manageBtn.hidden = !(pro && !data.admin && data.configured);
     } catch (e) {
       if (badge) badge.hidden = true;
       if (goProBtn) goProBtn.hidden = true;
       if (adminLink) adminLink.hidden = true;
+      const manageBtn = document.getElementById('manage-membership-btn');
+      if (manageBtn) manageBtn.hidden = true;
     }
     // A tier change can unlock/lock multi-day: snap the selector back to a
     // valid choice and refresh all PRO chips.
@@ -4039,6 +4158,7 @@
     wireReplanBar();
     wireDaySelector();
     wireUpgradeModal();
+    wireMembership();
 
     // Outbound click tracking (booking links are the affiliate-revenue metric)
     // + booking retention: the link opens in a new tab, so THIS tab is still

@@ -453,6 +453,12 @@ function catalogCandidates(prompt, themes, limit) {
   const inSeason = month >= 5 && month <= 9 ? 'summer' : 'winter';
   const eligible = curatedCatalog.filter(e => !e.seasonal || e.seasonal === inSeason);
 
+  // "Just opened" decay: an entry is new from opened_at until new_until
+  // (default one year) — after that the flag simply stops computing.
+  const todayYmd = torontoToday();
+  const isNewlyOpened = e => Boolean(
+    e.opened_at && e.opened_at <= todayYmd && todayYmd <= (e.new_until || addDays(e.opened_at, 365)));
+
   const normalized = eligible.map(e => ({
     source: 'curated_catalog',
     id: e.id,
@@ -469,16 +475,22 @@ function catalogCandidates(prompt, themes, limit) {
     price_from: null,
     currency: null,
     image_url: null,
-    booking_url: null,
+    booking_url: e.booking_url || null,
     maps_url: e.maps_url,
     rating: null,
-    wow: e.wow === true
+    wow: e.wow === true,
+    newly_opened: isNewlyOpened(e)
   }));
 
-  return relevance.selectTop(
+  const ranked = relevance.selectTop(
     relevance.scoreCandidates(normalized, { prompt, themes }),
     limit
   );
+  // Newly-opened entries bypass the catalog quota — being surfaced while
+  // new IS their job. Lead the list so the per-source cap can't trim them;
+  // the pool-wide relevance pass re-ranks everything afterward anyway.
+  const fresh = normalized.filter(e => e.newly_opened && !ranked.some(r => r.id === e.id));
+  return fresh.concat(ranked.filter(r => !fresh.includes(r)));
 }
 
 // Round-robin across the source lists so grok.js's 40-candidate cap trims

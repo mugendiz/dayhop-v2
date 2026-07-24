@@ -1204,6 +1204,7 @@ button, .filter-chip {
 }
 
 .card-chip--free { background: rgba(63,111,92,0.14); color: var(--moss); font-weight: 600; }
+.card-chip--new { background: rgba(255,182,39,0.22); color: var(--ink); font-weight: 600; }
 .card-chip--date { background: rgba(255,182,39,0.16); color: var(--ink); }
 .card-chip--advisory { background: rgba(217,119,6,0.14); color: #8a4b04; font-weight: 600; }
 .card-chip--near { background: rgba(255,107,74,0.12); color: var(--coral-dark); font-weight: 600; }
@@ -2351,6 +2352,51 @@ button, .filter-chip {
   margin: 10px auto 0;
   color: var(--ink-soft);
   font-size: 13px;
+}
+
+/* ---------- Membership modal (cancel / resume) ---------- */
+/* Calm by design: facts, one button per path, no retention theatre. */
+.membership-status {
+  margin: 14px 0 4px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+.membership-error {
+  min-height: 16px;
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  color: var(--coral-dark);
+}
+.membership-card .primary-btn.membership-resume-btn {
+  align-self: auto;
+  width: 100%;
+  margin-top: 12px;
+}
+.membership-cancel-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  position: relative;
+  color: var(--ink-soft);
+}
+.membership-cancel-btn:hover { background: rgba(16, 42, 46, 0.05); }
+/* The inline confirm step: same button, firmer voice — visibly a decision,
+   never an alarm. */
+.membership-cancel-btn.is-confirming {
+  border-color: var(--coral-dark);
+  color: var(--coral-dark);
+  font-weight: 600;
+}
+.membership-cancel-btn.is-loading .btn-label,
+.membership-resume-btn.is-loading .btn-label { visibility: hidden; }
+.membership-reassure {
+  margin: 14px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  text-wrap: pretty;
 }
 
 @media (max-width: 640px) {
