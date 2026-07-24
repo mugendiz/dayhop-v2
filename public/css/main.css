@@ -3250,8 +3250,9 @@ html.lenis, html.lenis body { height: auto; }
   .hero-featured .featured-card-desc { -webkit-line-clamp: 3; }
 }
 
-/* Lives ON the photo (top-right), opposite the schedule/date chip — a
-   frosted ink pill so it reads over any sky. */
+/* Lives ON the photo (top-right), opposite the schedule/date chip — a soft
+   coral pill, one shade lighter than the primary buttons, so it reads as
+   brand over any sky without competing with the CTAs. */
 .hero-featured-eyebrow {
   position: absolute;
   top: 12px; right: 12px;
@@ -3261,11 +3262,10 @@ html.lenis, html.lenis body { height: auto; }
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--paper);
-  background: rgba(16, 42, 46, 0.55);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
+  background: #FF8A6E; /* --coral (#FF6B4A), lightened */
   padding: 5px 11px;
   border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-soft);
 }
 
 /* Same frosted-glass family as the prompt box, so the two columns read as
