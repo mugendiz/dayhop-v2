@@ -1713,6 +1713,7 @@
   function openDetail(idea) {
     document.getElementById('detail-title').textContent = idea.title;
     const categoryLabel = CATEGORY_LABELS[idea.category] || CATEGORY_LABELS.general;
+    const onDay = Boolean(state.shortlist.find(i => i.id === idea.id));
     document.getElementById('detail-content').innerHTML = `
       <div class="detail-photo">
         <img src="${escapeAttr(idea.image_url || categoryImage(idea.category))}" alt="" loading="lazy">
@@ -1731,6 +1732,9 @@
         ${idea.rating != null ? `<dt>Rating</dt><dd>★ ${escapeHtml(String(idea.rating))}</dd>` : ''}
       </dl>
       ${bookingLinksHtml(idea, 'detail')}
+      <button type="button" class="primary-btn detail-add-btn" id="detail-add-btn"${onDay ? ' disabled' : ''}>
+        ${onDay ? 'On your day ✓' : 'Add to my day →'}
+      </button>
       <div class="detail-more" id="detail-more">
         <div class="detail-more-skeleton" role="status" aria-label="Loading photos, facts, and local tips">
           <p class="detail-more-loading">✨ Finding photos, facts &amp; local tips…</p>
@@ -1741,6 +1745,16 @@
         </div>
       </div>
     `;
+    const addBtn = document.getElementById('detail-add-btn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        if (state.shortlist.find(i => i.id === idea.id)) return;
+        addToShortlist(idea, null);
+        renderFeed();
+        addBtn.textContent = 'On your day ✓';
+        addBtn.disabled = true;
+      });
+    }
     openPanel('detail-panel');
     loadDetailMore(idea);
   }
@@ -2958,16 +2972,21 @@
       merged.push(item);
     }
 
+    // Never an empty hero column: a city with no live matches and no
+    // algorithmic picks (e.g. outside Ontario) falls back to the home-turf
+    // sky pool — GTA inspiration beats a collapsed split hero.
+    const pool = merged.length ? merged : SKY_FEATURES.slice();
+
     // Condition-aware: on a genuinely clear night (Open-Meteo via the browse
     // payload), the dark-sky spots lead the rotation and say why.
     const sky = state.lastSky;
     if (sky && sky.clear_tonight) {
       const chip = sky.moon_illumination_pct <= 35 ? 'clear & dark tonight ✨' : 'clear skies tonight ✨';
-      const dark = merged.filter(isDarkSkyItem)
+      const dark = pool.filter(isDarkSkyItem)
         .map(f => Object.assign({}, f, { schedule: chip }));
-      return dark.concat(merged.filter(f => !isDarkSkyItem(f)));
+      return dark.concat(pool.filter(f => !isDarkSkyItem(f)));
     }
-    return merged;
+    return pool;
   }
 
   function renderFeaturedCard(aside, ev) {

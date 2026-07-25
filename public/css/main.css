@@ -967,6 +967,16 @@ button, .filter-chip {
   .skeleton::after { animation: none; }
 }
 
+/* Full-width "Add to my day" in the detail panel — the panel's one primary
+   action, sitting under the facts and links. Disabled = already on the day. */
+.detail-add-btn {
+  display: block;
+  width: 100%;
+  align-self: auto;
+  margin-top: 14px;
+}
+.detail-add-btn:disabled { background: var(--moss); opacity: 1; }
+
 /* Detail panel "second course" loading screen: a shimmer strip + lines that
    mirror the photos, summary, and facts about to arrive. */
 .detail-more-skeleton { display: grid; gap: 10px; margin-top: 4px; }
