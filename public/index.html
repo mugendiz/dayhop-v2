@@ -248,9 +248,18 @@
   <div class="panel-sheet" role="dialog" aria-modal="true" aria-labelledby="shortlist-title">
     <div class="panel-header">
       <h2 id="shortlist-title">Your shortlist</h2>
-      <button class="panel-close" data-close-panel aria-label="Close">✕</button>
+      <div class="panel-header-tools">
+        <button id="shortlist-select-btn" class="select-toggle-btn" type="button" aria-pressed="false" hidden>Select</button>
+        <button class="panel-close" data-close-panel aria-label="Close">✕</button>
+      </div>
     </div>
     <p id="shortlist-summary" class="shortlist-summary" hidden></p>
+    <!-- Select mode: bulk actions over checked rows. JS shows while selecting. -->
+    <div id="shortlist-select-bar" class="shortlist-select-bar" role="toolbar" aria-label="Shortlist selection actions" hidden>
+      <button id="select-delete-btn" class="select-bar-btn danger" type="button" disabled>Delete</button>
+      <button id="select-newlist-btn" class="select-bar-btn" type="button" disabled>✦ New shortlist</button>
+      <button id="select-clearall-btn" class="select-bar-btn" type="button">Clear all</button>
+    </div>
     <div id="shortlist-items" class="shortlist-items"></div>
     <button id="new-shortlist-btn" class="new-shortlist-btn" type="button" hidden>✦ Start a new shortlist</button>
     <div id="shortlist-empty" class="shortlist-empty">

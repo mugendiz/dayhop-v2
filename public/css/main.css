@@ -1496,6 +1496,59 @@ button, .filter-chip {
   padding: 4px 8px;
 }
 
+/* ---------- Shortlist select mode ----------
+   The header "Select" toggle arms a bulk pass: rows become checkboxes and
+   the action bar (delete / new shortlist / clear all) slots in above them. */
+.panel-header-tools { display: flex; align-items: center; gap: 8px; }
+
+.select-toggle-btn {
+  background: none;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  padding: 5px 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.select-toggle-btn:hover { background: var(--paper-dim); color: var(--ink); }
+.select-toggle-btn.is-active { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+
+.shortlist-select-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.select-bar-btn {
+  flex: 1 1 auto;
+  background: white;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-btn);
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.select-bar-btn:hover:not(:disabled) { background: var(--paper-dim); color: var(--ink); }
+.select-bar-btn:disabled { opacity: 0.4; cursor: default; }
+.select-bar-btn.danger { color: var(--coral-dark); border-color: rgba(225, 80, 47, 0.4); }
+.select-bar-btn.danger:hover:not(:disabled) { background: var(--coral); border-color: var(--coral); color: white; }
+
+.shortlist-row.is-selectable { cursor: pointer; }
+.shortlist-check {
+  width: 17px; height: 17px;
+  margin: 0 12px 0 0;
+  accent-color: var(--coral);
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+.shortlist-row.is-selected { border-color: var(--coral); background: rgba(255, 107, 74, 0.07); }
+
 .shortlist-empty { color: var(--ink-soft); font-size: 14.5px; line-height: 1.6; padding: 20px 0; }
 
 .panel-footer { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
@@ -2765,6 +2818,19 @@ body[data-mode="adventure"] .mode-thumb { transform: translateX(100%); }
       animation-timeline: scroll(root);
       animation-range: 0 480px;
     }
+
+    /* Mobile: the columns stack, so the featured card sits inside the
+       recede range and would fade while the user is still reading it.
+       Move the fade onto its siblings; the featured card stays solid. */
+    @media (max-width: 879.98px) {
+      .hero-content { animation: none; }
+      .hero-content > .eyebrow,
+      .hero-left {
+        animation: heroRecede linear both;
+        animation-timeline: scroll(root);
+        animation-range: 0 480px;
+      }
+    }
   }
 }
 
@@ -3272,10 +3338,16 @@ html.lenis, html.lenis body { height: auto; }
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--paper);
-  background: #FF8A6E; /* --coral (#FF6B4A), lightened */
+  /* One shade lighter than the mode accent: calm moss in R&R, ember in
+     Adventure — the pill follows the page's temperature. */
+  background: #579B7F; /* --moss (#3F6F5C), lightened */
   padding: 5px 11px;
   border-radius: var(--radius-pill);
   box-shadow: var(--shadow-soft);
+  transition: background 0.45s ease;
+}
+body[data-mode="adventure"] .hero-featured-eyebrow {
+  background: #FF8A6E; /* --coral (#FF6B4A), lightened */
 }
 
 /* Same frosted-glass family as the prompt box, so the two columns read as

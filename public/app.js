@@ -1868,6 +1868,60 @@
     return bits.join(' • ');
   }
 
+  // ---------- Shortlist select mode ----------
+  // "Select" in the panel header arms a bulk-edit pass: rows swap their
+  // reorder/remove controls for checkboxes and an action bar appears
+  // (delete picks, start a new shortlist from them, or clear everything).
+  // Pure view-state — never persisted, and reset every time the panel opens.
+  let shortlistSelecting = false;
+  const shortlistSelected = new Set(); // String(idea.id)
+
+  function exitShortlistSelect() {
+    shortlistSelecting = false;
+    shortlistSelected.clear();
+  }
+
+  function toggleShortlistSelect() {
+    shortlistSelecting = !shortlistSelecting;
+    shortlistSelected.clear();
+    renderShortlistPanel();
+  }
+
+  function handleSelectDelete() {
+    if (!shortlistSelected.size) return;
+    const n = shortlistSelected.size;
+    const drop = state.shortlist.filter(i => shortlistSelected.has(String(i.id)));
+    state.shortlist = state.shortlist.filter(i => !shortlistSelected.has(String(i.id)));
+    persist();
+    drop.forEach(i => serverShortlistRemove(i.id));
+    shortlistSelected.clear();
+    updateShortlistCount();
+    renderShortlistPanel();
+    renderFeed();
+    showToast(`Removed ${n} pick${n === 1 ? '' : 's'} from your shortlist`);
+  }
+
+  // "New shortlist" from a selection: the checked picks carry over, the
+  // rest are cleared — same confirm-before-drop contract as starting fresh.
+  function handleSelectNewList() {
+    if (!shortlistSelected.size) return;
+    const keep = state.shortlist.filter(i => shortlistSelected.has(String(i.id)));
+    const drop = state.shortlist.filter(i => !shortlistSelected.has(String(i.id)));
+    if (drop.length && !window.confirm(
+      `Start a new shortlist with your ${keep.length} selected pick${keep.length === 1 ? '' : 's'}? ` +
+      `The other ${drop.length} will be cleared.`)) return;
+    state.shortlist = keep;
+    state.savedGuide = null;
+    state.lastPlan = null;
+    persist();
+    drop.forEach(i => serverShortlistRemove(i.id));
+    exitShortlistSelect();
+    updateShortlistCount();
+    renderShortlistPanel();
+    renderFeed(true);
+    showToast(`New shortlist — ${keep.length} pick${keep.length === 1 ? '' : 's'} carried over ✨`);
+  }
+
   function moveShortlistItem(index, delta) {
     const target = index + delta;
     if (target < 0 || target >= state.shortlist.length) return;
@@ -1883,8 +1937,32 @@
     const empty = document.getElementById('shortlist-empty');
     const summary = document.getElementById('shortlist-summary');
     const newBtn = document.getElementById('new-shortlist-btn');
+    const selectBtn = document.getElementById('shortlist-select-btn');
+    const selectBar = document.getElementById('shortlist-select-bar');
     container.innerHTML = '';
-    if (newBtn) newBtn.hidden = state.shortlist.length === 0;
+
+    // Selection can't outlive its rows: an empty list drops out of select
+    // mode, and ids removed elsewhere are pruned from the checked set.
+    if (state.shortlist.length === 0) exitShortlistSelect();
+    const liveIds = new Set(state.shortlist.map(i => String(i.id)));
+    [...shortlistSelected].forEach(id => { if (!liveIds.has(id)) shortlistSelected.delete(id); });
+
+    if (newBtn) newBtn.hidden = state.shortlist.length === 0 || shortlistSelecting;
+    if (selectBtn) {
+      selectBtn.hidden = state.shortlist.length === 0;
+      selectBtn.textContent = shortlistSelecting ? 'Done' : 'Select';
+      selectBtn.setAttribute('aria-pressed', String(shortlistSelecting));
+      selectBtn.classList.toggle('is-active', shortlistSelecting);
+    }
+    if (selectBar) {
+      selectBar.hidden = !shortlistSelecting;
+      const picked = shortlistSelected.size;
+      const delBtn = document.getElementById('select-delete-btn');
+      const newListBtn = document.getElementById('select-newlist-btn');
+      delBtn.disabled = picked === 0;
+      newListBtn.disabled = picked === 0;
+      delBtn.textContent = picked ? `Delete (${picked})` : 'Delete';
+    }
 
     if (state.shortlist.length === 0) {
       empty.hidden = false;
@@ -1899,6 +1977,31 @@
 
     state.shortlist.forEach((idea, index) => {
       const row = document.createElement('div');
+      const id = String(idea.id);
+
+      if (shortlistSelecting) {
+        // Select mode: the whole row is a checkbox target.
+        const checked = shortlistSelected.has(id);
+        row.className = 'shortlist-row is-selectable' + (checked ? ' is-selected' : '');
+        row.innerHTML = `
+          <input class="shortlist-check" type="checkbox" aria-label="Select ${escapeAttr(idea.title)}" ${checked ? 'checked' : ''}>
+          <div class="shortlist-row-text">
+            <strong>${escapeHtml(idea.title)}</strong>
+            <span class="shortlist-row-meta">${escapeHtml(idea.location || '')}</span>
+          </div>
+        `;
+        const check = row.querySelector('.shortlist-check');
+        const toggle = () => {
+          if (shortlistSelected.has(id)) shortlistSelected.delete(id);
+          else shortlistSelected.add(id);
+          renderShortlistPanel();
+        };
+        check.addEventListener('change', toggle);
+        row.addEventListener('click', (e) => { if (e.target !== check) toggle(); });
+        container.appendChild(row);
+        return;
+      }
+
       row.className = 'shortlist-row';
       row.innerHTML = `
         <div class="shortlist-order">
@@ -4160,6 +4263,7 @@
     document.getElementById('reset-filter-btn').addEventListener('click', () => setFilter('all'));
 
     document.getElementById('shortlist-btn').addEventListener('click', () => {
+      exitShortlistSelect(); // each visit starts in browse mode
       renderShortlistPanel();
       openPanel('shortlist-panel');
     });
@@ -4167,6 +4271,12 @@
     document.getElementById('build-day-btn').addEventListener('click', handleBuildDay);
     document.getElementById('surprise-me-btn').addEventListener('click', handleSurpriseMe);
     document.getElementById('new-shortlist-btn').addEventListener('click', handleNewShortlist);
+    document.getElementById('shortlist-select-btn').addEventListener('click', toggleShortlistSelect);
+    document.getElementById('select-delete-btn').addEventListener('click', handleSelectDelete);
+    document.getElementById('select-newlist-btn').addEventListener('click', handleSelectNewList);
+    // Clear all: same confirm-then-wipe as "Start a new shortlist"; the
+    // re-render drops out of select mode once the list is empty.
+    document.getElementById('select-clearall-btn').addEventListener('click', handleNewShortlist);
     wireExportBar();
     wireReturnSheet();
 
