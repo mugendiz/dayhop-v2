@@ -5,9 +5,10 @@
 // assumed — a find auto-publishes ONLY when every configured verifier
 // agrees it is a real, open, visitable place:
 //
-//   1. Google Places — existence + OPERATIONAL status. Hard gate: no
-//      confident Places match (common for places that haven't opened yet)
-//      → the find stays in the admin inbox for the human pass.
+//   1. Google Places — closed-tag veto: a find is blocked ONLY when Google
+//      explicitly lists the matched place as CLOSED_PERMANENTLY /
+//      CLOSED_TEMPORARILY. No match (common for brand-new places) passes
+//      through — with no enrichment data — and Grok decides.
 //   2. Grok — editorial gate: a visitable attraction someone would put on
 //      a day plan, not a store/salon/one-off/rumour. Hard gate.
 //
@@ -85,10 +86,14 @@ function alreadyKnown(name) {
   return false;
 }
 
-// ---------- verifier 1: Google Places ----------
+// ---------- verifier 1: Google Places (closed-tag veto) ----------
+// Blocks ONLY when Google explicitly tags the matched place as closed.
+// No match, no key, or a failed lookup all pass through (place: null) —
+// the editorial gate still stands between the find and the catalog, and a
+// brand-new opening often isn't on Google yet.
 async function googleVerdict(item) {
   if (!process.env.GOOGLE_MAPS_API_KEY) {
-    return { pass: false, reason: 'Maps not configured — cannot confirm the place exists' };
+    return { pass: true, place: null, note: 'Maps not configured — no closed-tag check possible' };
   }
   try {
     const places = await maps.searchPlaces({
@@ -100,7 +105,9 @@ async function googleVerdict(item) {
       const hits = want.filter(w => got.has(w)).length;
       return want.length > 0 && (hits >= Math.min(2, want.length) || hits / want.length >= 0.5);
     });
-    if (!match) return { pass: false, reason: 'no confident Google Places match (may not be open yet)' };
+    if (!match) {
+      return { pass: true, place: null, note: 'no Places match — allowed through, Grok decides' };
+    }
     if (match.business_status && match.business_status !== 'OPERATIONAL') {
       return { pass: false, reason: `Google lists it as ${match.business_status}` };
     }
@@ -114,7 +121,7 @@ async function googleVerdict(item) {
       }
     };
   } catch (err) {
-    return { pass: false, reason: `Places lookup failed: ${err.message}` };
+    return { pass: true, place: null, note: `Places lookup failed (${err.message}) — allowed through` };
   }
 }
 
@@ -178,7 +185,8 @@ async function verifyAndAdd(item) {
 
   const google = await googleVerdict(item);
   if (!google.pass) {
-    return { added: false, status: 'needs_review', checks: { google: google.reason } };
+    // Only path here: Google explicitly tags the place as closed.
+    return { added: false, status: 'rejected', checks: { google: google.reason } };
   }
   // Place-level dedupe: Grok extracts slightly different names for the same
   // attraction across scans ("DareDeviler" vs "DareDevil Coaster"), which
@@ -197,7 +205,7 @@ async function verifyAndAdd(item) {
 
   const entry = buildEntry(item, google.place);
   const verification = {
-    google: google.place,
+    google: google.place || google.note || 'ok',
     grok: grok.reason || 'ok',
     verified_at: new Date().toISOString()
   };
