@@ -199,11 +199,13 @@ if (isProd && keepAliveBase && keepAliveBase !== 'off') {
   console.log(`[keepalive] pinging ${keepAliveBase}/health every 10 min`);
 }
 
-// Discovery autopilot: scan Ontario-wide local media, verify finds
-// (Google Places + Grok + Claude when configured), and publish passers into
-// the live catalog on a 6h cadence — matching the collector's cache TTL, so
-// the scheduled run and any admin-triggered scan share one Grok call per
-// window. Set DISCOVERY_AUTO=off to fall back to admin-click-only scans.
+// Discovery autopilot: every SUNDAY AT MIDNIGHT (Toronto time) scan
+// Canada-wide local media, verify finds (Google Places + Grok + Claude when
+// configured), and publish passers into the live catalog. The admin "Scan
+// feeds" button still works on demand any day. A 20-min clock check with a
+// ran-recently guard is DST-proof and survives restarts mid-window; the
+// keep-alive ping keeps the free-tier instance awake for it.
+// Set DISCOVERY_AUTO=off to disable the schedule (manual scans unaffected).
 if (process.env.GROK_API_KEY && process.env.DISCOVERY_AUTO !== 'off') {
   const runDiscovery = () => require('./services/newOpenings').collect()
     .then(d => {
@@ -211,8 +213,23 @@ if (process.env.GROK_API_KEY && process.env.DISCOVERY_AUTO !== 'off') {
       if (published) console.log(`[discovery] autopilot published ${published} new entr${published === 1 ? 'y' : 'ies'}`);
     })
     .catch(err => console.warn('[discovery] auto scan failed:', err.message));
-  setTimeout(runDiscovery, 2 * 60 * 1000).unref();       // first pass after boot settles
-  setInterval(runDiscovery, 6 * 60 * 60 * 1000).unref(); // then every 6h
+
+  let lastDiscoveryRun = 0;
+  const isSundayMidnightToronto = () => {
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Toronto', weekday: 'short', hour: '2-digit', hour12: false
+      }).formatToParts(new Date()).map(p => [p.type, p.value])
+    );
+    return parts.weekday === 'Sun' && (parts.hour === '00' || parts.hour === '24');
+  };
+  setInterval(() => {
+    if (isSundayMidnightToronto() && Date.now() - lastDiscoveryRun > 12 * 60 * 60 * 1000) {
+      lastDiscoveryRun = Date.now();
+      console.log('[discovery] Sunday-midnight Canada-wide scan starting');
+      runDiscovery();
+    }
+  }, 20 * 60 * 1000).unref();
 }
 
 const server = app.listen(PORT, () => {

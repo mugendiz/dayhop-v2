@@ -181,12 +181,12 @@
     <div class="card" id="discovery-card">
       <h2>Discovery inbox — new openings</h2>
       <p class="rate" style="margin:0 0 10px">
-        Scans Ontario-wide local media for newly-opened attractions, drafts catalog entries
+        Scans Canada-wide local media for newly-opened attractions, drafts catalog entries
         with Grok, then runs the <strong>autopilot verification chain</strong>: Google Places
         (exists &amp; operational) + Grok editorial + Claude second opinion (when configured).
         Finds that pass every check publish to the live catalog automatically (✓); the rest
         wait here — verify facts yourself, then Copy catalog entry → <code>data/curatedCatalog.js</code>.
-        The scan also runs on its own every 6h.
+        The scan also runs on its own every Sunday at midnight (Toronto time).
       </p>
       <button id="discovery-scan" type="button">Scan feeds</button>
       <div id="discovery-list" style="margin-top:12px"></div>

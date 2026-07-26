@@ -487,7 +487,7 @@ function catalogCandidates(prompt, themes, limit, regionOpts) {
   const month = Number(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', month: 'numeric' }).format(new Date()));
   const inSeason = month >= 5 && month <= 9 ? 'summer' : 'winter';
   // Hand-curated entries plus the discovery autopilot's verified auto-adds
-  // (services/autoCatalog) — same shape, same scoring, Ontario-wide.
+  // (services/autoCatalog) — same shape, same scoring, Canada-wide.
   let eligible = [...curatedCatalog, ...autoCatalog.entries()]
     .filter(e => !e.seasonal || e.seasonal === inSeason);
 

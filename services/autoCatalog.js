@@ -1,6 +1,6 @@
 // services/autoCatalog.js — DayHop V2 (discovery autopilot)
 // The auto-add half of the discovery engine: verified new openings flow
-// straight into the live catalog, Ontario-wide, without waiting for a human
+// straight into the live catalog, Canada-wide, without waiting for a human
 // paste. The trust contract survives because "verified" is earned, not
 // assumed — a find auto-publishes ONLY when every configured verifier
 // agrees it is a real, open, visitable place:
@@ -98,7 +98,7 @@ async function googleVerdict(item) {
   }
   try {
     const places = await maps.searchPlaces({
-      query: `${item.name}, ${item.area || 'Ontario'}`, maxResults: 3
+      query: `${item.name}, ${item.area || 'Canada'}`, maxResults: 3
     });
     const want = normName(item.name).split(' ').filter(w => w.length > 2);
     const match = places.find(p => {
@@ -125,7 +125,7 @@ async function googleVerdict(item) {
 
 // ---------- shared editorial prompt (Grok + Claude answer the same question) ----------
 function verdictPrompt(item, place) {
-  return `You are verifying a candidate entry for DayHop, an Ontario (Canada) day-planning app. Only real, open (or imminently opening), physical, visitable attractions, venues, parks, or experiences belong — something a person would genuinely put on a day out. REJECT: ordinary retail or services (hair salons, phone shops, clinics), one-off or single-night events, closures, rumours or vague plans, real-estate/transit news, and anything outside Ontario. Be conservative: when unsure, reject.
+  return `You are verifying a candidate entry for DayHop, a Canadian day-planning app. Only real, open (or imminently opening), physical, visitable attractions, venues, parks, or experiences belong — something a person would genuinely put on a day out. REJECT: ordinary retail or services (hair salons, phone shops, clinics), one-off or single-night events, closures, rumours or vague plans, real-estate/transit news, and anything outside Canada. Be conservative: when unsure, reject.
 
 CANDIDATE (extracted from a local news article):
 ${JSON.stringify({
