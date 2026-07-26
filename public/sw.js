@@ -13,7 +13,7 @@
 //     stale-while-revalidate so a revisited share link opens instantly even
 //     through a free-tier cold start.
 // Bump the version to invalidate every cached asset on the next visit.
-const CACHE = 'dayhop-shell-v8'; // v8: arrival fixes (per-URL nav cache, shared-guide caching)
+const CACHE = 'dayhop-shell-v9'; // v9: 404/410 evict cached entries (deleted share links die properly)
 
 const SHELL = [
   '/',
@@ -62,7 +62,8 @@ self.addEventListener('fetch', (event) => {
       fetch(req)
         .then(res => {
           const copy = res.clone();
-          caches.open(CACHE).then(c => c.put(req, copy));
+          // waitUntil: the SW must not be terminated mid-write.
+          event.waitUntil(caches.open(CACHE).then(c => c.put(req, copy)));
           return res;
         })
         .catch(() => caches.match(req).then(hit => hit || caches.match('/')))
@@ -82,7 +83,15 @@ self.addEventListener('fetch', (event) => {
           // Opaque responses (no-cors CDN assets) are cacheable too.
           if (res && (res.ok || res.type === 'opaque')) {
             const copy = res.clone();
-            caches.open(CACHE).then(c => c.put(req, copy));
+            event.waitUntil(caches.open(CACHE).then(c => c.put(req, copy)));
+          } else if (res && (res.status === 404 || res.status === 410)) {
+            // The server says this resource is GONE (e.g. a deleted shared
+            // guide). Evict the cached copy so the delete actually sticks —
+            // "its share link stops working" must be true on every device
+            // that ever opened it, not just until the next SW version bump.
+            // Transient 5xx do NOT evict; surviving cold starts is the
+            // whole point of caching shared guides.
+            event.waitUntil(caches.open(CACHE).then(c => c.delete(req)));
           }
           return res;
         })

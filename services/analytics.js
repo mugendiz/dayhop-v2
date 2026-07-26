@@ -10,23 +10,38 @@
 const dbClient = require('./db/client');
 const { genId } = require('./db/ids');
 
-const EVENT_TYPES = new Set([
-  'prompt_generated', 'shortlist_add', 'booking_click', 'maps_click',
-  'plan_built', 'signup', 'upgrade_started',
-  // Freemium feature events: re-planning is rate-limited by countToday, and
-  // edit/delete round out the saved-guides funnel.
-  'plan_replanned', 'guide_created', 'guide_edited', 'guide_deleted',
+// Client-originated events, accepted by POST /api/track. Lives here beside
+// the server list so the two can never drift again — track.js imports this
+// set, and recordEvent validates against the union. (They HAD drifted:
+// place_visited was accepted then silently dropped, and
+// booking_return_continue / sample_plan_viewed were rejected with 400.)
+const CLIENT_EVENT_TYPES = new Set([
+  'booking_click', 'maps_click', 'shortlist_add', 'signup', 'guide_export',
   // Conversion funnel: upgrade_viewed (modal shown, source = which gate)
   // → upgrade_started (checkout created) → subscriptions table.
-  'upgrade_viewed', 'guide_export',
-  // Instant discovery feed served (server-truth, includes cache hits).
-  'browse_feed',
+  'upgrade_viewed',
   // Booking retention: click → prompt shown → (maybe) idea auto-saved →
   // "keep planning" tapped (the retention win).
   'booking_return_prompt_shown', 'idea_auto_saved_on_booking', 'booking_return_continue',
   // Product-identity + zero-state engagement.
-  'mode_switch', 'sample_plan_viewed'
+  'mode_switch', 'sample_plan_viewed',
+  // Quest layer: a plan stop checked off as "been here".
+  'place_visited'
 ]);
+
+// Server-truth events, recorded by their own routes.
+const SERVER_EVENT_TYPES = new Set([
+  'prompt_generated', 'plan_built', 'upgrade_started',
+  // Freemium feature events: re-planning is rate-limited by countToday, and
+  // edit/delete round out the saved-guides funnel.
+  'plan_replanned', 'guide_created', 'guide_edited', 'guide_deleted',
+  // Instant discovery feed served (server-truth, includes cache hits).
+  'browse_feed',
+  // Hassle-free cancel/resume (billing routes).
+  'membership_cancelled', 'membership_resumed'
+]);
+
+const EVENT_TYPES = new Set([...CLIENT_EVENT_TYPES, ...SERVER_EVENT_TYPES]);
 
 // ---------- in-memory mirror ----------
 // events: bounded ring so a long-lived process can't grow unbounded.
@@ -39,6 +54,28 @@ function hasServiceKey() {
 
 function torontoDay(ts) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto' }).format(ts ? new Date(ts) : new Date());
+}
+
+// Start of a Toronto day (YYYY-MM-DD) as an ISO instant, DST-correct.
+// Toronto midnight is 04:00 UTC (EDT) or 05:00 UTC (EST) depending on the
+// date — probe both candidates and keep the one that formats back to
+// midnight of that day. A hardcoded offset here put the free-tier daily
+// boundary off by an hour all winter.
+function torontoDayStartIso(day) {
+  for (const utcHour of ['04', '05']) {
+    const d = new Date(`${day}T${utcHour}:00:00Z`);
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Toronto', hour12: false,
+        year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit'
+      }).formatToParts(d).map(p => [p.type, p.value])
+    );
+    const localDay = `${parts.year}-${parts.month}-${parts.day}`;
+    if (localDay === day && (parts.hour === '00' || parts.hour === '24')) {
+      return d.toISOString();
+    }
+  }
+  return new Date(`${day}T00:00:00-05:00`).toISOString(); // defensive fallback
 }
 
 /**
@@ -81,8 +118,8 @@ async function countToday(type, ownerKey) {
   ).length;
   if (hasServiceKey()) {
     try {
-      // Start of the Toronto day expressed as an ISO instant.
-      const sinceIso = new Date(`${today}T00:00:00-04:00`).toISOString();
+      // Start of the Toronto day expressed as an ISO instant (DST-correct).
+      const sinceIso = torontoDayStartIso(today);
       const { count, error } = await dbClient.getClient()
         .from('events')
         .select('id', { count: 'exact', head: true })
@@ -320,4 +357,4 @@ async function engagementByIdea(ideaIds, { days = 30 } = {}) {
   return counts;
 }
 
-module.exports = { recordEvent, countToday, metrics, userActivity, engagementByIdea, EVENT_TYPES };
+module.exports = { recordEvent, countToday, metrics, userActivity, engagementByIdea, EVENT_TYPES, CLIENT_EVENT_TYPES };

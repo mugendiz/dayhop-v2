@@ -69,14 +69,13 @@ router.post('/resume', requireUser, async (req, res) => {
 });
 
 // Today's spend against the free daily limits, so the client can show a
-// truthful "2 of 3 plans left" without keeping its own tally. Guests pass
-// their stable guest id as ?owner_id (same key the generate route counts
-// against). Best-effort: any failure just omits usage.
+// truthful "2 of 3 plans left" without keeping its own tally. Guests are
+// counted by IP — the SAME key the generate route enforces against (the
+// client-chosen owner_id is not trusted there, so it can't be the key
+// here either, or the meter and the gate would disagree).
 async function usageFor(req, entitlements) {
   if (!entitlements || entitlements.daily_generates == null) return undefined; // unlimited tier
-  const ownerKey = (req.user && req.user.id) ||
-    (typeof req.query.owner_id === 'string' && req.query.owner_id.trim().slice(0, 80)) || null;
-  if (!ownerKey) return undefined;
+  const ownerKey = (req.user && req.user.id) || `ip-${req.ip}`;
   try {
     const [generates, replans] = await Promise.all([
       analytics.countToday('prompt_generated', ownerKey),
@@ -92,8 +91,18 @@ router.get('/status', async (req, res) => {
   const configured = billing.isConfigured();
   // Entitlements and price ride along so the client can show the right
   // limits and upgrade prompts without hardcoding tier rules or amounts.
-  const entitlements = await entitlementsFor(req.user).catch(() => null);
-  const price = await billing.getPriceInfo().catch(() => null);
+  // This endpoint is hit on every page load — the independent lookups run
+  // in parallel instead of 4-5 serial round trips.
+  const [entitlements, price, sub] = await Promise.all([
+    entitlementsFor(req.user).catch(() => null),
+    billing.getPriceInfo().catch(() => null),
+    req.user
+      ? billing.getSubscription(req.user.id).catch(err => {
+          console.warn('[billing] status failed:', err.message);
+          return null;
+        })
+      : Promise.resolve(null)
+  ]);
   // Super admins are Pro-and-then-some with no subscription behind it: report
   // pro so the client never shows upgrade chrome, and admin for admin chrome.
   if (entitlements && entitlements.tier === 'admin') {
@@ -101,22 +110,16 @@ router.get('/status', async (req, res) => {
   }
   const usage = await usageFor(req, entitlements);
   if (!req.user) return res.json({ configured, pro: false, status: null, entitlements, price, usage });
-  try {
-    const sub = await billing.getSubscription(req.user.id);
-    res.json({
-      configured,
-      pro: Boolean(sub && ['active', 'trialing'].includes(sub.status)),
-      status: sub ? sub.status : null,
-      cancel_at_period_end: sub ? Boolean(sub.cancel_at_period_end) : false,
-      current_period_end: sub ? sub.current_period_end : null,
-      entitlements,
-      price,
-      usage
-    });
-  } catch (err) {
-    console.warn('[billing] status failed:', err.message);
-    res.json({ configured, pro: false, status: null, entitlements, price, usage });
-  }
+  res.json({
+    configured,
+    pro: Boolean(sub && ['active', 'trialing'].includes(sub.status)),
+    status: sub ? sub.status : null,
+    cancel_at_period_end: sub ? Boolean(sub.cancel_at_period_end) : false,
+    current_period_end: sub ? sub.current_period_end : null,
+    entitlements,
+    price,
+    usage
+  });
 });
 
 module.exports = router;

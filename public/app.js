@@ -200,6 +200,10 @@
     mode: 'rr',          // 'rr' (default) | 'adventure' — see MODES
     allIdeas: [],
     shortlist: [],
+    // Shortlist removals whose server DELETE hasn't been confirmed yet —
+    // kept (and persisted) so a failed delete can't resurrect the item on
+    // the next sign-in merge. String idea ids.
+    pendingRemovals: new Set(),
     dismissedIds: new Set(),
     currentFilter: 'all',
     city: 'Richmond Hill',
@@ -245,6 +249,7 @@
       if (!raw) return;
       const saved = JSON.parse(raw);
       state.shortlist = saved.shortlist || [];
+      state.pendingRemovals = new Set((saved.pendingRemovals || []).map(String));
       if (saved.visited && typeof saved.visited === 'object') state.visited = saved.visited;
       if (saved.city) state.city = saved.city;
       // Remember the last used mode across visits (first launch = R&R).
@@ -268,6 +273,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         shortlist: state.shortlist,
+        pendingRemovals: [...state.pendingRemovals],
         visited: state.visited,
         mode: state.mode,
         city: state.city,
@@ -517,11 +523,12 @@
       const opening = fields.hidden;
       fields.hidden = !opening;
       toggle.setAttribute('aria-expanded', String(opening));
-      if (opening && !state.planDate) {
+      if (opening && !state.planDate && !startInput.value) {
+        // Visual seed only. Committing waits for a real pick — "today" is
+        // already the implicit default, and committing on open changed the
+        // browse cache key, throwing away the live feed for a refetch of
+        // semantically the same day.
         startInput.value = torontoToday();
-        state.planDate = startInput.value;
-        updateDateToggleLabel();
-        maybeRefreshForDateChange();
       }
     });
 
@@ -540,6 +547,9 @@
       endInput.hidden = false;
       if (!endInput.value || endInput.value < startInput.value) endInput.value = startInput.value || torontoToday();
       endInput.min = startInput.value || torontoToday();
+      // Switching to a range IS a real pick — commit the (possibly still
+      // just seeded) start date so the range has a beginning.
+      if (!state.planDate) state.planDate = startInput.value || torontoToday();
       state.planDateEnd = endInput.value;
       updateDateToggleLabel();
       maybeRefreshForDateChange();
@@ -757,6 +767,9 @@
 
     try {
       const res = await fetch(`/api/geo/reverse?lat=${lat}&lng=${lng}`);
+      // If the user picked a typed city while this lookup was in flight,
+      // their explicit choice wins — a late response must not overwrite it.
+      if (!state.coords || state.coords.lat !== lat || state.coords.lng !== lng) return;
       if (res.ok) {
         const data = await res.json();
         state.city = data.city || state.city;
@@ -765,6 +778,7 @@
         state.locationLabel = 'your area';
       }
     } catch (e) {
+      if (!state.coords || state.coords.lat !== lat || state.coords.lng !== lng) return;
       state.locationLabel = 'your area';
     }
 
@@ -1018,9 +1032,21 @@
 
   function serverShortlistRemove(ideaId) {
     if (!isLoggedIn()) return;
+    const id = String(ideaId);
+    // Record the intent BEFORE firing: if the DELETE never lands (flaky
+    // network, server cold start), the next sign-in merge would resurrect
+    // the item from the server copy. The flag clears only on confirmation
+    // and the delete retries on the next sync.
+    state.pendingRemovals.add(id);
+    persist();
     fetch(`/api/shortlist/${encodeURIComponent(ideaId)}`, {
       method: 'DELETE',
       headers: authHeaders()
+    }).then(res => {
+      if (res.ok || res.status === 404) {
+        state.pendingRemovals.delete(id);
+        persist();
+      }
     }).catch(() => {});
   }
 
@@ -1061,10 +1087,13 @@
         getDatePayload()
       ))
     });
-    const data = await res.json();
-    if (!res.ok) {
-      const err = new Error(data.message || 'Could not generate ideas');
-      err.code = data.error;
+    // .catch: a proxy 502/504 serves an HTML error page — res.json() would
+    // throw a raw SyntaxError that ends up in the user-facing toast. A null
+    // body on a 200 (truncated response) fails the same clean way.
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) {
+      const err = new Error((data && data.message) || 'Could not generate ideas');
+      err.code = data && data.error;
       throw err;
     }
     return data; // { ideas, grounded, weather, generated_at }
@@ -1077,11 +1106,11 @@
       headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ items, city: state.city, days: days || 1, mode: state.mode, owner_id: getOwnerId() })
     });
-    const data = await res.json();
-    if (!res.ok) {
-      const err = new Error(data.message || 'Could not build your day plan');
-      err.code = data.error;
-      err.feature = data.feature;
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) {
+      const err = new Error((data && data.message) || 'Could not build your day plan');
+      err.code = data && data.error;
+      err.feature = data && data.feature;
       throw err;
     }
     return data;
@@ -1103,11 +1132,11 @@
         getDatePayload()
       ))
     });
-    const data = await res.json();
-    if (!res.ok) {
-      const err = new Error(data.message || 'Could not re-plan your day');
-      err.code = data.error;
-      err.feature = data.feature;
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) {
+      const err = new Error((data && data.message) || 'Could not re-plan your day');
+      err.code = data && data.error;
+      err.feature = data && data.feature;
       throw err;
     }
     return data; // { guide, change_summary, weather }
@@ -1657,6 +1686,9 @@
   function addToShortlist(idea, card, opts) {
     if (state.shortlist.find(i => i.id === idea.id)) return;
     state.shortlist.push(idea);
+    // A re-add cancels any unconfirmed earlier removal of the same idea —
+    // otherwise the retry would delete it right back off the server.
+    state.pendingRemovals.delete(String(idea.id));
     persist();
     serverShortlistAdd(idea);
     track('shortlist_add', idea);
@@ -3121,8 +3153,9 @@
     });
     aside.querySelector('.featured-add-btn').addEventListener('click', (e) => {
       e.stopPropagation();
+      // addToShortlist shows its own toast WITH the Undo action — a second
+      // toast here overwrote it the frame it appeared, killing Undo.
       addToShortlist(ev, null);
-      showToast(`Added "${ev.title}" to your day`);
       renderFeed();
     });
   }
@@ -4132,7 +4165,19 @@
   // ---------- Auth state ----------
   async function handleAuthChange(detail) {
     const wasLoggedIn = Boolean(state.user);
-    state.user = detail && detail.user ? detail.user : null;
+    const prevId = wasLoggedIn ? state.user.id : null;
+    const nextUser = detail && detail.user ? detail.user : null;
+
+    // Supabase re-emits auth events for an open tab (TOKEN_REFRESHED
+    // roughly hourly, SIGNED_IN on tab refocus). Same user = nothing to
+    // resync — running the full sign-in sync here re-fetched the shortlist
+    // and billing and re-rendered the feed mid-scroll, every hour.
+    if (nextUser && prevId === nextUser.id) { state.user = nextUser; return; }
+    // Still signed out (e.g. the signed-out INITIAL event): init() already
+    // fetched billing status once — nothing changed, don't fetch it again.
+    if (!nextUser && !wasLoggedIn) return;
+
+    state.user = nextUser;
     if (state.user) {
       // First sign-in on this device → one signup event for the funnel.
       const seenKey = 'dayhop_signup_tracked_' + state.user.id;
@@ -4172,10 +4217,15 @@
         }
       }
 
+      // Deletes that never reached the server: retry them now, and keep
+      // those ids out of the merge below so they can't resurrect locally.
+      state.pendingRemovals.forEach(id => serverShortlistRemove(id));
+
       const res = await fetch('/api/shortlist', { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
-        const serverItems = (data.items || []).map(i => i.idea);
+        const serverItems = (data.items || []).map(i => i.idea)
+          .filter(idea => !(idea && idea.id != null && state.pendingRemovals.has(String(idea.id))));
         // Merge local + server (union by idea id, server wins on conflict) so we
         // never drop items — whether a migration upload failed (FIX 3) or items
         // were added during a later signed-out session (FIX 4).
@@ -4197,6 +4247,7 @@
   // into the next anonymous session on a shared device.
   function onSignedOut() {
     state.shortlist = [];
+    state.pendingRemovals = new Set(); // account-scoped intents don't outlive the session
     state.myGuides = [];
     state.currentGuide = null;
     state.currentGuideId = null;
@@ -4232,8 +4283,12 @@
       const eyebrow = document.querySelector('.hero .eyebrow');
       if (eyebrow) eyebrow.textContent = 'Greater Toronto Area · Summer 2026';
     }
-    fetch('/api/config')
-      .then(r => (r.ok ? r.json() : null))
+    // One /api/config fetch per page load, shared with auth.js via a
+    // window-level promise (whichever script runs first creates it).
+    (window.DayHopConfig || (window.DayHopConfig = fetch('/api/config').then(r => {
+      if (!r.ok) throw new Error('config ' + r.status);
+      return r.json();
+    })))
       .then(cfg => applySpotlight(cfg && cfg.spotlight))
       .catch(() => {});
 

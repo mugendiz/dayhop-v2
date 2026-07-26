@@ -24,7 +24,12 @@
   async function init() {
     let cfg;
     try {
-      cfg = await fetch('/api/config').then(r => r.json());
+      // Shared with app.js: whichever script runs first creates the single
+      // /api/config fetch for the page load.
+      cfg = await (window.DayHopConfig || (window.DayHopConfig = fetch('/api/config').then(r => {
+        if (!r.ok) throw new Error('config ' + r.status);
+        return r.json();
+      })));
     } catch (e) {
       return; // no config → stay anonymous
     }

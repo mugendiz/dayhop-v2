@@ -286,6 +286,18 @@ router.get('/', requireUser, async (req, res, next) => {
     let rows;
     try {
       rows = await store.listGuides(req.ownerId, req.dbCtx);
+      // A save that fail-softed during a DB blip lives only in process
+      // memory: without this merge it never appears in "My Plans" once the
+      // DB recovers (even though its share link works), so the user sees
+      // "saved" and then the plan silently vanishes from the list.
+      if (store !== memoryStore) {
+        const memRows = await memoryStore.listGuides(req.ownerId);
+        if (memRows.length) {
+          const seen = new Set(rows.map(r => String(r.id)));
+          rows = rows.concat(memRows.filter(r => !seen.has(String(r.id))))
+            .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+        }
+      }
     } catch (err) {
       console.warn('[guides] list fell back to memory:', err.message);
       rows = await memoryStore.listGuides(req.ownerId);
@@ -332,6 +344,11 @@ router.put('/:id', requireUser, async (req, res, next) => {
       record = await store.updateGuide(patch, req.dbCtx);
     } catch (err) {
       console.warn('[guides] update fell back to memory:', err.message);
+      record = await memoryStore.updateGuide(patch);
+    }
+    // Not in the primary store? The guide may be a fail-soft save that only
+    // exists in memory (same both-stores rule the delete route follows).
+    if (!record && store !== memoryStore) {
       record = await memoryStore.updateGuide(patch);
     }
     if (!record) {
