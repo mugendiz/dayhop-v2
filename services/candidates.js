@@ -23,6 +23,7 @@ const tplEvents = require('./tplEvents');
 const osmNature = require('./osmNature');
 const curatedEvents = require('../data/curatedEvents');
 const curatedCatalog = require('../data/curatedCatalog');
+const autoCatalog = require('./autoCatalog');
 const { matchThemes } = require('../data/themes');
 const relevance = require('./relevance');
 const analytics = require('./analytics');
@@ -34,7 +35,7 @@ const DEFAULT_CITY = process.env.DEFAULT_CITY || 'Richmond Hill';
 // then relevance-scored against the prompt and trimmed to 60 (grok.js cap),
 // so these are generous ceilings, not the final mix.
 const SOURCE_CAPS = {
-  google_places: 24,
+  google_places: 36,
   viator: 10,
   getyourguide: 10,
   ticketmaster: 12,
@@ -377,12 +378,17 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
     pool = pool.filter(c => !c.date || (c.date >= dateWindow.start && c.date <= dateWindow.end));
   }
 
-  // With shared coordinates, distance becomes a first-class signal: shown on
-  // cards, boosted by the scorer, and visible to Grok as km_away.
-  if (userCoords) {
+  // Distance is a first-class signal whenever we know where the day starts:
+  // the user's shared coordinates, or failing that the picked city's
+  // centroid. Without the centroid fallback a city pick had NO proximity
+  // scoring at all — a gem around the corner in Scarborough ranked no
+  // higher than a place 19 km across the region, and the wider search
+  // radius made that hole very visible.
+  const origin = userCoords || (geo ? { lat: geo.lat, lng: geo.lng } : null);
+  if (origin) {
     for (const c of pool) {
       if (c.lat != null && c.lng != null) {
-        c.distance_km = relevance.haversineKm(userCoords, { lat: c.lat, lng: c.lng });
+        c.distance_km = relevance.haversineKm(origin, { lat: c.lat, lng: c.lng });
       }
     }
   }
@@ -437,23 +443,26 @@ function sanitizeCoords(coords) {
 // parallel; results from theme queries are tagged so the relevance scorer
 // knows they were already intent-matched. When the user shared their real
 // coordinates, bias tight (5 km — "around the corner") and add one wide
-// 15 km raw-prompt search so standout options further out still appear.
+// raw-prompt search so standout options further out still appear.
+// City picks get a 20 km radius: a GTA borough centroid + 15 km cut off
+// its neighbours (North York couldn't see east Scarborough), and the
+// deeper maxResults cost nothing extra — same request, bigger page.
 async function searchPlacesWithThemes(prompt, themeQueries, geo, hyperLocal = false) {
-  const radiusMeters = hyperLocal ? 5000 : 15000;
+  const radiusMeters = hyperLocal ? 5000 : 20000;
   const searches = [
-    maps.searchPlaces({ query: prompt, lat: geo.lat, lng: geo.lng, radiusMeters, maxResults: 8 })
+    maps.searchPlaces({ query: prompt, lat: geo.lat, lng: geo.lng, radiusMeters, maxResults: 16 })
       .then(places => places.map(p => Object.assign({}, p, { source: 'google_places', id: p.place_id })))
   ];
   if (hyperLocal) {
     searches.push(
-      maps.searchPlaces({ query: prompt, lat: geo.lat, lng: geo.lng, radiusMeters: 15000, maxResults: 6 })
+      maps.searchPlaces({ query: prompt, lat: geo.lat, lng: geo.lng, radiusMeters: 20000, maxResults: 10 })
         .then(places => places.map(p => Object.assign({}, p, { source: 'google_places', id: p.place_id })))
         .catch(() => [])
     );
   }
   for (const query of themeQueries) {
     searches.push(
-      maps.searchPlaces({ query, lat: geo.lat, lng: geo.lng, radiusMeters, maxResults: 6 })
+      maps.searchPlaces({ query, lat: geo.lat, lng: geo.lng, radiusMeters, maxResults: 10 })
         .then(places => places.map(p => Object.assign({}, p, { source: 'google_places', id: p.place_id, theme_hit: true })))
         .catch(err => {
           console.warn(`[candidates] places theme search "${query}" failed:`, err.message);
@@ -477,7 +486,10 @@ async function searchPlacesWithThemes(prompt, themeQueries, geo, hyperLocal = fa
 function catalogCandidates(prompt, themes, limit, regionOpts) {
   const month = Number(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', month: 'numeric' }).format(new Date()));
   const inSeason = month >= 5 && month <= 9 ? 'summer' : 'winter';
-  let eligible = curatedCatalog.filter(e => !e.seasonal || e.seasonal === inSeason);
+  // Hand-curated entries plus the discovery autopilot's verified auto-adds
+  // (services/autoCatalog) — same shape, same scoring, Ontario-wide.
+  let eligible = [...curatedCatalog, ...autoCatalog.entries()]
+    .filter(e => !e.seasonal || e.seasonal === inSeason);
 
   // Outside the GTA, only entries anchored to the asked place qualify —
   // matched by city token against the entry's location/venue/tags. No

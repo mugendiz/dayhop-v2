@@ -71,6 +71,21 @@ module.exports = [
     booking_url: 'https://www.arcadiaearth.ca/',
     wow: true, seasonal: null
   },
+  {
+    // Verified 2026-07-25 via rcparadise.ca: 243 Eglinton Ave W, Tue-Sun
+    // 12-8, drift track + rock crawlers + RC construction machines.
+    id: 'cur-rc-paradise',
+    title: "RC Paradise — indoor remote-control playground",
+    category: 'kids',
+    tags: ['rc', 'remote', 'control', 'cars', 'trucks', 'drift', 'racing', 'rock', 'crawler', 'construction', 'diggers', 'indoor', 'rainy', 'kids', 'family', 'birthday', 'vehicles'],
+    location: "Eglinton West, Toronto",
+    venue: "RC Paradise",
+    description: "Indoor RC playground — drive drift cars, rock crawlers, and real working RC diggers on custom tracks. No experience needed; little vehicle fans lose their minds here.",
+    cost_tier: '$$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('RC Paradise 243 Eglinton Ave W Toronto'),
+    booking_url: 'https://rcparadise.ca/experiences/',
+    wow: true, seasonal: null
+  },
   // ---------- Water & paddling (the "swimming → whole lake" pack) ----------
   {
     id: 'cur-harbourfront-kayak',

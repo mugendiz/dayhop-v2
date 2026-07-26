@@ -199,6 +199,22 @@ if (isProd && keepAliveBase && keepAliveBase !== 'off') {
   console.log(`[keepalive] pinging ${keepAliveBase}/health every 10 min`);
 }
 
+// Discovery autopilot: scan Ontario-wide local media, verify finds
+// (Google Places + Grok + Claude when configured), and publish passers into
+// the live catalog on a 6h cadence — matching the collector's cache TTL, so
+// the scheduled run and any admin-triggered scan share one Grok call per
+// window. Set DISCOVERY_AUTO=off to fall back to admin-click-only scans.
+if (process.env.GROK_API_KEY && process.env.DISCOVERY_AUTO !== 'off') {
+  const runDiscovery = () => require('./services/newOpenings').collect()
+    .then(d => {
+      const published = (d.items || []).filter(i => i.auto && i.auto.added).length;
+      if (published) console.log(`[discovery] autopilot published ${published} new entr${published === 1 ? 'y' : 'ies'}`);
+    })
+    .catch(err => console.warn('[discovery] auto scan failed:', err.message));
+  setTimeout(runDiscovery, 2 * 60 * 1000).unref();       // first pass after boot settles
+  setInterval(runDiscovery, 6 * 60 * 60 * 1000).unref(); // then every 6h
+}
+
 const server = app.listen(PORT, () => {
   console.log(`🚀 DayHop V2 running on http://localhost:${PORT}`);
   if (!process.env.GROK_API_KEY) {

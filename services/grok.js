@@ -18,8 +18,8 @@ if (!process.env.GROK_MODEL) {
 const DEFAULT_CITY = process.env.DEFAULT_CITY || 'Richmond Hill';
 const DEFAULT_REGION = process.env.DEFAULT_REGION || 'Ontario';
 
-// 45s: generous headroom even now that we ask for 8-12 best-only ideas
-// (grok-4 latency scales with output length).
+// 45s: generous headroom even now that we ask for 12-18 best-only ideas
+// (latency scales with output length).
 const client = axios.create({ timeout: 45000 });
 
 // When the user hasn't pinned a single city, DayHop plans across the whole
@@ -157,7 +157,7 @@ ${advisoryRules(advisoriesHint)}${modeDirective(mode)}
 ${spotlightRule()}
 - If an "active_filter" is provided in the request, weight your selection toward that category where it genuinely fits, but never force a bad match.
 - Never select two candidates that are effectively the same place or event under slightly different names — keep the one with better data (rating, booking link) and drop the other.
-- When candidates include "km_away" (distance from the user's shared location), prefer closer options when quality is comparable, and you may mention proximity in "why" (e.g. "a five-minute walk from you").
+- When candidates include "km_away" (distance from the user's location or their chosen area), STRONGLY prefer closer options when quality is comparable — nearby gems beat marginally-better-but-distant ones. You may mention proximity in "why" (e.g. "just up the road" — but never claim a walking distance you can't know).
 - Keep tone warm, plain, and trustworthy. No hype.
 - Return ONLY valid JSON, no markdown fences, no commentary.
 
@@ -179,7 +179,7 @@ JSON shape to return:
   ]
 }
 
-The candidates are roughly ordered most-relevant first. Select 8 to 12 candidates — ONLY ones you would honestly rate 10/10 for this request: an excellent place or experience (strong rating, standout offering) AND a strong fit for what was asked. A merely decent candidate does not make the cut. Start with the candidates that directly answer the request, then the strongest adjacent matches — for example, if the user asked about swimming, also consider beaches, splash pads, lakes, paddling rentals, and waterparks. Then include 1 to 3 "stretch" picks: outstanding candidates the user did not ask for but a GTA family would be genuinely excited to discover (a helicopter tour, treetop trekking, a hidden-gem beach — candidates marked "wow": true are good stretch material). Give each stretch pick a "wow_reason". If fewer than 8 candidates are genuinely excellent, return the ones that are rather than padding with weak matches — never invent to hit the count.`;
+The candidates are roughly ordered most-relevant first. Select 12 to 18 candidates — ONLY ones you would honestly rate 10/10 for this request: an excellent place or experience (strong rating, standout offering) AND a strong fit for what was asked. A merely decent candidate does not make the cut. Start with the candidates that directly answer the request, then the strongest adjacent matches — for example, if the user asked about swimming, also consider beaches, splash pads, lakes, paddling rentals, and waterparks. Then include 2 to 4 "stretch" picks: outstanding candidates the user did not ask for but a GTA family would be genuinely excited to discover (a helicopter tour, treetop trekking, a hidden-gem beach — candidates marked "wow": true are good stretch material). Give each stretch pick a "wow_reason". If fewer than 12 candidates are genuinely excellent, return the ones that are rather than padding with weak matches — never invent to hit the count.`;
 }
 
 function whereLabel(city) {
@@ -313,9 +313,9 @@ async function callGrok(messages, { temperature = 0.7 } = {}) {
       model: GROK_MODEL,
       messages,
       temperature,
-      // 16-22 ideas of JSON ≈ 2K tokens; leave real headroom so the
+      // ~18 ideas of JSON ≈ 2.5K tokens; leave real headroom so the
       // response is never truncated mid-string (which breaks JSON.parse).
-      max_tokens: 6000,
+      max_tokens: 8000,
       response_format: { type: 'json_object' }
     },
     {

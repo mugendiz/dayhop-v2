@@ -181,10 +181,12 @@
     <div class="card" id="discovery-card">
       <h2>Discovery inbox — new openings</h2>
       <p class="rate" style="margin:0 0 10px">
-        Scans local-media RSS (Curiocity, Narcity, NOW, Streets of Toronto) for newly-opened
-        attractions and drafts catalog entries with Grok. <strong>Verify facts and the opening
-        date (two sources), fill in <code>opened_at</code>, then paste into
-        <code>data/curatedCatalog.js</code>.</strong> Nothing publishes automatically.
+        Scans Ontario-wide local media for newly-opened attractions, drafts catalog entries
+        with Grok, then runs the <strong>autopilot verification chain</strong>: Google Places
+        (exists &amp; operational) + Grok editorial + Claude second opinion (when configured).
+        Finds that pass every check publish to the live catalog automatically (✓); the rest
+        wait here — verify facts yourself, then Copy catalog entry → <code>data/curatedCatalog.js</code>.
+        The scan also runs on its own every 6h.
       </p>
       <button id="discovery-scan" type="button">Scan feeds</button>
       <div id="discovery-list" style="margin-top:12px"></div>
@@ -292,6 +294,14 @@
       '<div style="border-top:1px solid var(--line, #ddd); padding:10px 0" data-idx="' + i + '">' +
         '<strong>' + esc(it.name) + '</strong>' +
         ' <span class="rate">· ' + esc([it.area, it.kind, it.opened_hint].filter(Boolean).join(' · ')) + '</span>' +
+        (it.auto ? (it.auto.added
+          ? ' <span style="color:#12855C;font-weight:600" title="Verified by Google Places + Grok' +
+            ((it.auto.checks && String(it.auto.checks.claude || '').indexOf('skipped') === -1) ? ' + Claude' : '') +
+            ' and published to the live catalog automatically">✓ auto-published</span>'
+          : ' <span class="rate" title="' + esc(JSON.stringify(it.auto.checks || {})) + '">· ' +
+            esc(it.auto.status === 'needs_review' ? 'needs human review'
+              : it.auto.status === 'already_in_catalog' ? 'already in catalog'
+              : it.auto.status === 'rejected' ? 'auto-rejected by verifiers' : it.auto.status) + '</span>') : '') +
         (it.buzz ? ' <span class="rate" title="0–100 from Google News' +
           (it.buzz.reddit ? ' + Reddit' : '') + (it.buzz.youtube ? ' + YouTube' : '') +
           ' mentions, last 30 days">· 🔥 ' + fmt(it.buzz.score) + '/100 (' +

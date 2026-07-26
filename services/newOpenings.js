@@ -1,10 +1,12 @@
-// services/newOpenings.js — DayHop V2 (discovery Phase 1)
+// services/newOpenings.js — DayHop V2 (discovery Phases 1-3 + autopilot)
 // The "it's all over socials but not in DayHop" collector: scans local-media
 // RSS feeds for opening-flavored headlines, has Grok extract real, visitable
-// new attractions/venues from them, and drafts ready-to-review curatedCatalog
-// entries. NOTHING auto-publishes — results land in the admin Discovery
-// inbox, where a human verifies facts (and the opening date) before pasting
-// the entry into data/curatedCatalog.js. Trust contract > coverage.
+// new attractions/venues from them, and drafts curatedCatalog entries.
+// Publishing is verification-gated (services/autoCatalog.js): a find that
+// passes Google Places + Grok + Claude (when configured) publishes to the
+// live catalog automatically; anything the chain can't confirm stays in the
+// admin Discovery inbox for the human pass. Trust contract > coverage —
+// "verified" is earned by the chain or by a human, never assumed.
 //
 // Feeds verified live 2026-07-24, Ontario-wide (BlogTO and DailyHive have
 // no public RSS — don't re-add them). Global News regional feeds carry
@@ -14,6 +16,7 @@
 const axios = require('axios');
 const { callGrok } = require('./grok');
 const { scoreBuzz } = require('./buzz');
+const autoCatalog = require('./autoCatalog');
 
 const DEFAULT_FEEDS =
   'Curiocity|https://curiocity.com/feed/;' +
@@ -219,6 +222,17 @@ async function doCollect() {
       }
     }));
     items.sort((a, b) => ((b.buzz && b.buzz.score) || 0) - ((a.buzz && a.buzz.score) || 0));
+
+    // Phase 3: autopilot — every drafted find runs the verification chain
+    // (Google Places existence + Grok editorial + Claude second opinion when
+    // configured); passers publish straight into the live catalog,
+    // Ontario-wide. Non-passers stay in the inbox annotated with WHY, so
+    // the human pass reviews exactly what the machines couldn't confirm.
+    try {
+      await autoCatalog.processFinds(scoreable);
+    } catch (err) {
+      console.warn('[new-openings] autopilot failed (finds stay in inbox):', err.message);
+    }
   }
 
   const data = {

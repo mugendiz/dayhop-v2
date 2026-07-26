@@ -232,3 +232,19 @@ create table if not exists public.banned_users (
   created_at  timestamptz not null default now()
 );
 alter table public.banned_users enable row level security;
+
+-- ---------- auto_catalog (discovery autopilot) ----------
+-- Verified new-opening entries published automatically by the discovery
+-- pipeline (services/autoCatalog.js): each row passed Google Places
+-- existence + Grok editorial + (when configured) Claude verification.
+-- NO anon/authenticated policies on purpose: read and written exclusively
+-- server-side with SUPABASE_SERVICE_KEY. Entries reach clients only through
+-- the feed APIs. status: 'active' serves; 'retired' hides without deleting.
+create table if not exists public.auto_catalog (
+  id            text primary key,
+  entry         jsonb not null,
+  verification  jsonb,
+  status        text not null default 'active' check (status in ('active','retired')),
+  created_at    timestamptz not null default now()
+);
+alter table public.auto_catalog enable row level security;

@@ -1318,7 +1318,7 @@
     // evidence for why it won. Only when there's a real field to beat.
     let heroIdea = null;
     if (!state.browseMode && !ideas.some(i => i.section)) {
-      const onTargetAll = ideas.filter(i => !i.wow_reason);
+      const onTargetAll = ideas.filter(i => !i.wow_reason && !i.more_find);
       if (onTargetAll.length >= 3) heroIdea = onTargetAll[0];
     }
     if (heroIdea) {
@@ -1339,15 +1339,19 @@
       order.forEach(label => appendSection(label, groups.get(label), order.length > 1));
     } else {
       // Prompt results: the direct answers first (minus the hero, which is
-      // already on stage), then the "didn't know you could do that" picks.
-      const onTarget = ideas.filter(i => !i.wow_reason && (!heroIdea || i.id !== heroIdea.id));
-      const beyond = ideas.filter(i => i.wow_reason);
-      const showHeaders = onTarget.length > 0 && beyond.length > 0;
+      // already on stage), then the "didn't know you could do that" picks,
+      // then the rest of the grounded pool (real places that survived the
+      // quality gate but weren't AI-curated headliners).
+      const onTarget = ideas.filter(i => !i.wow_reason && !i.more_find && (!heroIdea || i.id !== heroIdea.id));
+      const beyond = ideas.filter(i => i.wow_reason && !i.more_find);
+      const more = ideas.filter(i => i.more_find);
+      const showHeaders = (onTarget.length > 0 && beyond.length > 0) || more.length > 0;
       // Runner-up crown: with the hero extracted, badge the next-best pick
       // only when the remaining field is big enough for it to mean something.
       const bestIds = new Set(onTarget.length >= 4 ? [onTarget[0].id] : []);
       appendSection(heroIdea ? 'Also right on target' : 'Right on target', onTarget, showHeaders, bestIds);
       appendSection('Beyond what you asked ✨', beyond, showHeaders);
+      appendSection('More great finds nearby', more, showHeaders);
     }
 
     updateFeedChrome();
