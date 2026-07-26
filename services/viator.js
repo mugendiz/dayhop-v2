@@ -28,10 +28,33 @@ function headers() {
   };
 }
 
+// The /destinations endpoint returns Viator's ENTIRE destination catalog
+// (thousands of entries, multi-MB) and its contents essentially never
+// change — cache the list per process so name→id resolution costs one
+// download a day instead of one per generate/browse request.
+let destinationsCache = null; // { data, expires } | in-flight Promise
+const DESTINATIONS_TTL_MS = 24 * 60 * 60 * 1000;
+
+async function fetchDestinations() {
+  if (destinationsCache && typeof destinationsCache.then === 'function') return destinationsCache;
+  if (destinationsCache && destinationsCache.expires > Date.now()) return destinationsCache.data;
+  const inflight = client.get(`${BASE_URL}/destinations`, { headers: headers() })
+    .then(res => {
+      const data = res.data?.destinations || [];
+      destinationsCache = { data, expires: Date.now() + DESTINATIONS_TTL_MS };
+      return data;
+    })
+    .catch(err => {
+      destinationsCache = null; // failed fill must not stick
+      throw err;
+    });
+  destinationsCache = inflight;
+  return inflight;
+}
+
 async function resolveDestinationId(destinationName) {
   assertConfigured();
-  const res = await client.get(`${BASE_URL}/destinations`, { headers: headers() });
-  const destinations = res.data?.destinations || [];
+  const destinations = await fetchDestinations();
   const match = destinations.find(
     d => d.name?.toLowerCase() === destinationName.toLowerCase()
   ) || destinations.find(

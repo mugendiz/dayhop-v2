@@ -18,12 +18,17 @@ const { formatRange } = require('../services/spotlight');
 const { enrichIdeaImages } = require('../services/ideaPhotos');
 
 // Who is asking, for usage limits + analytics: authenticated user id, else
-// the client's guest id, else the IP as a last resort.
+// the caller's IP. The client's self-issued guest id must never be the
+// limit key — rotating it per request would reset the free-tier counter —
+// so it rides along only as analytics metadata (guestIdFor).
 function ownerKeyFor(req) {
   if (req.user && req.user.id) return req.user.id;
-  const guest = req.body && req.body.owner_id;
-  if (typeof guest === 'string' && guest.trim()) return guest.trim().slice(0, 80);
   return `ip-${req.ip}`;
+}
+
+function guestIdFor(req) {
+  const guest = req.body && req.body.owner_id;
+  return (typeof guest === 'string' && guest.trim()) ? guest.trim().slice(0, 80) : undefined;
 }
 
 router.post('/', async (req, res) => {
@@ -116,7 +121,7 @@ router.post('/', async (req, res) => {
     analytics.recordEvent({
       type: 'prompt_generated',
       ownerKey,
-      meta: { grounded: usedGrounding, degraded, mode, city: cityForGrok, ideas: ideas.length }
+      meta: { grounded: usedGrounding, degraded, mode, city: cityForGrok, ideas: ideas.length, guest_id: guestIdFor(req) }
     });
 
     res.json({
@@ -227,7 +232,7 @@ router.post('/plan', async (req, res) => {
   const mode = grok.normalizeMode(req.body && req.body.mode);
   try {
     const plan = await grok.buildDayPlan({ items, city, days, mode });
-    analytics.recordEvent({ type: 'plan_built', ownerKey: ownerKeyFor(req), meta: { stops: items.length, days, mode } });
+    analytics.recordEvent({ type: 'plan_built', ownerKey: ownerKeyFor(req), meta: { stops: items.length, days, mode, guest_id: guestIdFor(req) } });
     res.json(plan);
   } catch (err) {
     handleGrokError(err, res);
@@ -335,7 +340,7 @@ router.post('/replan', async (req, res) => {
     analytics.recordEvent({
       type: 'plan_replanned',
       ownerKey,
-      meta: { instruction: trimmedInstruction.slice(0, 80), city: targetLocation, stops: collectGuideStops(merged).length }
+      meta: { instruction: trimmedInstruction.slice(0, 80), city: targetLocation, stops: collectGuideStops(merged).length, guest_id: guestIdFor(req) }
     });
 
     res.json({

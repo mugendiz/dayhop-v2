@@ -18,10 +18,35 @@ function assertConfigured() {
 /**
  * Returns a compact weather summary for the given coordinates —
  * just enough signal for the AI prompt, not a full payload dump.
+ *
+ * Cached 10 min on a ~11 km grid (1-decimal rounding, same granularity as
+ * the air-quality cache in advisories.js): every generate/replan used to
+ * re-pay an OpenWeather call for coordinates the previous request just
+ * fetched, which eats the free 60 calls/min tier under modest traffic.
  */
+const condCache = new Map(); // key -> { value | promise, expires }
+const COND_TTL_MS = 10 * 60 * 1000;
+const COND_CACHE_MAX = 500;
+
 async function getConditions({ lat, lng }) {
   assertConfigured();
 
+  const key = `${Number(lat).toFixed(1)},${Number(lng).toFixed(1)}`;
+  const cached = condCache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.promise;
+
+  const promise = fetchConditions({ lat, lng }).catch(err => {
+    condCache.delete(key); // a failed fill must not stick for the TTL
+    throw err;
+  });
+  if (condCache.size >= COND_CACHE_MAX) {
+    condCache.delete(condCache.keys().next().value);
+  }
+  condCache.set(key, { promise, expires: Date.now() + COND_TTL_MS });
+  return promise;
+}
+
+async function fetchConditions({ lat, lng }) {
   const res = await axios.get(`${BASE_URL}/weather`, {
     params: {
       lat, lon: lng,

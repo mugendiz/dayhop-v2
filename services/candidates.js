@@ -336,7 +336,12 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   settled.forEach((result, i) => {
     if (result.status === 'fulfilled') {
       const cap = SOURCE_CAPS[sources[i].name] || 10;
-      const items = (result.value || []).slice(0, cap);
+      // Shallow-clone at the pool boundary: most sources serve object refs
+      // straight out of long-lived caches, and the pipeline stamps
+      // per-request fields (description cleanup, distance_km, engagement,
+      // dedup backfill) — without the clone, one user's distances leak
+      // into every later request that hits the same cache.
+      const items = (result.value || []).slice(0, cap).map(c => ({ ...c }));
       if (items.length) bySource.push(items);
     } else {
       console.warn(`[candidates] ${sources[i].name} unavailable:`, result.reason && result.reason.message);

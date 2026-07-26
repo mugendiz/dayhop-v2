@@ -19,24 +19,46 @@ function assertConfigured() {
 /**
  * Geocode a free-text location ("Richmond Hill, ON" / "Lisbon, Portugal")
  * into lat/lng so we can bias place search around it.
+ *
+ * Cached 24h: the inputs are overwhelmingly the same handful of picker
+ * city strings, and this used to pay one billable Geocoding call per
+ * generate/browse-miss for what is effectively a static lookup table.
+ * "Not found" is a stable answer and is cached too; transient failures
+ * are evicted so they retry.
  */
+const geoCache = new Map(); // normalized text -> { promise, expires }
+const GEO_TTL_MS = 24 * 60 * 60 * 1000;
+const GEO_CACHE_MAX = 500;
+
 async function geocode(locationText) {
   assertConfigured();
-  const res = await axios.get(GEOCODE_URL, {
+  const key = String(locationText).trim().toLowerCase();
+  const cached = geoCache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.promise;
+
+  const promise = axios.get(GEOCODE_URL, {
     params: { address: locationText, key: process.env.GOOGLE_MAPS_API_KEY },
     timeout: 10000
-  });
-  const result = res.data?.results?.[0];
-  if (!result) {
-    const err = new Error(`Could not locate "${locationText}"`);
-    err.code = 'GEOCODE_NOT_FOUND';
+  }).then(res => {
+    const result = res.data?.results?.[0];
+    if (!result) {
+      const err = new Error(`Could not locate "${locationText}"`);
+      err.code = 'GEOCODE_NOT_FOUND';
+      throw err;
+    }
+    return {
+      lat: result.geometry.location.lat,
+      lng: result.geometry.location.lng,
+      formatted_address: result.formatted_address
+    };
+  }).catch(err => {
+    if (err.code !== 'GEOCODE_NOT_FOUND') geoCache.delete(key);
     throw err;
-  }
-  return {
-    lat: result.geometry.location.lat,
-    lng: result.geometry.location.lng,
-    formatted_address: result.formatted_address
-  };
+  });
+
+  if (geoCache.size >= GEO_CACHE_MAX) geoCache.delete(geoCache.keys().next().value);
+  geoCache.set(key, { promise, expires: Date.now() + GEO_TTL_MS });
+  return promise;
 }
 
 /**
@@ -44,9 +66,37 @@ async function geocode(locationText) {
  * biased around a lat/lng. Returns a normalized, lightweight shape —
  * we deliberately don't pass the full Google payload downstream.
  */
+// Text Search is the priciest call in the pipeline (Advanced-tier field
+// mask, up to 7 calls per cold generate). Cached 6h on query + ~1 km coord
+// grid; each hit hands back fresh clones so the candidate pipeline can
+// stamp per-request fields without poisoning the cache.
+const searchCache = new Map(); // key -> { promise, expires }
+const SEARCH_TTL_MS = 6 * 60 * 60 * 1000;
+const SEARCH_CACHE_MAX = 500;
+
 async function searchPlaces({ query, lat, lng, radiusMeters = 15000, maxResults = 8 }) {
   assertConfigured();
 
+  const coordKey = (lat != null && lng != null)
+    ? `${Number(lat).toFixed(2)},${Number(lng).toFixed(2)}` : 'none';
+  const key = `${String(query).trim().toLowerCase()}|${coordKey}|${radiusMeters}|${maxResults}`;
+  const cached = searchCache.get(key);
+  if (cached && cached.expires > Date.now()) {
+    return (await cached.promise).map(p => ({ ...p }));
+  }
+
+  const promise = fetchPlaces({ query, lat, lng, radiusMeters, maxResults }).catch(err => {
+    searchCache.delete(key); // a failed fill must not stick for the TTL
+    throw err;
+  });
+  if (searchCache.size >= SEARCH_CACHE_MAX) {
+    searchCache.delete(searchCache.keys().next().value);
+  }
+  searchCache.set(key, { promise, expires: Date.now() + SEARCH_TTL_MS });
+  return (await promise).map(p => ({ ...p }));
+}
+
+async function fetchPlaces({ query, lat, lng, radiusMeters, maxResults }) {
   const body = {
     textQuery: query,
     maxResultCount: maxResults

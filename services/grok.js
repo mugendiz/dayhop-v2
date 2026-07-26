@@ -6,7 +6,15 @@
 const axios = require('axios');
 
 const GROK_API_URL = process.env.GROK_API_URL || 'https://api.x.ai/v1/chat/completions';
-const GROK_MODEL = process.env.GROK_MODEL || 'grok-4';
+// Fast non-reasoning variant on purpose: feed generation is a selection/copy
+// task, and a reasoning model here burns ~5-10x output tokens and pushes
+// latency toward the request timeout. Never default to a reasoning model.
+const GROK_MODEL = process.env.GROK_MODEL || 'grok-4.20-0309-non-reasoning';
+if (!process.env.GROK_MODEL) {
+  console.warn(`[grok] GROK_MODEL not set — defaulting to ${GROK_MODEL}`);
+} else {
+  console.log(`[grok] model: ${GROK_MODEL}`);
+}
 const DEFAULT_CITY = process.env.DEFAULT_CITY || 'Richmond Hill';
 const DEFAULT_REGION = process.env.DEFAULT_REGION || 'Ontario';
 
