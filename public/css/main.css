@@ -2821,12 +2821,18 @@ body[data-mode="adventure"] .mode-thumb { transform: translateX(100%); }
 
     /* Mobile: the columns stack, so the featured card sits inside the
        recede range and would fade while the user is still reading it.
-       Move the fade onto its siblings; the featured card stays solid. */
+       The featured card stays solid, and .hero-left — which holds the
+       prompt box — sinks without fading: the box must stay fully legible
+       while the user can still reach it. Only the eyebrow keeps the fade. */
     @media (max-width: 879.98px) {
       .hero-content { animation: none; }
-      .hero-content > .eyebrow,
-      .hero-left {
+      .hero-content > .eyebrow {
         animation: heroRecede linear both;
+        animation-timeline: scroll(root);
+        animation-range: 0 480px;
+      }
+      .hero-left {
+        animation: heroRecedeSolid linear both;
         animation-timeline: scroll(root);
         animation-range: 0 480px;
       }
@@ -2849,6 +2855,12 @@ body[data-mode="adventure"] .mode-thumb { transform: translateX(100%); }
 
 @keyframes heroRecede {
   to { opacity: 0.45; transform: translateY(28px) scale(0.985); }
+}
+
+/* Same recede motion, no fade — for containers whose content must stay
+   legible for as long as it's on screen (mobile .hero-left / prompt box). */
+@keyframes heroRecedeSolid {
+  to { transform: translateY(28px) scale(0.985); }
 }
 
 /* ---------- View Transition: mode switching ----------
