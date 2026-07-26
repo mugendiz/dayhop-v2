@@ -29,14 +29,15 @@ function hasServiceKey() {
   return dbClient.status().service_key === true;
 }
 
-// Boot-time hydration (fire-and-forget): entries() is consumed synchronously
-// by the candidates pipeline, so we warm the map in the background and serve
-// whatever has loaded — the same eventual-consistency the ban list accepts.
-let loadStarted = false;
+// Hydration from the DB. entries() consumes it fire-and-forget (the
+// candidates pipeline is synchronous and tolerates eventual consistency,
+// like the ban list); processFinds AWAITS it so the dedupe pass in a fresh
+// process can't race the load and re-verify already-published finds.
+let loadPromise = null;
 function loadFromDb() {
-  if (loadStarted || !hasServiceKey()) { loadStarted = true; return; }
-  loadStarted = true;
-  dbClient.getClient().from('auto_catalog').select('*').eq('status', 'active').limit(2000)
+  if (loadPromise) return loadPromise;
+  if (!hasServiceKey()) { loadPromise = Promise.resolve(); return loadPromise; }
+  loadPromise = dbClient.getClient().from('auto_catalog').select('*').eq('status', 'active').limit(2000)
     .then(({ data, error }) => {
       if (error) throw error;
       for (const row of data || []) {
@@ -45,6 +46,7 @@ function loadFromDb() {
       if (data && data.length) console.log(`[auto-catalog] loaded ${data.length} published entr${data.length === 1 ? 'y' : 'ies'}`);
     })
     .catch(err => console.warn('[auto-catalog] load failed (memory-only until restart):', err.message));
+  return loadPromise;
 }
 
 function entries() {
@@ -105,6 +107,7 @@ async function googleVerdict(item) {
     return {
       pass: true,
       place: {
+        place_id: match.place_id,
         title: match.title, address: match.address, maps_url: match.maps_url,
         rating: match.rating, rating_count: match.rating_count,
         image_url: match.image_url, business_status: match.business_status
@@ -151,6 +154,7 @@ async function grokVerdict(item, place) {
 function buildEntry(item, place) {
   const entry = Object.assign({}, item.draft);
   entry.id = String(entry.id || 'cur-new-opening').replace(/^cur-/, 'auto-');
+  if (place && place.place_id) entry.place_id = place.place_id; // dedupe key across scans
   if (place) {
     if (place.maps_url) entry.maps_url = place.maps_url;
     if (place.rating != null) { entry.rating = place.rating; entry.rating_count = place.rating_count; }
@@ -176,6 +180,16 @@ async function verifyAndAdd(item) {
   if (!google.pass) {
     return { added: false, status: 'needs_review', checks: { google: google.reason } };
   }
+  // Place-level dedupe: Grok extracts slightly different names for the same
+  // attraction across scans ("DareDeviler" vs "DareDevil Coaster"), which
+  // name matching can't catch — the Google place_id both matched can.
+  if (google.place && google.place.place_id) {
+    for (const e of entriesById.values()) {
+      if (e.place_id && e.place_id === google.place.place_id) {
+        return { added: false, status: 'already_in_catalog' };
+      }
+    }
+  }
   const grok = await grokVerdict(item, google.place);
   if (!grok.pass) {
     return { added: false, status: 'rejected', checks: { google: 'ok', grok: grok.reason } };
@@ -198,6 +212,7 @@ async function verifyAndAdd(item) {
  * failing never stops the rest.
  */
 async function processFinds(items) {
+  await loadFromDb(); // dedupe must see everything already published
   const CONCURRENCY = 2;
   let next = 0;
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, items.length) }, async () => {
