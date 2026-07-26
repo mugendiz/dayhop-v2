@@ -10,9 +10,6 @@
 //      → the find stays in the admin inbox for the human pass.
 //   2. Grok — editorial gate: a visitable attraction someone would put on
 //      a day plan, not a store/salon/one-off/rumour. Hard gate.
-//   3. Claude (Anthropic API) — independent second opinion. Runs only when
-//      ANTHROPIC_API_KEY is set; when configured, a Claude veto blocks the
-//      add. Unconfigured → the chain is Google + Grok.
 //
 // Published entries live beside data/curatedCatalog.js in every search
 // (candidates.js merges entries() into catalogCandidates). Persistence:
@@ -24,11 +21,6 @@ const maps = require('./googleMaps');
 const { callGrok } = require('./grok');
 const dbClient = require('./db/client');
 const curatedCatalog = require('../data/curatedCatalog');
-
-let AnthropicSDK = null;
-try { AnthropicSDK = require('@anthropic-ai/sdk'); } catch (e) { /* optional dependency */ }
-
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
 
 // ---------- store ----------
 const entriesById = new Map(); // id -> catalog-shaped entry
@@ -123,7 +115,7 @@ async function googleVerdict(item) {
   }
 }
 
-// ---------- shared editorial prompt (Grok + Claude answer the same question) ----------
+// ---------- editorial prompt ----------
 function verdictPrompt(item, place) {
   return `You are verifying a candidate entry for DayHop, a Canadian day-planning app. Only real, open (or imminently opening), physical, visitable attractions, venues, parks, or experiences belong — something a person would genuinely put on a day out. REJECT: ordinary retail or services (hair salons, phone shops, clinics), one-off or single-night events, closures, rumours or vague plans, real-estate/transit news, and anything outside Canada. Be conservative: when unsure, reject.
 
@@ -152,42 +144,6 @@ async function grokVerdict(item, place) {
     return { pass: false, reason: 'Grok returned an unusable verdict' };
   } catch (err) {
     return { pass: false, reason: `Grok verification failed: ${err.message}` };
-  }
-}
-
-// ---------- verifier 3: Claude (optional — runs when ANTHROPIC_API_KEY is set) ----------
-let anthropic = null;
-function claudeClient() {
-  if (!process.env.ANTHROPIC_API_KEY || !AnthropicSDK) return null;
-  if (!anthropic) anthropic = new AnthropicSDK({ timeout: 60000 });
-  return anthropic;
-}
-
-async function claudeVerdict(item, place) {
-  const client = claudeClient();
-  if (!client) return { skipped: true };
-  try {
-    const res = await client.messages.create({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 2048,
-      output_config: { effort: 'low' }, // yes/no judgment — no deep reasoning needed
-      messages: [{ role: 'user', content: verdictPrompt(item, place) }]
-    });
-    // Claude Opus 5 safety classifiers can decline (HTTP 200, stop_reason
-    // "refusal") — treat as verifier-unavailable, never as a veto.
-    if (res.stop_reason === 'refusal') return { skipped: true, reason: 'claude declined the request' };
-    const text = res.content.filter(b => b.type === 'text').map(b => b.text).join('');
-    const m = text.match(/\{[\s\S]*\}/);
-    const parsed = m ? JSON.parse(m[0]) : null;
-    if (parsed && typeof parsed.legit === 'boolean') {
-      return { pass: parsed.legit, reason: String(parsed.reason || '').slice(0, 160) };
-    }
-    return { skipped: true, reason: 'claude returned an unusable verdict' };
-  } catch (err) {
-    // An unreachable verifier must not silently weaken the chain the operator
-    // configured — but it also must not wedge discovery. Skip with a warning.
-    console.warn('[auto-catalog] claude verification failed (skipping):', err.message);
-    return { skipped: true, reason: err.message };
   }
 }
 
@@ -220,22 +176,15 @@ async function verifyAndAdd(item) {
   if (!google.pass) {
     return { added: false, status: 'needs_review', checks: { google: google.reason } };
   }
-  const [grok, claude] = await Promise.all([
-    grokVerdict(item, google.place),
-    claudeVerdict(item, google.place)
-  ]);
+  const grok = await grokVerdict(item, google.place);
   if (!grok.pass) {
     return { added: false, status: 'rejected', checks: { google: 'ok', grok: grok.reason } };
-  }
-  if (!claude.skipped && !claude.pass) {
-    return { added: false, status: 'rejected', checks: { google: 'ok', grok: 'ok', claude: claude.reason } };
   }
 
   const entry = buildEntry(item, google.place);
   const verification = {
     google: google.place,
     grok: grok.reason || 'ok',
-    claude: claude.skipped ? `skipped (${claude.reason || 'not configured'})` : (claude.reason || 'ok'),
     verified_at: new Date().toISOString()
   };
   await persist(entry, verification);

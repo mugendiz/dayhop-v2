@@ -3,7 +3,7 @@
 // RSS feeds for opening-flavored headlines, has Grok extract real, visitable
 // new attractions/venues from them, and drafts curatedCatalog entries.
 // Publishing is verification-gated (services/autoCatalog.js): a find that
-// passes Google Places + Grok + Claude (when configured) publishes to the
+// passes Google Places + Grok publishes to the
 // live catalog automatically; anything the chain can't confirm stays in the
 // admin Discovery inbox for the human pass. Trust contract > coverage —
 // "verified" is earned by the chain or by a human, never assumed.
@@ -242,10 +242,10 @@ async function doCollect() {
     items.sort((a, b) => ((b.buzz && b.buzz.score) || 0) - ((a.buzz && a.buzz.score) || 0));
 
     // Phase 3: autopilot — every drafted find runs the verification chain
-    // (Google Places existence + Grok editorial + Claude second opinion when
-    // configured); passers publish straight into the live catalog,
-    // Ontario-wide. Non-passers stay in the inbox annotated with WHY, so
-    // the human pass reviews exactly what the machines couldn't confirm.
+    // (Google Places existence + Grok editorial); passers publish straight
+    // into the live catalog, Canada-wide. Non-passers stay in the inbox
+    // annotated with WHY, so the human pass reviews exactly what the
+    // machines couldn't confirm.
     try {
       await autoCatalog.processFinds(scoreable);
     } catch (err) {

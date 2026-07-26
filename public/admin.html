@@ -183,8 +183,8 @@
       <p class="rate" style="margin:0 0 10px">
         Scans Canada-wide local media for newly-opened attractions, drafts catalog entries
         with Grok, then runs the <strong>autopilot verification chain</strong>: Google Places
-        (exists &amp; operational) + Grok editorial + Claude second opinion (when configured).
-        Finds that pass every check publish to the live catalog automatically (✓); the rest
+        (exists &amp; operational) + Grok editorial.
+        Finds that pass both checks publish to the live catalog automatically (✓); the rest
         wait here — verify facts yourself, then Copy catalog entry → <code>data/curatedCatalog.js</code>.
         The scan also runs on its own every Sunday at midnight (Toronto time).
       </p>
@@ -296,7 +296,6 @@
         ' <span class="rate">· ' + esc([it.area, it.kind, it.opened_hint].filter(Boolean).join(' · ')) + '</span>' +
         (it.auto ? (it.auto.added
           ? ' <span style="color:#12855C;font-weight:600" title="Verified by Google Places + Grok' +
-            ((it.auto.checks && String(it.auto.checks.claude || '').indexOf('skipped') === -1) ? ' + Claude' : '') +
             ' and published to the live catalog automatically">✓ auto-published</span>'
           : ' <span class="rate" title="' + esc(JSON.stringify(it.auto.checks || {})) + '">· ' +
             esc(it.auto.status === 'needs_review' ? 'needs human review'

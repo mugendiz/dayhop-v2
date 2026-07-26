@@ -200,8 +200,8 @@ if (isProd && keepAliveBase && keepAliveBase !== 'off') {
 }
 
 // Discovery autopilot: every SUNDAY AT MIDNIGHT (Toronto time) scan
-// Canada-wide local media, verify finds (Google Places + Grok + Claude when
-// configured), and publish passers into the live catalog. The admin "Scan
+// Canada-wide local media, verify finds (Google Places + Grok), and
+// publish passers into the live catalog. The admin "Scan
 // feeds" button still works on demand any day. A 20-min clock check with a
 // ran-recently guard is DST-proof and survives restarts mid-window; the
 // keep-alive ping keeps the free-tier instance awake for it.
