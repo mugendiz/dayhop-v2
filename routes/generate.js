@@ -100,13 +100,17 @@ router.post('/', async (req, res) => {
           dateHint
         });
         ideas = mergeWithCandidates(selected, candidates);
+        // Grok curates the headliners; the rest of the quality-gated,
+        // relevance-ranked pool is real material we already paid to fetch —
+        // surface it below the picks instead of throwing it away.
+        ideas = appendMoreFinds(ideas, candidates);
       } catch (err) {
         // We already hold a relevance-ranked pool of real places — serve the
         // top of it directly rather than failing the whole feed because the
         // AI selection step timed out or misbehaved.
         if (err.code === 'GROK_NOT_CONFIGURED' || err.code === 'INVALID_INPUT') throw err;
         console.warn('[generate] Grok selection failed, serving ranked candidates directly:', err.message);
-        ideas = mergeWithCandidates(candidates.slice(0, 10).map(fallbackIdea), candidates);
+        ideas = mergeWithCandidates(candidates.slice(0, 20).map(fallbackIdea), candidates);
         degraded = true;
       }
     } else {
@@ -149,6 +153,24 @@ function dateHintFor(dateWindow) {
   return dateWindow.start === dateWindow.end
     ? `The user is planning this for ${range} — write "why" copy accordingly (not "today" unless that date is today), and only treat dated events as a fit if they fall on that day.`
     : `The user is planning this for ${range} — write "why" copy accordingly, and only treat dated events as a fit if they fall within that range.`;
+}
+
+// The best of the ranked pool that Grok did NOT pick, appended after the
+// curated selection as "more finds": every one is a real, quality-gated
+// place already fetched and scored for this request, so a feed of 12
+// becomes a feed of ~30 at zero extra API cost. `more_find` lets the
+// client group them under their own section header.
+const MAX_TOTAL_IDEAS = 32;
+function appendMoreFinds(ideas, candidates) {
+  const used = new Set(ideas.map(i => String(i.id)));
+  const extra = [];
+  for (const c of candidates) {
+    if (ideas.length + extra.length >= MAX_TOTAL_IDEAS) break;
+    if (used.has(String(c.id))) continue;
+    used.add(String(c.id));
+    extra.push(Object.assign(fallbackIdea(c), { more_find: true }));
+  }
+  return extra.length ? ideas.concat(mergeWithCandidates(extra, candidates)) : ideas;
 }
 
 /**
