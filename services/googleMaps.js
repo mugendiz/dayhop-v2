@@ -181,6 +181,7 @@ function normalizePlace(p) {
 // 3 decimals (~110 m) before sending, so keys are naturally coarse.
 const reverseCache = new Map();
 const REVERSE_TTL_MS = 24 * 60 * 60 * 1000;
+const REVERSE_CACHE_MAX = 2000; // entries expire logically but were never deleted
 
 async function reverseGeocode({ lat, lng }) {
   assertConfigured();
@@ -226,6 +227,9 @@ async function reverseGeocode({ lat, lng }) {
   const label = [neighborhood && neighborhood !== city ? neighborhood : null, city, postalPrefix]
     .filter(Boolean).join(' · ');
   const value = { city, label };
+  if (reverseCache.size >= REVERSE_CACHE_MAX) {
+    reverseCache.delete(reverseCache.keys().next().value);
+  }
   reverseCache.set(key, { value, expires: Date.now() + REVERSE_TTL_MS });
   return value;
 }
@@ -316,6 +320,7 @@ async function findPhotoUrl({ query, lat, lng }) {
 // image URI. Cached in-memory so repeat card renders don't re-hit Google.
 const photoUriCache = new Map();
 const PHOTO_TTL_MS = 12 * 60 * 60 * 1000;
+const PHOTO_URI_CACHE_MAX = 2000;
 
 async function getPhotoUri(photoName, { maxWidthPx = 800 } = {}) {
   assertConfigured();
@@ -331,6 +336,9 @@ async function getPhotoUri(photoName, { maxWidthPx = 800 } = {}) {
     const err = new Error('Places returned no photoUri');
     err.code = 'PHOTO_NOT_FOUND';
     throw err;
+  }
+  if (photoUriCache.size >= PHOTO_URI_CACHE_MAX) {
+    photoUriCache.delete(photoUriCache.keys().next().value);
   }
   photoUriCache.set(photoName, { uri, expires: Date.now() + PHOTO_TTL_MS });
   return uri;

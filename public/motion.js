@@ -43,7 +43,14 @@
       window.gsap.ticker.add((time) => lenis.raf(time * 1000));
       window.gsap.ticker.lagSmoothing(0);
     } else {
-      const raf = (time) => { lenis.raf(time); requestAnimationFrame(raf); };
+      // Re-read `lenis` each frame: destroyLenis() (reduced-motion switch
+      // mid-session) nulls it, and the queued frame must wind down quietly
+      // instead of throwing on a dead reference.
+      const raf = (time) => {
+        if (!lenis) return;
+        lenis.raf(time);
+        requestAnimationFrame(raf);
+      };
       requestAnimationFrame(raf);
     }
   }
@@ -144,5 +151,9 @@
     boot();
   }
 
-  window.DayHopMotion = { bestMatchIn, celebrateReplan };
+  // `reap` lets app.js clear dead ScrollTriggers on every feed re-render —
+  // previously they were only reaped inside the NEXT bestMatchIn call, so
+  // leaving prompt results for browse mode (no hero) left parallax triggers
+  // scrubbing detached DOM on every scroll frame for the rest of the session.
+  window.DayHopMotion = { bestMatchIn, celebrateReplan, reap: reapDeadTriggers };
 })();

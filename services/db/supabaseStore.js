@@ -62,20 +62,17 @@ async function deleteAdventure(id, ctx) {
 async function addShortlistItem({ ownerId, idea }, ctx) {
   const client = clientFor(ctx);
   const ideaId = String(idea.id);
-  // Re-add must keep the original row's primary key (matches memoryStore): only
-  // generate a fresh id when inserting a genuinely new row. So look first, then
-  // UPDATE the idea payload in place, else INSERT with a new id.
-  const { data: existing, error: selErr } = await client
-    .from('shortlist_items').select('id').eq('owner_id', ownerId).eq('idea_id', ideaId).maybeSingle();
-  if (selErr) throw fail(selErr, 'addShortlistItem');
-  if (existing) {
-    const { data, error } = await client
-      .from('shortlist_items').update({ idea }).eq('owner_id', ownerId).eq('idea_id', ideaId).select().single();
-    if (error) throw fail(error, 'addShortlistItem');
-    return shortlistFromRow(data);
-  }
+  // INSERT first — the common case, one round trip. A unique-constraint hit
+  // (re-add, or a double-tap racing two inserts — which used to 500) falls
+  // through to UPDATE, which keeps the original row's primary key (matches
+  // memoryStore). The old select-then-write version had a race window
+  // between the SELECT and the INSERT.
   const row = { id: genId('sl'), owner_id: ownerId, idea_id: ideaId, idea };
-  const { data, error } = await client.from('shortlist_items').insert(row).select().single();
+  const ins = await client.from('shortlist_items').insert(row).select().single();
+  if (!ins.error) return shortlistFromRow(ins.data);
+  if (ins.error.code !== '23505') throw fail(ins.error, 'addShortlistItem');
+  const { data, error } = await client
+    .from('shortlist_items').update({ idea }).eq('owner_id', ownerId).eq('idea_id', ideaId).select().single();
   if (error) throw fail(error, 'addShortlistItem');
   return shortlistFromRow(data);
 }

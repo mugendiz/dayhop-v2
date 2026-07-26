@@ -49,8 +49,7 @@
         { filter: 'kids', label: '👶 Family' },
         { filter: 'patios', label: '🍻 Patios' },
         { filter: 'food', label: '🍽️ Food' },
-        { filter: 'cruises', label: '⛴️ Cruises' },
-        { filter: 'worldcup', label: '⚽ World Cup' }
+        { filter: 'cruises', label: '⛴️ Cruises' }
       ],
       examples: [
         { label: '🌿 Slow morning in nature', prompt: 'A slow, restorative morning — a peaceful garden or quiet trail, a scenic lookout, and a calm café to end at.' },
@@ -69,7 +68,6 @@
         { filter: 'water', label: '🌊 Water Action' },
         { filter: 'cruises', label: '⛴️ On the Water' },
         { filter: 'kids', label: '👶 Family Thrills' },
-        { filter: 'worldcup', label: '⚽ World Cup' },
         { filter: 'food', label: '🍽️ Refuel' }
       ],
       examples: [
@@ -80,11 +78,9 @@
     }
   };
 
-  // FIFA World Cup 2026 wraps with the July 19 final — after that, the
-  // branding sweeps itself to summer (eyebrow + filter chips) so the site
-  // never looks stale while nobody is watching.
-  const WORLD_CUP_ENDS = Date.parse('2026-07-20T08:00:00Z');
-  const worldCupLive = () => Date.now() < WORLD_CUP_ENDS;
+  // The FIFA World Cup 2026 sweep (worldcup filter chips + eyebrow gate)
+  // retired with the July 19 final. The worldcup CATEGORY entries stay:
+  // legacy shortlist/saved-plan items may still carry that category.
 
   // Toronto-local "today" as YYYY-MM-DD — matches the server's date-window
   // convention regardless of the device's own timezone.
@@ -210,7 +206,6 @@
     user: null,
     isGenerating: false,
     isBuildingPlan: false,
-    lastPlan: null,          // last itinerary skeleton built from the shortlist
     savedGuide: null,        // server-saved copy of currentGuide ({ share_url, guide, … })
     currentGuide: null,      // the guide being viewed/edited in the plan panel (self-contained)
     currentGuideId: null,    // server id when currentGuide is a saved guide
@@ -346,7 +341,6 @@
     wrap.querySelector('.draft-resume-open').addEventListener('click', () => {
       track('draft_resumed', {});
       state.isSample = false;
-      state.lastPlan = null;
       state.currentGuide = draft.guide;
       state.currentGuideId = null;
       state.savedGuide = null;
@@ -430,7 +424,6 @@
     if (!wrap) return;
     wrap.innerHTML = '';
     MODES[state.mode].filters
-      .filter(({ filter }) => filter !== 'worldcup' || worldCupLive())
       .forEach(({ filter, label }) => {
       const chip = document.createElement('button');
       chip.type = 'button';
@@ -1357,6 +1350,16 @@
       appendSection('Beyond what you asked ✨', beyond, showHeaders);
     }
 
+    updateFeedChrome();
+  }
+
+  // The feed's supporting cast — empty/no-results states, the idea-count
+  // line, the collections shelf. Shared by the full render and the
+  // single-card removal path so the two can't drift.
+  function updateFeedChrome() {
+    // Cards just left the DOM — drop any ScrollTriggers still bound to them.
+    if (window.DayHopMotion && window.DayHopMotion.reap) window.DayHopMotion.reap();
+    const ideas = visibleIdeas();
     const hasIdeas = state.allIdeas.length > 0;
     // Empty: nothing generated yet. No-results: ideas exist but the filter/swipes hid them all.
     document.getElementById('empty-state').hidden = state.isGenerating || hasIdeas;
@@ -1367,6 +1370,28 @@
       : `${ideas.length} idea${ideas.length === 1 ? '' : 's'} · ${state.shortlist.length} on your shortlist`;
 
     renderCollections();
+  }
+
+  // Surgical exit for one swiped/added card: removing a single element and
+  // renumbering beats rebuilding every card, image, and listener in the
+  // feed. Cards living outside the feed (plan stops, detail panel) still
+  // take the full-render path.
+  function removeIdeaCardInPlace(card) {
+    const feed = document.getElementById('discovery-feed');
+    if (!card || !feed.contains(card)) { renderFeed(); return; }
+    card.remove();
+    // A section whose last card just left takes its header with it.
+    feed.querySelectorAll('.feed-section-header').forEach(h => {
+      const next = h.nextElementSibling;
+      if (!next || !next.classList.contains('idea-card')) h.remove();
+    });
+    // Keep the trail's STOP numbers contiguous.
+    feed.querySelectorAll('.idea-card').forEach((c, i) => {
+      c.style.setProperty('--stop-index', i);
+      const stamp = c.querySelector('.card-stamp');
+      if (stamp) stamp.textContent = `STOP ${String(i + 1).padStart(2, '0')}`;
+    });
+    updateFeedChrome();
   }
 
   function createIdeaCard(idea, index, animate = false, bestMatch = false) {
@@ -1692,7 +1717,7 @@
     persist();
     serverShortlistAdd(idea);
     track('shortlist_add', idea);
-    if (card) animateOut(card, 'right', () => renderFeed());
+    if (card) animateOut(card, 'right', () => removeIdeaCardInPlace(card));
     updateShortlistCount();
     if (navigator.vibrate) navigator.vibrate(10);
     if (opts && opts.silent) return;
@@ -1704,20 +1729,22 @@
         persist();
         serverShortlistRemove(idea.id);
         updateShortlistCount();
-        renderFeed(true);
+        // No animate: replaying the staggered entrance over cards the user
+        // is already looking at made Undo feel like a page reload.
+        renderFeed();
       }
     });
   }
 
   function dismissIdea(idea, card) {
     state.dismissedIds.add(idea.id);
-    animateOut(card, 'left', () => renderFeed());
+    animateOut(card, 'left', () => removeIdeaCardInPlace(card));
     showToast('Skipped', {
       duration: 4000,
       actionLabel: 'Undo',
       onAction: () => {
         state.dismissedIds.delete(idea.id);
-        renderFeed(true);
+        renderFeed();
       }
     });
   }
@@ -1919,6 +1946,21 @@
     renderShortlistPanel();
   }
 
+  // Action-bar state (visibility, disabled buttons, live delete count) —
+  // separated from renderShortlistPanel so a checkbox toggle can update it
+  // without rebuilding every row.
+  function updateShortlistSelectBar() {
+    const selectBar = document.getElementById('shortlist-select-bar');
+    if (!selectBar) return;
+    selectBar.hidden = !shortlistSelecting;
+    const picked = shortlistSelected.size;
+    const delBtn = document.getElementById('select-delete-btn');
+    const newListBtn = document.getElementById('select-newlist-btn');
+    delBtn.disabled = picked === 0;
+    newListBtn.disabled = picked === 0;
+    delBtn.textContent = picked ? `Delete (${picked})` : 'Delete';
+  }
+
   function handleSelectDelete() {
     if (!shortlistSelected.size) return;
     const n = shortlistSelected.size;
@@ -1944,7 +1986,6 @@
       `The other ${drop.length} will be cleared.`)) return;
     state.shortlist = keep;
     state.savedGuide = null;
-    state.lastPlan = null;
     persist();
     drop.forEach(i => serverShortlistRemove(i.id));
     exitShortlistSelect();
@@ -1986,15 +2027,7 @@
       selectBtn.setAttribute('aria-pressed', String(shortlistSelecting));
       selectBtn.classList.toggle('is-active', shortlistSelecting);
     }
-    if (selectBar) {
-      selectBar.hidden = !shortlistSelecting;
-      const picked = shortlistSelected.size;
-      const delBtn = document.getElementById('select-delete-btn');
-      const newListBtn = document.getElementById('select-newlist-btn');
-      delBtn.disabled = picked === 0;
-      newListBtn.disabled = picked === 0;
-      delBtn.textContent = picked ? `Delete (${picked})` : 'Delete';
-    }
+    updateShortlistSelectBar();
 
     if (state.shortlist.length === 0) {
       empty.hidden = false;
@@ -2024,9 +2057,14 @@
         `;
         const check = row.querySelector('.shortlist-check');
         const toggle = () => {
-          if (shortlistSelected.has(id)) shortlistSelected.delete(id);
-          else shortlistSelected.add(id);
-          renderShortlistPanel();
+          const nowSelected = !shortlistSelected.has(id);
+          if (nowSelected) shortlistSelected.add(id);
+          else shortlistSelected.delete(id);
+          // In place — the full panel rebuild destroyed keyboard focus on
+          // every toggle, making space-through-the-list impossible.
+          check.checked = nowSelected;
+          row.classList.toggle('is-selected', nowSelected);
+          updateShortlistSelectBar();
         };
         check.addEventListener('change', toggle);
         row.addEventListener('click', (e) => { if (e.target !== check) toggle(); });
@@ -2167,7 +2205,6 @@
   function showSamplePlan() {
     track('sample_plan_viewed', {});
     state.isSample = true; // the demo never overwrites a user's draft
-    state.lastPlan = null;
     state.currentGuide = JSON.parse(JSON.stringify(SAMPLE_GUIDE));
     state.currentGuideId = null;
     state.savedGuide = null;
@@ -2178,7 +2215,6 @@
   }
 
   function renderDayPlan(plan) {
-    state.lastPlan = plan;
     state.isSample = false;
     state.currentGuide = guideFromPlan(plan);
     state.currentGuideId = null; // fresh plan, not saved yet
@@ -2929,7 +2965,6 @@
     if (!window.confirm(`Start fresh? Your ${n} current pick${n === 1 ? '' : 's'} will be cleared.`)) return;
     state.shortlist = [];
     state.savedGuide = null;
-    state.lastPlan = null;
     persist();
     if (isLoggedIn()) fetch('/api/shortlist', { method: 'DELETE', headers: authHeaders() }).catch(() => {});
     updateShortlistCount();
@@ -3279,6 +3314,10 @@
     if (featuredTimer) clearInterval(featuredTimer);
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     featuredTimer = setInterval(() => {
+      // A hidden tab keeps "rotating" as far as viewport rects are
+      // concerned — without this check a backgrounded tab quietly keeps
+      // downloading ~900px preload images for as long as it lives.
+      if (document.hidden) return;
       // Hold still while the reader is engaging with the card, and never
       // swap off-screen (same pinned-hero concern as above).
       if (featuredOffscreen(aside)) return;
@@ -4276,10 +4315,9 @@
     // on top — clear the marker so back behaves normally again.
     if (history.state && history.state.dayhopOverlay) history.replaceState(null, '');
 
-    // Post-tournament sweep: the World Cup eyebrow becomes plain summer
-    // instantly, then the server spotlight refines it to the next stat
-    // holiday ("Civic Holiday long weekend · Aug 1–3") when config answers.
-    if (!worldCupLive()) {
+    // Instant seasonal eyebrow, refined to the next stat holiday ("Civic
+    // Holiday long weekend · Aug 1–3") when the server spotlight answers.
+    {
       const eyebrow = document.querySelector('.hero .eyebrow');
       if (eyebrow) eyebrow.textContent = 'Greater Toronto Area · Summer 2026';
     }

@@ -90,13 +90,52 @@ app.use('/api/adventures', require('./routes/adventures'));
 app.use('/api/community', require('./routes/community'));
 app.use('/api/shortlist', require('./routes/shortlist'));
 app.use('/api/billing', require('./routes/billing'));
-app.use('/api/guides', require('./routes/guides'));
-app.use('/api/track', require('./routes/track'));
+
+// A plan-less POST /api/guides triggers a Grok call server-side — the save
+// path must not be a free unmetered AI endpoint just because /generate is.
+const guidesLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'RATE_LIMITED', message: 'Slow down a little — try again in a moment.' }
+});
+app.use('/api/guides', guidesLimiter, require('./routes/guides'));
+
+// Anonymous event sink: cheap per call, but unmetered it invites unbounded
+// table growth and funnel pollution. 60/min covers any honest session.
+const trackLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'RATE_LIMITED', message: 'Slow down a little.' }
+});
+app.use('/api/track', trackLimiter, require('./routes/track'));
 app.use('/api/admin', require('./routes/admin'));
 
 const { dbStatus } = require('./services/db');
 
+// Same header + constant-time compare as routes/admin.js — /health detail
+// is operator information.
+function adminKeyOk(req) {
+  const expected = process.env.ADMIN_KEY || '';
+  const provided = req.headers['x-admin-key'];
+  if (!expected || !provided) return false;
+  const a = Buffer.from(String(provided));
+  const b = Buffer.from(expected);
+  return a.length === b.length && require('crypto').timingSafeEqual(a, b);
+}
+
 app.get('/health', (req, res) => {
+  // Anonymous callers (uptime checks, the keep-alive ping) get a heartbeat.
+  // Which API keys exist, the storage backend, and whether ADMIN_KEY is set
+  // is recon material — that detail is for operators (dev, admin account,
+  // or the admin key header).
+  const { isAdmin } = require('./services/entitlements');
+  if (isProd && !isAdmin(req.user) && !adminKeyOk(req)) {
+    return res.json({ status: 'ok', version: '2.0' });
+  }
   res.json({
     status: 'ok',
     version: '2.0',

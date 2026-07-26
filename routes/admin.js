@@ -25,7 +25,10 @@ function keyMatches(provided) {
 
 function requireAdmin(req, res, next) {
   if (isAdmin(req.user)) return next();
-  const providedKey = req.headers['x-admin-key'] || req.query.key;
+  // Header only — query strings land in access logs and browser history,
+  // which is no place for a standing secret. (admin.html's ?key=
+  // convenience already converts to this header client-side.)
+  const providedKey = req.headers['x-admin-key'];
   if (!process.env.ADMIN_KEY && !providedKey) {
     return res.status(503).json({
       error: 'ADMIN_NOT_CONFIGURED',

@@ -19,12 +19,33 @@ router.get('/', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Ideas are stored verbatim (the client re-renders them as-is), so bound
+// the blast radius: real ideas serialize to ~1-2 KB, and no honest
+// shortlist needs hundreds of entries. Without these caps a signed-in
+// account could bank megabytes of arbitrary JSON.
+const MAX_IDEA_BYTES = 8 * 1024;
+const MAX_ITEMS = 100;
+
 router.post('/', async (req, res, next) => {
   const { idea } = req.body || {};
   if (!idea || idea.id == null) {
     return res.status(400).json({ error: 'INVALID_INPUT', message: 'An idea with an id is required.' });
   }
+  if (JSON.stringify(idea).length > MAX_IDEA_BYTES) {
+    return res.status(400).json({ error: 'INVALID_INPUT', message: 'That idea payload is too large.' });
+  }
   try {
+    // Updating an existing item is always allowed; only NEW items count
+    // against the cap.
+    const items = await store.listShortlist(req.ownerId, req.dbCtx);
+    const exists = items.some(i =>
+      String(i.idea_id != null ? i.idea_id : (i.idea && i.idea.id)) === String(idea.id));
+    if (!exists && items.length >= MAX_ITEMS) {
+      return res.status(400).json({
+        error: 'LIMIT_REACHED',
+        message: `Shortlists cap at ${MAX_ITEMS} places — remove a few before adding more.`
+      });
+    }
     const item = await store.addShortlistItem({ ownerId: req.ownerId, idea }, req.dbCtx);
     res.status(201).json({ item });
   } catch (err) { next(err); }
