@@ -2810,13 +2810,42 @@ body[data-mode="adventure"] .mode-thumb { transform: translateX(100%); }
       animation-range: entry 0% entry 75%;
     }
 
-    /* The hero recedes as you scroll into the feed — content sinks and
-       softens slightly, giving the page depth without a single scroll
-       listener. */
+    /* The hero recedes as you scroll into the feed — the block sinks as
+       one, but the softening fade is applied per-piece so the prompt box
+       stays fully legible for as long as it's on screen. */
     .hero-content {
-      animation: heroRecede linear both;
+      animation: heroRecedeSolid linear both;
       animation-timeline: scroll(root);
       animation-range: 0 480px;
+    }
+
+    @media (min-width: 880px) {
+      .hero-left > .mode-hint-row,
+      .hero-left > .plans-left,
+      .hero-left > .weather-strip,
+      .hero-left > .advisory-strip,
+      .hero-featured {
+        animation: heroFadeOnly linear both;
+        animation-timeline: scroll(root);
+        animation-range: 0 480px;
+      }
+
+      /* These also carry the heroSettle entrance — declare both animations
+         so the scroll fade doesn't clobber the arrival. The per-element
+         delays mirror the entrance stagger. */
+      .hero .eyebrow,
+      .hero .mode-toggle,
+      .hero h1,
+      .hero .subtitle,
+      .hero .prompt-hint {
+        animation: heroSettle 0.7s var(--ease) both, heroFadeOnly linear both;
+        animation-timeline: auto, scroll(root);
+        animation-range: normal, 0 480px;
+      }
+      .hero .mode-toggle { animation-delay: 0.06s, 0s; }
+      .hero h1 { animation-delay: 0.14s, 0s; }
+      .hero .subtitle { animation-delay: 0.2s, 0s; }
+      .hero .prompt-hint { animation-delay: 0.3s, 0s; }
     }
 
     /* Mobile: the columns stack, so the featured card sits inside the
@@ -2857,10 +2886,16 @@ body[data-mode="adventure"] .mode-thumb { transform: translateX(100%); }
   to { opacity: 0.45; transform: translateY(28px) scale(0.985); }
 }
 
-/* Same recede motion, no fade — for containers whose content must stay
-   legible for as long as it's on screen (mobile .hero-left / prompt box). */
+/* Same recede motion, no fade — for containers holding the prompt box,
+   which must stay legible for as long as it's on screen. */
 @keyframes heroRecedeSolid {
   to { transform: translateY(28px) scale(0.985); }
+}
+
+/* The softening half of heroRecede, applied per-piece around the prompt
+   box while heroRecedeSolid moves the container. */
+@keyframes heroFadeOnly {
+  to { opacity: 0.45; }
 }
 
 /* ---------- View Transition: mode switching ----------
