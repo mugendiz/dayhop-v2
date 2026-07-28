@@ -149,6 +149,13 @@
         <span class="btn-label">✨ Plan my day</span>
         <span class="btn-spinner" aria-hidden="true"></span>
       </button>
+      <!-- No prompt in mind? One tap builds a mode + location surprise feed.
+           Hidden while the textarea has text; type="button" is load-bearing
+           (anything else inside the form submits and trips `required`). -->
+      <button type="button" class="ghost-btn prompt-surprise-btn" id="prompt-surprise-btn">
+        <span class="btn-label">🎲 Surprise me</span>
+        <span class="btn-spinner" aria-hidden="true"></span>
+      </button>
     </form>
     <p class="prompt-hint" id="prompt-error" role="alert" aria-live="polite"></p>
     <!-- Free-tier meter: "N of 3 free plans left today" — JS fills & shows. -->
@@ -232,6 +239,16 @@
       <h3>Nothing in this filter</h3>
       <p>No ideas match that category in your current set. Try another filter, or clear it to see everything again.</p>
       <button class="ghost-btn" id="reset-filter-btn" type="button">Show all ideas</button>
+    </div>
+
+    <!-- Bottom-of-feed "Next": appends unrelated-but-awesome picks (wider
+         radius included) from /api/surprise. Shown whenever the feed has
+         cards; hidden once the well runs dry. -->
+    <div class="feed-next" id="feed-next" hidden>
+      <button class="ghost-btn feed-next-btn" id="feed-next-btn" type="button">
+        <span class="btn-label">Next — more awesome stuff →</span>
+        <span class="btn-spinner" aria-hidden="true"></span>
+      </button>
     </div>
   </section>
 

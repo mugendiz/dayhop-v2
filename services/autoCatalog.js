@@ -167,6 +167,12 @@ function buildEntry(item, place) {
     if (place.rating != null) { entry.rating = place.rating; entry.rating_count = place.rating_count; }
     if (place.image_url) entry.image_url = place.image_url;
   }
+  // The scan already paid for the social-buzz score (news/Reddit/YouTube) —
+  // keep it, so the surprise feed's "Social gleanings" shelf can rank by it
+  // without ever running buzz at request time.
+  if (item.buzz && Number.isFinite(Number(item.buzz.score))) {
+    entry.buzz_score = Math.round(Number(item.buzz.score));
+  }
   // Auto-adds come from opening-flavored headlines ≤45 days old — today is a
   // fair opened_at, and it powers the "Just opened" shelf + freshness decay.
   entry.opened_at = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto' }).format(new Date());

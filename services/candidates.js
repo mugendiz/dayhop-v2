@@ -138,7 +138,12 @@ function qualityGate(scored) {
   return [...strict, ...rest];
 }
 
-async function gatherCandidates(prompt, locationText, eventKeyword, filter, userCoords, mode, dateWindow = null) {
+// opts (all optional, used by the surprise feed's "Next" pages):
+//   radiusKm      — override the Places search radius (wider-net sweeps)
+//   excludeIds    — Set of candidate ids already shown to this user
+//   excludeTitles — Set of normTitle'd titles already shown (catches the
+//                   same venue arriving under a different source's id)
+async function gatherCandidates(prompt, locationText, eventKeyword, filter, userCoords, mode, dateWindow = null, opts = {}) {
   let geo = null;
   let weather = null;
   // With shared coordinates the locality comes from reverse geocoding and
@@ -235,7 +240,7 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   const sources = [
     {
       name: 'google_places',
-      run: () => geo ? searchPlacesWithThemes(prompt, themeQueries, geo, Boolean(userCoords)) : []
+      run: () => geo ? searchPlacesWithThemes(prompt, themeQueries, geo, Boolean(userCoords), opts.radiusKm ? opts.radiusKm * 1000 : null) : []
     },
     {
       name: 'viator',
@@ -361,6 +366,16 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
       return !closed;
     });
 
+  // "Next" pages: everything already on the user's screen is excluded
+  // BEFORE scoring, so the pool cap fills entirely with fresh material.
+  // Titles are matched normalized — the same venue often returns under a
+  // different id from a different source on the wider sweep.
+  if (opts.excludeIds || opts.excludeTitles) {
+    pool = pool.filter(c =>
+      !(opts.excludeIds && opts.excludeIds.has(String(c.id))) &&
+      !(opts.excludeTitles && opts.excludeTitles.has(normTitle(c.title))));
+  }
+
   for (const c of pool) c.description = cleanDescription(c.description);
 
   // A dated event in the past is never a valid recommendation, whatever the
@@ -428,6 +443,11 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   };
 }
 
+// Shared normalization for title-based exclusion (same shape as dedupKey's).
+function normTitle(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
 // Coordinates from the browser (already rounded client-side). Anything
 // malformed is silently ignored — the request proceeds city-based.
 function sanitizeCoords(coords) {
@@ -447,13 +467,13 @@ function sanitizeCoords(coords) {
 // City picks get a 20 km radius: a GTA borough centroid + 15 km cut off
 // its neighbours (North York couldn't see east Scarborough), and the
 // deeper maxResults cost nothing extra — same request, bigger page.
-async function searchPlacesWithThemes(prompt, themeQueries, geo, hyperLocal = false) {
-  const radiusMeters = hyperLocal ? 5000 : 20000;
+async function searchPlacesWithThemes(prompt, themeQueries, geo, hyperLocal = false, radiusOverride = null) {
+  const radiusMeters = radiusOverride || (hyperLocal ? 5000 : 20000);
   const searches = [
     maps.searchPlaces({ query: prompt, lat: geo.lat, lng: geo.lng, radiusMeters, maxResults: 16 })
       .then(places => places.map(p => Object.assign({}, p, { source: 'google_places', id: p.place_id })))
   ];
-  if (hyperLocal) {
+  if (hyperLocal && !(radiusOverride >= 20000)) {
     searches.push(
       maps.searchPlaces({ query: prompt, lat: geo.lat, lng: geo.lng, radiusMeters: 20000, maxResults: 10 })
         .then(places => places.map(p => Object.assign({}, p, { source: 'google_places', id: p.place_id })))
@@ -528,7 +548,11 @@ function catalogCandidates(prompt, themes, limit, regionOpts) {
     maps_url: e.maps_url,
     rating: null,
     wow: e.wow === true,
-    newly_opened: isNewlyOpened(e)
+    newly_opened: isNewlyOpened(e),
+    // Discovery-autopilot provenance (routes/surprise.js groups on these):
+    // auto = published by the engine; buzz_score = social buzz at publish.
+    auto: e.auto === true,
+    buzz_score: e.buzz_score != null ? e.buzz_score : null
   }));
 
   const ranked = relevance.selectTop(

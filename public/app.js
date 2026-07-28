@@ -226,6 +226,9 @@
     locationLabel: null, // e.g. "Richmond Hill · L4C"
     locationChosen: false, // user must explicitly pick a location before searching
     browseMode: false,   // feed is showing the instant discovery feed, not prompt results
+    surpriseMode: false, // browse-shaped feed came from "Surprise me" (affects header copy)
+    isLoadingMore: false, // a "Next" page is in flight (never blanks the live feed)
+    nextExhausted: false, // the surprise well ran dry — hide the Next button
     visited: {},         // "been there" quest marks: placeKey → ISO timestamp
     // "Date aware" picker (optional — see prompt-date section): null/null
     // means "any day", DayHop's implicit default. Toronto-local YYYY-MM-DD.
@@ -449,6 +452,9 @@
         // spend one. The user sees the words, tweaks them, submits when ready.
         const ta = document.getElementById('grok-prompt');
         ta.value = ex.prompt;
+        // Programmatic fills don't fire 'input' — nudge the listeners that
+        // key off it (the Surprise-me button hides while text is present).
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
         ta.focus();
         ta.setSelectionRange(ta.value.length, ta.value.length);
       });
@@ -1092,6 +1098,36 @@
     return data; // { ideas, grounded, weather, generated_at }
   }
 
+  // The "Surprise me" / "Next" feed: promptless, mode + location driven.
+  // `exclude` carries everything already on screen; `wider: true` opens the
+  // search radius for the unrelated-but-awesome pages.
+  async function apiSurprise({ exclude, wider } = {}) {
+    const coordsFresh = state.coords && Date.now() - state.coordsAt < COORDS_FRESH_MS;
+    const res = await fetch('/api/surprise', {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(Object.assign(
+        {
+          // Same fallback as browse: no chosen location still gets a feed.
+          city: state.locationChosen ? state.city : GTA_WIDE,
+          mode: state.mode,
+          coords: coordsFresh ? state.coords : undefined,
+          owner_id: getOwnerId(),
+          exclude: exclude && exclude.length ? exclude : undefined,
+          wider: wider || undefined
+        },
+        getDatePayload()
+      ))
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) {
+      const err = new Error((data && data.message) || 'Could not pull a surprise together');
+      err.code = data && data.error;
+      throw err;
+    }
+    return data; // { ideas, weather, advisories, city, near, exhausted, generated_at }
+  }
+
   async function apiBuildPlan(items, days) {
     // Auth headers matter here: multi-day is gated on the caller's tier.
     const res = await fetch('/api/generate/plan', {
@@ -1316,9 +1352,11 @@
     // Prompt results open with the Best Match hero: the single strongest
     // direct answer, pulled out of the grid and given real estate + the
     // evidence for why it won. Only when there's a real field to beat.
+    // Sectioned cards ("Next" pages ride in with idea.section) are ignored
+    // here so an append can't retroactively kill the hero.
     let heroIdea = null;
-    if (!state.browseMode && !ideas.some(i => i.section)) {
-      const onTargetAll = ideas.filter(i => !i.wow_reason && !i.more_find);
+    if (!state.browseMode) {
+      const onTargetAll = ideas.filter(i => !i.section && !i.wow_reason && !i.more_find);
       if (onTargetAll.length >= 3) heroIdea = onTargetAll[0];
     }
     if (heroIdea) {
@@ -1341,17 +1379,29 @@
       // Prompt results: the direct answers first (minus the hero, which is
       // already on stage), then the "didn't know you could do that" picks,
       // then the rest of the grounded pool (real places that survived the
-      // quality gate but weren't AI-curated headliners).
-      const onTarget = ideas.filter(i => !i.wow_reason && !i.more_find && (!heroIdea || i.id !== heroIdea.id));
-      const beyond = ideas.filter(i => i.wow_reason && !i.more_find);
-      const more = ideas.filter(i => i.more_find);
-      const showHeaders = (onTarget.length > 0 && beyond.length > 0) || more.length > 0;
+      // quality gate but weren't AI-curated headliners). Cards carrying a
+      // server section arrived via "Next" — they get their own labeled
+      // shelves after the prompt sections, in encounter order.
+      const unsectioned = ideas.filter(i => !i.section);
+      const onTarget = unsectioned.filter(i => !i.wow_reason && !i.more_find && (!heroIdea || i.id !== heroIdea.id));
+      const beyond = unsectioned.filter(i => i.wow_reason && !i.more_find);
+      const more = unsectioned.filter(i => i.more_find);
+      const appended = ideas.filter(i => i.section);
+      const showHeaders = (onTarget.length > 0 && beyond.length > 0) || more.length > 0 || appended.length > 0;
       // Runner-up crown: with the hero extracted, badge the next-best pick
       // only when the remaining field is big enough for it to mean something.
       const bestIds = new Set(onTarget.length >= 4 ? [onTarget[0].id] : []);
       appendSection(heroIdea ? 'Also right on target' : 'Right on target', onTarget, showHeaders, bestIds);
       appendSection('Beyond what you asked ✨', beyond, showHeaders);
       appendSection('More great finds nearby', more, showHeaders);
+      const order = [];
+      const groups = new Map();
+      appended.forEach(idea => {
+        const label = idea.section;
+        if (!groups.has(label)) { groups.set(label, []); order.push(label); }
+        groups.get(label).push(idea);
+      });
+      order.forEach(label => appendSection(label, groups.get(label), true));
     }
 
     updateFeedChrome();
@@ -1372,6 +1422,12 @@
     document.getElementById('idea-count').textContent = !hasIdeas
       ? 'Tell DayHop your plan to get started'
       : `${ideas.length} idea${ideas.length === 1 ? '' : 's'} · ${state.shortlist.length} on your shortlist`;
+
+    // "Next" lives under every non-empty feed (browse, prompt, surprise) —
+    // it always means "more unrelated-but-awesome, wider out" — until the
+    // surprise well runs dry for this feed.
+    const feedNext = document.getElementById('feed-next');
+    if (feedNext) feedNext.hidden = !hasIdeas || state.isGenerating || state.nextExhausted;
 
     renderCollections();
   }
@@ -3005,6 +3061,8 @@
   function applyBrowsePayload(data) {
     state.allIdeas = data.ideas || [];
     state.browseMode = true;
+    state.surpriseMode = false;
+    state.nextExhausted = false;
     state.dismissedIds = new Set();
     state.lastPrompt = '';
     state.lastWeather = data.weather || null;
@@ -3521,6 +3579,8 @@
       progress.finish();
       state.allIdeas = data.ideas || [];
       state.browseMode = false;
+      state.surpriseMode = false;
+      state.nextExhausted = false;
       state.dismissedIds = new Set();
       state.lastPrompt = prompt;
       state.lastWeather = data.weather || null;
@@ -3545,6 +3605,97 @@
       }
     } finally {
       setLoading(false);
+    }
+  }
+
+  // ---------- Surprise me / Next ----------
+  // "Surprise me": a full promptless feed from mode + location alone.
+  // Rides the browse render path (server-assigned sections), so the feed
+  // shows Social gleanings / Top local locations / Curated by the
+  // discovery engine without any new rendering machinery.
+  async function handleSurprise() {
+    if (state.isGenerating || state.isLoadingMore) return;
+    document.getElementById('prompt-error').textContent = '';
+    // A surprise wins over an in-flight browse fetch, same as a prompt.
+    if (browseAbort) { browseAbort.abort(); browseAbort = null; }
+
+    setLoading(true);
+    const btn = document.getElementById('prompt-surprise-btn');
+    btn.classList.add('is-loading');
+    btn.disabled = true;
+    const progress = startProgress('browse');
+    const loader = document.querySelector('.progress-loader');
+    if (loader) loader.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+    let applied = false;
+    try {
+      const data = await apiSurprise();
+      progress.finish();
+      if ((data.ideas || []).length) {
+        applyBrowsePayload(data);
+        state.surpriseMode = true;
+        state.nextExhausted = data.exhausted === true;
+        renderResultsHeader();
+        updateFeedChrome();
+        applied = true;
+        document.getElementById('results-header').scrollIntoView({ behavior: 'auto', block: 'start' });
+      } else {
+        // Never wipe a live feed for an empty surprise.
+        showToast(`No surprises left around ${state.locationChosen ? state.city : 'the GTA'} — try the other mode or another spot.`, { duration: 3500 });
+      }
+    } catch (err) {
+      progress.fail();
+      showToast(err.message || 'Could not pull a surprise together right now.', { duration: 3500 });
+    } finally {
+      btn.classList.remove('is-loading');
+      btn.disabled = false;
+      setLoading(false);
+      // setLoading(true) painted skeletons — on failure/empty, repaint
+      // whatever feed was there before (success already rendered).
+      if (!applied) renderFeed();
+    }
+  }
+
+  // "Next": append more unrelated-but-awesome picks — wider radius included —
+  // under whatever feed is showing. Everything on screen goes into the
+  // exclude list (ids AND titles), so pages never repeat.
+  async function handleNext() {
+    if (state.isLoadingMore || state.isGenerating) return;
+    state.isLoadingMore = true;
+    const btn = document.getElementById('feed-next-btn');
+    btn.classList.add('is-loading');
+    btn.disabled = true;
+    try {
+      // Most-recent-first: when trimming to the cap, keep what's on screen
+      // NOW over what was excluded pages ago.
+      const seen = [];
+      for (let i = state.allIdeas.length - 1; i >= 0; i--) {
+        const idea = state.allIdeas[i];
+        if (idea.id != null) seen.push(String(idea.id));
+        if (idea.title) seen.push(idea.title);
+      }
+      state.dismissedIds.forEach(id => seen.push(String(id)));
+      state.shortlist.forEach(s => { if (s.id != null) seen.push(String(s.id)); if (s.title) seen.push(s.title); });
+
+      const data = await apiSurprise({ exclude: seen.slice(0, 200), wider: true });
+      const fresh = data.ideas || [];
+      if (fresh.length) {
+        state.allIdeas = state.allIdeas.concat(fresh);
+        renderFeed(false);
+        const headers = document.querySelectorAll('#discovery-feed .feed-section-header');
+        const firstNew = [...headers].find(h => h.textContent === fresh[0].section);
+        if (firstNew) firstNew.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+      }
+      if (data.exhausted === true) {
+        state.nextExhausted = true;
+        if (!fresh.length) showToast("That's everything awesome we could find 🎉", { duration: 3500 });
+      }
+    } catch (err) {
+      showToast(err.message || 'Could not load more right now.', { duration: 3500 });
+    } finally {
+      state.isLoadingMore = false;
+      btn.classList.remove('is-loading');
+      btn.disabled = false;
+      updateFeedChrome();
     }
   }
 
@@ -3890,10 +4041,14 @@
     }
     const where = state.coords && state.locationLabel ? `near ${state.locationLabel}` : state.city;
     if (state.browseMode) {
-      document.getElementById('results-headline').textContent = state.coords && state.locationLabel
-        ? 'Happening near you 📍'
-        : `Exploring ${(!state.locationChosen || state.city === GTA_WIDE) ? 'the GTA' : state.city}`;
-      const bits = [`${state.allIdeas.length} ideas to browse`, 'Describe your day for a tailored set'];
+      document.getElementById('results-headline').textContent = state.surpriseMode
+        ? 'A little of everything ✨'
+        : (state.coords && state.locationLabel
+          ? 'Happening near you 📍'
+          : `Exploring ${(!state.locationChosen || state.city === GTA_WIDE) ? 'the GTA' : state.city}`);
+      const bits = state.surpriseMode
+        ? [`Surprise picks for ${state.coords && state.locationLabel ? state.locationLabel : ((!state.locationChosen || state.city === GTA_WIDE) ? 'the GTA' : state.city)}`, 'Hit Next below for more']
+        : [`${state.allIdeas.length} ideas to browse`, 'Describe your day for a tailored set'];
       if (state.lastWeather) {
         bits.splice(1, 0, `${state.lastWeather.temp_c}°C, ${state.lastWeather.description}`);
       }
@@ -4347,6 +4502,20 @@
 
     document.getElementById('prompt-form').addEventListener('submit', handleGenerate);
     document.getElementById('go-pro-btn').addEventListener('click', startUpgrade);
+
+    // Surprise me: promptless discovery for the "I don't know, dazzle me"
+    // visitor. Only offered while the textarea is empty — the moment they
+    // start describing a day, the primary flow takes over.
+    const surpriseBtn = document.getElementById('prompt-surprise-btn');
+    const promptArea = document.getElementById('grok-prompt');
+    surpriseBtn.addEventListener('click', handleSurprise);
+    const syncSurpriseVisibility = () => { surpriseBtn.hidden = promptArea.value.trim().length > 0; };
+    promptArea.addEventListener('input', syncSurpriseVisibility);
+    syncSurpriseVisibility();
+
+    // Next: append more unrelated-but-awesome (and wider-out) picks below
+    // whatever feed is showing.
+    document.getElementById('feed-next-btn').addEventListener('click', handleNext);
 
     // Mode toggle (R&R / Adventure): tap or swipe, then paint the
     // mode-flavored chrome — accent, hint, placeholder, example prompts,

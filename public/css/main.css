@@ -1350,6 +1350,44 @@ button, .filter-chip {
 .ghost-btn:hover { background: var(--paper-dim); }
 .ghost-btn:active { transform: scale(0.97); }
 
+/* "Surprise me" — the promptless path, tucked under the primary CTA inside
+   the prompt box (the flex gap spaces it; kill the shared ghost margin).
+   Hidden by JS the moment the textarea has text. */
+.prompt-surprise-btn {
+  position: relative;
+  align-self: flex-end;
+  margin-top: 0;
+}
+
+/* Bottom-of-feed "Next" — centered row after the last card. */
+.feed-next {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+}
+.feed-next-btn {
+  position: relative;
+  margin-top: 0;
+  padding: 12px 26px;
+  font-size: 14.5px;
+}
+
+/* Ghost-button flavor of the primary CTA's loading spinner. */
+.prompt-surprise-btn.is-loading .btn-label,
+.feed-next-btn.is-loading .btn-label { visibility: hidden; }
+.prompt-surprise-btn.is-loading .btn-spinner,
+.feed-next-btn.is-loading .btn-spinner {
+  display: block;
+  position: absolute;
+  width: 16px; height: 16px;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  top: calc(50% - 8px);
+  left: calc(50% - 8px);
+}
+
 /* ---------- Floating shortlist button ---------- */
 /* Bottom-right = the thumb's home on mobile and the natural end of every
    scroll gesture: the bridge from browsing to building lives exactly there.

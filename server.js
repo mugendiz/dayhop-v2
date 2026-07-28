@@ -71,6 +71,18 @@ const browseLimiter = rateLimit({
 });
 app.use('/api/browse', browseLimiter, require('./routes/browse'));
 
+// "Surprise me" / "Next" feed: no LLM, but never cached (per-user exclude
+// lists) — every call fans out to partner APIs, so keep the ceiling tight
+// enough that Next spam-clicks can't run unbounded.
+const surpriseLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'RATE_LIMITED', message: 'Slow down a little — try again in a moment.' }
+});
+app.use('/api/surprise', surpriseLimiter, require('./routes/surprise'));
+
 // Detail enrichment: one Grok + one Places call per uncached place — cached
 // 24h server-side, but still worth a ceiling against click-spamming Details.
 const detailsLimiter = rateLimit({
