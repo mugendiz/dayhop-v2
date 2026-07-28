@@ -145,17 +145,20 @@
         maxlength="600"
         placeholder="3 unhurried hours near the water — a quiet garden, a scenic lookout, and somewhere relaxed to eat after."
         required></textarea>
-      <button type="submit" class="primary-btn" id="generate-btn">
-        <span class="btn-label">✨ Plan my day</span>
-        <span class="btn-spinner" aria-hidden="true"></span>
-      </button>
-      <!-- No prompt in mind? One tap builds a mode + location surprise feed.
-           Hidden while the textarea has text; type="button" is load-bearing
-           (anything else inside the form submits and trips `required`). -->
-      <button type="button" class="ghost-btn prompt-surprise-btn" id="prompt-surprise-btn">
-        <span class="btn-label">🎲 Surprise me</span>
-        <span class="btn-spinner" aria-hidden="true"></span>
-      </button>
+      <!-- One action row, right-aligned: Surprise me (promptless path,
+           hidden while the textarea has text) beside the primary CTA.
+           type="button" is load-bearing on Surprise — anything else inside
+           the form submits and trips the textarea's `required`. -->
+      <div class="prompt-actions">
+        <button type="button" class="ghost-btn prompt-surprise-btn" id="prompt-surprise-btn">
+          <span class="btn-label">🎲 Surprise me</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
+        </button>
+        <button type="submit" class="primary-btn" id="generate-btn">
+          <span class="btn-label">✨ Plan my day</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
+        </button>
+      </div>
     </form>
     <p class="prompt-hint" id="prompt-error" role="alert" aria-live="polite"></p>
     <!-- Free-tier meter: "N of 3 free plans left today" — JS fills & shows. -->

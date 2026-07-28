@@ -1350,13 +1350,27 @@ button, .filter-chip {
 .ghost-btn:hover { background: var(--paper-dim); }
 .ghost-btn:active { transform: scale(0.97); }
 
-/* "Surprise me" — the promptless path, tucked under the primary CTA inside
-   the prompt box (the flex gap spaces it; kill the shared ghost margin).
-   Hidden by JS the moment the textarea has text. */
+/* Prompt-box action row: Surprise me to the left of the primary CTA, both
+   hugging the box's bottom-right corner. Equal heights via stretch. */
+.prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.prompt-actions .primary-btn { align-self: auto; }
+
+/* "Surprise me" — the promptless path. Ghost look, but sized exactly like
+   the in-box primary CTA (see `.prompt-box .primary-btn`) so the pair reads
+   as one control. Hidden by JS the moment the textarea has text. */
 .prompt-surprise-btn {
   position: relative;
-  align-self: flex-end;
   margin-top: 0;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: var(--radius-btn);
 }
 
 /* Bottom-of-feed "Next" — centered row after the last card. */
