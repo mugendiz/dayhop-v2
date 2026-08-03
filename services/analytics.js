@@ -137,6 +137,17 @@ async function countToday(type, ownerKey) {
 
 // ---------- metrics (admin dashboard) ----------
 
+// Sources whose booking links are affiliate-tagged (commission-bearing).
+// Rate: Viator's standard affiliate commission is ~8% of the booking value;
+// override with AFFILIATE_COMMISSION_RATE (e.g. 0.06) if your program tier
+// differs. "Potential" = if every tracked click had booked — an upper bound
+// for gut-checking, not a revenue forecast.
+const AFFILIATE_SOURCES = new Set(['viator', 'getyourguide']);
+const COMMISSION_RATE = (() => {
+  const r = Number(process.env.AFFILIATE_COMMISSION_RATE);
+  return Number.isFinite(r) && r > 0 && r < 1 ? r : 0.08;
+})();
+
 function aggregate(events) {
   const totals = {};
   const daily = new Map(); // day -> { day, counts per type, owners:Set }
@@ -144,6 +155,11 @@ function aggregate(events) {
   const cities = new Map();       // meta.city on prompts + browse feeds
   const modeSplit = new Map();    // meta.mode on prompts + browse feeds
   const clickSources = new Map(); // source on booking clicks (viator/gyg/…)
+  // Per affiliate source: clicks, clicks with a known price, basket sum by
+  // currency (Viator prices are USD; never silently mix currencies).
+  const affiliate = new Map();
+  const since30d = Date.now() - 30 * 24 * 3600 * 1000;
+  let affiliateClicks30d = 0;
   for (const e of events) {
     totals[e.type] = (totals[e.type] || 0) + 1;
     const meta = e.meta && typeof e.meta === 'object' ? e.meta : {};
@@ -154,6 +170,18 @@ function aggregate(events) {
     if (e.type === 'booking_click') {
       const src = e.source || 'unknown';
       clickSources.set(src, (clickSources.get(src) || 0) + 1);
+      if (AFFILIATE_SOURCES.has(String(src).toLowerCase())) {
+        if (!affiliate.has(src)) affiliate.set(src, { source: src, clicks: 0, priced_clicks: 0, basket: new Map() });
+        const a = affiliate.get(src);
+        a.clicks++;
+        if (Date.parse(e.created_at) >= since30d) affiliateClicks30d++;
+        const price = Number(meta.price);
+        if (Number.isFinite(price) && price > 0) {
+          a.priced_clicks++;
+          const cur = meta.currency || 'USD';
+          a.basket.set(cur, (a.basket.get(cur) || 0) + price);
+        }
+      }
     }
     const day = torontoDay(e.created_at);
     if (!daily.has(day)) daily.set(day, { day, prompts: 0, browses: 0, shortlist_adds: 0, booking_clicks: 0, plans_built: 0, owners: new Set() });
@@ -191,7 +219,30 @@ function aggregate(events) {
   const clicks = (totals.booking_click || 0) + (totals.maps_click || 0);
   const upgradeViews = totals.upgrade_viewed || 0;
   const upgradeStarts = totals.upgrade_started || 0;
+
+  // Affiliate rollup: per-source rows plus a headline. Basket/commission
+  // stay per-currency (round to cents; float sums drift).
+  const affiliateSources = [...affiliate.values()].map(a => ({
+    source: a.source,
+    clicks: a.clicks,
+    priced_clicks: a.priced_clicks,
+    basket: [...a.basket.entries()].map(([currency, sum]) => ({
+      currency,
+      sum: Math.round(sum * 100) / 100,
+      potential_commission: Math.round(sum * COMMISSION_RATE * 100) / 100
+    }))
+  })).sort((a, b) => b.clicks - a.clicks);
+
   return {
+    affiliate: {
+      commission_rate: COMMISSION_RATE,
+      // Untagged links earn nothing — surface the misconfiguration where
+      // the money is counted, not just in a startup log line.
+      pid_configured: Boolean(process.env.VIATOR_AFFILIATE_PID),
+      clicks: affiliateSources.reduce((n, a) => n + a.clicks, 0),
+      clicks_30d: affiliateClicks30d,
+      sources: affiliateSources
+    },
     totals: {
       prompts,
       browses: totals.browse_feed || 0,

@@ -189,6 +189,7 @@ function mergeWithCandidates(selectedIdeas, candidates) {
       return Object.assign({}, idea, {
         booking_url: original.booking_url || null,
         maps_url: original.maps_url || null,
+        website: original.website || null,
         rating: original.rating != null ? original.rating : null,
         price_from: original.price_from != null ? original.price_from : null,
         currency: original.currency || null,
@@ -273,7 +274,7 @@ router.post('/plan', async (req, res) => {
 const REPLAN_IDEA_FIELDS = [
   'id', 'title', 'why', 'category', 'location', 'venue', 'date',
   'good_for_ages', 'duration_minutes', 'cost_tier', 'price_from', 'currency',
-  'rating', 'image_url', 'booking_url', 'maps_url', 'source', 'distance_km'
+  'rating', 'image_url', 'booking_url', 'maps_url', 'website', 'source', 'distance_km'
 ];
 
 router.post('/replan', async (req, res) => {

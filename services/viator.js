@@ -83,10 +83,21 @@ async function searchActivities({ destinationId, topX = 8, tags = [] }) {
   return products.map(normalizeProduct);
 }
 
+let warnedNoPid = false;
 function normalizeProduct(p) {
-  const partnerCampaignValue = process.env.VIATOR_AFFILIATE_PID || '';
+  // Affiliate tagging only works with a real PID — an empty pid= param
+  // just looks broken and books commission to nobody. Without one the
+  // product URL still goes out (a direct product page always beats a
+  // search feed), it simply isn't tagged.
+  const pid = process.env.VIATOR_AFFILIATE_PID || '';
+  if (!pid && !warnedNoPid) {
+    warnedNoPid = true;
+    console.warn('[viator] VIATOR_AFFILIATE_PID is not set — booking links earn no commission.');
+  }
   const bookingUrl = p.productUrl
-    ? `${p.productUrl}${p.productUrl.includes('?') ? '&' : '?'}pid=${partnerCampaignValue}&mcid=42383`
+    ? (pid
+      ? `${p.productUrl}${p.productUrl.includes('?') ? '&' : '?'}pid=${pid}&mcid=42383`
+      : p.productUrl)
     : null;
 
   return {

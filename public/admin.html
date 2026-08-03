@@ -133,6 +133,14 @@
       </div>
     </div>
 
+    <div class="card" id="affiliate-card">
+      <h2>Affiliate revenue 💸</h2>
+      <p class="rate" id="affiliate-warning" style="margin:0 0 10px"></p>
+      <div class="tiles" id="affiliate-tiles"></div>
+      <div class="hbars" id="affiliate-sources" style="margin-top:12px"></div>
+      <p class="rate" id="affiliate-note"></p>
+    </div>
+
     <div class="grid2">
       <div class="card">
         <h2>Top cities</h2>
@@ -363,6 +371,7 @@
     renderFunnel(data.funnel || {});
     renderUpgradeFunnel(data.upgrade_funnel || {});
     renderModeSplit(data.mode_split || []);
+    renderAffiliate(data.affiliate || {});
     renderHBars($('cities'), data.top_cities || [], 'var(--s4)');
     renderHBars($('sources'), data.booking_sources || [], 'var(--s3)');
     renderDailyTable(data.daily || []);
@@ -371,6 +380,44 @@
     $('source').textContent = 'Data source: ' + data.source + ' · billing ' +
       (data.billing && data.billing.configured ? 'configured' : 'not configured') +
       ' · generated ' + data.generated_at;
+  }
+
+  // Affiliate revenue: clicks on commission-bearing partner links (Viator,
+  // GetYourGuide) + an upper-bound commission estimate from tracked prices.
+  function renderAffiliate(a) {
+    const sources = a.sources || [];
+    const money = (sum, cur) => '$' + Number(sum).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + cur;
+    const basketAll = [];
+    const commissionAll = [];
+    let pricedClicks = 0;
+    sources.forEach(s => {
+      pricedClicks += s.priced_clicks || 0;
+      (s.basket || []).forEach(b => {
+        basketAll.push(money(b.sum, b.currency));
+        commissionAll.push(money(b.potential_commission, b.currency));
+      });
+    });
+
+    $('affiliate-warning').innerHTML = a.pid_configured === false
+      ? '⚠️ <strong>VIATOR_AFFILIATE_PID is not set</strong> — partner links are going out untagged, so these clicks earn no commission. Add it to .env (and Render) to start collecting.'
+      : '';
+
+    const tiles = [
+      ['Affiliate clicks', fmt(a.clicks || 0)],
+      ['Last 30 days', fmt(a.clicks_30d || 0)],
+      ['Tracked basket', basketAll.length ? basketAll.join(' + ') : '—'],
+      ['Potential commission', commissionAll.length ? commissionAll.join(' + ') : '—']
+    ];
+    $('affiliate-tiles').innerHTML = tiles.map(([l, v]) =>
+      '<div class="tile"><div class="v">' + v + '</div><div class="l">' + esc(l) + '</div></div>').join('');
+
+    renderHBars($('affiliate-sources'), sources.map(s => ({ name: s.source, count: s.clicks })), 'var(--s2)');
+
+    $('affiliate-note').textContent = (a.clicks || 0) === 0
+      ? 'No affiliate-link clicks yet. Clicks on Viator / GetYourGuide product links land here automatically.'
+      : 'Potential = if every tracked click had booked, at ' + Math.round((a.commission_rate || 0.08) * 100) + '% commission. ' +
+        'Prices known for ' + fmt(pricedClicks) + ' of ' + fmt(a.clicks || 0) + ' clicks (older clicks predate price tracking). ' +
+        'Actual earnings live in the partner dashboards.';
   }
 
   function renderTiles(t, billing) {

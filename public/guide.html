@@ -360,7 +360,8 @@
         (stop.note ? '<p class="stop-note">📝 ' + esc(stop.note) + '</p>' : '') +
         '<div class="stop-facts">' + factsLine(idea) + '</div>' +
         '<div class="stop-links">' +
-          (idea.booking_url ? '<a class="primary" href="' + esc(idea.booking_url) + '" target="_blank" rel="noopener noreferrer sponsored">Book ↗</a>' : '') +
+          (idea.booking_url ? '<a class="primary" href="' + esc(idea.booking_url) + '" target="_blank" rel="noopener noreferrer sponsored">Book ↗</a>' :
+            (idea.website ? '<a class="primary" href="' + esc(idea.website) + '" target="_blank" rel="noopener noreferrer">Site ↗</a>' : '')) +
           '<a href="' + esc(mUrl) + '" target="_blank" rel="noopener noreferrer">Map ↗</a>' +
         '</div>' +
         '<div class="write-lines"><div class="wl"></div><div class="wl"></div></div>' +
@@ -557,6 +558,7 @@
         if (idea.location) md.push('- 📍 ' + idea.location);
         if (stop.note) md.push('- 📝 ' + stop.note);
         if (idea.booking_url) md.push('- [Book](' + idea.booking_url + ')');
+        else if (idea.website) md.push('- [Official website](' + idea.website + ')');
         md.push('- [Map](' + mapsUrl(idea, stop) + ')');
         if (stop.transition_note) md.push('- → ' + stop.transition_note);
         md.push('');

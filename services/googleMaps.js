@@ -62,6 +62,72 @@ async function geocode(locationText) {
 }
 
 /**
+ * Autocomplete a partially-typed location ("niag" → "Niagara Falls, ON,
+ * Canada") via Places Autocomplete (New). Powers the location combobox's
+ * live suggestions; results are area/address predictions the client turns
+ * into the same free-text city strings the rest of the pipeline geocodes.
+ *
+ * Biased (not restricted) around lat/lng when provided, so "spri" near
+ * Toronto surfaces Springwater ON before Springfield IL — the industry
+ * pattern that replaces making users pick a country first.
+ *
+ * Short TTL, small cache: predictions are keystroke-shaped and only need
+ * to absorb same-prefix retypes and multi-user hot spots, not persist.
+ */
+const autoCache = new Map(); // input|grid -> { promise, expires }
+const AUTO_TTL_MS = 5 * 60 * 1000;
+const AUTO_CACHE_MAX = 300;
+
+async function autocompletePlaces({ input, lat, lng }) {
+  assertConfigured();
+  const grid = (lat != null && lng != null)
+    ? `${Number(lat).toFixed(1)},${Number(lng).toFixed(1)}` : 'none';
+  const key = `${String(input).trim().toLowerCase()}|${grid}`;
+  const cached = autoCache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.promise;
+
+  const body = {
+    input: String(input).slice(0, 120),
+    // Geography only — cities, neighbourhoods, postal codes — never
+    // businesses ("Lisbon Paving Co." must not answer "where?"). Street
+    // addresses fall to the combobox's free-text search row instead.
+    includedPrimaryTypes: ['(regions)']
+  };
+  if (lat != null && lng != null) {
+    body.locationBias = {
+      circle: { center: { latitude: lat, longitude: lng }, radius: 50000 }
+    };
+  }
+
+  const promise = axios.post(`${PLACES_BASE}/places:autocomplete`, body, {
+    timeout: 8000,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY
+    }
+  }).then(res => {
+    const suggestions = res.data?.suggestions || [];
+    return suggestions
+      .map(s => s.placePrediction)
+      .filter(Boolean)
+      .map(p => ({
+        place_id: p.placeId || null,
+        text: p.text?.text || '',
+        main: p.structuredFormat?.mainText?.text || p.text?.text || '',
+        secondary: p.structuredFormat?.secondaryText?.text || ''
+      }))
+      .filter(p => p.text);
+  }).catch(err => {
+    autoCache.delete(key); // a failed fill must not stick for the TTL
+    throw err;
+  });
+
+  if (autoCache.size >= AUTO_CACHE_MAX) autoCache.delete(autoCache.keys().next().value);
+  autoCache.set(key, { promise, expires: Date.now() + AUTO_TTL_MS });
+  return promise;
+}
+
+/**
  * Text-search Google Places (New API) for venues matching a query,
  * biased around a lat/lng. Returns a normalized, lightweight shape —
  * we deliberately don't pass the full Google payload downstream.
@@ -123,6 +189,7 @@ async function fetchPlaces({ query, lat, lng, radiusMeters, maxResults }) {
         'places.priceLevel',
         'places.types',
         'places.googleMapsUri',
+        'places.websiteUri',
         'places.photos',
         'places.businessStatus',
         'places.regularOpeningHours.weekdayDescriptions'
@@ -169,6 +236,9 @@ function normalizePlace(p) {
     cost_tier: PRICE_LEVEL_TO_TIER[p.priceLevel] || null,
     types,
     maps_url: p.googleMapsUri || null,
+    // The venue's own site (Google's listing link) — the booking fallback
+    // when no direct partner product link exists.
+    website: p.websiteUri || null,
     // OPERATIONAL | CLOSED_TEMPORARILY | CLOSED_PERMANENTLY — the candidate
     // pipeline drops non-operational places so we never recommend one.
     business_status: p.businessStatus || null,
@@ -344,4 +414,4 @@ async function getPhotoUri(photoName, { maxWidthPx = 800 } = {}) {
   return uri;
 }
 
-module.exports = { geocode, searchPlaces, getPlaceDetails, getPhotoUri, findPhotoUrl, reverseGeocode };
+module.exports = { geocode, searchPlaces, getPlaceDetails, getPhotoUri, findPhotoUrl, reverseGeocode, autocompletePlaces };

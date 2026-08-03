@@ -38,8 +38,8 @@ const EXCLUDE_MAX = 200;
 // googleMaps' query-keyed cache warm, so repeat presses are cheap.
 const SURPRISE_PROMPTS = {
   rr: [
-    'hidden gems, surprising beautiful places, buzzworthy new openings, scenic lookouts, unusual gardens and calm one-of-a-kind spots locals love',
-    'secret gardens, quiet scenic viewpoints, remarkable new openings, peaceful waterfronts, charming cafés and under-the-radar calm places locals recommend'
+    'hidden gems, surprising beautiful places, buzzworthy new openings, scenic lookouts, unusual gardens, acclaimed restaurants and Michelin-recognized dining, and calm one-of-a-kind spots locals love',
+    'secret gardens, quiet scenic viewpoints, remarkable new openings, peaceful waterfronts, charming cafés, celebrated fine dining and viral food spots locals line up for, and under-the-radar calm places locals recommend'
   ],
   adventure: [
     'surprising thrills, unusual adrenaline activities, buzzworthy new attractions, one-of-a-kind adventures and hidden gems locals rave about',
@@ -174,6 +174,19 @@ function buildSurpriseSections(candidates, { mode, near, wider }) {
   top = top.slice().sort((a, b) => (b.rating - a.rating) || ((b.rating_count || 0) - (a.rating_count || 0)));
   take(wider ? 'Worth the drive 🚗' : 'Top local locations 📍', sample(top, SECTION_CAP), SECTION_CAP);
 
+  // 2b) Top tables — R&R only: the city's serious restaurants (the prompt
+  // vocabulary pulls acclaimed / Michelin-recognized / viral dining into
+  // the pool). Rating-count floor stays high so this shelf reads "the
+  // places people talk about", never "a food court that averages well".
+  if (mode !== 'adventure') {
+    const isFood = c => c.category === 'food' ||
+      /restaurant|dining|bistro|brasserie|trattoria|osteria|izakaya|omakase|steakhouse|tasting menu|michelin|chef|eatery|supper club|wine bar|café|cafe|patisserie|bakery|brunch|dessert/i.test(text(c));
+    const tables = pool
+      .filter(c => isFood(c) && c.rating != null && c.rating >= 4.4 && (c.rating_count || 0) >= 100)
+      .slice().sort((a, b) => (b.rating - a.rating) || ((b.rating_count || 0) - (a.rating_count || 0)));
+    take('Top tables 🍽️', sample(tables, SECTION_CAP), SECTION_CAP);
+  }
+
   // 3) Curated by the discovery engine — catalog picks and hidden gems.
   const curated = pool.filter(c =>
     c.source === 'curated_catalog' || c.source === 'curated' || c.wow === true);
@@ -193,6 +206,7 @@ function toFeedIdea(c) {
   return Object.assign(fallbackIdea(c), {
     booking_url: c.booking_url || null,
     maps_url: c.maps_url || null,
+    website: c.website || null,
     rating: c.rating != null ? c.rating : null,
     price_from: c.price_from != null ? c.price_from : null,
     currency: c.currency || null,

@@ -1223,6 +1223,17 @@ button, .filter-chip {
 .location-option--geo .opt-city { color: var(--coral-dark); font-weight: 500; }
 .location-option--search .opt-city { color: var(--ink); font-weight: 500; }
 
+/* Live worldwide predictions: a hairline separates them from the local
+   list; secondary text (region/country) may be long, so it can shrink. */
+.location-option:not(.location-option--remote) + .location-option--remote { border-top: 1px solid var(--line); border-radius: 0; }
+.location-option--remote .opt-city { font-weight: 500; }
+.location-option--remote .opt-region {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 55%;
+}
+
 .card-actions {
   display: flex;
   gap: 8px;

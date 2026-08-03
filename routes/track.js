@@ -15,15 +15,27 @@ const analytics = require('../services/analytics');
 const CLIENT_TYPES = analytics.CLIENT_EVENT_TYPES;
 
 router.post('/', (req, res) => {
-  const { type, idea_id, source, owner_id } = req.body || {};
+  const { type, idea_id, source, owner_id, price, currency } = req.body || {};
   if (!CLIENT_TYPES.has(type)) {
     return res.status(400).json({ error: 'BAD_EVENT', message: 'Unknown event type.' });
+  }
+  // Booking clicks may carry the product price (affiliate commission math
+  // on the admin dashboard). Sanitized hard: number, sane range, 3-letter
+  // currency — everything else is dropped, never rejected.
+  let meta;
+  const p = Number(price);
+  if (type === 'booking_click' && Number.isFinite(p) && p > 0 && p < 100000) {
+    meta = { price: Math.round(p * 100) / 100 };
+    if (typeof currency === 'string' && /^[A-Za-z]{3}$/.test(currency.trim())) {
+      meta.currency = currency.trim().toUpperCase();
+    }
   }
   analytics.recordEvent({
     type,
     ownerKey: (req.user && req.user.id) || owner_id || 'anon',
     ideaId: idea_id,
-    source
+    source,
+    meta
   });
   res.status(204).end();
 });

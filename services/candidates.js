@@ -585,7 +585,7 @@ function interleave(lists) {
 // extra source names so the frontend can badge "+1 source".
 function dedupCandidates(candidates) {
   const FILLABLE = ['description', 'category', 'date', 'datetime', 'venue', 'address', 'lat', 'lng',
-    'price_from', 'currency', 'cost_tier', 'image_url', 'booking_url', 'maps_url', 'rating'];
+    'price_from', 'currency', 'cost_tier', 'image_url', 'booking_url', 'maps_url', 'website', 'rating'];
   const byKey = new Map();
   for (const c of candidates) {
     const key = dedupKey(c);

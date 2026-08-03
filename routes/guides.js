@@ -34,7 +34,7 @@ const MAX_STOPS = 20;
 const IDEA_FIELDS = [
   'id', 'title', 'why', 'wow_reason', 'category', 'location', 'venue', 'date',
   'good_for_ages', 'duration_minutes', 'cost_tier', 'price_from', 'currency',
-  'rating', 'image_url', 'booking_url', 'maps_url', 'source', 'distance_km'
+  'rating', 'image_url', 'booking_url', 'maps_url', 'website', 'source', 'distance_km'
 ];
 
 function sanitizeIdea(raw) {

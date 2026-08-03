@@ -312,6 +312,7 @@ function toBrowseIdea(c) {
   return Object.assign(fallbackIdea(c), {
     booking_url: c.booking_url || null,
     maps_url: c.maps_url || null,
+    website: c.website || null,
     rating: c.rating != null ? c.rating : null,
     price_from: c.price_from != null ? c.price_from : null,
     currency: c.currency || null,

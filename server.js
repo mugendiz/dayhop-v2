@@ -95,7 +95,17 @@ const detailsLimiter = rateLimit({
 app.use('/api/details', detailsLimiter, require('./routes/details'));
 app.use('/api/places', require('./routes/places'));
 app.use('/api/photo', require('./routes/photo'));
-app.use('/api/geo', require('./routes/geo'));
+// Geo lookups: reverse geocode fires once per location share, autocomplete
+// once per (debounced) keystroke — cheap Essentials-tier calls, but typed
+// input deserves a ceiling that absorbs fast typists without inviting abuse.
+const geoLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'RATE_LIMITED', message: 'Slow down a little — try again in a moment.' }
+});
+app.use('/api/geo', geoLimiter, require('./routes/geo'));
 app.use('/api/events', require('./routes/events'));
 app.use('/api/config', require('./routes/config'));
 app.use('/api/adventures', require('./routes/adventures'));

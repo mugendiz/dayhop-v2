@@ -623,7 +623,12 @@
     return list;
   })();
 
-  const combo = { input: null, listbox: null, activeIndex: -1, filtered: [], debounce: null, locating: false };
+  const combo = {
+    input: null, listbox: null, activeIndex: -1, filtered: [], debounce: null, locating: false,
+    // Live worldwide suggestions (server-proxied Places Autocomplete):
+    // remote rows render under the instant local list once they arrive.
+    remote: [], remoteFor: '', remoteLoading: false, remoteDebounce: null, remoteAbort: null
+  };
 
   // What the location input should display for the current state.
   function locationDisplayValue() {
@@ -661,9 +666,62 @@
       ? LOCATION_OPTIONS.filter(o => o.city.toLowerCase().includes(q) || o.region.toLowerCase().includes(q))
       : LOCATION_OPTIONS.slice();
     combo.activeIndex = -1;
+    scheduleRemoteSuggestions(q);
     renderLocationOptions(q);
     combo.listbox.hidden = false;
     combo.input.setAttribute('aria-expanded', 'true');
+  }
+
+  // Fetch worldwide predictions for what's typed, debounced past the local
+  // render so keystrokes stay instant. Results are biased near the user
+  // (shared coords, else their chosen city) — the standard alternative to
+  // making people pick a country first.
+  function scheduleRemoteSuggestions(q) {
+    clearTimeout(combo.remoteDebounce);
+    if (!q || q.length < 2) {
+      combo.remote = [];
+      combo.remoteFor = '';
+      combo.remoteLoading = false;
+      if (combo.remoteAbort) { combo.remoteAbort.abort(); combo.remoteAbort = null; }
+      return;
+    }
+    if (q === combo.remoteFor) return; // already have (or are fetching) these
+    combo.remoteLoading = true;
+    combo.remoteDebounce = setTimeout(async () => {
+      if (combo.remoteAbort) combo.remoteAbort.abort();
+      const ctl = new AbortController();
+      combo.remoteAbort = ctl;
+      combo.remoteFor = q;
+      try {
+        const params = new URLSearchParams({ q });
+        const coordsFresh = state.coords && Date.now() - state.coordsAt < COORDS_FRESH_MS;
+        if (coordsFresh) {
+          params.set('lat', state.coords.lat);
+          params.set('lng', state.coords.lng);
+        } else if (state.locationChosen && state.city && state.city !== GTA_WIDE) {
+          params.set('near', state.city);
+        } else {
+          params.set('near', 'Toronto, ON'); // GTA default bias, never a hard filter
+        }
+        const res = await fetch(`/api/geo/autocomplete?${params}`, { signal: ctl.signal });
+        if (ctl !== combo.remoteAbort) return; // superseded by newer keystrokes
+        const data = res.ok ? await res.json() : { suggestions: [] };
+        // Local rows already cover the GTA — drop remote echoes of them.
+        const localShown = new Set(combo.filtered.map(o => o.city.toLowerCase()));
+        combo.remote = (data.suggestions || []).filter(s => !localShown.has(String(s.main || '').toLowerCase()));
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+        combo.remote = [];
+      } finally {
+        if (ctl === combo.remoteAbort) {
+          combo.remoteLoading = false;
+          combo.remoteAbort = null;
+          // Only repaint if the dropdown is still open on the same query.
+          const now = (combo.input.value || '').trim().toLowerCase();
+          if (!combo.listbox.hidden && now === q) renderLocationOptions(q);
+        }
+      }
+    }, 200);
   }
 
   function renderLocationOptions(q) {
@@ -672,7 +730,7 @@
 
     // Pinned: geolocation on an explicit user gesture (never on page load).
     rows.push(`
-      <li class="location-option location-option--geo" role="option" data-kind="geo">
+      <li id="loc-opt-geo" class="location-option location-option--geo" role="option" data-kind="geo">
         <span class="opt-city">${combo.locating ? '📍 Locating…' : '📍 Use my current location'}</span>
         <span class="opt-region">Ideas around the corner</span>
       </li>`);
@@ -684,11 +742,27 @@
         ${o.region ? `<span class="opt-region">${escapeHtml(o.region)}</span>` : ''}
       </li>`));
 
-    // Anything typed that isn't a GTA option is searchable as free text —
-    // a city anywhere, an address, a zip or postal code.
+    // Live worldwide matches (Places Autocomplete, biased near the user):
+    // any city, address, neighbourhood, or postal code on Earth.
+    if (q && combo.remote.length) {
+      rows.push(...combo.remote.map((s, i) => `
+        <li id="loc-remote-${i}" class="location-option location-option--remote" role="option"
+            data-kind="remote" data-text="${escapeAttr(s.text)}">
+          <span class="opt-city">${highlight(s.main, q)}</span>
+          ${s.secondary ? `<span class="opt-region">${escapeHtml(s.secondary)}</span>` : ''}
+        </li>`));
+    } else if (q && combo.remoteLoading) {
+      rows.push(`
+        <li class="location-option location-option--empty" aria-hidden="true">
+          Searching places…
+        </li>`);
+    }
+
+    // Anything typed is still searchable verbatim as free text — the
+    // always-there fallback if predictions miss or the network hiccups.
     if (q && !combo.filtered.some(o => o.city.toLowerCase() === q)) {
       rows.push(`
-        <li class="location-option location-option--search" role="option" data-kind="search" data-text="${escapeAttr(q)}">
+        <li id="loc-opt-search" class="location-option location-option--search" role="option" data-kind="search" data-text="${escapeAttr(q)}">
           <span class="opt-city">🔎 Search “${escapeHtml(q)}”</span>
           <span class="opt-region">City, address, zip or postal code</span>
         </li>`);
@@ -706,6 +780,7 @@
   function commitLocationOption(li) {
     const kind = li.dataset.kind;
     if (kind === 'geo') { useMyLocation(); return; }
+    if (kind === 'remote') { selectFreeTextLocation(li.dataset.text); return; }
     if (kind === 'search') { selectFreeTextLocation(combo.input.value.trim()); return; }
     selectLocation(li.dataset.city);
   }
@@ -730,10 +805,20 @@
       showToast("Your browser doesn't support location — type a city or postal code instead.");
       return;
     }
+    // Geolocation only exists on HTTPS (or localhost) — surface that as
+    // guidance, not a mysterious failure.
+    if (window.isSecureContext === false) {
+      showToast('Location needs a secure (https) connection — type a city or postal code instead.', { duration: 4500 });
+      return;
+    }
 
     const start = () => {
       combo.locating = true;
+      combo.geoRetried = false;
       renderLocationOptions('');
+      // Fast-first: a coarse cached fix beats a long GPS wait for "ideas
+      // near me". onGeoError retries once with high accuracy if this times
+      // out or the position is momentarily unavailable.
       navigator.geolocation.getCurrentPosition(onGeoSuccess, onGeoError, {
         enableHighAccuracy: false,
         timeout: 8000,
@@ -790,9 +875,21 @@
   }
 
   function onGeoError(err) {
+    const blocked = err && err.code === 1; // PERMISSION_DENIED
+    // Transient miss (timeout / position unavailable): one more try, this
+    // time asking for a fresh high-accuracy fix — the two-stage pattern
+    // that rescues devices whose cached coarse fix has gone stale.
+    if (!blocked && !combo.geoRetried) {
+      combo.geoRetried = true;
+      navigator.geolocation.getCurrentPosition(onGeoSuccess, onGeoError, {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 0
+      });
+      return;
+    }
     combo.locating = false;
     renderLocationOptions('');
-    const blocked = err && err.code === 1; // PERMISSION_DENIED
     showToast(blocked
       ? 'No problem — search a city, address, or postal code instead.'
       : "Couldn't get your location — search a city or postal code instead.", { duration: 4500 });
@@ -1069,6 +1166,10 @@
           type,
           idea_id: idea ? idea.id : undefined,
           source: idea ? idea.source : undefined,
+          // Affiliate clicks carry the product price so the admin dashboard
+          // can estimate commission potential per click.
+          price: idea && idea.price != null ? idea.price : undefined,
+          currency: idea && idea.currency ? idea.currency : undefined,
           owner_id: getOwnerId()
         }),
         keepalive: true // survives the page navigating to a booking site
@@ -1650,43 +1751,43 @@
   }
 
   // ---------- One-click booking links ----------
-  // Partner names stay out of the label — "our partner" reads the same
-  // whether the link goes to Viator, Ticketmaster, or anyone else we add.
+  // Link ladder (never a dead end, never a search feed):
+  //   1. Direct booking link — a specific product/ticket page. Affiliate
+  //      sources (Viator, GetYourGuide) earn "our partner" and commission;
+  //      other ticket links (Eventbrite, city calendars, official ticket
+  //      pages) get an honest generic label.
+  //   2. The venue's official website — the same link Google Maps shows.
+  //   3. The Google Maps listing.
+  // The old fallback — a prefilled Viator SEARCH — dropped people into an
+  // endless results feed that often didn't even contain the place they
+  // clicked. Gone: an official homepage always beats a maybe-empty feed.
 
-  // Categories where a prefilled Viator search is genuinely useful when the
-  // idea has no direct booking link (tours, cruises, big experiences) —
-  // a search link for a playground would just be noise.
-  const VIATOR_SEARCH_CATEGORIES = new Set(['adventures', 'cruises', 'culture', 'water']);
-
-  function viatorSearchUrl(idea) {
-    // Pre-fill what we know: activity name + where. Viator's search box is
-    // text-only, so date/location ride inside the query string.
-    const where = idea.location || (state.city !== GTA_WIDE ? state.city : 'Toronto');
-    const q = [idea.title, where].filter(Boolean).join(' ');
-    return 'https://www.viator.com/searchResults/all?text=' + encodeURIComponent(q);
-  }
+  const AFFILIATE_SOURCES = new Set(['viator', 'getyourguide']);
 
   /**
    * The booking row for an idea. mode:
-   *   'card'   → one primary link (direct booking, else prefilled Viator
-   *              search for experience categories, else map link)
-   *   'detail' → booking + map, full labels
-   *   'stop'   → booking + map, compact labels (plan stops)
+   *   'card'   → one primary link (direct booking, else official website,
+   *              else map link)
+   *   'detail' → booking/website + map, full labels
+   *   'stop'   → booking/website + map, compact labels (plan stops)
    * All links carry data-idea-* so the global click handler tracks them.
    */
   function bookingLinksHtml(idea, mode) {
     const attrs = `data-idea-id="${escapeAttr(idea.id)}" data-idea-source="${escapeAttr(idea.source || '')}"`;
     const compact = mode === 'stop';
     const links = [];
-    // CTA truthfulness: a card labelled Free never shows a ticket button —
-    // a button that lies once teaches users to stop clicking all of them.
-    const isFree = String(idea.cost_tier || '').toLowerCase() === 'free';
     if (idea.booking_url) {
-      const label = compact ? 'Book ↗' : 'Book with our partner ↗';
-      links.push(`<a class="card-booking-link" ${attrs} href="${escapeAttr(idea.booking_url)}" target="_blank" rel="noopener noreferrer sponsored">${label}</a>`);
-    } else if (!isFree && VIATOR_SEARCH_CATEGORIES.has(idea.category)) {
-      const label = compact ? 'Find tickets ↗' : 'Find tickets with our partner ↗';
-      links.push(`<a class="card-booking-link" ${attrs} data-idea-source="viator_search" href="${escapeAttr(viatorSearchUrl(idea))}" target="_blank" rel="noopener noreferrer sponsored">${label}</a>`);
+      const partner = AFFILIATE_SOURCES.has(String(idea.source || '').toLowerCase());
+      const label = compact ? 'Book ↗' : (partner ? 'Book with our partner ↗' : 'Get tickets ↗');
+      const rel = partner ? 'noopener noreferrer sponsored' : 'noopener noreferrer';
+      // Price rides on the link so the click handler can report commission
+      // potential without needing the idea object in scope.
+      const priceAttrs = partner && idea.price_from != null
+        ? ` data-idea-price="${escapeAttr(String(idea.price_from))}" data-idea-currency="${escapeAttr(idea.currency || 'USD')}"` : '';
+      links.push(`<a class="card-booking-link" ${attrs}${priceAttrs} href="${escapeAttr(idea.booking_url)}" target="_blank" rel="${rel}">${label}</a>`);
+    } else if (idea.website) {
+      const label = compact ? 'Site ↗' : 'Official website ↗';
+      links.push(`<a class="card-booking-link" ${attrs} data-idea-link="website" href="${escapeAttr(idea.website)}" target="_blank" rel="noopener noreferrer">${label}</a>`);
     }
     if (idea.maps_url && (mode !== 'card' || links.length === 0)) {
       links.push(`<a class="card-booking-link card-booking-link--secondary" ${attrs} href="${escapeAttr(idea.maps_url)}" target="_blank" rel="noopener noreferrer">${compact ? 'Map ↗' : 'View on Google Maps ↗'}</a>`);
@@ -1957,6 +2058,12 @@
 
     if (place && place.open_hours && place.open_hours.length) {
       parts.push(`<details class="detail-hours"><summary>Opening hours</summary><ul>${place.open_hours.map(h => `<li>${escapeHtml(h)}</li>`).join('')}</ul></details>`);
+    }
+
+    // The venue's own site, when the card itself didn't already link it —
+    // ideas from events/curated sources learn their website only here.
+    if (place && place.website && !idea.booking_url && !idea.website) {
+      parts.push(`<p class="detail-website"><a class="card-booking-link" data-idea-id="${escapeAttr(idea.id)}" data-idea-source="${escapeAttr(idea.source || '')}" data-idea-link="website" href="${escapeAttr(place.website)}" target="_blank" rel="noopener noreferrer">Official website ↗</a></p>`);
     }
 
     if (place && (place.rating != null) && place.rating_count > 0) {
@@ -2950,6 +3057,7 @@
       if (idea.location) md.push(`- 📍 ${idea.location}`);
       if (stop.note) md.push(`- 📝 ${stop.note}`);
       if (idea.booking_url) md.push(`- [Book](${idea.booking_url})`);
+      else if (idea.website) md.push(`- [Official website](${idea.website})`);
       if (idea.maps_url) md.push(`- [Map](${idea.maps_url})`);
       if (stop.transition_note) md.push(`- → ${stop.transition_note}`);
       md.push('');
@@ -3658,7 +3766,7 @@
   // "Next": append more unrelated-but-awesome picks — wider radius included —
   // under whatever feed is showing. Everything on screen goes into the
   // exclude list (ids AND titles), so pages never repeat.
-  async function handleNext() {
+  async function handleNext({ auto = false } = {}) {
     if (state.isLoadingMore || state.isGenerating) return;
     state.isLoadingMore = true;
     const btn = document.getElementById('feed-next-btn');
@@ -3681,9 +3789,13 @@
       if (fresh.length) {
         state.allIdeas = state.allIdeas.concat(fresh);
         renderFeed(false);
-        const headers = document.querySelectorAll('#discovery-feed .feed-section-header');
-        const firstNew = [...headers].find(h => h.textContent === fresh[0].section);
-        if (firstNew) firstNew.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+        // Only an explicit button press earns a scroll — auto-loaded pages
+        // must never yank a feed the user is already scrolling through.
+        if (!auto) {
+          const headers = document.querySelectorAll('#discovery-feed .feed-section-header');
+          const firstNew = [...headers].find(h => h.textContent === fresh[0].section);
+          if (firstNew) firstNew.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+        }
       }
       if (data.exhausted === true) {
         state.nextExhausted = true;
@@ -4517,6 +4629,28 @@
     // whatever feed is showing.
     document.getElementById('feed-next-btn').addEventListener('click', handleNext);
 
+    // Infinite scroll: nearing the bottom of the feed loads the next page
+    // before the user has to ask. The Next button stays as the visible,
+    // keyboard-reachable version of the same action; updateFeedChrome hides
+    // the whole block (killing the observer's target) once the well runs
+    // dry, so auto-loading stops exactly when manual loading would.
+    // rootMargin fires ~1.5 viewports early — pages arrive mid-scroll, not
+    // after a stop-and-wait at the bottom.
+    if ('IntersectionObserver' in window) {
+      const nextBlock = document.getElementById('feed-next');
+      const autoNext = new IntersectionObserver(async entries => {
+        if (!entries.some(e => e.isIntersecting)) return;
+        if (nextBlock.hidden || state.isLoadingMore || state.isGenerating || state.nextExhausted) return;
+        await handleNext({ auto: true });
+        // A short page can leave the sentinel inside the margin, where the
+        // observer would never re-fire (no intersection *change*) — re-arm
+        // it so back-to-back pages keep flowing until the well runs dry.
+        autoNext.unobserve(nextBlock);
+        autoNext.observe(nextBlock);
+      }, { rootMargin: '150% 0px' });
+      autoNext.observe(nextBlock);
+    }
+
     // Mode toggle (R&R / Adventure): tap or swipe, then paint the
     // mode-flavored chrome — accent, hint, placeholder, example prompts,
     // filter chips. Defaults to R&R; returning users keep their last mode.
@@ -4565,7 +4699,9 @@
       const card = link.closest('.idea-card');
       const ideaRef = {
         id: link.dataset.ideaId || (card && card.dataset.id),
-        source: link.dataset.ideaSource || undefined
+        source: link.dataset.ideaSource || undefined,
+        price: link.dataset.ideaPrice != null && link.dataset.ideaPrice !== '' ? Number(link.dataset.ideaPrice) : undefined,
+        currency: link.dataset.ideaCurrency || undefined
       };
       const isMaps = link.classList.contains('card-booking-link--secondary');
       track(isMaps ? 'maps_click' : 'booking_click', ideaRef);
