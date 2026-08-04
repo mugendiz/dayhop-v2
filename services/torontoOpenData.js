@@ -2,27 +2,51 @@
 // City of Toronto "Festivals & Events" calendar — the same feed toronto.ca's
 // own event calendar reads. Free, no key.
 //
-// HARD-WON OPERATIONAL NOTES (verified 2026-07-08):
+// HARD-WON OPERATIONAL NOTES (re-verified 2026-08-04):
 // - The CKAN "download" for this dataset serves a cached Akamai Access-Denied
 //   page — useless. This c3api_data endpoint is the real feed.
-// - The endpoint sits behind Akamai: requests need a browser-like User-Agent
-//   and a toronto.ca Referer or they 403. `$filter` is ALWAYS 403 for
-//   non-browser clients, so date filtering happens here in Node.
-// - Even well-formed requests 403 intermittently under repeated calls (bot
-//   scoring), hence: long TTL cache, in-flight promise sharing (stampede
-//   guard), stale-on-error, and a skip-the-source failure mode.
+// - As of ~Aug 2026 Akamai fingerprints the TLS handshake itself: axios/curl
+//   403 on EVERY request no matter the headers, while the same URL from real
+//   Chrome (same IP) is 200. impit's Chrome impersonation passes; its
+//   Firefox impersonation is 403 — the allowlist is literally Chrome-shaped.
+//   So the fetch goes through impit, with plain axios as a fallback if the
+//   native binding ever fails to load (fallback keeps the old header recipe
+//   and will likely 403, but the source already fails soft).
+// - Don't send a User-Agent override through impit: it supplies a UA that
+//   matches its TLS fingerprint, and a mismatched UA re-trips the bot score.
+// - `$filter` (403 for non-browser clients historically) WORKS through the
+//   Chrome fingerprint — date fields are Edm.Date, so literals go unquoted:
+//   `calendar_date_group ge 2026-08-04`. Quoted strings are a 400. The
+//   server-side window matters: unfiltered, the feed orders desc and the
+//   first 500 rows are the farthest-future occurrences (2027+), so the
+//   old fetch-then-filter approach returned 0 upcoming events. Node-side
+//   date filtering stays as a cheap safety net.
+// - Even well-formed requests can 403 intermittently under repeated calls
+//   (bot scoring), hence: long TTL cache, in-flight promise sharing
+//   (stampede guard), stale-on-error, and a skip-the-source failure mode.
 // Candidate shape: see the JSDoc block in services/ticketmaster.js.
 
 const axios = require('axios');
 
 const FEED_URL = 'https://secure.toronto.ca/c3api_data/v2/DataAccess.svc/festivals_events/events';
 const HEADERS = {
-  // Akamai recipe — do not "clean up": UA + Referer are what keep us at 200.
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
   Referer: 'https://www.toronto.ca/',
-  Accept: 'application/json',
-  'Cache-Control': 'no-cache'
+  Accept: 'application/json'
 };
+
+let impitClient; // lazy singleton — reused across fetches so the TLS session persists
+function getImpit() {
+  if (impitClient === undefined) {
+    try {
+      const { Impit } = require('impit');
+      impitClient = new Impit({ browser: 'chrome', timeout: 5000 });
+    } catch (err) {
+      impitClient = null;
+      console.warn('[torontoOpenData] impit unavailable (' + err.message + ') — falling back to axios (Akamai will likely 403)');
+    }
+  }
+  return impitClient;
+}
 const SELECT = [
   'id', 'short_name', 'short_description', 'event_image', 'event_locations',
   'featured_event', 'free_event', 'event_startdate', 'event_enddate',
@@ -45,17 +69,33 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Akamai 403s this feed intermittently regardless of how "browser-like" the
-// request looks (see file header) — retrying is the only lever we have, so
-// spend it here rather than surfacing a fetch failure to the caller.
+// One GET, impit-first: returns parsed JSON, throws with .status on non-2xx.
+async function getJson(url) {
+  const impit = getImpit();
+  if (impit) {
+    const res = await impit.fetch(url, { headers: HEADERS });
+    if (res.status < 200 || res.status >= 300) {
+      const err = new Error(`HTTP ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    return res.json();
+  }
+  const res = await client.get(url, { headers: HEADERS });
+  return res.data;
+}
+
+// Akamai can still 403 intermittently (see file header) — retrying is the
+// only lever we have, so spend it here rather than surfacing a fetch
+// failure to the caller.
 async function getWithRetry(url) {
   let lastErr;
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
     try {
-      return await client.get(url, { headers: HEADERS });
+      return await getJson(url);
     } catch (err) {
       lastErr = err;
-      const status = err.response && err.response.status;
+      const status = err.status || (err.response && err.response.status);
       const retryable = status === 403 || !status; // 403 (bot score) or network/timeout
       if (!retryable || attempt === RETRY_DELAYS_MS.length) throw err;
       console.warn(`[torontoOpenData] attempt ${attempt + 1} failed (${status || err.message}), retrying in ${RETRY_DELAYS_MS[attempt]}ms`);
@@ -118,6 +158,9 @@ function parseImage(row) {
   const imgs = coerceArray(row.event_image);
   const first = imgs[0];
   if (!first) return null;
+  // Current shape is {bin_id, ...} — the calendar serves these via
+  // c3api_upload (browser-fetched by the client, so Akamai is happy).
+  if (first.bin_id) return 'https://secure.toronto.ca/c3api_upload/retrieve/festivals_events/' + first.bin_id;
   const url = typeof first === 'string' ? first : (first.url || first.src || null);
   if (!url || !/^https?:\/\//i.test(String(url).replace(/^\/\//, 'https://'))) {
     // Relative paths are toronto.ca-hosted
@@ -150,11 +193,16 @@ function normalizeRow(row, dateYMD) {
 }
 
 async function fetchAllRows() {
+  const today = todayTorontoYMD();
+  const horizon = addDaysYMD(today, WINDOW_DAYS);
+  // Window server-side (Edm.Date literals — no quotes) and sort ascending so
+  // the MAX_ROWS cap keeps the NEAREST occurrences, not the farthest.
+  const filter = encodeURIComponent(`calendar_date_group ge ${today} and calendar_date_group le ${horizon}`);
   const rows = [];
   for (let skip = 0; skip < MAX_ROWS; skip += PAGE_SIZE) {
-    const url = `${FEED_URL}?$format=application/json;odata.metadata=none&$count=false&$top=${PAGE_SIZE}&$skip=${skip}&$select=${SELECT}&$orderby=calendar_date_group%20desc`;
-    const res = await getWithRetry(url);
-    const page = (res.data && (res.data.value || res.data)) || [];
+    const url = `${FEED_URL}?$format=application/json;odata.metadata=none&$count=false&$top=${PAGE_SIZE}&$skip=${skip}&$select=${SELECT}&$orderby=calendar_date_group&$filter=${filter}`;
+    const data = await getWithRetry(url);
+    const page = (data && (data.value || data)) || [];
     if (!Array.isArray(page) || page.length === 0) break;
     if (!loggedSample && page[0]) {
       // One-time shape log: pins the real event_locations/event_image encoding.
