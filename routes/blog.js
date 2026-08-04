@@ -99,7 +99,7 @@ ${jsonLd ? `<script type="application/ld+json">${jsonLd}</script>` : ''}
 ${bodyHtml}
 <footer>
 <p>DayHop is a Toronto-built day planner — real venues, live weather, and AI that plans like a thoughtful local friend.</p>
-<nav><a href="/">Planner</a><a href="/blog">Stories</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="mailto:admin@dayhop.quest?subject=Partnership%20inquiry%20%E2%80%94%20DayHop">Partner with us</a></nav>
+<nav><a href="/">Planner</a><a href="/blog">Stories</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="mailto:admin@dayhop.quest?subject=Advertising%20inquiry%20%E2%80%94%20DayHop">Advertise with us</a></nav>
 </footer>
 </div>
 </body>
