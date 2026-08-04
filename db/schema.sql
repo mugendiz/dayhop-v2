@@ -266,3 +266,24 @@ create table if not exists public.place_details (
   updated_at  timestamptz not null default now()
 );
 alter table public.place_details enable row level security;
+
+-- ---------- articles (SEO blog: BabyLoveGrowth webhook + hand-written seeds) ----------
+-- POST /api/content/webhook (secret-gated) upserts rows here; /blog renders
+-- them server-side for search engines. Hand-written seed stories live in
+-- data/blogArticles.js and are merged at read time (DB wins on slug), so the
+-- blog works even before this table exists. Rows are written and read
+-- exclusively server-side — NO anon policies.
+create table if not exists public.articles (
+  slug            text primary key,
+  title           text not null,
+  description     text,
+  html            text not null,
+  hero_image_url  text,
+  tags            text[] not null default '{}',
+  author          text,
+  source          text not null default 'webhook',
+  status          text not null default 'published' check (status in ('published','draft')),
+  published_at    timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+alter table public.articles enable row level security;

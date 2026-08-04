@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin.html
+
+Sitemap: https://dayhop-v2.onrender.com/sitemap.xml

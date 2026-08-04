@@ -63,6 +63,10 @@ services:
         sync: false
       - key: ADMIN_KEY
         sync: false
+      # Content webhook (BabyLoveGrowth → /blog); unset = webhook disabled,
+      # blog still serves the built-in seed stories.
+      - key: CONTENT_WEBHOOK_SECRET
+        sync: false
       # Location defaults
       - key: DEFAULT_CITY
         value: Richmond Hill

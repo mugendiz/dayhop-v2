@@ -173,6 +173,17 @@ const trackLimiter = rateLimit({
 app.use('/api/track', trackLimiter, require('./routes/track'));
 app.use('/api/admin', require('./routes/admin'));
 
+// Inbound article publishing (BabyLoveGrowth → /blog). Secret-gated inside
+// the route; the limiter is a backstop against secret-guessing.
+const contentLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'RATE_LIMITED', message: 'Slow down a little.' }
+});
+app.use('/api/content', contentLimiter, require('./routes/content'));
+
 const { dbStatus } = require('./services/db');
 
 // Same header + constant-time compare as routes/admin.js — /health detail
@@ -230,6 +241,12 @@ app.use('/api', (req, res) => {
 app.get('/g/:shareId', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'guide.html'));
 });
+
+// Server-rendered blog (SEO surface) + sitemap. Must sit above the SPA
+// fallback or /blog would 200 with the shell and index as an empty page.
+const blog = require('./routes/blog');
+app.use('/blog', blog.router);
+app.get('/sitemap.xml', blog.sitemap);
 
 // SPA fallback — must stay last.
 app.get('*', (req, res) => {
