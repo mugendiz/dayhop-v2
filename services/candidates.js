@@ -177,13 +177,16 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   // when the requested window doesn't cover today.
   const today = torontoToday();
   const weatherApplies = !dateWindow || (dateWindow.start <= today && today <= dateWindow.end);
-  if (geo && weatherApplies) {
-    try {
-      weather = await weatherSvc.getConditions({ lat: geo.lat, lng: geo.lng });
-    } catch (err) {
-      console.warn('[candidates] Weather unavailable:', err.message);
-    }
-  }
+  // Weather and the advisory area sources (air quality, ECCC alerts) are
+  // independent network calls — start weather now and hand the in-flight
+  // promise to getAdvisories, which resolves all three in one parallel
+  // batch. They used to run strictly one after the other.
+  const weatherPromise = (geo && weatherApplies)
+    ? weatherSvc.getConditions({ lat: geo.lat, lng: geo.lng }).catch(err => {
+        console.warn('[candidates] Weather unavailable:', err.message);
+        return null;
+      })
+    : Promise.resolve(null);
 
   // Advisories ("should I even go today?"): air quality + condition-derived
   // warnings for the target area. Resolved BEFORE the source batch — cheap
@@ -193,11 +196,12 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   let advisoryResult = { advisories: [], status: 'unavailable' };
   if (geo) {
     try {
-      advisoryResult = await advisoriesSvc.getAdvisories({ lat: geo.lat, lng: geo.lng, conditions: weather });
+      advisoryResult = await advisoriesSvc.getAdvisories({ lat: geo.lat, lng: geo.lng, conditions: weatherPromise });
     } catch (err) {
       console.warn('[candidates] advisories unavailable:', err.message);
     }
   }
+  weather = await weatherPromise;
   const advisoryPressure = advisoriesSvc.advisoryEffects(advisoryResult.advisories);
 
   // The GTA-only sources (open data, curated, org-scoped Eventbrite) would be
@@ -504,7 +508,7 @@ async function searchPlacesWithThemes(prompt, themeQueries, geo, hyperLocal = fa
 // Evergreen curated catalog entries, season-filtered and pre-ranked against
 // the prompt so only the most fitting slice of the catalog joins the pool.
 function catalogCandidates(prompt, themes, limit, regionOpts) {
-  const month = Number(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', month: 'numeric' }).format(new Date()));
+  const month = Number(torontoToday().slice(5, 7));
   const inSeason = month >= 5 && month <= 9 ? 'summer' : 'winter';
   // Hand-curated entries plus the discovery autopilot's verified auto-adds
   // (services/autoCatalog) — same shape, same scoring, Canada-wide.
@@ -562,8 +566,10 @@ function catalogCandidates(prompt, themes, limit, regionOpts) {
   // Newly-opened entries bypass the catalog quota — being surfaced while
   // new IS their job. Lead the list so the per-source cap can't trim them;
   // the pool-wide relevance pass re-ranks everything afterward anyway.
-  const fresh = normalized.filter(e => e.newly_opened && !ranked.some(r => r.id === e.id));
-  return fresh.concat(ranked.filter(r => !fresh.includes(r)));
+  const rankedIds = new Set(ranked.map(r => r.id));
+  const fresh = normalized.filter(e => e.newly_opened && !rankedIds.has(e.id));
+  const freshIds = new Set(fresh.map(e => e.id));
+  return fresh.concat(ranked.filter(r => !freshIds.has(r.id)));
 }
 
 // Round-robin across the source lists so grok.js's 40-candidate cap trims
@@ -611,7 +617,7 @@ function dedupKey(c) {
 
 // Curated seed events, upcoming only (dates are Toronto-local YYYY-MM-DD).
 function upcomingCuratedEvents(limit) {
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto' }).format(new Date());
+  const today = torontoToday();
   return curatedEvents
     .filter(e => !e.date || e.date >= today)
     .slice(0, limit)

@@ -58,10 +58,14 @@ router.post('/', async (req, res) => {
     const ideas = buildSections(candidates, { near: Boolean(coords), weather, part, mode, advisories, spotlight, dateWindow }).slice(0, FEED_CAP);
     const featured = pickFeatured(candidates, geo);
     // Real venue photos for curated/open-data cards; the enriched feed is
-    // what gets cached, so the lookups are paid once per cache window. The
-    // featured picks ride along under the same MAX_LOOKUPS bound — the hero
-    // card is a visual, so its photos matter most.
-    await enrichIdeaImages(ideas.concat(featured), { city: resolvedCity || city, coords });
+    // what gets cached, so the lookups are paid once per cache window.
+    // Featured and feed get separate budgets, in parallel — sharing one
+    // MAX_LOOKUPS bound let below-the-fold cards starve the hero's photos
+    // (and vice versa).
+    await Promise.all([
+      enrichIdeaImages(ideas, { city: resolvedCity || city, coords }),
+      enrichIdeaImages(featured, { city: resolvedCity || city, coords })
+    ]);
     const payload = {
       ideas,
       weather: weather || null,
@@ -102,10 +106,13 @@ function recordBrowse(req, payload, cached, mode) {
   });
 }
 
+// Hoisted: Intl.DateTimeFormat construction is expensive and this runs per request.
+const TORONTO_HOUR_FMT = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Toronto', hour: 'numeric', hour12: false
+});
+
 function daypart() {
-  const hour = Number(new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Toronto', hour: 'numeric', hour12: false
-  }).format(new Date()));
+  const hour = Number(TORONTO_HOUR_FMT.format(new Date()));
   if (hour < 11) return 'morning';
   if (hour < 17) return 'afternoon';
   return 'evening';

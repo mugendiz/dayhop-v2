@@ -12,8 +12,16 @@ const router = express.Router();
 const analytics = require('../services/analytics');
 const billing = require('../services/billing');
 const moderation = require('../services/moderation');
-const newOpenings = require('../services/newOpenings');
 const { isAdmin } = require('../services/entitlements');
+
+// Lazy: newOpenings drags in the whole discovery stack (buzz, autoCatalog,
+// grok, curatedCatalog). Admin routes are hit rarely — keep that graph out
+// of every cold start (same pattern as the scheduler in server.js).
+let _newOpenings = null;
+function newOpeningsSvc() {
+  if (!_newOpenings) _newOpenings = require('../services/newOpenings');
+  return _newOpenings;
+}
 
 function keyMatches(provided) {
   const expected = process.env.ADMIN_KEY || '';
@@ -48,9 +56,9 @@ router.get('/discovery', requireAdmin, async (req, res) => {
   try {
     // ?cached=1 → peek only (page-load "N awaiting review"), never scans.
     if (req.query.cached) {
-      return res.json(newOpenings.peek() || { cached: false, items: [] });
+      return res.json(newOpeningsSvc().peek() || { cached: false, items: [] });
     }
-    res.json(await newOpenings.collect());
+    res.json(await newOpeningsSvc().collect());
   } catch (err) {
     console.error('[admin] discovery failed:', err.message);
     res.status(500).json({ error: 'DISCOVERY_FAILED', message: 'Could not scan feeds right now.' });

@@ -18,9 +18,11 @@ if (!process.env.GROK_MODEL) {
 const DEFAULT_CITY = process.env.DEFAULT_CITY || 'Richmond Hill';
 const DEFAULT_REGION = process.env.DEFAULT_REGION || 'Ontario';
 
-// 45s: generous headroom even now that we ask for 12-18 best-only ideas
-// (latency scales with output length).
-const client = axios.create({ timeout: 45000 });
+// 25s: a healthy completion for 12-18 ideas lands well inside this. A
+// slow-but-not-dead Grok used to hold requests open 45 s before the caller's
+// degraded fallback (the ranked candidate pool) kicked in — failing over
+// sooner beats a spinner every time.
+const client = axios.create({ timeout: 25000 });
 
 // When the user hasn't pinned a single city, DayHop plans across the whole
 // Greater Toronto Area. We detect that intent from a few common phrasings.

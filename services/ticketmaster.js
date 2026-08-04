@@ -102,10 +102,20 @@ function collapsePerformances(events) {
   return [...byKey.values()];
 }
 
+// 15 min result cache — every other event connector has one, and this call
+// used to fire on every generate, browse miss, and Surprise press. The key
+// grids location to a ~5 km geohash cell so neighbouring callers share.
+const CACHE_TTL_MS = 15 * 60 * 1000;
+const CACHE_MAX = 100;
+const cache = new Map(); // key -> { at, events }
+
 let warned = false;
 async function searchEvents({ lat, lng, keyword, radiusKm = 40, limit = 20, daysAhead = 30 } = {}) {
   if (!process.env.TICKETMASTER_API_KEY) return [];
   if (lat == null || lng == null) return [];
+  const cacheKey = `${toGeohash(lat, lng, 5)}|${keyword || ''}|${radiusKm}|${limit}|${daysAhead}`;
+  const hit = cache.get(cacheKey);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.events;
   try {
     const now = new Date();
     const end = new Date(now.getTime() + daysAhead * 86400000);
@@ -122,7 +132,10 @@ async function searchEvents({ lat, lng, keyword, radiusKm = 40, limit = 20, days
     if (keyword) params.keyword = keyword;
     const res = await client.get(BASE_URL, { params });
     const events = (res.data && res.data._embedded && res.data._embedded.events) || [];
-    return collapsePerformances(events.map(normalizeEvent)).slice(0, limit);
+    const out = collapsePerformances(events.map(normalizeEvent)).slice(0, limit);
+    if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
+    cache.set(cacheKey, { at: Date.now(), events: out });
+    return out;
   } catch (err) {
     if (!warned) { console.warn('[ticketmaster] unavailable:', err.message); warned = true; }
     return [];

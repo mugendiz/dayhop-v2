@@ -80,8 +80,15 @@ function lastWeekdayBefore(year, month, day, wday) {
   return d;
 }
 
+// Reused formatters — Intl.DateTimeFormat construction is expensive and
+// these run on every candidate gather, Grok prompt build, and config read.
+const TORONTO_DAY_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto' });
+const RANGE_FMT = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'UTC', month: 'short', day: 'numeric'
+});
+
 function torontoToday(now = new Date()) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto' }).format(now);
+  return TORONTO_DAY_FMT.format(now);
 }
 
 // The promo window around a holiday — the long weekend when there is one.
@@ -99,9 +106,7 @@ function holidayWindow(dateStr) {
 
 // "Aug 1–3" / "Dec 25" — for eyebrows and prompts.
 function formatRange(window) {
-  const fmt = d => new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'UTC', month: 'short', day: 'numeric'
-  }).format(toUtc(d));
+  const fmt = d => RANGE_FMT.format(toUtc(d));
   if (window.start === window.end) return fmt(window.start);
   const sameMonth = window.start.slice(0, 7) === window.end.slice(0, 7);
   return sameMonth
@@ -117,7 +122,20 @@ function nextHoliday(todayStr) {
   return all.find(h => holidayWindow(h.date).end >= todayStr) || null;
 }
 
+// getSpotlight is pure date math but runs several times per request (candidate
+// gather, twice per Grok prompt, config, relevance) — memoize by Toronto day.
+// The World Cup boundary is a mid-day instant, so it joins the key too.
+let spotlightMemo = { key: null, value: null };
+
 function getSpotlight(now = new Date()) {
+  const key = `${now.getTime() < WORLD_CUP_ENDS_MS}|${torontoToday(now)}`;
+  if (spotlightMemo.key === key) return spotlightMemo.value;
+  const value = computeSpotlight(now);
+  spotlightMemo = { key, value };
+  return value;
+}
+
+function computeSpotlight(now = new Date()) {
   if (now.getTime() < WORLD_CUP_ENDS_MS) {
     return {
       kind: 'worldcup',

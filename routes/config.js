@@ -11,6 +11,9 @@ const { getSpotlight } = require('../services/spotlight');
 router.get('/', (req, res) => {
   const supabaseUrl = process.env.SUPABASE_URL || null;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || null;
+  // Pure env + date math, refetched on every page load — let the browser
+  // keep it briefly. The spotlight only changes at a Toronto day boundary.
+  res.set('Cache-Control', 'public, max-age=300');
   res.json({
     supabaseUrl,
     supabaseAnonKey,

@@ -1,5 +1,8 @@
 // server.js — DayHop V2
 require('dotenv').config();
+// Must load before any service module: installs keep-alive agents on
+// axios.defaults so every axios.create() below inherits them.
+require('./services/httpAgent');
 const express = require('express');
 const path = require('path');
 const compression = require('compression');

@@ -243,12 +243,17 @@ async function getAdvisories({ lat, lng, conditions }) {
   let ecccOk = false;
   const advisories = [];
 
-  // Air quality and official ECCC alerts fetch in parallel — both cached,
-  // both independently optional.
-  const [airResult, ecccResult] = await Promise.allSettled([
+  // Air quality, official ECCC alerts, AND the caller's weather fetch all
+  // resolve in one parallel batch — `conditions` may be a plain value or an
+  // in-flight promise (candidates.js passes its weather call so the two
+  // network waits overlap instead of stacking). Only derivedAdvisories
+  // (pure local math) actually needs the resolved conditions.
+  const [airResult, ecccResult, condResult] = await Promise.allSettled([
     process.env.OPENWEATHER_API_KEY ? fetchAirQuality({ lat, lng }) : Promise.resolve(null),
-    eccc.fetchAlerts({ lat, lng })
+    eccc.fetchAlerts({ lat, lng }),
+    Promise.resolve(conditions)
   ]);
+  conditions = condResult.status === 'fulfilled' ? condResult.value : null;
 
   if (airResult.status === 'fulfilled' && process.env.OPENWEATHER_API_KEY) {
     airOk = true;

@@ -52,8 +52,16 @@ function hasServiceKey() {
   return dbClient.status().service_key === true;
 }
 
+// Intl.DateTimeFormat construction is expensive (~50-200 µs) and torontoDay
+// runs once per event when aggregating up to 20k events — reuse one formatter.
+const TORONTO_DAY_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto' });
+const TORONTO_DAY_HOUR_FMT = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Toronto', hour12: false,
+  year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit'
+});
+
 function torontoDay(ts) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto' }).format(ts ? new Date(ts) : new Date());
+  return TORONTO_DAY_FMT.format(ts ? new Date(ts) : new Date());
 }
 
 // Start of a Toronto day (YYYY-MM-DD) as an ISO instant, DST-correct.
@@ -65,10 +73,7 @@ function torontoDayStartIso(day) {
   for (const utcHour of ['04', '05']) {
     const d = new Date(`${day}T${utcHour}:00:00Z`);
     const parts = Object.fromEntries(
-      new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'America/Toronto', hour12: false,
-        year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit'
-      }).formatToParts(d).map(p => [p.type, p.value])
+      TORONTO_DAY_HOUR_FMT.formatToParts(d).map(p => [p.type, p.value])
     );
     const localDay = `${parts.year}-${parts.month}-${parts.day}`;
     if (localDay === day && (parts.hour === '00' || parts.hour === '24')) {
@@ -280,7 +285,20 @@ function aggregate(events) {
 // "service" key that is really the publishable key reads as zero rows with
 // NO error under RLS. Every mirror event was also inserted into the DB, so
 // supabase(0) while the mirror has events can only mean reads are broken.
+// 60s cache: the 20k-row fetch is a multi-MB read, and metrics() +
+// userActivity() each ran it on every admin page load — on the same single
+// CPU that serves real traffic.
+let eventsCache = null; // { at, result }
+const EVENTS_CACHE_TTL_MS = 60 * 1000;
+
 async function fetchEvents() {
+  if (eventsCache && Date.now() - eventsCache.at < EVENTS_CACHE_TTL_MS) return eventsCache.result;
+  const result = await fetchEventsUncached();
+  eventsCache = { at: Date.now(), result };
+  return result;
+}
+
+async function fetchEventsUncached() {
   if (hasServiceKey()) {
     try {
       const { data, error } = await dbClient.getClient()

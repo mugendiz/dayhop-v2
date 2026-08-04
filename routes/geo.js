@@ -36,6 +36,10 @@ router.get('/autocomplete', async (req, res) => {
 
   try {
     const suggestions = await maps.autocompletePlaces({ input: q, lat, lng });
+    // Server-side the prefix is already cached ~5 min — tell the browser the
+    // same, so retyping a prefix never re-crosses the network (and never
+    // burns a slot in the geo rate limiter).
+    res.set('Cache-Control', 'public, max-age=300');
     res.json({ suggestions: suggestions.slice(0, 6) });
   } catch (err) {
     console.warn('[geo] autocomplete failed:', err.message);

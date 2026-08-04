@@ -32,7 +32,11 @@ async function syncFromDb(force) {
 }
 
 async function isBanned(keys) {
-  await syncFromDb(false);
+  // Answer from the in-memory map immediately and refresh in the background.
+  // The list is eventually-consistent by design (see header) — awaiting the
+  // throttled sync here put a full Supabase round trip in front of one
+  // unlucky request every minute.
+  syncFromDb(false);
   return keys.some(k => banned.has(k));
 }
 

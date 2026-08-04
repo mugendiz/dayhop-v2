@@ -31,6 +31,25 @@ function guestIdFor(req) {
   return (typeof guest === 'string' && guest.trim()) ? guest.trim().slice(0, 80) : undefined;
 }
 
+// Result cache — same idea as /api/browse's. The whole payload is a pure
+// function of (prompt, place, mode, filter, dates), so identical requests
+// within the window skip the entire pipeline INCLUDING the Grok call. Only
+// healthy grounded results are cached (a degraded/fallback payload must not
+// get pinned for 15 minutes). Cache hits are served before the free-tier
+// gate and don't record prompt_generated: no Grok spend, no quota burn.
+const GEN_CACHE_TTL_MS = 15 * 60 * 1000;
+const GEN_CACHE_MAX = 100;
+const genCache = new Map(); // key -> { at, payload }
+
+function genCacheKey(prompt, location, coords, mode, filter, dateWindow, eventKeyword) {
+  const normPrompt = String(prompt).toLowerCase().replace(/\s+/g, ' ').trim();
+  const grid = coords
+    ? `${Math.round(coords.lat * 50) / 50},${Math.round(coords.lng * 50) / 50}`
+    : '';
+  const dateKey = dateWindow ? `${dateWindow.start}..${dateWindow.end}` : '';
+  return `${normPrompt}|${String(location).toLowerCase()}|${grid}|${mode}|${filter || ''}|${dateKey}|${eventKeyword || ''}`;
+}
+
 router.post('/', async (req, res) => {
   // Frontend's GTA picker sends `city`; older clients may send `location`.
   // `event_keyword` (optional) narrows the event connectors, e.g. "world cup".
@@ -59,21 +78,34 @@ router.post('/', async (req, res) => {
   const userCoords = sanitizeCoords(req.body && req.body.coords);
   const ownerKey = ownerKeyFor(req);
 
+  // Identical request inside the cache window: the whole pipeline is skipped.
+  const cacheKey = genCacheKey(prompt, targetLocation, userCoords, mode, filter, dateWindow, eventKeyword);
+  const cacheHit = genCache.get(cacheKey);
+  if (cacheHit && Date.now() - cacheHit.at < GEN_CACHE_TTL_MS) {
+    return res.json(cacheHit.payload);
+  }
+
+  // The candidate fan-out starts immediately; the free-tier gate resolves in
+  // parallel and is enforced before any Grok spend. A gated request wastes
+  // one gather (rare), an allowed one saves the gate's full serial latency.
+  const gatherPromise = gatherCandidates(prompt, targetLocation, eventKeyword, filter, userCoords, mode, dateWindow);
+  gatherPromise.catch(() => {}); // handled below; a gated early-return must not leave an unhandled rejection
+
   // Free-tier daily limit (entitlements resolve to unlimited for Pro and for
   // pre-Stripe preview mode). Any gate error fails open — the paywall must
-  // never break the product.
+  // never break the product. The two lookups are independent — run together.
   try {
-    const ent = await entitlementsFor(req.user);
-    if (ent.daily_generates != null) {
-      const usedToday = await analytics.countToday('prompt_generated', ownerKey);
-      if (usedToday >= ent.daily_generates) {
-        return res.status(402).json({
-          error: 'UPGRADE_REQUIRED',
-          feature: 'generate',
-          message: `That's all ${ent.daily_generates} free plans for today — tomorrow brings ${ent.daily_generates} more, or Pro plans as much as you dream.`,
-          limit: ent.daily_generates
-        });
-      }
+    const [ent, usedToday] = await Promise.all([
+      entitlementsFor(req.user),
+      analytics.countToday('prompt_generated', ownerKey)
+    ]);
+    if (ent.daily_generates != null && usedToday >= ent.daily_generates) {
+      return res.status(402).json({
+        error: 'UPGRADE_REQUIRED',
+        feature: 'generate',
+        message: `That's all ${ent.daily_generates} free plans for today — tomorrow brings ${ent.daily_generates} more, or Pro plans as much as you dream.`,
+        limit: ent.daily_generates
+      });
     }
   } catch (err) {
     console.warn('[generate] pro-gate check failed (allowing):', err.message);
@@ -81,15 +113,21 @@ router.post('/', async (req, res) => {
 
   try {
     const { candidates, weather, usedGrounding, resolvedCity, advisories, advisoriesStatus } =
-      await gatherCandidates(prompt, targetLocation, eventKeyword, filter, userCoords, mode, dateWindow);
+      await gatherPromise;
     const cityForGrok = resolvedCity || targetLocation;
     const dateHint = dateHintFor(dateWindow);
 
     let ideas;
     let degraded = false;
     if (usedGrounding) {
+      // Photo enrichment no longer waits behind the LLM: every idea Grok can
+      // pick comes from `candidates`, so warm the top of the pool CONCURRENTLY
+      // with the Grok call — by merge time the photos are already attached.
+      const photoWarmup = enrichIdeaImages(candidates.slice(0, 16), { city: cityForGrok, coords: userCoords })
+        .catch(() => {});
+      let selected = null;
       try {
-        const selected = await grok.generateGroundedIdeas({
+        selected = await grok.generateGroundedIdeas({
           prompt,
           filter,
           mode,
@@ -99,19 +137,23 @@ router.post('/', async (req, res) => {
           advisories,
           dateHint
         });
-        ideas = mergeWithCandidates(selected, candidates);
-        // Grok curates the headliners; the rest of the quality-gated,
-        // relevance-ranked pool is real material we already paid to fetch —
-        // surface it below the picks instead of throwing it away.
-        ideas = appendMoreFinds(ideas, candidates);
       } catch (err) {
         // We already hold a relevance-ranked pool of real places — serve the
         // top of it directly rather than failing the whole feed because the
         // AI selection step timed out or misbehaved.
         if (err.code === 'GROK_NOT_CONFIGURED' || err.code === 'INVALID_INPUT') throw err;
         console.warn('[generate] Grok selection failed, serving ranked candidates directly:', err.message);
-        ideas = mergeWithCandidates(candidates.slice(0, 20).map(fallbackIdea), candidates);
         degraded = true;
+      }
+      await photoWarmup;
+      if (selected) {
+        ideas = mergeWithCandidates(selected, candidates);
+        // Grok curates the headliners; the rest of the quality-gated,
+        // relevance-ranked pool is real material we already paid to fetch —
+        // surface it below the picks instead of throwing it away.
+        ideas = appendMoreFinds(ideas, candidates);
+      } else {
+        ideas = mergeWithCandidates(candidates.slice(0, 20).map(fallbackIdea), candidates);
       }
     } else {
       ideas = await grok.generateIdeas({ prompt, filter, mode, city: cityForGrok });
@@ -119,7 +161,8 @@ router.post('/', async (req, res) => {
 
     // Cards without a photo (curated catalog, open-data events, ungrounded
     // picks) get a real venue image; anything still missing falls back to
-    // the frontend's category stock photo.
+    // the frontend's category stock photo. After the warmup above this is
+    // a small residual pass, not the main photo bill.
     await enrichIdeaImages(ideas, { city: cityForGrok, coords: userCoords });
 
     analytics.recordEvent({
@@ -128,7 +171,7 @@ router.post('/', async (req, res) => {
       meta: { grounded: usedGrounding, degraded, mode, city: cityForGrok, ideas: ideas.length, guest_id: guestIdFor(req) }
     });
 
-    res.json({
+    const payload = {
       ideas,
       grounded: usedGrounding,
       degraded: degraded || undefined,
@@ -138,7 +181,12 @@ router.post('/', async (req, res) => {
       near: userCoords ? resolvedCity || null : null,
       date_window: dateWindow || null,
       generated_at: new Date().toISOString()
-    });
+    };
+    if (usedGrounding && !degraded && ideas.length) {
+      if (genCache.size >= GEN_CACHE_MAX) genCache.delete(genCache.keys().next().value);
+      genCache.set(cacheKey, { at: Date.now(), payload });
+    }
+    res.json(payload);
   } catch (err) {
     handleGrokError(err, res);
   }
@@ -296,19 +344,19 @@ router.post('/replan', async (req, res) => {
   }
 
   // Replan gate: free tier gets a daily taste, Pro is unlimited. Fails open
-  // like the generate gate.
+  // like the generate gate. The two lookups are independent — run together.
   try {
-    const ent = await entitlementsFor(req.user);
-    if (ent.daily_replans != null) {
-      const usedToday = await analytics.countToday('plan_replanned', ownerKey);
-      if (usedToday >= ent.daily_replans) {
-        return res.status(402).json({
-          error: 'UPGRADE_REQUIRED',
-          feature: 'replan',
-          message: `You've used today's free re-plan. Go Pro for unlimited smart re-planning.`,
-          limit: ent.daily_replans
-        });
-      }
+    const [ent, usedToday] = await Promise.all([
+      entitlementsFor(req.user),
+      analytics.countToday('plan_replanned', ownerKey)
+    ]);
+    if (ent.daily_replans != null && usedToday >= ent.daily_replans) {
+      return res.status(402).json({
+        error: 'UPGRADE_REQUIRED',
+        feature: 'replan',
+        message: `You've used today's free re-plan. Go Pro for unlimited smart re-planning.`,
+        limit: ent.daily_replans
+      });
     }
   } catch (err) {
     console.warn('[replan] pro-gate check failed (allowing):', err.message);

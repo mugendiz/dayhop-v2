@@ -50,6 +50,24 @@ const WIDER_SUFFIX = ', worth the drive, standout destination attractions';
 
 const normTitle = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
+// Pre-exclusion pool cache. The full source fan-out is identical for every
+// press from the same spot — only the per-user exclude list varies, and
+// applying it is pure local work. So the pool is cached (like browse), the
+// exclusion + randomized sectioning stay per-request (so it still feels
+// fresh), and only when a user's excludes drain the cached pool below a
+// usable feed does the press fall through to a real gather.
+const POOL_TTL_MS = 10 * 60 * 1000;
+const POOL_CACHE_MAX = 50;
+const poolCache = new Map(); // key -> { at, gathered }
+
+function poolKey(city, coords, mode, wider, dateWindow, prompt) {
+  const grid = coords
+    ? `${Math.round(coords.lat * 50) / 50},${Math.round(coords.lng * 50) / 50}`
+    : '';
+  const dateKey = dateWindow ? `${dateWindow.start}..${dateWindow.end}` : '';
+  return `${city.toLowerCase()}|${grid}|${mode}|${wider ? 'w' : ''}|${dateKey}|${prompt}`;
+}
+
 router.post('/', async (req, res) => {
   const body = req.body || {};
   const city = String(body.city || '').trim().slice(0, 120) || DEFAULT_CITY;
@@ -76,12 +94,32 @@ router.post('/', async (req, res) => {
     const variants = SURPRISE_PROMPTS[mode] || SURPRISE_PROMPTS.rr;
     const prompt = variants[Math.floor(Math.random() * variants.length)] + (wider ? WIDER_SUFFIX : '');
 
-    const { candidates, weather, resolvedCity, advisories, advisoriesStatus } =
-      await gatherCandidates(prompt, city, '', null, coords, mode, dateWindow, {
+    const key = poolKey(city, coords, mode, wider, dateWindow, prompt);
+    const hit = poolCache.get(key);
+    let gathered = null;
+    if (hit && Date.now() - hit.at < POOL_TTL_MS) {
+      const filtered = hit.gathered.candidates.filter(c =>
+        !excludeIds.has(String(c.id)) && !excludeTitles.has(normTitle(c.title)));
+      // A drained pool must not serve an anemic feed from cache — fall
+      // through to a real (deeper, exclusion-aware) gather instead.
+      if (filtered.length >= MIN_FEED) {
+        gathered = Object.assign({}, hit.gathered, { candidates: filtered });
+      }
+    }
+    if (!gathered) {
+      const excludesActive = excludeIds.size > 0 || excludeTitles.size > 0;
+      gathered = await gatherCandidates(prompt, city, '', null, coords, mode, dateWindow, {
         radiusKm: wider ? WIDER_RADIUS_KM : null,
         excludeIds: excludeIds.size ? excludeIds : null,
         excludeTitles: excludeTitles.size ? excludeTitles : null
       });
+      // Only a pool gathered WITHOUT per-user excludes is shareable.
+      if (!excludesActive && gathered.candidates.length) {
+        if (poolCache.size >= POOL_CACHE_MAX) poolCache.delete(poolCache.keys().next().value);
+        poolCache.set(key, { at: Date.now(), gathered });
+      }
+    }
+    const { candidates, weather, resolvedCity, advisories, advisoriesStatus } = gathered;
 
     const ideas = buildSurpriseSections(candidates, { mode, near: Boolean(coords), wider });
     await enrichIdeaImages(ideas, { city: resolvedCity || city, coords });

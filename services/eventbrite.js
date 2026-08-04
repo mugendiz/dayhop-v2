@@ -55,11 +55,22 @@ function normalizeEvent(e) {
   };
 }
 
+// The result depends only on the fixed organizer list (and limit), so this
+// is effectively a singleton — yet it used to fan out to every org on every
+// generate/browse-miss/surprise. 30 min matches how often orgs post events.
+const CACHE_TTL_MS = 30 * 60 * 1000;
+let resultCache = null; // { at, key, events }
+
 let warned = false;
 async function searchEvents({ limit = 20 } = {}) {
   const token = process.env.EVENTBRITE_PRIVATE_TOKEN;
   const orgs = orgIds();
   if (!token || orgs.length === 0) return []; // expected-absent: stay silent
+
+  const cacheKey = `${orgs.join(',')}|${limit}`;
+  if (resultCache && resultCache.key === cacheKey && Date.now() - resultCache.at < CACHE_TTL_MS) {
+    return resultCache.events;
+  }
 
   try {
     const results = await Promise.allSettled(
@@ -87,7 +98,9 @@ async function searchEvents({ limit = 20 } = {}) {
       const key = `${(ev.title || '').toLowerCase()}|${(ev.venue || '').toLowerCase()}`;
       if (!byKey.has(key)) byKey.set(key, ev);
     }
-    return [...byKey.values()].slice(0, limit);
+    const out = [...byKey.values()].slice(0, limit);
+    resultCache = { at: Date.now(), key: cacheKey, events: out };
+    return out;
   } catch (err) {
     if (!warned) { console.warn('[eventbrite] unavailable:', err.message); warned = true; }
     return [];

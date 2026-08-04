@@ -28,8 +28,19 @@ function headers() {
  * Search activities near a lat/lng (GetYourGuide supports geo search
  * directly, unlike Viator's destination-ID model).
  */
+// 30 min result cache keyed on a ~1 km coord grid + query — top-rated
+// activities for a spot move slowly, but this used to be a fresh 12 s-budget
+// network call on every generate, browse miss, and Surprise press.
+const CACHE_TTL_MS = 30 * 60 * 1000;
+const CACHE_MAX = 100;
+const cache = new Map(); // key -> { at, activities }
+
 async function searchActivities({ lat, lng, query, limit = 8 }) {
   assertConfigured();
+
+  const cacheKey = `${Math.round(lat * 100) / 100},${Math.round(lng * 100) / 100}|${query || ''}|${limit}`;
+  const hit = cache.get(cacheKey);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.activities;
 
   const res = await client.get(`${BASE_URL}/activities`, {
     headers: headers(),
@@ -46,8 +57,10 @@ async function searchActivities({ lat, lng, query, limit = 8 }) {
     }
   });
 
-  const activities = res.data?.data?.activities || [];
-  return activities.map(normalizeActivity);
+  const activities = (res.data?.data?.activities || []).map(normalizeActivity);
+  if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
+  cache.set(cacheKey, { at: Date.now(), activities });
+  return activities;
 }
 
 function normalizeActivity(a) {
