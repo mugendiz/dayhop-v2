@@ -139,11 +139,79 @@
     }
   }
 
+  // ---------- Idle ticker sleep ----------
+  // gsap.ticker otherwise wakes the main thread ~60×/s for the life of the
+  // page — while the user reads a static feed, while a panel sits open.
+  // Sleep it after a few quiet seconds; anything that could start motion
+  // wakes it (and GSAP wakes itself whenever a new tween starts, so the
+  // Best Match entrance is never frozen). Lenis's eased scrolling emits
+  // 'scroll' events the whole way, which keep re-arming the timer.
+  function installTickerSleep() {
+    if (!hasGsap()) return;
+    const ticker = window.gsap.ticker;
+    let idleTimer = null;
+    const IDLE_MS = 3000;
+    const rearm = () => {
+      ticker.wake();
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => ticker.sleep(), IDLE_MS);
+    };
+    ['wheel', 'touchstart', 'touchmove', 'keydown', 'pointerdown', 'scroll'].forEach(ev =>
+      window.addEventListener(ev, rearm, { passive: true }));
+    rearm();
+  }
+
+  // ---------- Library loading ----------
+  // Lenis + GSAP + ScrollTrigger (~46 KB gz combined) used to be three
+  // hard <script> tags on every load. They're garnish (this file's header
+  // says so) — now they load only where they'd actually run: motion not
+  // reduced, no Save-Data, and a reasonably capable device.
+  const LIBS = [
+    'https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js',
+    'https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js',
+    'https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js'
+  ];
+
+  function shouldLoadMotion() {
+    if (reduceMotion.matches) return false;
+    const conn = navigator.connection;
+    if (conn && conn.saveData) return false;
+    if (navigator.deviceMemory && navigator.deviceMemory < 4) return false;
+    return true;
+  }
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.async = false; // dynamic scripts default to async — order matters (gsap before ScrollTrigger)
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('failed to load ' + src));
+      document.head.appendChild(s);
+    });
+  }
+
+  let libsRequested = false;
+  function loadLibsAndBoot() {
+    if (libsRequested) return;
+    libsRequested = true;
+    Promise.all(LIBS.map(loadScript)).then(() => {
+      initGsap();
+      initLenis();
+      installTickerSleep();
+    }).catch(() => { /* CSS scroll-driven animations carry the experience */ });
+  }
+
   // ---------- Boot ----------
   function boot() {
-    initGsap();
-    initLenis();
+    if (shouldLoadMotion()) loadLibsAndBoot();
   }
+
+  // If the OS motion setting flips to "no preference" mid-session and the
+  // libraries were skipped at boot, pick them up then.
+  reduceMotion.addEventListener('change', () => {
+    if (!reduceMotion.matches && shouldLoadMotion()) loadLibsAndBoot();
+  });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);

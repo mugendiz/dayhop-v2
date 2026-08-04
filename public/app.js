@@ -485,9 +485,26 @@
     }, { passive: true });
   }
 
+  // Warm the Adventure hero photo the moment the user first shows interest
+  // in the toggle (hover/focus/touch), instead of prefetching ~400 KB on
+  // every page load for a mode most visitors never open. Width mirrors the
+  // responsive breakpoints in main.css so the warmed URL is the one CSS asks
+  // for. setMode's view transition cross-fades, so even a tap-with-no-hover
+  // only gains from the head start.
+  let adventureHeroWarmed = false;
+  function warmAdventureHero() {
+    if (adventureHeroWarmed) return;
+    adventureHeroWarmed = true;
+    const w = window.innerWidth < 640 ? 800 : window.innerWidth < 1200 ? 1400 : 2100;
+    const img = new Image();
+    img.src = `https://images.unsplash.com/photo-1522163182402-834f871fd851?auto=format&fit=crop&w=${w}&q=80`;
+  }
+
   function wireModeToggle() {
     const toggle = document.getElementById('mode-toggle');
     if (!toggle) return;
+    ['pointerenter', 'focusin', 'touchstart'].forEach(ev =>
+      toggle.addEventListener(ev, warmAdventureHero, { passive: true, once: false }));
     toggle.querySelectorAll('.mode-option').forEach(btn => {
       btn.addEventListener('click', () => setMode(btn.dataset.mode));
     });

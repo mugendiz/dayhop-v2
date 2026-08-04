@@ -31,14 +31,45 @@ app.use(cors());
 // BEFORE the JSON parser. Everything else gets parsed JSON as usual.
 app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), require('./routes/billingWebhook'));
 app.use(express.json({ limit: '100kb' }));
+
+// Minified shell (build.js output, produced on postinstall). URL space is
+// unchanged — index.html and sw.js keep referencing /app.js etc.; production
+// just serves the minified bytes for those paths. Falls through untouched
+// when a dist file is missing (fresh clone, failed build).
+const fs = require('fs');
+const minifiedShell = {};
+if (isProd) {
+  for (const [urlPath, distRel] of Object.entries({
+    '/app.js': 'dist/app.min.js',
+    '/auth.js': 'dist/auth.min.js',
+    '/motion.js': 'dist/motion.min.js',
+    '/css/main.css': 'dist/main.min.css'
+  })) {
+    const abs = path.join(__dirname, 'public', distRel);
+    if (fs.existsSync(abs)) minifiedShell[urlPath] = abs;
+  }
+  if (Object.keys(minifiedShell).length) {
+    console.log(`[static] serving minified shell for: ${Object.keys(minifiedShell).join(', ')}`);
+  }
+}
+app.use((req, res, next) => {
+  const abs = minifiedShell[req.path];
+  if (!abs) return next();
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.sendFile(abs);
+});
+
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders(res, filePath) {
-    // Icons are effectively immutable — a day of caching is safe. The app
-    // shell (HTML/JS/CSS) stays on ETag revalidation: the service worker
-    // re-downloads it through the HTTP cache on every version bump, so a
-    // long max-age there could pin a stale deploy into the new SW cache.
+    // Icons are effectively immutable — a day of caching is safe. JS/CSS get
+    // 5 minutes: sw.js now pre-caches the shell with cache:'reload' requests
+    // (bypassing the HTTP cache), so a version bump can no longer pin a
+    // stale deploy — and 5 min of no-revalidation removes a conditional
+    // round trip from every navigation. HTML stays on pure ETag.
     if (/[\\/]icons[\\/]/.test(filePath)) {
       res.setHeader('Cache-Control', 'public, max-age=86400');
+    } else if (/\.(js|css)$/.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=300');
     }
   }
 }));

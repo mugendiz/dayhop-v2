@@ -13,7 +13,7 @@
 //     stale-while-revalidate so a revisited share link opens instantly even
 //     through a free-tier cold start.
 // Bump the version to invalidate every cached asset on the next visit.
-const CACHE = 'dayhop-shell-v9'; // v9: 404/410 evict cached entries (deleted share links die properly)
+const CACHE = 'dayhop-shell-v10'; // v10: install bypasses the HTTP cache (shell assets now carry max-age)
 
 const SHELL = [
   '/',
@@ -36,8 +36,13 @@ const CDN_HOSTS = new Set([
 ]);
 
 self.addEventListener('install', (event) => {
+  // cache:'reload' bypasses the HTTP cache: a version bump always pulls the
+  // freshly-deployed assets from the network, never a max-age'd stale copy.
+  // This is what makes it safe for the server to put max-age on JS/CSS.
   event.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())
+    caches.open(CACHE)
+      .then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
   );
 });
 

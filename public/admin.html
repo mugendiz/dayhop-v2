@@ -204,7 +204,7 @@
   </div>
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.108.2/dist/umd/supabase.min.js" defer></script>
 <script>
 (function () {
   'use strict';
@@ -648,7 +648,13 @@
       .join('') || '<tr><td colspan="2">No events yet.</td></tr>';
   }
 
-  boot();
+  // supabase-js is deferred (render-unblocking) — deferred scripts are
+  // guaranteed to have run by DOMContentLoaded, so boot after it.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
 })();
 </script>
 </body>

@@ -13,15 +13,22 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
 <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
-<!-- The hero skyline is the LCP element — fetch it before the CSS asks. -->
-<link rel="preload" as="image" fetchpriority="high"
+<!-- The hero skyline is the LCP element — fetch it before the CSS asks.
+     One preload per viewport band, media-gated to mirror main.css's
+     responsive breakpoints EXACTLY (preload only helps when its URL matches
+     the one CSS requests). Phones no longer download the 2100px original.
+     The Adventure hero is prefetched from app.js on first mode-toggle
+     interaction instead of on every page load — most visitors never
+     switched modes and paid ~400 KB for nothing. -->
+<link rel="preload" as="image" fetchpriority="high" media="(max-width: 639px)"
+  href="https://images.unsplash.com/photo-1517935706615-2717063c2225?auto=format&fit=crop&w=800&q=80">
+<link rel="preload" as="image" fetchpriority="high" media="(min-width: 640px) and (max-width: 1199px)"
+  href="https://images.unsplash.com/photo-1517935706615-2717063c2225?auto=format&fit=crop&w=1400&q=80">
+<link rel="preload" as="image" fetchpriority="high" media="(min-width: 1200px)"
   href="https://images.unsplash.com/photo-1517935706615-2717063c2225?auto=format&fit=crop&w=2100&q=80">
-<!-- Adventure-mode hero photo, prefetched at idle priority so the first
-     mode switch swaps scenes without a blank flash. -->
-<link rel="prefetch" as="image"
-  href="https://images.unsplash.com/photo-1522163182402-834f871fd851?auto=format&fit=crop&w=2100&q=80">
-<!-- Satoshi is served by Fontshare (not available on Google Fonts) -->
-<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,701&display=swap" rel="stylesheet">
+<!-- Satoshi is served by Fontshare (not available on Google Fonts).
+     Weights 500/700 only — 701 (italic) never appears in main.css. -->
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/main.css">
 </head>
@@ -521,18 +528,19 @@
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-<!-- defer everywhere: none of these need to block first paint, and defer
-     preserves execution order (supabase → auth → app). -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
-<script src="/auth.js" defer></script>
+<!-- defer everywhere: none of these need to block first paint. app.js runs
+     FIRST — its init() fires the feed request, the page's most important
+     network call, and it must not queue behind anything third-party.
+     supabase-js is no longer a static tag at all: auth.js lazy-loads it
+     (pinned version) only when a stored session needs restoring or the
+     user opens Sign in. app.js tolerates auth arriving late — it listens
+     for the 'dayhop:auth' event. -->
 <script src="/app.js" defer></script>
-<!-- Motion stack: Lenis (buttery scroll) + GSAP/ScrollTrigger (a few
-     high-impact moments only). All optional — motion.js feature-detects,
-     respects prefers-reduced-motion, and the app is fully usable without
-     any of it (native CSS scroll-driven animations carry the feed). -->
-<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+<script src="/auth.js" defer></script>
+<!-- Motion stack: motion.js now injects Lenis + GSAP/ScrollTrigger itself,
+     and only where they'd be used (motion not reduced, no Save-Data, a
+     capable device). The app is fully usable without any of it — native
+     CSS scroll-driven animations carry the feed. -->
 <script src="/motion.js" defer></script>
 <script>
 // Offline support: once visited, the app shell (and your saved plans,

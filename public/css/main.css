@@ -103,16 +103,37 @@ button, .filter-chip {
   position: absolute;
   inset: 0;
   z-index: -1;
+  /* Responsive photo: phones were downloading the same 2100px original as a
+     27" display (~400 KB for a 375px viewport). The preload links in
+     index.html mirror these exact breakpoints/URLs so preload and CSS agree. */
   background:
     linear-gradient(180deg, rgba(253,250,243,0.9) 0%, rgba(251,247,238,0.68) 48%, rgba(251,247,238,0.9) 100%),
-    url("https://images.unsplash.com/photo-1517935706615-2717063c2225?auto=format&fit=crop&w=2100&q=80")
+    url("https://images.unsplash.com/photo-1517935706615-2717063c2225?auto=format&fit=crop&w=800&q=80")
       center 22% / cover no-repeat;
-  /* Pinned to the viewport, not the hero box: the skyline holds still while
-     hero-content scrolls over it. .hero's own overflow:hidden clips this to
-     the hero's bounds, so once that box scrolls past — right around where
-     "Exploring ___" takes over — the fixed photo is simply covered by the
-     opaque results feed and normal scrolling resumes. */
-  background-attachment: fixed;
+}
+@media (min-width: 640px) {
+  .hero::before {
+    background-image:
+      linear-gradient(180deg, rgba(253,250,243,0.9) 0%, rgba(251,247,238,0.68) 48%, rgba(251,247,238,0.9) 100%),
+      url("https://images.unsplash.com/photo-1517935706615-2717063c2225?auto=format&fit=crop&w=1400&q=80");
+  }
+}
+@media (min-width: 1200px) {
+  .hero::before {
+    background-image:
+      linear-gradient(180deg, rgba(253,250,243,0.9) 0%, rgba(251,247,238,0.68) 48%, rgba(251,247,238,0.9) 100%),
+      url("https://images.unsplash.com/photo-1517935706615-2717063c2225?auto=format&fit=crop&w=2100&q=80");
+  }
+}
+/* Pinned to the viewport, not the hero box: the skyline holds still while
+   hero-content scrolls over it (clipped by .hero's overflow:hidden).
+   DESKTOP ONLY: background-attachment:fixed forces a full-viewport repaint
+   of the decoded photo on every scroll frame — with Lenis feeding a steady
+   60fps of positions, that was the single biggest scroll-jank source on
+   mid-range phones (iOS ignores fixed attachment anyway). Small screens now
+   scroll the photo normally, which the compositor handles for free. */
+@media (min-width: 880px) and (prefers-reduced-motion: no-preference) {
+  .hero::before { background-attachment: fixed; }
 }
 
 .hero-trail {
@@ -2557,12 +2578,29 @@ body[data-mode="adventure"] { background: #F9E0BD; }
 body[data-mode="adventure"] .hero {
   background: linear-gradient(180deg, #FDEBD0 0%, #F9E0BD 42%, #F0C793 100%);
 }
+/* Same responsive-width + desktop-only-fixed treatment as the R&R hero. */
 body[data-mode="adventure"] .hero::before {
   background:
     linear-gradient(180deg, rgba(253,235,208,0.84) 0%, rgba(250,224,189,0.52) 48%, rgba(249,224,189,0.88) 100%),
-    url("https://images.unsplash.com/photo-1522163182402-834f871fd851?auto=format&fit=crop&w=2100&q=80")
+    url("https://images.unsplash.com/photo-1522163182402-834f871fd851?auto=format&fit=crop&w=800&q=80")
       center 30% / cover no-repeat;
-  background-attachment: fixed;
+}
+@media (min-width: 640px) {
+  body[data-mode="adventure"] .hero::before {
+    background-image:
+      linear-gradient(180deg, rgba(253,235,208,0.84) 0%, rgba(250,224,189,0.52) 48%, rgba(249,224,189,0.88) 100%),
+      url("https://images.unsplash.com/photo-1522163182402-834f871fd851?auto=format&fit=crop&w=1400&q=80");
+  }
+}
+@media (min-width: 1200px) {
+  body[data-mode="adventure"] .hero::before {
+    background-image:
+      linear-gradient(180deg, rgba(253,235,208,0.84) 0%, rgba(250,224,189,0.52) 48%, rgba(249,224,189,0.88) 100%),
+      url("https://images.unsplash.com/photo-1522163182402-834f871fd851?auto=format&fit=crop&w=2100&q=80");
+  }
+}
+@media (min-width: 880px) and (prefers-reduced-motion: no-preference) {
+  body[data-mode="adventure"] .hero::before { background-attachment: fixed; }
 }
 
 .mode-toggle {

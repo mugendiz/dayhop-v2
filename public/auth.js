@@ -20,6 +20,68 @@
     }));
   }
 
+  // ---------- lazy supabase-js ----------
+  // The ~65 KB gz supabase-js bundle used to sit as a static <script> AHEAD
+  // of app.js in the defer queue — every visitor paid its download+parse
+  // before the app could fire its first API call. Now it loads on demand:
+  // immediately when a stored session (or an OAuth redirect) needs restoring,
+  // otherwise only when the user actually opens the sign-in panel.
+  // Version pinned: jsDelivr serves exact versions with immutable 1-year
+  // caching; the bare "@2" range URL revalidates weekly.
+  const SUPABASE_CDN = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.108.2/dist/umd/supabase.min.js';
+  let sbScriptPromise = null;
+  function loadSupabaseJs() {
+    if (window.supabase) return Promise.resolve();
+    if (!sbScriptPromise) {
+      sbScriptPromise = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = SUPABASE_CDN;
+        s.async = true;
+        s.onload = resolve;
+        s.onerror = () => { sbScriptPromise = null; reject(new Error('supabase-js failed to load')); };
+        document.head.appendChild(s);
+      });
+    }
+    return sbScriptPromise;
+  }
+
+  // supabase-js persists sessions under "sb-<ref>-auth-token" — presence
+  // tells us a returning signed-in user without loading the library.
+  function hasStoredSession() {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.indexOf('sb-') === 0 && k.indexOf('-auth-token') !== -1) return true;
+      }
+    } catch (e) { /* private mode */ }
+    return false;
+  }
+
+  // OAuth return trip: Supabase parks tokens in the URL (hash for implicit,
+  // ?code= for PKCE) — the client must load NOW to complete the sign-in.
+  function returningFromOAuth() {
+    return /[#&](access_token|refresh_token|error_description)=/.test(location.hash) ||
+      /[?&]code=/.test(location.search);
+  }
+
+  let clientPromise = null;
+  function ensureClient() {
+    if (clientPromise) return clientPromise;
+    clientPromise = (async () => {
+      const cfg = await window.DayHopConfig;
+      await loadSupabaseJs();
+      sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+      });
+      const { data } = await sb.auth.getSession();
+      setSession(data.session, 'INITIAL');
+      sb.auth.onAuthStateChange((event, session) => setSession(session, event));
+      return sb;
+    })();
+    clientPromise.catch(() => { clientPromise = null; }); // failed load → retry on next attempt
+    return clientPromise;
+  }
+
   // ---------- init ----------
   async function init() {
     let cfg;
@@ -33,20 +95,17 @@
     } catch (e) {
       return; // no config → stay anonymous
     }
-    if (!cfg.authEnabled || !window.supabase) return;
-
-    sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-    });
+    if (!cfg.authEnabled) return;
 
     show('auth-btn', true); // reveal sign-in entry point
     wireUI();
     wireAccountMenu();
 
-    const { data } = await sb.auth.getSession();
-    setSession(data.session, 'INITIAL');
-
-    sb.auth.onAuthStateChange((event, session) => setSession(session, event));
+    // Signed-in (or mid-OAuth) visitors restore their session right away;
+    // everyone else defers the whole supabase-js download until Sign in.
+    if (hasStoredSession() || returningFromOAuth()) {
+      ensureClient().catch(e => console.warn('[auth] session restore failed:', e.message));
+    }
   }
 
   function setSession(session, event) {
@@ -92,6 +151,9 @@
 
   // ---------- modal ----------
   function openAuth() {
+    // Start the (lazy) client load the moment the panel opens — by the time
+    // the user has typed an email it's long since ready.
+    ensureClient().catch(() => setError('Could not reach the sign-in service. Check your connection and try again.'));
     setMode('signin');
     clearError();
     const panel = $('auth-panel');
@@ -147,6 +209,7 @@
 
     setSubmitting(true);
     try {
+      await ensureClient();
       if (mode === 'signup') {
         const { data, error } = await sb.auth.signUp({ email, password });
         if (error) throw error;
@@ -174,6 +237,7 @@
   async function handleGoogle() {
     clearError();
     try {
+      await ensureClient();
       // supabase-js v2 RETURNS errors from signInWithOAuth (it doesn't
       // throw) — without this check a misconfigured provider makes the
       // button appear dead.
@@ -189,6 +253,7 @@
   }
 
   async function handleSignOut() {
+    if (!sb) return; // never signed in this page load — nothing to clear
     try { await sb.auth.signOut(); } catch (e) { /* ignore */ }
   }
 
