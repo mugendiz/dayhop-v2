@@ -89,6 +89,7 @@ async function usageFor(req, entitlements) {
 
 router.get('/status', async (req, res) => {
   const configured = billing.isConfigured();
+  const livemode = billing.status().livemode;
   // Entitlements and price ride along so the client can show the right
   // limits and upgrade prompts without hardcoding tier rules or amounts.
   // This endpoint is hit on every page load — the independent lookups run
@@ -106,12 +107,13 @@ router.get('/status', async (req, res) => {
   // Super admins are Pro-and-then-some with no subscription behind it: report
   // pro so the client never shows upgrade chrome, and admin for admin chrome.
   if (entitlements && entitlements.tier === 'admin') {
-    return res.json({ configured, pro: true, admin: true, status: 'admin', entitlements, price });
+    return res.json({ configured, livemode, pro: true, admin: true, status: 'admin', entitlements, price });
   }
   const usage = await usageFor(req, entitlements);
-  if (!req.user) return res.json({ configured, pro: false, status: null, entitlements, price, usage });
+  if (!req.user) return res.json({ configured, livemode, pro: false, status: null, entitlements, price, usage });
   res.json({
     configured,
+    livemode,
     pro: Boolean(sub && ['active', 'trialing'].includes(sub.status)),
     status: sub ? sub.status : null,
     cancel_at_period_end: sub ? Boolean(sub.cancel_at_period_end) : false,

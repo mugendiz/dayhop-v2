@@ -29,6 +29,9 @@ function isConfigured() {
 function status() {
   return {
     configured: isConfigured(),
+    // Which Stripe mode the deployed key is in — "sandbox checkout on the
+    // live site" is invisible from outside without this.
+    livemode: Boolean(STRIPE_SECRET_KEY && STRIPE_SECRET_KEY.startsWith('sk_live_')),
     webhook_secret: Boolean(STRIPE_WEBHOOK_SECRET),
     persistent: dbClient.status().service_key === true
   };
