@@ -240,6 +240,24 @@ button, .filter-chip {
 .go-pro-btn:hover { filter: brightness(1.06); box-shadow: 0 4px 14px rgba(255, 107, 74, 0.3); }
 .go-pro-btn:active { transform: scale(0.96); }
 
+/* Blog entry: Go Pro's quiet green sibling — same pill, moss instead of
+   coral, so the pair reads as one control family with two temperatures. */
+.stories-btn {
+  background: var(--moss);
+  border: 1px solid var(--moss);
+  color: var(--paper);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 7px 16px;
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+  box-shadow: 0 2px 10px rgba(63, 111, 92, 0.22);
+  transition: filter 0.15s ease, transform 0.15s var(--ease), box-shadow 0.15s ease;
+}
+.stories-btn:hover { filter: brightness(1.08); box-shadow: 0 4px 14px rgba(63, 111, 92, 0.3); }
+.stories-btn:active { transform: scale(0.96); }
+
 /* Account: one 32px circle; identity details live in its dropdown. */
 .user-chip { position: relative; display: flex; align-items: center; }
 
