@@ -917,6 +917,11 @@ button, .filter-chip {
   user-select: none;
   display: grid;
   gap: 12px;
+  /* Infinite scroll grows the feed past 100 cards — let the browser skip
+     style/layout/paint for the off-screen ones. The intrinsic-size estimate
+     (photo 210px + body) keeps the scrollbar from jumping. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
 }
 
 .idea-card::before {

@@ -665,14 +665,24 @@
     updateLocationTag();
 
     input.addEventListener('focus', () => openLocationList(''));
-    input.addEventListener('input', () => {
-      clearTimeout(combo.debounce);
-      const q = input.value;
-      combo.debounce = setTimeout(() => openLocationList(q), 130);
-    });
+    // No debounce: the local list is 24 hardcoded rows — filtering it is
+    // microseconds, and delaying it only added 130 ms of perceived input
+    // lag (which the remote fetch's own 200 ms debounce then stacked on).
+    // openLocationList starts the remote debounce in the same call, so the
+    // network request now leaves 130 ms sooner too.
+    input.addEventListener('input', () => openLocationList(input.value));
     input.addEventListener('keydown', onLocationKeydown);
     // Delay close so an option's mousedown/click can land first.
     input.addEventListener('blur', () => setTimeout(closeLocationList, 120));
+
+    // ONE delegated listener instead of re-attaching 24+ per keystroke
+    // (renderLocationOptions rebuilds the rows on every repaint).
+    listbox.addEventListener('mousedown', (e) => {
+      const li = e.target.closest('.location-option[data-kind]');
+      if (!li) return;
+      e.preventDefault(); // keep focus so blur doesn't pre-empt the select
+      commitLocationOption(li);
+    });
   }
 
   function openLocationList(query) {
@@ -786,12 +796,8 @@
     }
 
     lb.innerHTML = rows.join('');
-    lb.querySelectorAll('.location-option[data-kind]').forEach(li => {
-      li.addEventListener('mousedown', (e) => {
-        e.preventDefault(); // keep focus so blur doesn't pre-empt the select
-        commitLocationOption(li);
-      });
-    });
+    // Selection is handled by the delegated mousedown listener installed in
+    // setupLocationCombo — no per-row listeners to attach.
   }
 
   function commitLocationOption(li) {
@@ -1389,8 +1395,15 @@
     const hintEl = el.querySelector('.progress-loader-hint');
     const t0 = Date.now();
     let lastStage = stages[0].label;
+    // Reversed once, not per tick — this interval runs 6-7×/s for the whole
+    // load, exactly while the main thread is busiest.
+    const stagesDesc = [...stages].reverse();
+    let lastPctText = '';
 
     const tick = setInterval(() => {
+      // A background tab doesn't need progress paints — and skipping them
+      // keeps the tab eligible for deeper throttling.
+      if (document.hidden) return;
       const t = Date.now() - t0;
       const f = Math.min(t / est, 1);
       // Ease out to 90% at the estimate, then asymptotically crawl toward 99
@@ -1399,12 +1412,13 @@
         ? 90 * (1 - Math.pow(1 - f, 1.8))
         : 90 + 9 * (1 - Math.exp(-(t - est) / est));
       fillEl.style.width = `${p}%`;
-      pctEl.textContent = `${Math.round(p)}%`;
+      const pctText = `${Math.round(p)}%`;
+      if (pctText !== lastPctText) { lastPctText = pctText; pctEl.textContent = pctText; }
       if (t > est * 1.25) {
         stageEl.textContent = '⏳ Taking a bit longer than usual — worth it';
         hintEl.textContent = 'Almost there…';
       } else {
-        const stage = [...stages].reverse().find(s => f >= s.at) || stages[0];
+        const stage = stagesDesc.find(s => f >= s.at) || stages[0];
         if (stage.label !== lastStage) { lastStage = stage.label; stageEl.textContent = stage.label; }
       }
     }, 150);
@@ -1440,9 +1454,12 @@
   }
 
   function visibleIdeas() {
+    // Set lookup, not .find() inside .filter(): 120 ideas × 25 shortlist
+    // items × 3 calls per render was ~9,000 linear comparisons.
+    const shortlistIds = new Set(state.shortlist.map(s => s.id));
     return state.allIdeas.filter(idea => {
       if (state.dismissedIds.has(idea.id)) return false;
-      if (state.shortlist.find(s => s.id === idea.id)) return false;
+      if (shortlistIds.has(idea.id)) return false;
       if (state.currentFilter !== 'all' && idea.category !== state.currentFilter) return false;
       return true;
     });
@@ -1522,16 +1539,18 @@
       order.forEach(label => appendSection(label, groups.get(label), true));
     }
 
-    updateFeedChrome();
+    updateFeedChrome(ideas);
   }
 
   // The feed's supporting cast — empty/no-results states, the idea-count
   // line, the collections shelf. Shared by the full render and the
   // single-card removal path so the two can't drift.
-  function updateFeedChrome() {
+  function updateFeedChrome(precomputedIdeas) {
     // Cards just left the DOM — drop any ScrollTriggers still bound to them.
     if (window.DayHopMotion && window.DayHopMotion.reap) window.DayHopMotion.reap();
-    const ideas = visibleIdeas();
+    // Callers that just computed the visible list pass it in — recomputing
+    // it here doubled the filter work on every render.
+    const ideas = precomputedIdeas || visibleIdeas();
     const hasIdeas = state.allIdeas.length > 0;
     // Empty: nothing generated yet. No-results: ideas exist but the filter/swipes hid them all.
     document.getElementById('empty-state').hidden = state.isGenerating || hasIdeas;
@@ -1548,6 +1567,53 @@
     if (feedNext) feedNext.hidden = !hasIdeas || state.isGenerating || state.nextExhausted;
 
     renderCollections();
+  }
+
+  // Append-only page growth for "Next" pages: renderFeed used to wipe the
+  // feed (innerHTML = '') and rebuild EVERY card — by page 4 that's 300
+  // cards built to show 120, thousands of listener re-registrations, and
+  // re-decoded images the user was actively looking at. Fresh cards build
+  // into a fragment and land in one append; everything on screen is
+  // untouched. Returns the first appended node (for the scroll-to-new
+  // affordance) or null when nothing was appended.
+  function appendIdeasToFeed(freshIdeas) {
+    const feed = document.getElementById('discovery-feed');
+    // No cards yet (first load, or everything filtered away) — the full
+    // render owns empty-feed layout, hero logic, and section merging.
+    if (!feed.querySelector('.idea-card')) { renderFeed(false); return null; }
+
+    const freshIds = new Set(freshIdeas.map(i => String(i.id)));
+    const ideas = visibleIdeas().filter(i => freshIds.has(String(i.id)));
+    if (!ideas.length) { updateFeedChrome(); return null; }
+
+    let stopIndex = feed.querySelectorAll('.idea-card').length; // numbering continues
+    const frag = document.createDocumentFragment();
+    const order = [];
+    const groups = new Map();
+    ideas.forEach(idea => {
+      const label = idea.section || 'More ideas';
+      if (!groups.has(label)) { groups.set(label, []); order.push(label); }
+      groups.get(label).push(idea);
+    });
+    // If the feed already ends in the same section this page opens with,
+    // don't repeat the header — the new cards read as more of that shelf.
+    const headers = feed.querySelectorAll('.feed-section-header');
+    const trailingLabel = headers.length ? headers[headers.length - 1].textContent : null;
+    order.forEach((label, i) => {
+      if (!(i === 0 && label === trailingLabel)) {
+        const header = document.createElement('h3');
+        header.className = 'feed-section-header';
+        header.textContent = label;
+        frag.appendChild(header);
+      }
+      groups.get(label).forEach(idea => {
+        frag.appendChild(createIdeaCard(idea, stopIndex++, false, false));
+      });
+    });
+    const firstNew = frag.firstChild;
+    feed.appendChild(frag);
+    updateFeedChrome();
+    return firstNew;
   }
 
   // Surgical exit for one swiped/added card: removing a single element and
@@ -1943,9 +2009,17 @@
   function updateShortlistCount() {
     const badge = document.getElementById('shortlist-count');
     if (badge.textContent !== String(state.shortlist.length)) {
-      badge.classList.remove('count-pulse');
-      void badge.offsetWidth; // restart the animation
-      badge.classList.add('count-pulse');
+      // Restart the pulse without the classic void-offsetWidth trick — that
+      // forces a full style+layout flush mid-swipe-gesture. getAnimations
+      // restarts it directly on the compositor's schedule.
+      if (badge.getAnimations) {
+        badge.classList.add('count-pulse');
+        badge.getAnimations().forEach(a => { a.cancel(); a.play(); });
+      } else {
+        badge.classList.remove('count-pulse');
+        void badge.offsetWidth; // legacy fallback
+        badge.classList.add('count-pulse');
+      }
     }
     badge.textContent = state.shortlist.length;
     document.getElementById('build-day-btn').disabled = state.shortlist.length === 0;
@@ -3179,6 +3253,27 @@
   const browseCache = new Map();
   let browsePrefetchKey = null;
 
+  // Mirror the browse cache into sessionStorage: a Map dies on reload, so a
+  // returning back-navigation or refresh re-paid the full ~6s browse fetch
+  // for data that was valid 30 seconds ago. Restore still-fresh entries at
+  // startup; persist the newest few on every write (payloads are chunky).
+  const BROWSE_CACHE_SS_KEY = 'dayhop_browse_cache_v1';
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(BROWSE_CACHE_SS_KEY)) || {};
+    Object.entries(saved).forEach(([k, v]) => {
+      if (v && v.at && Date.now() - v.at < BROWSE_CACHE_TTL_MS) browseCache.set(k, v);
+    });
+  } catch (e) { /* corrupt/private mode — start empty */ }
+
+  function browseCachePut(key, entry) {
+    browseCache.set(key, entry);
+    try {
+      const out = {};
+      [...browseCache.entries()].slice(-4).forEach(([k, v]) => { out[k] = v; });
+      sessionStorage.setItem(BROWSE_CACHE_SS_KEY, JSON.stringify(out));
+    } catch (e) { /* quota — the in-memory cache still works */ }
+  }
+
   function browseCacheKey(mode) {
     const coordsFresh = state.coords && Date.now() - state.coordsAt < COORDS_FRESH_MS;
     // ~2 km rounding mirrors the server cache grid, so a GPS jitter doesn't
@@ -3188,11 +3283,15 @@
     return `${mode}|${city}|${grid}|${JSON.stringify(getDatePayload())}`;
   }
 
-  function applyBrowsePayload(data) {
+  // opts.surprise / opts.exhausted let the surprise path set its state
+  // BEFORE the single render below — it used to set them after and pay a
+  // full second renderResultsHeader + updateFeedChrome to correct two
+  // booleans.
+  function applyBrowsePayload(data, opts = {}) {
     state.allIdeas = data.ideas || [];
     state.browseMode = true;
-    state.surpriseMode = false;
-    state.nextExhausted = false;
+    state.surpriseMode = opts.surprise === true;
+    state.nextExhausted = opts.exhausted === true;
     state.dismissedIds = new Set();
     state.lastPrompt = '';
     state.lastWeather = data.weather || null;
@@ -3351,12 +3450,22 @@
     return pool;
   }
 
+  // On desktop the featured card is in the initial viewport and a strong
+  // LCP candidate — loading="lazy" DELAYED its fetch behind a layout pass,
+  // the opposite of what the hero wants. First paint goes eager+high;
+  // rotation swaps go back to lazy (startFeaturedTimer preloads them
+  // before fading anyway, so lazy is a harmless hint there).
+  let featuredFirstPaint = true;
   function renderFeaturedCard(aside, ev) {
     const fallback = categoryImage(ev.category, 900);
+    const imgAttrs = featuredFirstPaint
+      ? 'loading="eager" fetchpriority="high"'
+      : 'loading="lazy"';
+    featuredFirstPaint = false;
     aside.innerHTML = `
       <div class="featured-card" role="button" tabindex="0" aria-label="Featured: ${escapeAttr(ev.title)}">
         <div class="featured-card-photo">
-          <img src="${escapeAttr(ev.image_url || fallback)}" alt="" loading="lazy"
+          <img src="${escapeAttr(ev.image_url || fallback)}" alt="" ${imgAttrs}
             onerror="this.onerror=null;this.src='${escapeAttr(fallback)}'">
           <span class="featured-card-date">${escapeHtml(ev.date ? formatEventDate(ev.date) : (ev.schedule || ''))}</span>
           <span class="hero-featured-eyebrow">🌌 Under open skies</span>
@@ -3460,11 +3569,23 @@
   }
 
   function wireFeaturedHeightSync() {
+    // rAF-coalesced: resize fires dozens of times/sec during a window drag
+    // (and on every mobile URL-bar show/hide), and syncFeaturedHeight does
+    // two getBoundingClientRect reads + style writes — a forced-layout cycle
+    // per event without this. One measurement per frame is plenty. It also
+    // breaks the ResizeObserver feedback loop: the observer watches
+    // .hero-left, the sync writes a height in the same grid, and observer →
+    // write → observer could otherwise re-enter synchronously.
+    let queued = 0;
+    const syncOnFrame = () => {
+      if (queued) return;
+      queued = requestAnimationFrame(() => { queued = 0; syncFeaturedHeight(); });
+    };
     const left = document.querySelector('.hero-left');
     if ('ResizeObserver' in window && left) {
-      new ResizeObserver(() => syncFeaturedHeight()).observe(left);
+      new ResizeObserver(syncOnFrame).observe(left);
     }
-    window.addEventListener('resize', syncFeaturedHeight);
+    window.addEventListener('resize', syncOnFrame, { passive: true });
     syncFeaturedHeight();
   }
 
@@ -3565,7 +3686,7 @@
         ))
       })
         .then(res => (res.ok ? res.json() : null))
-        .then(data => { if (data && (data.ideas || []).length) browseCache.set(key, { at: Date.now(), data }); })
+        .then(data => { if (data && (data.ideas || []).length) browseCachePut(key, { at: Date.now(), data }); })
         .catch(() => {})
         .finally(() => { if (browsePrefetchKey === key) browsePrefetchKey = null; });
     }, 1500);
@@ -3623,7 +3744,7 @@
       if (!res.ok) throw new Error('browse failed');
       const data = await res.json();
       progress.finish();
-      if ((data.ideas || []).length) browseCache.set(browseCacheKey(state.mode), { at: Date.now(), data });
+      if ((data.ideas || []).length) browseCachePut(browseCacheKey(state.mode), { at: Date.now(), data });
       browseAutoRetried = false; // a success re-arms the auto-retry
       applyBrowsePayload(data);
       prefetchOtherModeFeed();
@@ -3761,11 +3882,7 @@
       const data = await apiSurprise();
       progress.finish();
       if ((data.ideas || []).length) {
-        applyBrowsePayload(data);
-        state.surpriseMode = true;
-        state.nextExhausted = data.exhausted === true;
-        renderResultsHeader();
-        updateFeedChrome();
+        applyBrowsePayload(data, { surprise: true, exhausted: data.exhausted === true });
         applied = true;
         document.getElementById('results-header').scrollIntoView({ behavior: 'auto', block: 'start' });
       } else {
@@ -3810,13 +3927,13 @@
       const fresh = data.ideas || [];
       if (fresh.length) {
         state.allIdeas = state.allIdeas.concat(fresh);
-        renderFeed(false);
+        // Append, never rebuild: cards already on screen keep their DOM,
+        // listeners, and decoded images.
+        const firstNew = appendIdeasToFeed(fresh);
         // Only an explicit button press earns a scroll — auto-loaded pages
         // must never yank a feed the user is already scrolling through.
-        if (!auto) {
-          const headers = document.querySelectorAll('#discovery-feed .feed-section-header');
-          const firstNew = [...headers].find(h => h.textContent === fresh[0].section);
-          if (firstNew) firstNew.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+        if (!auto && firstNew && firstNew.scrollIntoView) {
+          firstNew.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
         }
       }
       if (data.exhausted === true) {
@@ -4062,7 +4179,17 @@
     }
   }
 
-  async function refreshProStatus() {
+  // Coalesce concurrent refreshes — init() and the auth INITIAL event used
+  // to double-fetch /api/billing/status on every signed-in page load.
+  let proStatusInflight = null;
+  function refreshProStatus() {
+    if (!proStatusInflight) {
+      proStatusInflight = refreshProStatusNow().finally(() => { proStatusInflight = null; });
+    }
+    return proStatusInflight;
+  }
+
+  async function refreshProStatusNow() {
     const badge = document.getElementById('pro-badge');
     const goProBtn = document.getElementById('go-pro-btn');
     const adminLink = document.getElementById('admin-link');
@@ -4304,8 +4431,15 @@
   }
 
   // Banner-worthy advisories: caution and up. `info` stays in the details.
+  // Memoized on the advisories array reference — buildCardChips asks once
+  // PER CARD, which was a fresh copy+sort+filter ×100 per feed render for
+  // an answer that only changes when a new payload lands.
+  let bannerAdvisoriesMemo = { source: null, value: [] };
   function bannerAdvisories() {
-    return advisorySort(state.lastAdvisories).filter(a => (ADVISORY_RANK[a.severity] || 0) >= ADVISORY_RANK.caution);
+    if (bannerAdvisoriesMemo.source === state.lastAdvisories) return bannerAdvisoriesMemo.value;
+    const value = advisorySort(state.lastAdvisories).filter(a => (ADVISORY_RANK[a.severity] || 0) >= ADVISORY_RANK.caution);
+    bannerAdvisoriesMemo = { source: state.lastAdvisories, value };
+    return value;
   }
 
   function advisoryLineHtml(a) {
@@ -4737,7 +4871,17 @@
     window.addEventListener('online', () => showToast('Back online ✨'));
 
     handleBillingReturn();
-    refreshProStatus();
+    // A stored Supabase session means handleAuthChange is about to refresh
+    // Pro status with the real token — the anonymous warm-up here was a
+    // guaranteed duplicate round trip for every signed-in visitor.
+    let hasStoredSession = false;
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.indexOf('sb-') === 0 && k.indexOf('-auth-token') !== -1) { hasStoredSession = true; break; }
+      }
+    } catch (e) { /* private mode */ }
+    if (!hasStoredSession) refreshProStatus();
 
     renderFeed();
 
