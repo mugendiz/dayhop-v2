@@ -98,7 +98,7 @@ ${jsonLd ? `<script type="application/ld+json">${jsonLd}</script>` : ''}
 <nav class="topbar"><a class="logo" href="/">DayHop</a><a class="cta" href="/">Plan my day →</a></nav>
 ${bodyHtml}
 <footer>
-<p>DayHop is a Toronto-built day planner — real venues, live weather, and AI that plans like a thoughtful local friend.</p>
+<p>DayHop is a Toronto-built day planner: real venues, live weather, and AI that plans like a thoughtful local friend.</p>
 <nav><a href="/">Planner</a><a href="/blog">Stories</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="mailto:admin@dayhop.quest?subject=Advertising%20inquiry%20%E2%80%94%20DayHop">Advertise with us</a></nav>
 </footer>
 </div>
@@ -129,7 +129,7 @@ router.get('/', async (req, res) => {
 <header style="margin-top:14px">
   <span class="eyebrow">DayHop Stories</span>
   <h1>Know the city like it's your job</h1>
-  <p class="sub">New openings, hidden gems, event recaps, and perfect-day itineraries — written from the same live data that powers the planner.</p>
+  <p class="sub">New openings, hidden gems, event recaps, and perfect-day itineraries, written from the same live data that powers the planner.</p>
 </header>
 <ul class="grid">${cards}</ul>`
   }));
@@ -181,7 +181,7 @@ router.get('/:slug', async (req, res) => {
   ${a.tags.length ? `<ul class="tags">${a.tags.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul>` : ''}
   <div class="cta-panel">
     <strong>Turn this into an actual day</strong>
-    Tell DayHop what kind of day you want — one sentence — and it plans it with real venues, live weather, and today's events.
+    Tell DayHop what kind of day you want, in one sentence, and it plans it with real venues, live weather, and today's events.
     <br><a class="btn" href="/">Plan my day →</a>
   </div>
 </article>`
