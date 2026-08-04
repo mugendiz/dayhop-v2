@@ -15,6 +15,33 @@ if (!process.env.GROK_MODEL) {
 } else {
   console.log(`[grok] model: ${GROK_MODEL}`);
 }
+
+// Validate the model id once at boot. An invalid GROK_MODEL used to fail
+// silently: every generate paid a full doomed round trip to Grok, then
+// served the un-curated degraded pool — slow AND quietly worse, forever.
+// Fail LOUDLY here instead. Network errors are skipped (this is a config
+// check, not an uptime probe), and the app keeps running either way — the
+// degraded path still works.
+(function validateModelAtBoot() {
+  if (!process.env.GROK_API_KEY) return;
+  const modelsUrl = GROK_API_URL.replace(/\/chat\/completions\/?$/, '/models');
+  if (modelsUrl === GROK_API_URL) return; // custom non-standard URL — can't derive the models endpoint
+  setTimeout(() => {
+    client.get(modelsUrl, { headers: { Authorization: `Bearer ${process.env.GROK_API_KEY}` } })
+      .then(res => {
+        const ids = (res.data && res.data.data || []).map(m => m.id);
+        if (ids.length && !ids.includes(GROK_MODEL)) {
+          console.error(
+            `[grok] *** CONFIG ERROR: model "${GROK_MODEL}" is not available to this API key. ` +
+            `Every generate will silently fall back to the un-curated degraded feed. ` +
+            `Available: ${ids.slice(0, 20).join(', ')} ***`);
+        } else if (ids.length) {
+          console.log(`[grok] model "${GROK_MODEL}" verified against /models`);
+        }
+      })
+      .catch(err => console.warn('[grok] model check skipped (network):', err.message));
+  }, 2000).unref?.();
+})();
 const DEFAULT_CITY = process.env.DEFAULT_CITY || 'Richmond Hill';
 const DEFAULT_REGION = process.env.DEFAULT_REGION || 'Ontario';
 

@@ -16,10 +16,45 @@ const router = express.Router();
 
 const maps = require('../services/googleMaps');
 const grok = require('../services/grok');
+const dbClient = require('../services/db/client');
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const CACHE_MAX_ENTRIES = 500;
 const cache = new Map();
+
+// L2 behind the memory map: the process restarts constantly on the free tier
+// (deploys, spin-down), so the "24h" memory cache was cold far more often
+// than 24h implies. public.place_details persists the same payloads keyed
+// the same way; service-key only, fail-soft in both directions.
+function hasServiceKey() {
+  return dbClient.status().service_key === true;
+}
+
+async function readPersisted(key) {
+  if (!hasServiceKey()) return null;
+  try {
+    const { data, error } = await dbClient.getClient()
+      .from('place_details').select('payload, updated_at').eq('key', key).maybeSingle();
+    if (error) throw error;
+    if (data && Date.now() - Date.parse(data.updated_at) < CACHE_TTL_MS) {
+      return { at: Date.parse(data.updated_at), payload: data.payload };
+    }
+  } catch (err) {
+    console.warn('[details] persisted read failed (memory cache still active):', err.message);
+  }
+  return null;
+}
+
+function persist(key, payload) {
+  if (!hasServiceKey()) return;
+  dbClient.getClient()
+    .from('place_details')
+    .upsert({ key, payload, updated_at: new Date().toISOString() }, { onConflict: 'key' })
+    .then(({ error }) => {
+      if (error) console.warn('[details] persist failed (memory-only):', error.message);
+    })
+    .catch(err => console.warn('[details] persist failed (memory-only):', err.message));
+}
 
 router.post('/', async (req, res) => {
   const b = req.body || {};
@@ -38,6 +73,13 @@ router.post('/', async (req, res) => {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return res.json(hit.payload);
 
+  const persisted = await readPersisted(key);
+  if (persisted) {
+    if (cache.size >= CACHE_MAX_ENTRIES) cache.delete(cache.keys().next().value);
+    cache.set(key, persisted);
+    return res.json(persisted.payload);
+  }
+
   const [place, facts] = await Promise.all([
     lookupPlace({ id, source, title, venue, location, city }).catch(err => {
       console.warn('[details] place lookup failed:', err.message);
@@ -53,6 +95,7 @@ router.post('/', async (req, res) => {
   if (place || facts) {
     if (cache.size >= CACHE_MAX_ENTRIES) cache.delete(cache.keys().next().value);
     cache.set(key, { at: Date.now(), payload });
+    persist(key, payload); // fire-and-forget
   }
   res.json(payload);
 });

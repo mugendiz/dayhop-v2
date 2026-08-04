@@ -151,6 +151,11 @@ create table if not exists public.events (
 );
 create index if not exists events_type_time_idx  on public.events (type, created_at desc);
 create index if not exists events_owner_time_idx on public.events (owner_key, created_at desc);
+-- engagementByIdea (services/analytics.js) filters on idea_id + created_at
+-- inside the candidate-gather critical path — without this partial index it
+-- degrades to a scan as events grows.
+create index if not exists events_idea_time_idx on public.events (idea_id, created_at desc)
+  where idea_id is not null;
 
 alter table public.events enable row level security;
 drop policy if exists "events insert only" on public.events;
@@ -248,3 +253,16 @@ create table if not exists public.auto_catalog (
   created_at    timestamptz not null default now()
 );
 alter table public.auto_catalog enable row level security;
+
+-- ---------- place_details (detail-panel cache, L2 behind process memory) ----------
+-- /api/details pays a Grok call + Places lookups per uncached place. The
+-- in-process 24h cache dies on every deploy/spin-down (constant on the free
+-- tier), so popular places were re-paid over and over. Rows are written and
+-- read exclusively server-side with SUPABASE_SERVICE_KEY — NO anon policies.
+-- key mirrors the route's cache key: place_id, or "title|city", lowercased.
+create table if not exists public.place_details (
+  key         text primary key,
+  payload     jsonb not null,
+  updated_at  timestamptz not null default now()
+);
+alter table public.place_details enable row level security;

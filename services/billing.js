@@ -59,6 +59,7 @@ async function getSubscription(ownerId) {
 async function upsertSubscription(row) {
   const record = Object.assign({ updated_at: new Date().toISOString() }, row);
   memorySubs.set(record.owner_id, Object.assign(memorySubs.get(record.owner_id) || {}, record));
+  isProCache.delete(record.owner_id); // webhook-driven change → next isPro re-reads
   if (hasServiceKey()) {
     try {
       const { error } = await dbClient.getClient()
@@ -108,9 +109,21 @@ async function findOwnerBySubscriptionId(subscriptionId) {
 
 const ACTIVE_STATUSES = new Set(['active', 'trialing']);
 
+// 60s per-owner cache: subscription state only changes via Stripe webhooks
+// (which invalidate through upsertSubscription below), yet isPro gated every
+// generate/replan with a fresh Supabase read.
+const isProCache = new Map(); // ownerId -> { at, value }
+const IS_PRO_TTL_MS = 60 * 1000;
+const IS_PRO_CACHE_MAX = 500;
+
 async function isPro(ownerId) {
+  const hit = isProCache.get(ownerId);
+  if (hit && Date.now() - hit.at < IS_PRO_TTL_MS) return hit.value;
   const sub = await getSubscription(ownerId);
-  return Boolean(sub && ACTIVE_STATUSES.has(sub.status));
+  const value = Boolean(sub && ACTIVE_STATUSES.has(sub.status));
+  if (isProCache.size >= IS_PRO_CACHE_MAX) isProCache.delete(isProCache.keys().next().value);
+  isProCache.set(ownerId, { at: Date.now(), value });
+  return value;
 }
 
 // Price display info for the upgrade UI ({ amount, currency, interval }).

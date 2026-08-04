@@ -283,6 +283,8 @@ router.post('/', requireUser, async (req, res, next) => {
 // payload rides along so the client can open/edit without a second request.
 router.get('/', requireUser, async (req, res, next) => {
   try {
+    // Entitlements don't depend on the list — resolve them alongside it.
+    const entPromise = entitlementsFor(req.user || req.ownerId).catch(() => null);
     let rows;
     try {
       rows = await store.listGuides(req.ownerId, req.dbCtx);
@@ -302,7 +304,7 @@ router.get('/', requireUser, async (req, res, next) => {
       console.warn('[guides] list fell back to memory:', err.message);
       rows = await memoryStore.listGuides(req.ownerId);
     }
-    const ent = await entitlementsFor(req.user || req.ownerId).catch(() => null);
+    const ent = await entPromise;
     res.json({
       guides: rows.map(r => guideResponse(req, r)),
       limit: ent ? ent.saved_guides : null, // null = unlimited

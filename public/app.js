@@ -1803,14 +1803,19 @@
     return d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
   }
 
+  // Regex escape, not a DOM round trip: the old createElement version
+  // allocated a detached <div> per call — 6-10 calls per card, hundreds of
+  // cards per session.
+  const HTML_ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
   function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str == null ? '' : String(str);
-    return div.innerHTML;
+    return str == null ? '' : String(str).replace(/[&<>"']/g, c => HTML_ESC[c]);
   }
 
+  // Attribute values need the full escape set too: partner-supplied URLs
+  // (image_url, booking_url, website) land inside href/src attributes, and
+  // escaping only the double quote left <, >, & injectable there.
   function escapeAttr(str) {
-    return String(str || '').replace(/"/g, '&quot;');
+    return str == null ? '' : String(str).replace(/[&<>"']/g, c => HTML_ESC[c]);
   }
 
   // ---------- Swipe ----------

@@ -37,6 +37,10 @@ const SERVER_EVENT_TYPES = new Set([
   'plan_replanned', 'guide_created', 'guide_edited', 'guide_deleted',
   // Instant discovery feed served (server-truth, includes cache hits).
   'browse_feed',
+  // Surprise-me / Next feed served (routes/surprise.js). Was missing from
+  // this registry, so recordEvent silently dropped every surprise
+  // impression — exactly the drift the comment above warns about.
+  'surprise_feed',
   // Hassle-free cancel/resume (billing routes).
   'membership_cancelled', 'membership_resumed'
 ]);
