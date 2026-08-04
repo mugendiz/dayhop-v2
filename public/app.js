@@ -4077,8 +4077,8 @@
       row.classList.toggle('compare-hit', row.dataset.context === context));
     const cta = document.getElementById('upgrade-cta');
     cta.textContent = state.price && state.price.amount != null
-      ? `Go Pro — $${state.price.amount} ${state.price.currency}/${state.price.interval} ✨`
-      : 'Go Pro ✨';
+      ? `Try Pro free for 7 days — then $${state.price.amount} ${state.price.currency}/${state.price.interval} ✨`
+      : 'Try Pro free for 7 days ✨';
     modal.hidden = false;
     requestAnimationFrame(() => modal.classList.add('modal--open'));
     overlayNav.opened('upgrade-panel');

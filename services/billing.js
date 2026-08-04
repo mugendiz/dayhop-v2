@@ -156,6 +156,12 @@ async function getPriceInfo() {
 
 // ---------- Stripe operations ----------
 
+// Card up front, 7 days free. Seven (not three) so every trial spans at
+// least one full weekend — the product proves itself on Saturdays. The
+// `trialing` status is already treated as Pro everywhere status is checked,
+// and Stripe emails the customer before the first charge.
+const TRIAL_DAYS = Number(process.env.STRIPE_TRIAL_DAYS ?? 7);
+
 async function createCheckoutSession({ ownerId, email, origin }) {
   const session = await getStripe().checkout.sessions.create({
     mode: 'subscription',
@@ -163,6 +169,7 @@ async function createCheckoutSession({ ownerId, email, origin }) {
     client_reference_id: ownerId,
     customer_email: email || undefined,
     allow_promotion_codes: true,
+    subscription_data: TRIAL_DAYS > 0 ? { trial_period_days: TRIAL_DAYS } : undefined,
     success_url: `${origin}/?billing=success`,
     cancel_url: `${origin}/?billing=cancelled`
   });
