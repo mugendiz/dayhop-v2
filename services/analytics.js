@@ -25,6 +25,10 @@ const CLIENT_EVENT_TYPES = new Set([
   'booking_return_prompt_shown', 'idea_auto_saved_on_booking', 'booking_return_continue',
   // Product-identity + zero-state engagement.
   'mode_switch', 'sample_plan_viewed',
+  // Hero featured card: opened for detail / rewound to a previous pick.
+  // (featured_event_open had drifted — fired since the split hero shipped
+  // but never registered, so every open was rejected with 400.)
+  'featured_event_open', 'featured_back',
   // Quest layer: a plan stop checked off as "been here".
   'place_visited'
 ]);

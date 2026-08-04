@@ -3322,6 +3322,16 @@
   let featuredRotBumped = false;
   let featuredOffset = 0;
   let featuredTimer = null;
+  // Current rotation pool, kept for the back arrow (its handler lives in
+  // renderFeaturedCard, which only receives the single card to draw).
+  let featuredPoolRef = null;
+
+  // The back arrow walks featuredOffset negative, and JS `%` keeps the
+  // sign — index through here so rewinding never lands out of bounds.
+  function featuredIndex(pool, step) {
+    const len = pool.length;
+    return ((featuredRotation() + featuredOffset + (step || 0)) % len + len) % len;
+  }
 
   // Live-feed events that belong under this banner.
   const SKY_MATCH = /\b(stargaz|observator|astronom|telescope|planetari|night sky|under the stars|moonlit|full moon|open[- ]air|outdoor (movie|cinema|film|concert))/i;
@@ -3472,6 +3482,7 @@
             onerror="this.onerror=null;this.src='${escapeAttr(fallback)}'">
           <span class="featured-card-date">${escapeHtml(ev.date ? formatEventDate(ev.date) : (ev.schedule || ''))}</span>
           <span class="hero-featured-eyebrow">🌌 Under open skies</span>
+          ${featuredPoolRef && featuredPoolRef.length > 1 ? '<button type="button" class="featured-back-btn" aria-label="Show the previous featured spot">‹</button>' : ''}
         </div>
         <div class="featured-card-body">
           <h3 class="featured-card-title">${escapeHtml(ev.title)}</h3>
@@ -3497,6 +3508,44 @@
       addToShortlist(ev, null);
       renderFeed();
     });
+    const backBtn = aside.querySelector('.featured-back-btn');
+    if (backBtn) {
+      backBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // the whole card is a click target (openDetail)
+        featuredGoBack(aside);
+      });
+    }
+  }
+
+  // Back arrow: step one card into the past (rotation is a ring, so "the
+  // ones that passed" are always reachable). Deliberately no forward arrow —
+  // forward is what the ambient rotation already does.
+  function featuredGoBack(aside) {
+    const pool = featuredPoolRef;
+    if (!pool || pool.length < 2) return;
+    featuredOffset -= 1;
+    const prev = pool[featuredIndex(pool)];
+    track('featured_back', prev);
+    const pre = new Image();
+    const swap = () => {
+      aside.classList.add('is-quick-swap', 'is-swapping');
+      setTimeout(() => {
+        if (!aside.style.height) aside.style.minHeight = `${aside.offsetHeight}px`;
+        renderFeaturedCard(aside, prev);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          aside.classList.remove('is-swapping');
+          // Drop the quick-transition class only after the fade-in finishes,
+          // or the ambient 2.2s crossfade timing would grab mid-flight.
+          setTimeout(() => aside.classList.remove('is-quick-swap'), 260);
+        }));
+      }, 230);
+    };
+    pre.onload = swap;
+    pre.onerror = swap;
+    pre.src = prev.image_url || categoryImage(prev.category, 900);
+    // Restart the ambient timer so the card the user just rewound to isn't
+    // immediately rotated away from under them.
+    startFeaturedTimer(aside, pool);
   }
 
   // ---------- Mode discoverability nudge ----------
@@ -3601,10 +3650,11 @@
     const aside = document.getElementById('hero-featured');
     if (!aside) return;
     const pool = featuredPool(ideas);
-    if (!pool.length) { aside.hidden = true; aside.innerHTML = ''; return; }
+    if (!pool.length) { aside.hidden = true; aside.innerHTML = ''; featuredPoolRef = null; return; }
+    featuredPoolRef = pool;
 
     const apply = () => {
-      renderFeaturedCard(aside, pool[(featuredRotation() + featuredOffset) % pool.length]);
+      renderFeaturedCard(aside, pool[featuredIndex(pool)]);
       startFeaturedTimer(aside, pool);
     };
 
@@ -3639,7 +3689,7 @@
       if (featuredOffscreen(aside)) return;
       if (aside.matches(':hover') || aside.contains(document.activeElement)) return;
       featuredOffset += 1;
-      const next = pool[(featuredRotation() + featuredOffset) % pool.length];
+      const next = pool[featuredIndex(pool)];
       // Preload the incoming photo BEFORE fading, so the card never sits
       // blank waiting on the network mid-rotation.
       const pre = new Image();
