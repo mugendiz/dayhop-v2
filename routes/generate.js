@@ -41,6 +41,26 @@ const GEN_CACHE_TTL_MS = 15 * 60 * 1000;
 const GEN_CACHE_MAX = 100;
 const genCache = new Map(); // key -> { at, payload }
 
+// ---------- Two-phase generate ----------
+// The ranked candidate pool is fully card-shaped BEFORE Grok runs — so a
+// client sending { fast: true } gets real cards as soon as the gather
+// finishes (~3-8s), plus a job token. Grok curation + full photo
+// enrichment continue in the background; GET /api/generate/result/:job
+// serves the curated payload when it lands and the client swaps it in.
+// The old single-response flow (no `fast` flag) is untouched.
+const crypto = require('crypto');
+const JOB_TTL_MS = 5 * 60 * 1000;
+const JOB_MAX = 200;
+const jobs = new Map(); // job -> { at, payload|null, failed? }
+
+function pruneJobs() {
+  const now = Date.now();
+  for (const [k, v] of jobs) {
+    if (now - v.at > JOB_TTL_MS) jobs.delete(k);
+  }
+  while (jobs.size >= JOB_MAX) jobs.delete(jobs.keys().next().value);
+}
+
 function genCacheKey(prompt, location, coords, mode, filter, dateWindow, eventKeyword) {
   const normPrompt = String(prompt).toLowerCase().replace(/\s+/g, ' ').trim();
   const grid = coords
@@ -117,79 +137,132 @@ router.post('/', async (req, res) => {
     const cityForGrok = resolvedCity || targetLocation;
     const dateHint = dateHintFor(dateWindow);
 
-    let ideas;
-    let degraded = false;
-    if (usedGrounding) {
-      // Photo enrichment no longer waits behind the LLM: every idea Grok can
-      // pick comes from `candidates`, so warm the top of the pool CONCURRENTLY
-      // with the Grok call — by merge time the photos are already attached.
-      const photoWarmup = enrichIdeaImages(candidates.slice(0, 16), { city: cityForGrok, coords: userCoords })
-        .catch(() => {});
-      let selected = null;
-      try {
-        selected = await grok.generateGroundedIdeas({
-          prompt,
-          filter,
-          mode,
-          city: cityForGrok,
-          candidates: candidates.map(toGrokCandidate),
-          weather,
-          advisories,
-          dateHint
-        });
-      } catch (err) {
-        // We already hold a relevance-ranked pool of real places — serve the
-        // top of it directly rather than failing the whole feed because the
-        // AI selection step timed out or misbehaved.
-        if (err.code === 'GROK_NOT_CONFIGURED' || err.code === 'INVALID_INPUT') throw err;
-        console.warn('[generate] Grok selection failed, serving ranked candidates directly:', err.message);
-        degraded = true;
-      }
-      await photoWarmup;
-      if (selected) {
-        ideas = mergeWithCandidates(selected, candidates);
-        // Grok curates the headliners; the rest of the quality-gated,
-        // relevance-ranked pool is real material we already paid to fetch —
-        // surface it below the picks instead of throwing it away.
-        ideas = appendMoreFinds(ideas, candidates);
-      } else {
-        ideas = mergeWithCandidates(candidates.slice(0, 20).map(fallbackIdea), candidates);
-      }
-    } else {
-      ideas = await grok.generateIdeas({ prompt, filter, mode, city: cityForGrok });
-    }
-
-    // Cards without a photo (curated catalog, open-data events, ungrounded
-    // picks) get a real venue image; anything still missing falls back to
-    // the frontend's category stock photo. After the warmup above this is
-    // a small residual pass, not the main photo bill.
-    await enrichIdeaImages(ideas, { city: cityForGrok, coords: userCoords });
-
-    analytics.recordEvent({
-      type: 'prompt_generated',
-      ownerKey,
-      meta: { grounded: usedGrounding, degraded, mode, city: cityForGrok, ideas: ideas.length, guest_id: guestIdFor(req) }
-    });
-
-    const payload = {
-      ideas,
+    const basePayload = {
       grounded: usedGrounding,
-      degraded: degraded || undefined,
       weather: weather || null,
       advisories: advisories || [],
       advisories_status: advisoriesStatus || 'unavailable',
       near: userCoords ? resolvedCity || null : null,
-      date_window: dateWindow || null,
-      generated_at: new Date().toISOString()
+      date_window: dateWindow || null
     };
-    if (usedGrounding && !degraded && ideas.length) {
-      if (genCache.size >= GEN_CACHE_MAX) genCache.delete(genCache.keys().next().value);
-      genCache.set(cacheKey, { at: Date.now(), payload });
+    const recordGenerate = (degraded, count, phase) => analytics.recordEvent({
+      type: 'prompt_generated',
+      ownerKey,
+      meta: { grounded: usedGrounding, degraded, mode, city: cityForGrok, ideas: count, phase, guest_id: guestIdFor(req) }
+    });
+    const cachePayload = (payload, degraded) => {
+      if (usedGrounding && !degraded && payload.ideas.length) {
+        if (genCache.size >= GEN_CACHE_MAX) genCache.delete(genCache.keys().next().value);
+        genCache.set(cacheKey, { at: Date.now(), payload });
+      }
+    };
+    const curatedArgs = {
+      prompt, filter, mode, city: cityForGrok, candidates, weather, advisories, dateHint, userCoords
+    };
+
+    // Two-phase: answer NOW with the ranked pool, curate in the background.
+    if (usedGrounding && req.body && req.body.fast === true) {
+      const poolIdeas = mergeWithCandidates(candidates.slice(0, 20).map(fallbackIdea), candidates);
+      // Quick photo pass for the above-the-fold cards only — the background
+      // phase finishes the rest.
+      await enrichIdeaImages(poolIdeas.slice(0, 10), { city: cityForGrok, coords: userCoords });
+      const job = crypto.randomUUID();
+      pruneJobs();
+      jobs.set(job, { at: Date.now(), payload: null });
+      res.json(Object.assign({}, basePayload, {
+        ideas: poolIdeas, phase: 'fast', job, generated_at: new Date().toISOString()
+      }));
+
+      buildCuratedIdeas(curatedArgs)
+        .then(({ ideas, degraded }) => {
+          const payload = Object.assign({}, basePayload, {
+            ideas, degraded: degraded || undefined, generated_at: new Date().toISOString()
+          });
+          jobs.set(job, { at: Date.now(), payload });
+          cachePayload(payload, degraded);
+          recordGenerate(degraded, ideas.length, 'two_phase');
+        })
+        .catch(err => {
+          console.warn('[generate] curated phase failed (pool feed stands):', err.message);
+          jobs.set(job, { at: Date.now(), payload: null, failed: true });
+          recordGenerate(true, poolIdeas.length, 'two_phase_failed');
+        });
+      return;
     }
+
+    let ideas;
+    let degraded = false;
+    if (usedGrounding) {
+      ({ ideas, degraded } = await buildCuratedIdeas(curatedArgs));
+    } else {
+      ideas = await grok.generateIdeas({ prompt, filter, mode, city: cityForGrok });
+      await enrichIdeaImages(ideas, { city: cityForGrok, coords: userCoords });
+    }
+
+    recordGenerate(degraded, ideas.length, 'single');
+
+    const payload = Object.assign({}, basePayload, {
+      ideas,
+      degraded: degraded || undefined,
+      generated_at: new Date().toISOString()
+    });
+    cachePayload(payload, degraded);
     res.json(payload);
   } catch (err) {
     handleGrokError(err, res);
   }
+});
+
+// Curated phase, shared by the single-response flow and the two-phase
+// background job: Grok selection (photo warmup concurrent — every idea Grok
+// can pick comes from `candidates`, so by merge time the photos are already
+// attached), merge, "more finds", residual photo enrichment.
+async function buildCuratedIdeas({ prompt, filter, mode, city, candidates, weather, advisories, dateHint, userCoords }) {
+  const photoWarmup = enrichIdeaImages(candidates.slice(0, 16), { city, coords: userCoords })
+    .catch(() => {});
+  let selected = null;
+  let degraded = false;
+  try {
+    selected = await grok.generateGroundedIdeas({
+      prompt, filter, mode, city,
+      candidates: candidates.map(toGrokCandidate),
+      weather, advisories, dateHint
+    });
+  } catch (err) {
+    // We already hold a relevance-ranked pool of real places — serve the
+    // top of it directly rather than failing the whole feed because the
+    // AI selection step timed out or misbehaved.
+    if (err.code === 'GROK_NOT_CONFIGURED' || err.code === 'INVALID_INPUT') throw err;
+    console.warn('[generate] Grok selection failed, serving ranked candidates directly:', err.message);
+    degraded = true;
+  }
+  await photoWarmup;
+  let ideas;
+  if (selected) {
+    ideas = mergeWithCandidates(selected, candidates);
+    // Grok curates the headliners; the rest of the quality-gated,
+    // relevance-ranked pool is real material we already paid to fetch —
+    // surface it below the picks instead of throwing it away.
+    ideas = appendMoreFinds(ideas, candidates);
+  } else {
+    ideas = mergeWithCandidates(candidates.slice(0, 20).map(fallbackIdea), candidates);
+  }
+  // Residual pass: anything the warmup didn't reach (more-finds tail,
+  // beyond-top-16 picks) — small after the warmup, not the main photo bill.
+  await enrichIdeaImages(ideas, { city, coords: userCoords });
+  return { ideas, degraded };
+}
+
+// Two-phase pickup: 202 while the curated build runs, the payload when it
+// lands, a soft failed flag when it errored (the client keeps the pool).
+router.get('/result/:job', (req, res) => {
+  const entry = jobs.get(String(req.params.job || ''));
+  if (!entry || Date.now() - entry.at > JOB_TTL_MS) {
+    return res.status(404).json({ error: 'NOT_FOUND', message: 'Unknown or expired job.' });
+  }
+  if (entry.failed) return res.json({ failed: true });
+  if (!entry.payload) return res.status(202).json({ pending: true });
+  res.json(entry.payload);
 });
 
 // Plain-language nudge for Grok — so a future-dated plan doesn't read like

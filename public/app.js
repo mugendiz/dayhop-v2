@@ -1206,7 +1206,10 @@
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(Object.assign(
-        { prompt, filter, mode: state.mode, city: state.city, coords: state.coords || undefined, owner_id: getOwnerId() },
+        // fast: two-phase — the server answers with the ranked real-place
+        // pool in seconds (phase:'fast' + a job token) and keeps curating;
+        // startCuratedPoll swaps the AI-curated set in when it lands.
+        { prompt, filter, fast: true, mode: state.mode, city: state.city, coords: state.coords || undefined, owner_id: getOwnerId() },
         getDatePayload()
       ))
     });
@@ -3845,6 +3848,9 @@
       // Snap, don't glide: a long smooth scroll through the page reads as a
       // blank screen on slower devices right at the moment of payoff.
       document.getElementById('results-header').scrollIntoView({ behavior: 'auto', block: 'start' });
+      // Two-phase: these cards are the ranked pool — poll for the
+      // AI-curated set and swap it in quietly when it's ready.
+      if (data.phase === 'fast' && data.job) startCuratedPoll(data.job, prompt);
     } catch (err) {
       progress.fail();
       errorEl.textContent = err.message || 'Something went wrong. Please try again.';
@@ -3857,6 +3863,38 @@
     } finally {
       setLoading(false);
     }
+  }
+
+  // ---------- Two-phase curated pickup ----------
+  // After a fast-phase generate, the server keeps curating with Grok. Poll
+  // its result and swap the curated set in — quietly (no entrance animation,
+  // no scroll yank). Dismissed/shortlisted cards survive the swap naturally:
+  // visibleIdeas filters by id, and curated ideas reuse candidate ids.
+  // Every guard is state-based, so a new prompt, browse, or surprise
+  // simply strands the old poll (it checks and drops itself).
+  let curatedPollTimer = null;
+  function startCuratedPoll(job, prompt) {
+    if (curatedPollTimer) { clearTimeout(curatedPollTimer); curatedPollTimer = null; }
+    const startedAt = Date.now();
+    const poll = async () => {
+      curatedPollTimer = null;
+      if (state.browseMode || state.lastPrompt !== prompt) return; // feed moved on
+      if (Date.now() - startedAt > 45000) return; // curation overran — the pool stands
+      try {
+        const res = await fetch(`/api/generate/result/${encodeURIComponent(job)}`);
+        if (res.status === 202) { curatedPollTimer = setTimeout(poll, 1500); return; }
+        if (!res.ok) return; // expired/unknown — the pool stands
+        const data = await res.json().catch(() => null);
+        if (!data || data.failed) return;
+        if (data.pending) { curatedPollTimer = setTimeout(poll, 1500); return; }
+        if (!Array.isArray(data.ideas) || !data.ideas.length) return;
+        if (state.browseMode || state.lastPrompt !== prompt) return; // re-check after the await
+        state.allIdeas = data.ideas;
+        renderFeed(false);
+        showToast('✨ Picks curated for you');
+      } catch (e) { /* network blip — the pool feed stands on its own */ }
+    };
+    curatedPollTimer = setTimeout(poll, 1500);
   }
 
   // ---------- Surprise me / Next ----------

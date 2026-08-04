@@ -84,11 +84,14 @@ const { banGuard } = require('./services/moderation');
 app.use('/api', banGuard);
 
 // Generous but real limit on the AI endpoint — it's the expensive one.
+// GETs are exempt: the two-phase flow polls GET /api/generate/result/:job
+// every ~1.5s while curation runs, and that read costs nothing.
 const generateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 12,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.method === 'GET',
   message: { error: 'RATE_LIMITED', message: 'Slow down a little — try again in a moment.' }
 });
 
