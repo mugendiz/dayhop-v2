@@ -116,7 +116,7 @@ Didn't sign up? Ignore this and you won't hear from us again.
 DayHop · Richmond Hill, Ontario, Canada · admin@dayhop.quest`;
 }
 
-function welcomeEmailHtml(token) {
+function welcomeEmailHtml(token, hasPdf = false) {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"></head><body style="margin:0;padding:0;background:#FBF7EE;">
   <div style="max-width:520px;margin:0 auto;padding:32px 24px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102A2E;">
     <p style="font-size:22px;font-weight:700;margin:0 0 4px;">DayHop</p>
@@ -127,11 +127,15 @@ function welcomeEmailHtml(token) {
       rain-proofness. It regenerates from live data, so bookmark it; it only
       gets better.
     </p>
-    <p style="margin:0 0 22px;">
+    <p style="margin:0 0 ${hasPdf ? '10px' : '22px'};">
       <a href="${playbookUrl(token)}"
          style="display:inline-block;background:#FF6B4A;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;padding:13px 26px;border-radius:10px;">
         Open my Playbook</a>
     </p>
+    ${hasPdf ? `<p style="font-size:13.5px;line-height:1.5;color:#6b7c7e;margin:0 0 22px;">
+      📎 It's also attached as a PDF — save it, print it, or share it with your
+      co-parent. The link above always has the freshest version.
+    </p>` : ''}
     <p style="font-size:16px;line-height:1.6;margin:0 0 14px;">
       And every <strong>Thursday morning</strong> — in time to actually plan
       your weekend — you'll get 4-5 things genuinely worth doing with your crew
@@ -152,11 +156,11 @@ function welcomeEmailHtml(token) {
   </div></body></html>`;
 }
 
-function welcomeEmailText(token) {
+function welcomeEmailText(token, hasPdf = false) {
   return `You're in — here's your Playbook.
 
 The GTA Family Weekend Playbook (70+ outings actually worth your Saturday, organized by age, budget, and rain-proofness):
-${playbookUrl(token)}
+${playbookUrl(token)}${hasPdf ? '\n\nIt is also attached as a PDF — save it, print it, share it. The link above always has the freshest version.' : ''}
 
 And every Thursday morning you'll get 4-5 things genuinely worth doing with your crew around the GTA, a weather call, and a heads-up if anything's closed. That's it. No spam, ever.
 
@@ -234,14 +238,20 @@ async function confirm(token) {
     await persist(row);
     analytics.recordEvent({ type: 'newsletter_confirmed', ownerKey: row.owner_id || 'anon' });
     // Welcome email is a marketing send (they're now consented) → carries
-    // the one-click unsubscribe headers like every send after it.
-    sendEmail({
-      to: row.email,
-      subject: 'Welcome to DayHop — here’s how this works',
-      html: welcomeEmailHtml(row.token),
-      text: welcomeEmailText(row.token),
-      unsubscribeUrl: unsubscribeUrl(row.token)
-    }).catch(() => {});
+    // the one-click unsubscribe headers like every send after it. The
+    // Playbook rides along as a PDF (cached build; a build failure just
+    // means the email goes out with the link only).
+    (async () => {
+      const pdf = await require('./playbookPdf').getPlaybookPdf();
+      await sendEmail({
+        to: row.email,
+        subject: 'Welcome to DayHop — your Weekend Playbook is inside',
+        html: welcomeEmailHtml(row.token, Boolean(pdf)),
+        text: welcomeEmailText(row.token, Boolean(pdf)),
+        unsubscribeUrl: unsubscribeUrl(row.token),
+        attachments: pdf ? [{ filename: 'DayHop-GTA-Family-Weekend-Playbook.pdf', content: pdf.buffer }] : undefined
+      });
+    })().catch(() => {});
   }
   return { ok: true, email: row.email };
 }

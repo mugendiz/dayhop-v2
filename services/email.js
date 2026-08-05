@@ -43,8 +43,10 @@ let warnedUnconfigured = false;
  *                    spam placement and serves text-only clients)
  *   unsubscribeUrl — marketing sends ONLY: enables RFC 8058 one-click
  *                    unsubscribe headers. Omit for transactional email.
+ *   attachments    — optional [{ filename, content: Buffer }] (kept small:
+ *                    Resend caps messages at 40MB but inboxes punish bulk)
  */
-async function sendEmail({ to, subject, html, text, unsubscribeUrl }) {
+async function sendEmail({ to, subject, html, text, unsubscribeUrl, attachments }) {
   if (!isConfigured()) {
     if (!warnedUnconfigured) {
       warnedUnconfigured = true;
@@ -53,6 +55,12 @@ async function sendEmail({ to, subject, html, text, unsubscribeUrl }) {
     return { sent: false, reason: 'EMAIL_NOT_CONFIGURED' };
   }
   const payload = { from: FROM, to: [to], subject, html, text, reply_to: REPLY_TO };
+  if (Array.isArray(attachments) && attachments.length) {
+    payload.attachments = attachments.map(a => ({
+      filename: a.filename,
+      content: Buffer.isBuffer(a.content) ? a.content.toString('base64') : a.content
+    }));
+  }
   if (unsubscribeUrl) {
     payload.headers = {
       'List-Unsubscribe': `<${unsubscribeUrl}>`,

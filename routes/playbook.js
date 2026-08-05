@@ -12,61 +12,16 @@
 
 const express = require('express');
 const router = express.Router();
-const curated = require('../data/curatedCatalog');
 const newsletter = require('../services/newsletter');
 const analytics = require('../services/analytics');
 const { enrichIdeaImages } = require('../services/ideaPhotos');
+// Content (entries, sections, counts) is shared with the PDF version so the
+// two renderings can never drift.
+const { SECTIONS, CATEGORY_FOLD, allEntries, sectioned, isRainProof, isNew } = require('../services/playbookData');
 
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-// Auto-catalog entries ride along when available; failures never block the
-// page (the curated list alone is the product).
-function autoEntries() {
-  try {
-    const rows = require('../services/autoCatalog').entries() || [];
-    return rows
-      .filter(r => (r.status || 'active') === 'active')
-      .map(r => r.entry || r)
-      .filter(e => e && e.title && e.description);
-  } catch (e) {
-    return [];
-  }
-}
-
-// Friendly section labels + display order. Small categories fold into
-// neighbours so no section renders with one lonely card.
-const SECTIONS = [
-  { key: 'kids', label: 'Made for kids', blurb: 'Where little legs and short attention spans win.' },
-  { key: 'adventures', label: 'Big adventures', blurb: 'The days they’ll still be talking about in December.' },
-  { key: 'water', label: 'Water days', blurb: 'Beaches, splash pads, paddles, and cruises.' },
-  { key: 'culture', label: 'Culture & wow', blurb: 'Immersive, beautiful, and genuinely kid-tolerant.' },
-  { key: 'food', label: 'Food worth the trip', blurb: 'Markets, patios, and places where eating IS the outing.' },
-  { key: 'general', label: 'Local gems', blurb: 'The quiet finds locals keep to themselves.' }
-];
-const CATEGORY_FOLD = { cruises: 'water', patios: 'food' };
-
-function isRainProof(e) {
-  return (e.tags || []).some(t => t === 'indoor' || t === 'rainy');
-}
-function isNew(e) {
-  if (!e.opened_at) return false;
-  const ageDays = (Date.now() - new Date(e.opened_at).getTime()) / 86400000;
-  return ageDays > 0 && ageDays < 425;
-}
-
-function allEntries() {
-  const seen = new Set();
-  const all = [];
-  for (const e of [...curated, ...autoEntries()]) {
-    const key = String(e.title || '').toLowerCase();
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    all.push(e);
-  }
-  return all;
 }
 
 function chips(e) {
@@ -259,20 +214,12 @@ router.get('/', async (req, res) => {
     }));
   }
 
-  // Full playbook for a confirmed subscriber. Unknown categories land in
-  // "Local gems" so an auto-discovered entry can never vanish from the page.
-  const bySection = new Map(SECTIONS.map(s => [s.key, []]));
-  for (const e of entries) {
-    const key = CATEGORY_FOLD[e.category] || e.category;
-    (bySection.get(key) || bySection.get('general')).push(e);
-  }
-  const sectionsHtml = SECTIONS
-    .filter(s => bySection.get(s.key).length)
-    .map(s => `
+  // Full playbook for a confirmed subscriber.
+  const sectionsHtml = sectioned().sections.map(s => `
 <section>
-  <h2>${esc(s.label)} <span class="eyebrow" style="font-weight:600">· ${bySection.get(s.key).length}</span></h2>
+  <h2>${esc(s.label)} <span class="eyebrow" style="font-weight:600">· ${s.entries.length}</span></h2>
   <p class="section-blurb">${esc(s.blurb)}</p>
-  ${bySection.get(s.key).map(card).join('')}
+  ${s.entries.map(e => card(e)).join('')}
 </section>`).join('');
 
   analytics.recordEvent({ type: 'playbook_view', ownerKey: subscriber.owner_id || 'anon', source: 'full' });
