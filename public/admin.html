@@ -215,6 +215,14 @@
         <button id="nl-send" type="button">Send to all subscribers now</button>
       </div>
       <div id="newsletter-msg" class="rate" style="margin-top:10px"></div>
+      <div class="overflow" style="margin-top:14px">
+        <table>
+          <thead>
+            <tr><th>Email</th><th>Status</th><th>Source</th><th>Signed up</th><th>Confirmed</th><th>Last digest</th></tr>
+          </thead>
+          <tbody id="newsletter-table"></tbody>
+        </table>
+      </div>
     </div>
 
     <p class="note" id="source"></p>
@@ -319,6 +327,16 @@
         (last ? '<br>Last send: ' + esc(new Date(last.at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })) +
           ' — ' + fmt(last.sent) + '/' + fmt(last.recipients) + (last.test ? ' (test)' : '') + ' · “' + esc(last.subject) + '”' : '');
       if (lastAuth.email && !$('nl-test-email').value) $('nl-test-email').value = lastAuth.email;
+      // Subscriber list (up to 100 most recent). Supabase stays the source of
+      // truth — this is a live view, not a copy.
+      const fd = iso => iso ? new Date(iso).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }) : '—';
+      const badge = s => s === 'subscribed' ? '<span style="color:#12855C;font-weight:600">subscribed</span>'
+        : s === 'pending' ? '<span style="color:#C98500">pending</span>'
+        : '<span class="rate">unsubscribed</span>';
+      $('newsletter-table').innerHTML = (data.recent || []).map(r =>
+        '<tr><td>' + esc(r.email) + '</td><td>' + badge(r.status) + '</td><td>' + esc(r.source || '') +
+        '</td><td>' + fd(r.created_at) + '</td><td>' + fd(r.confirmed_at) + '</td><td>' + fd(r.last_sent_at) + '</td></tr>'
+      ).join('') || '<tr><td colspan="6" class="rate">No subscribers yet.</td></tr>';
     } catch (e) {
       $('newsletter-stats').textContent = e.message;
     }

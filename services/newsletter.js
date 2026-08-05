@@ -272,8 +272,15 @@ async function stats() {
     persistent: hasServiceKey(),
     recent: [...subscribers.values()]
       .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
-      .slice(0, 20)
-      .map(r => ({ email: r.email, status: r.status, source: r.consent_source, created_at: r.created_at }))
+      .slice(0, 100)
+      .map(r => ({
+        email: r.email,
+        status: r.status,
+        source: r.consent_source,
+        created_at: r.created_at,
+        confirmed_at: r.confirmed_at,
+        last_sent_at: r.last_sent_at
+      }))
   };
 }
 
