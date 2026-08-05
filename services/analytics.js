@@ -46,7 +46,11 @@ const SERVER_EVENT_TYPES = new Set([
   // impression — exactly the drift the comment above warns about.
   'surprise_feed',
   // Hassle-free cancel/resume (billing routes).
-  'membership_cancelled', 'membership_resumed'
+  'membership_cancelled', 'membership_resumed',
+  // Email marketing (services/newsletter.js + digest.js): consent funnel
+  // subscribe → confirmed (double opt-in) → weekly digest_sent; unsubscribes
+  // tracked so list-health (churn) shows up on the admin dashboard.
+  'newsletter_subscribe', 'newsletter_confirmed', 'newsletter_unsubscribed', 'digest_sent'
 ]);
 
 const EVENT_TYPES = new Set([...CLIENT_EVENT_TYPES, ...SERVER_EVENT_TYPES]);

@@ -287,3 +287,31 @@ create table if not exists public.articles (
   updated_at      timestamptz not null default now()
 );
 alter table public.articles enable row level security;
+
+-- ---------- newsletter_subscribers (email marketing: weekly digest) ----------
+-- CASL requires provable consent: every row records WHERE consent came from
+-- (consent_source), WHEN (created_at / confirmed_at), and the double-opt-in
+-- state. status: 'pending' = signed up, hasn't clicked the confirm link yet
+-- (never emailed beyond the confirmation); 'subscribed' = confirmed, gets the
+-- digest; 'unsubscribed' = kept as a suppression record — CASL/CAN-SPAM treat
+-- a re-mailed unsubscriber as a violation, so rows are flipped, NEVER deleted.
+-- token is the unguessable secret in confirm/unsubscribe links (per-subscriber,
+-- constant across sends so old emails' unsubscribe links keep working).
+-- NO anon/authenticated policies on purpose: the subscriber list is PII and is
+-- read/written exclusively server-side with SUPABASE_SERVICE_KEY.
+create table if not exists public.newsletter_subscribers (
+  email           text primary key,
+  status          text not null default 'pending' check (status in ('pending','subscribed','unsubscribed')),
+  token           text not null unique,
+  consent_source  text not null default 'unknown',
+  consent_ip      text,
+  owner_id        text,
+  created_at      timestamptz not null default now(),
+  confirmed_at    timestamptz,
+  unsubscribed_at timestamptz,
+  last_sent_at    timestamptz
+);
+-- Migration for pre-existing databases (idempotent):
+alter table public.newsletter_subscribers add column if not exists consent_ip text;
+create index if not exists newsletter_status_idx on public.newsletter_subscribers (status, created_at desc);
+alter table public.newsletter_subscribers enable row level security;

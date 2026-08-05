@@ -486,6 +486,12 @@
         <span>Password</span>
         <input type="password" id="auth-password" required minlength="6" autocomplete="current-password" placeholder="At least 6 characters">
       </label>
+      <!-- Signup mode only (auth.js toggles). CASL express consent must be
+           an unchecked, affirmative opt-in — never pre-ticked. -->
+      <label class="auth-consent" id="auth-consent" hidden>
+        <input type="checkbox" id="auth-consent-check">
+        <span>Send me the weekly weekend brief — 4-5 GTA family picks every Thursday. Unsubscribe any time.</span>
+      </label>
       <p class="auth-error" id="auth-error" role="alert" aria-live="polite"></p>
       <button class="primary-btn auth-submit" id="auth-submit" type="submit">
         <span class="btn-label">Sign in</span>
@@ -501,6 +507,19 @@
 </div>
 
 <footer class="site-footer">
+  <!-- Weekly digest signup. CASL: the email field + button IS the express
+       consent action (nothing pre-checked, purpose stated right here), and
+       the server double-opt-ins by email before anything else is ever sent. -->
+  <div class="newsletter-box">
+    <p class="newsletter-title">The weekend brief 📩</p>
+    <p class="newsletter-sub">Every Thursday: 4-5 things actually worth doing with your crew around the GTA, plus the weather call. Free, no spam, one-click unsubscribe.</p>
+    <form class="newsletter-form" id="newsletter-form" novalidate>
+      <input type="email" id="newsletter-email" required autocomplete="email" placeholder="you@example.com" aria-label="Email address">
+      <button type="submit" class="newsletter-btn">Sign me up</button>
+    </form>
+    <p class="newsletter-msg" id="newsletter-msg" role="status" aria-live="polite"></p>
+    <p class="newsletter-fineprint">By subscribing you agree to weekly emails from DayHop (Richmond Hill, ON, Canada — admin@dayhop.quest). Unsubscribe any time.</p>
+  </div>
   <p class="footer-about">DayHop is a Toronto-built day planner — real venues, live weather, and AI that plans like a thoughtful local friend.</p>
   <nav class="footer-links" aria-label="Stories, legal and contact">
     <a href="/blog">Stories</a>
@@ -545,6 +564,39 @@
      capable device). The app is fully usable without any of it — native
      CSS scroll-driven animations carry the feed. -->
 <script src="/motion.js" defer></script>
+<script>
+// Footer newsletter form — self-contained: no app.js dependency, works even
+// if the SPA fails to boot. Double opt-in: the server emails a confirm link.
+(function () {
+  const form = document.getElementById('newsletter-form');
+  if (!form) return;
+  const msg = document.getElementById('newsletter-msg');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('newsletter-email');
+    const email = (input.value || '').trim();
+    if (!email) return;
+    const btn = form.querySelector('button');
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/newsletter/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, source: 'footer' })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Something went wrong.');
+      msg.textContent = data.message || 'Check your inbox to confirm.';
+      msg.classList.add('is-ok');
+      form.hidden = true;
+    } catch (err) {
+      msg.textContent = err.message || 'Could not subscribe right now — try again in a minute.';
+      msg.classList.remove('is-ok');
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
 <script>
 // Offline support: once visited, the app shell (and your saved plans,
 // shortlist, and mode — all in localStorage) opens without a connection.

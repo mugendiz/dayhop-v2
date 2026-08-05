@@ -171,6 +171,20 @@ const trackLimiter = rateLimit({
   message: { error: 'RATE_LIMITED', message: 'Slow down a little.' }
 });
 app.use('/api/track', trackLimiter, require('./routes/track'));
+
+// Newsletter consent endpoints: subscribe is a cheap write but each new email
+// triggers a real outbound send (confirmation) — the limiter keeps a bot from
+// burning the Resend quota or spraying confirmations at strangers' inboxes.
+const newsletterLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === 'GET', // confirm/unsubscribe links must never bounce
+  message: { error: 'RATE_LIMITED', message: 'Slow down a little.' }
+});
+app.use('/api/newsletter', newsletterLimiter, require('./routes/newsletter'));
+
 app.use('/api/admin', require('./routes/admin'));
 
 // Inbound article publishing (BabyLoveGrowth → /blog). Secret-gated inside
@@ -225,6 +239,7 @@ app.get('/health', (req, res) => {
       toronto_open_data: true, // keyless public feed, always on for GTA requests
       york_open_data: process.env.YORK_OPEN_DATA_ENABLED === 'true',
       stripe: require('./services/billing').status(),
+      email: require('./services/email').status(),
       admin_metrics: Boolean(process.env.ADMIN_KEY)
     }
   });
@@ -306,6 +321,35 @@ if (process.env.GROK_API_KEY && process.env.DISCOVERY_AUTO !== 'off') {
       runDiscovery();
     }
   }, 20 * 60 * 1000).unref();
+}
+
+// Weekly digest: every THURSDAY MORNING (Toronto time) — the moment GTA
+// families start asking "what are we doing this weekend?", and the send slot
+// the local-newsletter evidence (Mommy Poppins' Wednesday weekend-picks,
+// Tue-Thu newsletter benchmarks) converges on. Same DST-proof clock-check
+// pattern as the discovery autopilot above. DIGEST_HOUR overrides the hour
+// (0-23 Toronto); DIGEST_AUTO=off disables the schedule (admin manual send
+// still works). Requires RESEND_API_KEY, else the tick is a silent no-op.
+if (process.env.RESEND_API_KEY && process.env.DIGEST_AUTO !== 'off') {
+  const digestHour = String(Math.min(23, Math.max(0, Number(process.env.DIGEST_HOUR) || 9))).padStart(2, '0');
+  let lastDigestRun = 0;
+  const isThursdayDigestHourToronto = () => {
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Toronto', weekday: 'short', hour: '2-digit', hour12: false
+      }).formatToParts(new Date()).map(p => [p.type, p.value])
+    );
+    return parts.weekday === 'Thu' && parts.hour === digestHour;
+  };
+  setInterval(() => {
+    if (isThursdayDigestHourToronto() && Date.now() - lastDigestRun > 12 * 60 * 60 * 1000) {
+      lastDigestRun = Date.now();
+      console.log('[digest] Thursday send window — building the weekend brief');
+      require('./services/digest').sendDigest()
+        .catch(err => console.warn('[digest] weekly send failed:', err.message));
+    }
+  }, 20 * 60 * 1000).unref();
+  console.log(`[digest] weekly schedule armed: Thursdays ${digestHour}:00-${digestHour}:59 Toronto`);
 }
 
 const server = app.listen(PORT, () => {

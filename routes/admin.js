@@ -113,6 +113,66 @@ router.post('/ban', requireAdmin, async (req, res) => {
   }
 });
 
+// ---------- newsletter / weekly digest ----------
+// Lazy for the same reason as newOpenings: digest drags in the whole
+// candidate-gathering stack, and admin routes are hit rarely.
+let _digest = null;
+function digestSvc() {
+  if (!_digest) _digest = require('../services/digest');
+  return _digest;
+}
+
+// Subscriber counts + consent trail + last digest run.
+router.get('/newsletter', requireAdmin, async (req, res) => {
+  try {
+    const newsletter = require('../services/newsletter');
+    const email = require('../services/email');
+    const stats = await newsletter.stats();
+    res.json(Object.assign({ email: email.status(), digest: digestSvc().digestStatus() }, stats));
+  } catch (err) {
+    console.error('[admin] newsletter stats failed:', err.message);
+    res.status(500).json({ error: 'NEWSLETTER_FAILED', message: 'Could not compute newsletter stats.' });
+  }
+});
+
+// Rendered digest HTML without sending — open it in a browser tab to proof
+// this week's issue before Thursday.
+router.get('/newsletter/preview', requireAdmin, async (req, res) => {
+  try {
+    const preview = await digestSvc().previewDigest();
+    res.setHeader('Cache-Control', 'no-store');
+    if (req.query.json) return res.json({ subject: preview.subject, picks: preview.picks });
+    res.setHeader('X-Digest-Subject', encodeURIComponent(preview.subject));
+    res.send(preview.html);
+  } catch (err) {
+    console.error('[admin] digest preview failed:', err.message);
+    res.status(500).json({ error: 'PREVIEW_FAILED', message: `Could not build the digest: ${err.message}` });
+  }
+});
+
+// Send this week's digest to ONE address (yours) — the pre-flight check.
+router.post('/newsletter/test-send', requireAdmin, async (req, res) => {
+  const to = typeof (req.body && req.body.email) === 'string' ? req.body.email.trim() : '';
+  if (!to) return res.status(400).json({ error: 'INVALID_INPUT', message: 'email is required.' });
+  try {
+    res.json(await digestSvc().sendDigest({ testTo: to }));
+  } catch (err) {
+    console.error('[admin] digest test send failed:', err.message);
+    res.status(500).json({ error: 'SEND_FAILED', message: err.message });
+  }
+});
+
+// Manual full send to every confirmed subscriber (the scheduler does this
+// automatically on Thursdays — this is the on-demand lever).
+router.post('/newsletter/send', requireAdmin, async (req, res) => {
+  try {
+    res.json(await digestSvc().sendDigest());
+  } catch (err) {
+    console.error('[admin] digest send failed:', err.message);
+    res.status(500).json({ error: 'SEND_FAILED', message: err.message });
+  }
+});
+
 router.post('/unban', requireAdmin, async (req, res) => {
   const ownerKey = typeof (req.body && req.body.owner_key) === 'string' ? req.body.owner_key.trim() : '';
   if (!ownerKey) return res.status(400).json({ error: 'INVALID_INPUT', message: 'owner_key is required.' });

@@ -188,6 +188,22 @@
     $('auth-toggle-text').textContent = signup ? 'Already have an account?' : 'New to DayHop?';
     $('auth-toggle-btn').textContent = signup ? 'Sign in' : 'Create an account';
     $('auth-password').setAttribute('autocomplete', signup ? 'new-password' : 'current-password');
+    // Newsletter opt-in only makes sense while creating an account. The box
+    // ships unchecked every time (CASL: consent must be an affirmative act).
+    show('auth-consent', signup);
+  }
+
+  // Ticking the box at signup is express consent — hand the address to the
+  // newsletter service (which still double-opt-ins by email). Best-effort:
+  // a failed subscribe must never disturb the signup itself.
+  function maybeSubscribeNewsletter(email) {
+    const box = $('auth-consent-check');
+    if (!box || !box.checked) return;
+    fetch('/api/newsletter/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, source: 'signup' })
+    }).catch(() => {});
   }
 
   function clearError() { const e = $('auth-error'); if (e) e.textContent = ''; }
@@ -213,6 +229,7 @@
       if (mode === 'signup') {
         const { data, error } = await sb.auth.signUp({ email, password });
         if (error) throw error;
+        maybeSubscribeNewsletter(email);
         if (!data.session) {
           // Email confirmation is enabled on the project.
           setError('Check your email to confirm your account, then sign in.');

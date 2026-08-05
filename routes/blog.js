@@ -68,7 +68,40 @@ h1{font-family:var(--display);font-weight:700;letter-spacing:-0.02em;line-height
 footer{border-top:1px solid var(--line);padding:26px 0 40px;margin-top:20px;color:var(--ink-soft);font-size:13.5px}
 footer nav{display:flex;gap:14px;margin-top:6px}
 footer a{color:var(--ink-soft)}
+.subscribe-panel{margin:10px 0 34px;padding:24px 26px;background:#fff;border:1px solid var(--line);border-radius:var(--radius) 0 0 var(--radius);box-shadow:0 4px 14px rgba(16,42,46,0.08)}
+.subscribe-panel strong{font-family:var(--display);font-size:19px;display:block;margin-bottom:4px}
+.subscribe-panel p{margin:0 0 12px;color:var(--ink-soft);font-size:14.5px}
+.subscribe-form{display:flex;gap:8px;flex-wrap:wrap}
+.subscribe-form input{flex:1;min-width:200px;font:inherit;font-size:14px;border:1px solid var(--line);border-radius:9px;padding:10px 12px;background:var(--paper)}
+.subscribe-form button{font-family:var(--display);font-weight:700;font-size:14px;color:#fff;background:var(--coral);border:0;border-radius:9px;padding:10px 18px;cursor:pointer}
+.subscribe-form button:hover{background:var(--coral-dark)}
+.subscribe-msg{font-size:13px;margin:8px 0 0;min-height:1em}
+.subscribe-fineprint{font-size:11px;color:var(--ink-soft);opacity:.8;margin:10px 0 0}
 `;
+
+// Inline consent capture for the blog (server-rendered pages have no app.js).
+// CASL: typing an email + pressing the button is the express-consent act; the
+// server double-opt-ins by email before any digest is sent.
+const SUBSCRIBE_PANEL = `
+<div class="subscribe-panel">
+  <strong>The weekend brief 📩</strong>
+  <p>Every Thursday: 4-5 things actually worth doing with your crew around the GTA, plus the weather call. Free, no spam, one-click unsubscribe.</p>
+  <form class="subscribe-form" id="subscribe-form">
+    <input type="email" id="subscribe-email" required autocomplete="email" placeholder="you@example.com" aria-label="Email address">
+    <button type="submit">Sign me up</button>
+  </form>
+  <p class="subscribe-msg" id="subscribe-msg" role="status" aria-live="polite"></p>
+  <p class="subscribe-fineprint">By subscribing you agree to weekly emails from DayHop (Richmond Hill, ON, Canada — admin@dayhop.quest). Unsubscribe any time.</p>
+</div>
+<script>
+(function(){var f=document.getElementById('subscribe-form');if(!f)return;var m=document.getElementById('subscribe-msg');
+f.addEventListener('submit',function(e){e.preventDefault();var email=(document.getElementById('subscribe-email').value||'').trim();if(!email)return;
+var b=f.querySelector('button');b.disabled=true;
+fetch('/api/newsletter/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,source:'blog'})})
+.then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.message||'Something went wrong.');return d;})})
+.then(function(d){m.textContent=d.message||'Check your inbox to confirm.';m.style.color='#12855C';f.hidden=true;})
+.catch(function(err){m.textContent=err.message;b.disabled=false;});});})();
+</script>`;
 
 function page({ req, title, description, canonicalPath, ogImage, bodyHtml, jsonLd }) {
   const base = origin(req);
@@ -97,6 +130,7 @@ ${jsonLd ? `<script type="application/ld+json">${jsonLd}</script>` : ''}
 <div class="wrap">
 <nav class="topbar"><a class="logo" href="/">DayHop</a><a class="cta" href="/">Plan my day →</a></nav>
 ${bodyHtml}
+${SUBSCRIBE_PANEL}
 <footer>
 <p>DayHop is a Toronto-built day planner: real venues, live weather, and AI that plans like a thoughtful local friend.</p>
 <nav><a href="/">Planner</a><a href="/blog">Stories</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="mailto:admin@dayhop.quest?subject=Advertising%20inquiry%20%E2%80%94%20DayHop">Advertise with us</a></nav>

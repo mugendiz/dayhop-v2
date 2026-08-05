@@ -2857,6 +2857,105 @@ body[data-mode="adventure"] .mode-thumb { transform: translateX(100%); }
   margin: 0;
 }
 
+/* ---------- newsletter signup (footer) ---------- */
+.newsletter-box {
+  max-width: 440px;
+  margin: 0 auto 26px;
+  padding: 20px 22px 18px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  box-shadow: 0 4px 14px rgba(16, 42, 46, 0.08);
+  text-align: left;
+}
+
+.newsletter-title {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--ink);
+  margin: 0 0 4px;
+}
+
+.newsletter-sub {
+  font-size: 13.5px;
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
+
+.newsletter-form {
+  display: flex;
+  gap: 8px;
+}
+
+.newsletter-form input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.newsletter-form input:focus {
+  outline: 2px solid var(--coral);
+  outline-offset: 1px;
+}
+
+.newsletter-btn {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+  background: var(--coral);
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.15s var(--ease, ease);
+  white-space: nowrap;
+}
+
+.newsletter-btn:hover { background: var(--coral-dark); }
+.newsletter-btn:disabled { opacity: 0.6; cursor: default; }
+
+.newsletter-msg { font-size: 13px; margin: 8px 0 0; min-height: 1em; }
+.newsletter-msg.is-ok { color: var(--moss); font-weight: 600; }
+
+.newsletter-fineprint {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  opacity: 0.8;
+  margin: 10px 0 0;
+}
+
+@media (max-width: 420px) {
+  .newsletter-form { flex-direction: column; }
+  .newsletter-btn { padding: 12px 16px; }
+}
+
+/* ---------- newsletter opt-in (signup mode of the auth modal) ---------- */
+.auth-consent {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  margin: 2px 0 4px;
+  cursor: pointer;
+}
+
+.auth-consent input {
+  margin: 2px 0 0;
+  accent-color: var(--coral);
+  flex-shrink: 0;
+}
+
 /* =====================================================================
    ELEVATION LAYER — breathtaking pass
    Scroll-driven reveals (native CSS), View Transition mode switching,
