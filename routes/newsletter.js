@@ -45,14 +45,19 @@ router.post('/subscribe', async (req, res) => {
 });
 
 router.get('/confirm', async (req, res) => {
-  const result = await newsletter.confirm(String(req.query.token || ''));
+  const token = String(req.query.token || '');
+  const result = await newsletter.confirm(token);
   res.setHeader('Cache-Control', 'no-store');
   if (!result.ok) {
     return res.status(404).send(page('That link didn’t work',
       'It may have expired or already been used. Subscribe again from the site and we’ll send a fresh one.', false));
   }
+  // The reward, immediately: straight into the Playbook (also linked from the
+  // welcome email that just went out).
   res.send(page('You’re in 🎉',
-    'Every week you’ll get a short brief on the best family things happening around the GTA — in time to actually plan your weekend.'));
+    'Your Weekend Playbook is ready — 70+ GTA outings actually worth your Saturday. It’s also in the welcome email we just sent, along with your Thursday weekend brief.')
+    .replace('<a class="btn" href="/">Plan a day →</a>',
+      `<a class="btn" href="/playbook?t=${encodeURIComponent(token)}">Open my Playbook →</a>`));
 });
 
 // Human path: someone clicked "Unsubscribe" in the email footer.

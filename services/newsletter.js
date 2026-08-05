@@ -67,6 +67,7 @@ async function persist(row) {
 
 function confirmUrl(token) { return `${baseUrl()}/api/newsletter/confirm?token=${token}`; }
 function unsubscribeUrl(token) { return `${baseUrl()}/api/newsletter/unsubscribe?token=${token}`; }
+function playbookUrl(token) { return `${baseUrl()}/playbook?t=${token}`; }
 
 // CASL identification block — required in every commercial email: who is
 // sending, a real mailing address, and a working unsubscribe. Keep it honest.
@@ -83,11 +84,13 @@ function confirmEmailHtml(token) {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"></head><body style="margin:0;padding:0;background:#FBF7EE;">
   <div style="max-width:520px;margin:0 auto;padding:32px 24px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102A2E;">
     <p style="font-size:22px;font-weight:700;margin:0 0 4px;">DayHop</p>
-    <h1 style="font-size:24px;line-height:1.25;margin:18px 0 10px;">One click and you're in</h1>
+    <h1 style="font-size:24px;line-height:1.25;margin:18px 0 10px;">One click and the Playbook is yours</h1>
     <p style="font-size:16px;line-height:1.6;margin:0 0 22px;">
-      Confirm your email and every week you'll get a short, honest guide to the
-      best family things happening around the GTA — picked by the same live data
-      that powers the DayHop planner. No spam, ever. Unsubscribe any time.
+      Confirm your email and two things happen: <strong>The GTA Family Weekend
+      Playbook</strong> — 70+ outings actually worth your Saturday — arrives in
+      your welcome email, and every Thursday you'll get a short, honest brief on
+      the best family things happening around the GTA. No spam, ever.
+      Unsubscribe any time.
     </p>
     <a href="${confirmUrl(token)}"
        style="display:inline-block;background:#FF6B4A;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;padding:13px 26px;border-radius:10px;">
@@ -104,7 +107,7 @@ function confirmEmailHtml(token) {
 function confirmEmailText(token) {
   return `Confirm your DayHop subscription
 
-Every week: a short, honest guide to the best family things happening around the GTA. No spam, ever.
+Confirm and two things happen: The GTA Family Weekend Playbook (70+ outings actually worth your Saturday) arrives in your welcome email, and every Thursday you get a short, honest brief on the best family things happening around the GTA. No spam, ever.
 
 Confirm here: ${confirmUrl(token)}
 
@@ -117,10 +120,21 @@ function welcomeEmailHtml(token) {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"></head><body style="margin:0;padding:0;background:#FBF7EE;">
   <div style="max-width:520px;margin:0 auto;padding:32px 24px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102A2E;">
     <p style="font-size:22px;font-weight:700;margin:0 0 4px;">DayHop</p>
-    <h1 style="font-size:24px;line-height:1.25;margin:18px 0 10px;">You're in. Here's the deal.</h1>
+    <h1 style="font-size:24px;line-height:1.25;margin:18px 0 10px;">You're in — here's your Playbook.</h1>
+    <p style="font-size:16px;line-height:1.6;margin:0 0 16px;">
+      As promised: <strong>The GTA Family Weekend Playbook</strong> — 70+
+      outings actually worth your Saturday, organized by age, budget, and
+      rain-proofness. It regenerates from live data, so bookmark it; it only
+      gets better.
+    </p>
+    <p style="margin:0 0 22px;">
+      <a href="${playbookUrl(token)}"
+         style="display:inline-block;background:#FF6B4A;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;padding:13px 26px;border-radius:10px;">
+        Open my Playbook</a>
+    </p>
     <p style="font-size:16px;line-height:1.6;margin:0 0 14px;">
-      Every <strong>Thursday morning</strong> — in time to actually plan your
-      weekend — you'll get 4-5 things genuinely worth doing with your crew
+      And every <strong>Thursday morning</strong> — in time to actually plan
+      your weekend — you'll get 4-5 things genuinely worth doing with your crew
       around the GTA, a weather call, and a heads-up if anything's closed or
       flooded. That's it. No spam, ever.
     </p>
@@ -131,20 +145,20 @@ function welcomeEmailHtml(token) {
       every reply, and it makes your picks sharper.
     </p>
     <p style="font-size:16px;line-height:1.6;margin:0 0 22px;">
-      Can't wait until Thursday? Tell the planner what kind of day you want, in
-      one sentence, and it builds the whole thing with real venues and live weather.
+      Ready to go deeper? <a href="${baseUrl()}/" style="color:#E1502F;font-weight:600;">Tell the planner
+      what kind of day you want</a> — one sentence in, a whole day out.
     </p>
-    <a href="${baseUrl()}/"
-       style="display:inline-block;background:#FF6B4A;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;padding:13px 26px;border-radius:10px;">
-      Plan my day</a>
     ${complianceFooter(token)}
   </div></body></html>`;
 }
 
 function welcomeEmailText(token) {
-  return `You're in.
+  return `You're in — here's your Playbook.
 
-Every Thursday morning you'll get 4-5 things genuinely worth doing with your crew around the GTA, a weather call, and a heads-up if anything's closed. That's it. No spam, ever.
+The GTA Family Weekend Playbook (70+ outings actually worth your Saturday, organized by age, budget, and rain-proofness):
+${playbookUrl(token)}
+
+And every Thursday morning you'll get 4-5 things genuinely worth doing with your crew around the GTA, a weather call, and a heads-up if anything's closed. That's it. No spam, ever.
 
 Two quick favours: if this landed in spam or Promotions, move it to your inbox — and hit reply with your kids' ages and your corner of the GTA. A real person reads every reply.
 
@@ -284,4 +298,9 @@ async function stats() {
   };
 }
 
-module.exports = { subscribe, confirm, unsubscribe, listSubscribed, markSent, stats, unsubscribeUrl, baseUrl };
+/** Row lookup for token-gated surfaces (the Playbook). Null when unknown. */
+async function getByToken(token) {
+  return findByToken(token);
+}
+
+module.exports = { subscribe, confirm, unsubscribe, listSubscribed, markSent, stats, unsubscribeUrl, baseUrl, getByToken };

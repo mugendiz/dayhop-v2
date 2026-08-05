@@ -50,7 +50,9 @@ const SERVER_EVENT_TYPES = new Set([
   // Email marketing (services/newsletter.js + digest.js): consent funnel
   // subscribe → confirmed (double opt-in) → weekly digest_sent; unsubscribes
   // tracked so list-health (churn) shows up on the admin dashboard.
-  'newsletter_subscribe', 'newsletter_confirmed', 'newsletter_unsubscribed', 'digest_sent'
+  'newsletter_subscribe', 'newsletter_confirmed', 'newsletter_unsubscribed', 'digest_sent',
+  // Lead magnet: teaser vs full views of /playbook (source field says which).
+  'playbook_view'
 ]);
 
 const EVENT_TYPES = new Set([...CLIENT_EVENT_TYPES, ...SERVER_EVENT_TYPES]);

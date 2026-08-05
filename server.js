@@ -263,6 +263,11 @@ const blog = require('./routes/blog');
 app.use('/blog', blog.router);
 app.get('/sitemap.xml', blog.sitemap);
 
+// Lead magnet: The GTA Family Weekend Playbook (token-gated full version,
+// teaser + subscribe form without). Above the SPA fallback for the same
+// reason as /blog.
+app.use('/playbook', require('./routes/playbook'));
+
 // SPA fallback — must stay last.
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

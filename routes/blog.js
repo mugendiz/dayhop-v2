@@ -84,8 +84,8 @@ footer a{color:var(--ink-soft)}
 // server double-opt-ins by email before any digest is sent.
 const SUBSCRIBE_PANEL = `
 <div class="subscribe-panel">
-  <strong>The weekend brief 📩</strong>
-  <p>Every Thursday: 4-5 things actually worth doing with your crew around the GTA, plus the weather call. Free, no spam, one-click unsubscribe.</p>
+  <strong>Get the free Weekend Playbook 📖</strong>
+  <p>Subscribe and get <a href="/playbook">The GTA Family Weekend Playbook</a> — 70+ outings actually worth your Saturday — plus a short Thursday brief with the week's best picks and the weather call. Free, no spam, one-click unsubscribe.</p>
   <form class="subscribe-form" id="subscribe-form">
     <input type="email" id="subscribe-email" required autocomplete="email" placeholder="you@example.com" aria-label="Email address">
     <button type="submit">Sign me up</button>
