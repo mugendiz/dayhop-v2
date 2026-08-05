@@ -15,6 +15,7 @@ const router = express.Router();
 const curated = require('../data/curatedCatalog');
 const newsletter = require('../services/newsletter');
 const analytics = require('../services/analytics');
+const { enrichIdeaImages } = require('../services/ideaPhotos');
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -77,11 +78,13 @@ function chips(e) {
   return bits.join('');
 }
 
-function card(e) {
+function card(e, { photo = false } = {}) {
   const link = e.booking_url || e.maps_url;
   const where = e.venue || e.location || '';
   return `
-<article class="pick">
+<article class="pick${photo && e.image_url ? ' pick-photo' : ''}">
+  ${photo && e.image_url ? `<img class="pick-img" src="${esc(e.image_url)}" alt="" loading="lazy">` : ''}
+  <div class="pick-body">
   <h3>${link ? `<a href="${esc(link)}">${esc(e.title)}</a>` : esc(e.title)}</h3>
   ${where ? `<p class="where">${esc(where)}</p>` : ''}
   <p class="desc">${esc(e.description)}</p>
@@ -89,6 +92,7 @@ function card(e) {
     ${e.maps_url ? `<a class="minor" href="${esc(e.maps_url)}">map</a>` : ''}
     ${e.booking_url ? `<a class="minor" href="${esc(e.booking_url)}">tickets</a>` : ''}
   </p>
+  </div>
 </article>`;
 }
 
@@ -107,6 +111,15 @@ h1{font-size:clamp(30px,5vw,42px);line-height:1.15;margin:8px 0 10px;letter-spac
 h2{font-size:23px;margin:44px 0 2px;letter-spacing:-0.01em}
 .section-blurb{color:var(--ink-soft);margin:0 0 16px;font-size:14.5px}
 .pick{background:#fff;border:1px solid var(--line);border-radius:0 14px 14px 0;padding:16px 20px;margin:0 0 12px;box-shadow:0 2px 8px rgba(16,42,46,0.05);break-inside:avoid}
+.pick-photo{padding:0;overflow:hidden}
+.pick-img{width:100%;aspect-ratio:16/8.5;object-fit:cover;display:block;background:var(--paper-dim)}
+.pick-photo .pick-body{padding:16px 20px}
+.mosaic{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:22px 0 6px}
+.tile{position:relative;border-radius:10px;overflow:hidden;aspect-ratio:1/1;background:var(--paper-dim);border:1px solid var(--line)}
+.tile img{width:100%;height:100%;object-fit:cover;display:block}
+.tile span{position:absolute;left:0;right:0;bottom:0;padding:16px 10px 8px;font-size:11.5px;font-weight:600;color:#fff;background:linear-gradient(transparent,rgba(10,25,28,0.82));line-height:1.3}
+.tile-more{display:grid;place-items:center;background:var(--ink);color:#fff;font-weight:700;font-size:17px;text-align:center;line-height:1.3}
+.tile-more small{display:block;font-weight:500;font-size:11px;opacity:.75;margin-top:3px}
 .pick h3{margin:0 0 2px;font-size:17.5px;line-height:1.3}
 .pick h3 a{color:var(--ink);text-decoration:none}
 .pick h3 a:hover{color:var(--coral-dark)}
@@ -177,6 +190,55 @@ fetch('/api/newsletter/subscribe',{method:'POST',headers:{'Content-Type':'applic
 .catch(function(err){m.textContent=err.message;b.disabled=false;});});})();
 </script>`;
 
+// ---------- teaser (photo-heavy) ----------
+// Venue photos come from the same cached Places lookups the feed uses
+// (services/ideaPhotos → /api/photo proxy). The rendered teaser is cached
+// 6h so photo spend is per-window, not per-visitor; a Maps-keyless deploy
+// just renders the same page without images (everything fails soft).
+let teaserCache = null; // { html, at }
+const TEASER_TTL_MS = 6 * 60 * 60 * 1000;
+
+async function teaserBody(entries) {
+  if (teaserCache && Date.now() - teaserCache.at < TEASER_TTL_MS) return teaserCache.html;
+
+  // 3 hero picks + a mosaic drawn from every section so the grid reads as
+  // breadth, not three more of the same thing.
+  const samples = entries.filter(e => e.wow).slice(0, 3);
+  const used = new Set(samples.map(s => s.title));
+  const mosaicPool = [];
+  for (const s of SECTIONS) {
+    for (const e of entries) {
+      const key = CATEGORY_FOLD[e.category] || e.category;
+      if (key === s.key && !used.has(e.title)) { mosaicPool.push(e); used.add(e.title); break; }
+    }
+  }
+  for (const e of entries) { // top up to 11 tiles
+    if (mosaicPool.length >= 11) break;
+    if (!used.has(e.title)) { mosaicPool.push(e); used.add(e.title); }
+  }
+
+  await enrichIdeaImages([...samples, ...mosaicPool], { city: 'Toronto' });
+  const tiles = mosaicPool.filter(e => e.image_url).slice(0, 11);
+
+  const html = `
+<header style="margin-top:10px">
+  <span class="eyebrow">Free with the weekend brief</span>
+  <h1>The GTA Family Weekend Playbook</h1>
+  <p class="sub">${entries.length} outings actually worth your Saturday — hand-curated and verified, organized by age, budget, and rain-proofness. Here's a taste:</p>
+</header>
+${samples.map(e => card(e, { photo: true })).join('')}
+${tiles.length >= 4 ? `
+<div class="mosaic">
+  ${tiles.map(e => `<div class="tile"><img src="${esc(e.image_url)}" alt="" loading="lazy"><span>${esc(e.title)}</span></div>`).join('')}
+  <div class="tile tile-more">+${entries.length - samples.length - tiles.length} more<small>${entries.filter(e => e.cost_tier === 'free').length} free · ${entries.filter(isRainProof).length} rain-proof</small></div>
+</div>` : `
+<p class="sub" style="margin-top:18px">…plus ${entries.length - samples.length} more, including ${entries.filter(e => e.cost_tier === 'free').length} completely free outings and ${entries.filter(isRainProof).length} rain-proof saves.</p>`}
+${SUBSCRIBE_FORM}`;
+
+  teaserCache = { html, at: Date.now() };
+  return html;
+}
+
 router.get('/', async (req, res) => {
   const token = String(req.query.t || '').trim();
   let subscriber = null;
@@ -189,21 +251,11 @@ router.get('/', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store'); // token-personal, never shared caches
 
   if (!subscriber) {
-    // Teaser: the three strongest wow picks, then the gate.
-    const samples = entries.filter(e => e.wow).slice(0, 3);
     analytics.recordEvent({ type: 'playbook_view', ownerKey: `ip-${req.ip}`, source: 'teaser' });
     return res.send(page({
       title: 'The GTA Family Weekend Playbook — DayHop',
       description: `${entries.length} GTA outings actually worth your Saturday — curated, honest, and free with the DayHop weekend brief.`,
-      bodyHtml: `
-<header style="margin-top:10px">
-  <span class="eyebrow">Free with the weekend brief</span>
-  <h1>The GTA Family Weekend Playbook</h1>
-  <p class="sub">${entries.length} outings actually worth your Saturday — hand-curated and verified, organized by age, budget, and rain-proofness. Here's a taste:</p>
-</header>
-${samples.map(card).join('')}
-<p class="sub" style="margin-top:18px">…plus ${entries.length - samples.length} more, including ${entries.filter(e => e.cost_tier === 'free').length} completely free outings and ${entries.filter(isRainProof).length} rain-proof saves.</p>
-${SUBSCRIBE_FORM}`
+      bodyHtml: await teaserBody(entries)
     }));
   }
 
