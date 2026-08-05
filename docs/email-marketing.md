@@ -33,7 +33,11 @@ automation empires — by explicit decision.
 6. **Test**: admin dashboard → "Preview this week's issue" → "Send test" to yourself →
    check Gmail (Primary vs Promotions, images on/off, dark mode, phone).
 
-## The research (3 agents, 6 regions, 2026-08-05)
+## The research (2026-08-05 — final scope: NA, Europe, Asia, Africa)
+
+The Russia/South America leg was closed without results (research agent never
+reported back; decision 2026-08-05: four regions is a sufficient evidence
+base). Everything below stands on the completed reports.
 
 ### What the evidence converged on
 
