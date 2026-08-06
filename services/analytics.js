@@ -201,6 +201,10 @@ function aggregate(events) {
   // per source+campaign so the admin dashboard answers "which campaign
   // produced subscribers/signups/checkouts", not just "how many".
   const acquisition = new Map(); // 'source|campaign' -> counts
+  // Retention cohorts: per-owner event timestamps. Guests and signed-in users
+  // only — 'anon' is nobody and ip-* keys churn with DHCP/NAT, so both would
+  // poison week-over-week return rates.
+  const ownerTs = new Map(); // owner -> number[] (event timestamps, ms)
   const since30d = Date.now() - 30 * 24 * 3600 * 1000;
   let affiliateClicks30d = 0;
   for (const e of events) {
@@ -251,8 +255,61 @@ function aggregate(events) {
     if (e.owner_key && e.owner_key !== 'anon') {
       d.owners.add(e.owner_key);
       if (!firstSeen.has(e.owner_key)) firstSeen.set(e.owner_key, day);
+      if (!e.owner_key.startsWith('ip-')) {
+        const ts = Date.parse(e.created_at);
+        if (Number.isFinite(ts)) {
+          if (!ownerTs.has(e.owner_key)) ownerTs.set(e.owner_key, []);
+          ownerTs.get(e.owner_key).push(ts);
+        }
+      }
     }
   }
+
+  // ---- retention cohorts (the premium-tier go/no-go metric) ----
+  // Cohort = the Monday-anchored Toronto week of a user's FIRST event. Week N
+  // retained = any event in days [7N, 7N+7) after that first event. A week's
+  // cell only gets a number once the whole window has elapsed for everyone in
+  // the cohort (cohort week end + N weeks), else null — a half-open window
+  // would report fake churn for recent cohorts.
+  const WEEK_MS = 7 * 24 * 3600 * 1000;
+  const nowMs = Date.now();
+  const cohortMap = new Map(); // mondayDay -> { users, w: [w1,w2,w3,w4] }
+  for (const tss of ownerTs.values()) {
+    const first = Math.min(...tss);
+    const firstDay = torontoDay(first); // YYYY-MM-DD
+    const dayUtc = new Date(`${firstDay}T00:00:00Z`);
+    const dow = dayUtc.getUTCDay(); // 0=Sun
+    dayUtc.setUTCDate(dayUtc.getUTCDate() - ((dow + 6) % 7)); // back to Monday
+    const monday = dayUtc.toISOString().slice(0, 10);
+    if (!cohortMap.has(monday)) cohortMap.set(monday, { users: 0, w: [0, 0, 0, 0] });
+    const c = cohortMap.get(monday);
+    c.users++;
+    const weeksActive = new Set(tss.map(ts => Math.floor((ts - first) / WEEK_MS)));
+    for (let w = 1; w <= 4; w++) if (weeksActive.has(w)) c.w[w - 1]++;
+  }
+  const retentionCohorts = [...cohortMap.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-12)
+    .map(([monday, c]) => {
+      const cohortEndMs = Date.parse(`${monday}T00:00:00Z`) + WEEK_MS;
+      const row = { week: monday, users: c.users };
+      for (let w = 1; w <= 4; w++) {
+        row[`w${w}`] = nowMs >= cohortEndMs + w * WEEK_MS
+          ? Math.round((c.w[w - 1] / c.users) * 100)
+          : null;
+      }
+      return row;
+    });
+  // Headline: user-weighted W4 across mature cohorts.
+  let w4Users = 0, w4Retained = 0;
+  for (const r of retentionCohorts) {
+    if (r.w4 != null) { w4Users += r.users; w4Retained += r.users * r.w4 / 100; }
+  }
+  const retention = {
+    cohorts: retentionCohorts,
+    week4_avg: w4Users ? Math.round((w4Retained / w4Users) * 100) : null,
+    measured_users: w4Users
+  };
 
   const days = [...daily.values()]
     .sort((a, b) => a.day.localeCompare(b.day))
@@ -291,6 +348,7 @@ function aggregate(events) {
   })).sort((a, b) => b.clicks - a.clicks);
 
   return {
+    retention,
     acquisition: {
       sources: [...acquisition.values()]
         .sort((a, b) => (b.checkouts - a.checkouts) || (b.signups - a.signups) || (b.subscribers - a.subscribers))

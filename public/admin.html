@@ -141,6 +141,18 @@
       <p class="rate" id="affiliate-note"></p>
     </div>
 
+    <div class="card overflow" id="retention-card">
+      <h2>Retention cohorts 🔁</h2>
+      <p class="rate" id="retention-headline" style="margin:0 0 10px"></p>
+      <table>
+        <thead>
+          <tr><th>Cohort week</th><th class="num">New users</th><th class="num">W1</th><th class="num">W2</th><th class="num">W3</th><th class="num">W4</th></tr>
+        </thead>
+        <tbody id="retention-rows"></tbody>
+      </table>
+      <p class="rate" id="retention-note"></p>
+    </div>
+
     <div class="card overflow" id="acquisition-card">
       <h2>Acquisition by campaign 📣</h2>
       <table>
@@ -493,6 +505,7 @@
     renderModeSplit(data.mode_split || []);
     renderAffiliate(data.affiliate || {});
     renderAcquisition(data.acquisition || {});
+    renderRetention(data.retention || {});
     renderHBars($('cities'), data.top_cities || [], 'var(--s4)');
     renderHBars($('sources'), data.booking_sources || [], 'var(--s3)');
     renderDailyTable(data.daily || []);
@@ -501,6 +514,28 @@
     $('source').textContent = 'Data source: ' + data.source + ' · billing ' +
       (data.billing && data.billing.configured ? 'configured' : 'not configured') +
       ' · generated ' + data.generated_at;
+  }
+
+  // Retention cohorts: users grouped by first-seen week; WN = % who came back
+  // in week N. W4 is the strategy gate: the founder playbook says don't invest
+  // further in the premium tier while W4 is weak (<10% is typical-bad for
+  // consumer; 20%+ is a green light).
+  function renderRetention(r) {
+    const rows = r.cohorts || [];
+    const cell = v => v == null ? '<td class="num" style="color:var(--ink-soft)">—</td>'
+      : '<td class="num"' + (v >= 20 ? ' style="color:var(--ok,#12855C);font-weight:700"' : '') + '>' + v + '%</td>';
+    $('retention-rows').innerHTML = rows.length
+      ? rows.map(c =>
+          '<tr><td>' + esc(c.week) + '</td><td class="num">' + fmt(c.users) + '</td>' +
+          cell(c.w1) + cell(c.w2) + cell(c.w3) + cell(c.w4) + '</tr>').join('')
+      : '<tr><td colspan="6" style="color:var(--ink-soft)">No cohorts yet — users appear here the week after their first visit.</td></tr>';
+    $('retention-headline').innerHTML = r.week4_avg != null
+      ? 'Week-4 retention: <strong>' + r.week4_avg + '%</strong> across ' + fmt(r.measured_users) + ' users in mature cohorts' +
+        (r.week4_avg >= 20 ? ' — healthy; premium-tier investment is justified.' : ' — weak; per the playbook, hold premium-tier investment and fix the habit loop first.')
+      : 'Week-4 not measurable yet — a cohort needs 5 full weeks of history.';
+    $('retention-note').textContent = rows.length
+      ? '“—” = window not elapsed yet. Cohorts include signed-in users and guests (stable device ids); anonymous/IP-only traffic is excluded. Weeks run Monday-Monday, Toronto time.'
+      : '';
   }
 
   // Acquisition: funnel events that arrived carrying utm_* attribution
