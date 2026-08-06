@@ -18,6 +18,9 @@ router.get('/', (req, res) => {
     supabaseUrl,
     supabaseAnonKey,
     authEnabled: Boolean(supabaseUrl && supabaseAnonKey),
+    // Meta Pixel ID is public by design (it ships in every advertiser's page
+    // source). pixel.js only injects Meta's script when this is non-null.
+    metaPixelId: process.env.META_PIXEL_ID || null,
     // Seasonal spotlight: drives the hero eyebrow and holiday chrome
     // client-side (World Cup while live, then the next stat holiday).
     spotlight: getSpotlight()

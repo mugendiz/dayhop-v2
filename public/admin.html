@@ -141,6 +141,17 @@
       <p class="rate" id="affiliate-note"></p>
     </div>
 
+    <div class="card overflow" id="acquisition-card">
+      <h2>Acquisition by campaign 📣</h2>
+      <table>
+        <thead>
+          <tr><th>Source</th><th>Campaign</th><th class="num">Subscribers</th><th class="num">Signups</th><th class="num">Checkouts</th></tr>
+        </thead>
+        <tbody id="acquisition-rows"></tbody>
+      </table>
+      <p class="rate" id="acquisition-note"></p>
+    </div>
+
     <div class="grid2">
       <div class="card">
         <h2>Top cities</h2>
@@ -481,6 +492,7 @@
     renderUpgradeFunnel(data.upgrade_funnel || {});
     renderModeSplit(data.mode_split || []);
     renderAffiliate(data.affiliate || {});
+    renderAcquisition(data.acquisition || {});
     renderHBars($('cities'), data.top_cities || [], 'var(--s4)');
     renderHBars($('sources'), data.booking_sources || [], 'var(--s3)');
     renderDailyTable(data.daily || []);
@@ -489,6 +501,23 @@
     $('source').textContent = 'Data source: ' + data.source + ' · billing ' +
       (data.billing && data.billing.configured ? 'configured' : 'not configured') +
       ' · generated ' + data.generated_at;
+  }
+
+  // Acquisition: funnel events that arrived carrying utm_* attribution
+  // (pixel.js first-touch capture), rolled up per source + campaign. Empty
+  // until traffic starts arriving through tagged links or ads.
+  function renderAcquisition(a) {
+    const rows = a.sources || [];
+    $('acquisition-rows').innerHTML = rows.length
+      ? rows.map(r =>
+          '<tr><td>' + esc(r.source) + '</td><td>' + esc(r.campaign || '—') + '</td>' +
+          '<td class="num">' + fmt(r.subscribers || 0) + '</td>' +
+          '<td class="num">' + fmt(r.signups || 0) + '</td>' +
+          '<td class="num">' + fmt(r.checkouts || 0) + '</td></tr>').join('')
+      : '<tr><td colspan="5" style="color:var(--ink-soft)">No campaign-tagged traffic yet. Share links with ?utm_source=…&utm_campaign=… (or run ads) and conversions land here.</td></tr>';
+    $('acquisition-note').textContent = rows.length
+      ? 'Counts events whose visitor first landed via a tagged URL (90-day first-touch). Checkouts also stamp the campaign into Stripe metadata.'
+      : '';
   }
 
   // Affiliate revenue: clicks on commission-bearing partner links (Viator,

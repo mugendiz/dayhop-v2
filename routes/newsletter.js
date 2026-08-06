@@ -31,11 +31,13 @@ a.btn{display:inline-block;background:#FF6B4A;color:#fff;text-decoration:none;fo
 }
 
 router.post('/subscribe', async (req, res) => {
-  const { email, source, owner_id } = req.body || {};
+  const { email, source, owner_id, attrib } = req.body || {};
   const result = await newsletter.subscribe(email, {
     source: typeof source === 'string' ? source : 'unknown',
     ownerId: (req.user && req.user.id) || (typeof owner_id === 'string' ? owner_id : null),
-    ip: req.ip // part of the CASL consent record
+    ip: req.ip, // part of the CASL consent record
+    attrib, // sanitized inside — ties the subscriber to the ad campaign
+    userAgent: req.headers['user-agent']
   });
   if (!result.ok) {
     return res.status(400).json({ error: 'INVALID_EMAIL', message: 'That doesn’t look like an email address.' });

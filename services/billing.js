@@ -165,14 +165,24 @@ async function getPriceInfo() {
 // and Stripe emails the customer before the first charge.
 const TRIAL_DAYS = Number(process.env.STRIPE_TRIAL_DAYS ?? 7);
 
-async function createCheckoutSession({ ownerId, email, origin }) {
+async function createCheckoutSession({ ownerId, email, origin, attrib }) {
+  // Campaign attribution lands in Stripe metadata (session AND subscription):
+  // the answer to "which ad produced this paying customer" then lives where
+  // the money is — visible in the Stripe dashboard per customer, forever.
+  const metadata = attrib && Object.keys(attrib).length ? attrib : undefined;
   const session = await getStripe().checkout.sessions.create({
     mode: 'subscription',
     line_items: [{ price: STRIPE_PRICE_ID, quantity: 1 }],
     client_reference_id: ownerId,
     customer_email: email || undefined,
     allow_promotion_codes: true,
-    subscription_data: TRIAL_DAYS > 0 ? { trial_period_days: TRIAL_DAYS } : undefined,
+    metadata,
+    subscription_data: TRIAL_DAYS > 0 || metadata
+      ? {
+          ...(TRIAL_DAYS > 0 ? { trial_period_days: TRIAL_DAYS } : {}),
+          ...(metadata ? { metadata } : {})
+        }
+      : undefined,
     success_url: `${origin}/?billing=success`,
     cancel_url: `${origin}/?billing=cancelled`
   });
@@ -230,6 +240,20 @@ async function handleWebhook(rawBody, signature) {
         stripe_subscription_id: session.subscription || null,
         status: 'active',
         current_period_end: null
+      });
+      // The conversion ads ultimately optimize toward. Trial checkouts have
+      // amount_total 0 — report the subscription's real monthly value so
+      // Meta's value optimization isn't fed zeros. Fail-soft: no email or no
+      // META_* config → silent no-op.
+      const price = await getPriceInfo().catch(() => null);
+      require('./metaPixel').sendEvent('StartTrial', {
+        email: (session.customer_details && session.customer_details.email) || session.customer_email,
+        customData: {
+          currency: (price && price.currency) || 'CAD',
+          value: (price && price.amount) || 0,
+          ...(session.metadata && session.metadata.utm_campaign
+            ? { content_name: session.metadata.utm_campaign } : {})
+        }
       });
       return `activated pro for ${ownerId}`;
     }

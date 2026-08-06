@@ -22,12 +22,22 @@ router.post('/checkout', requireUser, async (req, res) => {
   if (!billing.isConfigured()) return notConfigured(res);
   try {
     const origin = `${req.protocol}://${req.get('host')}`;
+    // Campaign attribution (utm_*/fbclid captured by pixel.js at landing)
+    // flows into Stripe metadata so paying customers stay attributable.
+    const utm = analytics.sanitizeAttrib(req.body && req.body.attrib);
     const session = await billing.createCheckoutSession({
       ownerId: req.ownerId,
       email: req.user && req.user.email,
-      origin
+      origin,
+      attrib: utm
     });
-    analytics.recordEvent({ type: 'upgrade_started', ownerKey: req.ownerId });
+    analytics.recordEvent({ type: 'upgrade_started', ownerKey: req.ownerId, meta: utm ? { utm } : null });
+    require('../services/metaPixel').sendEvent('InitiateCheckout', {
+      email: req.user && req.user.email,
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+      sourceUrl: req.headers.referer
+    });
     res.json({ url: session.url });
   } catch (err) {
     console.error('[billing] checkout failed:', err.message);

@@ -97,7 +97,7 @@ const SUBSCRIBE_PANEL = `
 (function(){var f=document.getElementById('subscribe-form');if(!f)return;var m=document.getElementById('subscribe-msg');
 f.addEventListener('submit',function(e){e.preventDefault();var email=(document.getElementById('subscribe-email').value||'').trim();if(!email)return;
 var b=f.querySelector('button');b.disabled=true;
-fetch('/api/newsletter/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,source:'blog'})})
+fetch('/api/newsletter/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,source:'blog',attrib:(window.dayhopAttrib&&window.dayhopAttrib())||undefined})})
 .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.message||'Something went wrong.');return d;})})
 .then(function(d){m.textContent=d.message||'Check your inbox to confirm.';m.style.color='#12855C';f.hidden=true;})
 .catch(function(err){m.textContent=err.message;b.disabled=false;});});})();
@@ -124,6 +124,7 @@ ${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}">` : ''}
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
 <style>${STYLES}</style>
+<script src="/pixel.js" defer></script>
 ${jsonLd ? `<script type="application/ld+json">${jsonLd}</script>` : ''}
 </head>
 <body>

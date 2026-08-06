@@ -202,7 +202,10 @@
     fetch('/api/newsletter/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, source: 'signup' })
+      body: JSON.stringify({
+        email, source: 'signup',
+        attrib: (window.dayhopAttrib && window.dayhopAttrib()) || undefined
+      })
     }).catch(() => {});
   }
 

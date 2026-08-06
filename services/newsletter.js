@@ -177,7 +177,7 @@ DayHop · Richmond Hill, Ontario, Canada · admin@dayhop.quest`;
  * { ok:true } for a plausible email; what actually happened rides in `state`
  * for logging only, never for the HTTP response body.
  */
-async function subscribe(rawEmail, { source = 'unknown', ownerId = null, ip = null } = {}) {
+async function subscribe(rawEmail, { source = 'unknown', ownerId = null, ip = null, attrib = null, userAgent = null } = {}) {
   const email = normalizeEmail(rawEmail);
   if (!email) return { ok: false, state: 'invalid' };
 
@@ -206,7 +206,19 @@ async function subscribe(rawEmail, { source = 'unknown', ownerId = null, ip = nu
   };
   subscribers.set(email, row);
   await persist(row);
-  analytics.recordEvent({ type: 'newsletter_subscribe', ownerKey: ownerId || 'anon', source: row.consent_source });
+  // Attribution rides in the analytics event (the subscribers table is the
+  // CASL consent record — campaign data doesn't belong in it).
+  const utm = analytics.sanitizeAttrib(attrib);
+  analytics.recordEvent({
+    type: 'newsletter_subscribe', ownerKey: ownerId || 'anon',
+    source: row.consent_source, meta: utm ? { utm } : null
+  });
+  // Server-side Lead for ad optimization — fires at the subscribe (the
+  // in-session action ads can be optimized on), not the later confirm.
+  require('./metaPixel').sendEvent('Lead', {
+    email, ip, userAgent,
+    customData: { content_name: 'newsletter', content_category: row.consent_source }
+  });
 
   const result = await sendEmail({
     to: email,
@@ -237,6 +249,9 @@ async function confirm(token) {
     subscribers.set(row.email, row);
     await persist(row);
     analytics.recordEvent({ type: 'newsletter_confirmed', ownerKey: row.owner_id || 'anon' });
+    // Custom (non-standard) name on purpose: the Lead already fired at
+    // subscribe — this measures double-opt-in completion quality per campaign.
+    require('./metaPixel').sendEvent('NewsletterConfirmed', { email: row.email });
     // Welcome email is a marketing send (they're now consented) → carries
     // the one-click unsubscribe headers like every send after it. The
     // Playbook rides along as a PDF (cached build; a build failure just

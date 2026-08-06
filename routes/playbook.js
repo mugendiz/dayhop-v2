@@ -111,6 +111,7 @@ function page({ title, description, bodyHtml }) {
 <meta name="robots" content="noindex">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
 <style>${STYLES}</style>
+<script src="/pixel.js" defer></script>
 </head>
 <body>
 <div class="wrap">
@@ -139,7 +140,7 @@ const SUBSCRIBE_FORM = `
 (function(){var f=document.getElementById('gate-form');if(!f)return;var m=document.getElementById('gate-msg');
 f.addEventListener('submit',function(e){e.preventDefault();var email=(document.getElementById('gate-email').value||'').trim();if(!email)return;
 var b=f.querySelector('button');b.disabled=true;
-fetch('/api/newsletter/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,source:'playbook'})})
+fetch('/api/newsletter/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,source:'playbook',attrib:(window.dayhopAttrib&&window.dayhopAttrib())||undefined})})
 .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.message||'Something went wrong.');return d;})})
 .then(function(d){m.textContent='Check your inbox — confirm your email and the Playbook link arrives right after.';m.style.color='#12855C';f.hidden=true;})
 .catch(function(err){m.textContent=err.message;b.disabled=false;});});})();

@@ -57,6 +57,26 @@ const SERVER_EVENT_TYPES = new Set([
 
 const EVENT_TYPES = new Set([...CLIENT_EVENT_TYPES, ...SERVER_EVENT_TYPES]);
 
+// ---------- ad attribution ----------
+// Client-supplied utm_*/fbclid payloads ride into event meta (meta.utm) on
+// funnel events so paid campaigns can be tied to signups, subscribers, and
+// checkouts. Sanitized hard: known keys only, strings, length-capped —
+// everything else dropped, never rejected.
+const ATTRIB_KEYS = [
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term',
+  'fbclid', 'gclid', 'landing_path'
+];
+
+function sanitizeAttrib(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const out = {};
+  for (const key of ATTRIB_KEYS) {
+    const v = raw[key];
+    if (typeof v === 'string' && v.trim()) out[key] = v.trim().slice(0, 120);
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 // ---------- in-memory mirror ----------
 // events: bounded ring so a long-lived process can't grow unbounded.
 const MIRROR_MAX = 20000;
@@ -177,6 +197,10 @@ function aggregate(events) {
   // Per affiliate source: clicks, clicks with a known price, basket sum by
   // currency (Viator prices are USD; never silently mix currencies).
   const affiliate = new Map();
+  // Paid/campaign acquisition: funnel events carrying meta.utm, rolled up
+  // per source+campaign so the admin dashboard answers "which campaign
+  // produced subscribers/signups/checkouts", not just "how many".
+  const acquisition = new Map(); // 'source|campaign' -> counts
   const since30d = Date.now() - 30 * 24 * 3600 * 1000;
   let affiliateClicks30d = 0;
   for (const e of events) {
@@ -185,6 +209,20 @@ function aggregate(events) {
     if (e.type === 'prompt_generated' || e.type === 'browse_feed') {
       if (meta.city) cities.set(meta.city, (cities.get(meta.city) || 0) + 1);
       if (meta.mode) modeSplit.set(meta.mode, (modeSplit.get(meta.mode) || 0) + 1);
+    }
+    if (meta.utm && meta.utm.utm_source &&
+        (e.type === 'signup' || e.type === 'newsletter_subscribe' || e.type === 'upgrade_started')) {
+      const key = `${meta.utm.utm_source}|${meta.utm.utm_campaign || ''}`;
+      if (!acquisition.has(key)) {
+        acquisition.set(key, {
+          source: meta.utm.utm_source, campaign: meta.utm.utm_campaign || null,
+          signups: 0, subscribers: 0, checkouts: 0
+        });
+      }
+      const a = acquisition.get(key);
+      if (e.type === 'signup') a.signups++;
+      if (e.type === 'newsletter_subscribe') a.subscribers++;
+      if (e.type === 'upgrade_started') a.checkouts++;
     }
     if (e.type === 'booking_click') {
       const src = e.source || 'unknown';
@@ -253,6 +291,11 @@ function aggregate(events) {
   })).sort((a, b) => b.clicks - a.clicks);
 
   return {
+    acquisition: {
+      sources: [...acquisition.values()]
+        .sort((a, b) => (b.checkouts - a.checkouts) || (b.signups - a.signups) || (b.subscribers - a.subscribers))
+        .slice(0, 20)
+    },
     affiliate: {
       commission_rate: COMMISSION_RATE,
       // Untagged links earn nothing — surface the misconfiguration where
@@ -440,4 +483,4 @@ async function engagementByIdea(ideaIds, { days = 30 } = {}) {
   return counts;
 }
 
-module.exports = { recordEvent, countToday, metrics, userActivity, engagementByIdea, EVENT_TYPES, CLIENT_EVENT_TYPES };
+module.exports = { recordEvent, countToday, metrics, userActivity, engagementByIdea, sanitizeAttrib, EVENT_TYPES, CLIENT_EVENT_TYPES };

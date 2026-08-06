@@ -1193,7 +1193,10 @@
           // can estimate commission potential per click.
           price: idea && idea.price != null ? idea.price : undefined,
           currency: idea && idea.currency ? idea.currency : undefined,
-          owner_id: getOwnerId()
+          owner_id: getOwnerId(),
+          // Ad-campaign attribution (pixel.js first-touch capture); the
+          // server only keeps it on funnel events.
+          attrib: (window.dayhopAttrib && window.dayhopAttrib()) || undefined
         }),
         keepalive: true // survives the page navigating to a booking site
       }).catch(() => {});
@@ -4254,7 +4257,12 @@
     try {
       const res = await fetch('/api/billing/checkout', {
         method: 'POST',
-        headers: authHeaders({ 'Content-Type': 'application/json' })
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        // Campaign attribution → Stripe metadata (which ad produced this
+        // paying customer). Empty body is fine — the server sanitizes.
+        body: JSON.stringify({
+          attrib: (window.dayhopAttrib && window.dayhopAttrib()) || undefined
+        })
       });
       const data = await res.json();
       if (res.ok && data.url) {

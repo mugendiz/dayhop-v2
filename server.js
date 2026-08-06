@@ -240,6 +240,7 @@ app.get('/health', (req, res) => {
       york_open_data: process.env.YORK_OPEN_DATA_ENABLED === 'true',
       stripe: require('./services/billing').status(),
       email: require('./services/email').status(),
+      meta_ads: require('./services/metaPixel').status(),
       admin_metrics: Boolean(process.env.ADMIN_KEY)
     }
   });

@@ -557,6 +557,10 @@
      (pinned version) only when a stored session needs restoring or the
      user opens Sign in. app.js tolerates auth arriving late — it listens
      for the 'dayhop:auth' event. -->
+<!-- Ad infra: UTM/fbclid first-touch capture (always) + Meta Pixel (only when
+     META_PIXEL_ID is configured server-side). First in defer order so
+     window.dayhopAttrib exists before app.js/auth.js fire any events. -->
+<script src="/pixel.js" defer></script>
 <script src="/app.js" defer></script>
 <script src="/auth.js" defer></script>
 <!-- Motion stack: motion.js now injects Lenis + GSAP/ScrollTrigger itself,
@@ -582,7 +586,10 @@
       const res = await fetch('/api/newsletter/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, source: 'footer' })
+        body: JSON.stringify({
+          email, source: 'footer',
+          attrib: (window.dayhopAttrib && window.dayhopAttrib()) || undefined
+        })
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || 'Something went wrong.');
