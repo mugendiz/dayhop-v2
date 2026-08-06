@@ -269,6 +269,19 @@ app.get('/sitemap.xml', blog.sitemap);
 // reason as /blog.
 app.use('/playbook', require('./routes/playbook'));
 
+// Venue-facing media kit + sponsor inquiries (the B2B placement motion).
+// Inquiry POSTs email the admin — same bot-vs-outbound-send logic as the
+// newsletter limiter. GETs are exempt (it's a sales page; never bounce it).
+const advertiseLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === 'GET',
+  message: { error: 'RATE_LIMITED', message: 'Slow down a little.' }
+});
+app.use('/advertise', advertiseLimiter, require('./routes/advertise'));
+
 // SPA fallback — must stay last.
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

@@ -52,7 +52,10 @@ const SERVER_EVENT_TYPES = new Set([
   // tracked so list-health (churn) shows up on the admin dashboard.
   'newsletter_subscribe', 'newsletter_confirmed', 'newsletter_unsubscribed', 'digest_sent',
   // Lead magnet: teaser vs full views of /playbook (source field says which).
-  'playbook_view'
+  'playbook_view',
+  // Sponsorship funnel (routes/advertise.js): a venue asked about placements.
+  // The event IS the CRM until real sponsor management exists.
+  'sponsor_inquiry'
 ]);
 
 const EVENT_TYPES = new Set([...CLIENT_EVENT_TYPES, ...SERVER_EVENT_TYPES]);
