@@ -13,7 +13,7 @@
 //     stale-while-revalidate so a revisited share link opens instantly even
 //     through a free-tier cold start.
 // Bump the version to invalidate every cached asset on the next visit.
-const CACHE = 'dayhop-shell-v11'; // v11: nearest-first feed sort ships in app.js
+const CACHE = 'dayhop-shell-v12'; // v12: nearest-first chip leads the filter row
 
 const SHELL = [
   '/',

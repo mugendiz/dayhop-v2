@@ -450,7 +450,8 @@
     sortChip.setAttribute('aria-pressed', state.sortBy === 'distance' ? 'true' : 'false');
     sortChip.hidden = !state.allIdeas.some(i => i.distance_km != null);
     sortChip.addEventListener('click', () => setSort(state.sortBy === 'distance' ? 'recommended' : 'distance'));
-    wrap.appendChild(sortChip);
+    // Lead the row: right after "All", ahead of the category chips.
+    wrap.insertBefore(sortChip, wrap.children[1] || null);
   }
 
   function renderExamplePrompts() {
