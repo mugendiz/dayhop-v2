@@ -202,6 +202,9 @@
     pendingRemovals: new Set(),
     dismissedIds: new Set(),
     currentFilter: 'all',
+    // 'recommended' keeps the server's curated order; 'distance' flattens the
+    // feed into a nearest-first list (using the server-computed distance_km).
+    sortBy: 'recommended',
     city: 'Richmond Hill',
     user: null,
     isGenerating: false,
@@ -436,6 +439,18 @@
       chip.addEventListener('click', () => setFilter(filter));
       wrap.appendChild(chip);
     });
+    // Sort toggle rides with the chips: one switch between the server's
+    // curated order and a flat nearest-first list. Only shown when the feed
+    // actually carries distances (updateFeedChrome keeps visibility current).
+    const sortChip = document.createElement('button');
+    sortChip.type = 'button';
+    sortChip.id = 'sort-distance-chip';
+    sortChip.className = 'filter-chip' + (state.sortBy === 'distance' ? ' active' : '');
+    sortChip.textContent = '📍 Nearest first';
+    sortChip.setAttribute('aria-pressed', state.sortBy === 'distance' ? 'true' : 'false');
+    sortChip.hidden = !state.allIdeas.some(i => i.distance_km != null);
+    sortChip.addEventListener('click', () => setSort(state.sortBy === 'distance' ? 'recommended' : 'distance'));
+    wrap.appendChild(sortChip);
   }
 
   function renderExamplePrompts() {
@@ -1496,7 +1511,7 @@
     // Sectioned cards ("Next" pages ride in with idea.section) are ignored
     // here so an append can't retroactively kill the hero.
     let heroIdea = null;
-    if (!state.browseMode) {
+    if (!state.browseMode && state.sortBy !== 'distance') {
       const onTargetAll = ideas.filter(i => !i.section && !i.wow_reason && !i.more_find);
       if (onTargetAll.length >= 3) heroIdea = onTargetAll[0];
     }
@@ -1505,7 +1520,17 @@
       if (animate && window.DayHopMotion) window.DayHopMotion.bestMatchIn(feed.lastElementChild);
     }
 
-    if (state.browseMode && ideas.some(i => i.section)) {
+    if (state.sortBy === 'distance') {
+      // Nearest first: a flat sorted list. Sorting inside the server's
+      // sections would leave far-away "Within 15 minutes" cards above nearby
+      // "More to explore" ones and read as broken. Items without a computed
+      // distance sink to their own shelf instead of silently mixing in.
+      const near = ideas.filter(i => i.distance_km != null).sort((a, b) => a.distance_km - b.distance_km);
+      const far = ideas.filter(i => i.distance_km == null);
+      const showHeaders = near.length > 0 && far.length > 0;
+      appendSection('Closest first 📍', near, showHeaders);
+      appendSection('Distance unknown', far, showHeaders);
+    } else if (state.browseMode && ideas.some(i => i.section)) {
       // Browse feed: server-assigned sections, in server order. STOP numbers
       // continue across sections so the trail metaphor stays intact.
       const order = [];
@@ -1572,6 +1597,12 @@
     const feedNext = document.getElementById('feed-next');
     if (feedNext) feedNext.hidden = !hasIdeas || state.isGenerating || state.nextExhausted;
 
+    // The nearest-first toggle only earns its spot when there are distances
+    // to sort by (feeds without coords would just dump everything under
+    // "Distance unknown").
+    const sortChip = document.getElementById('sort-distance-chip');
+    if (sortChip) sortChip.hidden = !hasIdeas || !state.allIdeas.some(i => i.distance_km != null);
+
     renderCollections();
   }
 
@@ -1583,6 +1614,9 @@
   // untouched. Returns the first appended node (for the scroll-to-new
   // affordance) or null when nothing was appended.
   function appendIdeasToFeed(freshIdeas) {
+    // A distance-sorted feed can't grow append-only — fresh cards must merge
+    // into sorted position, so the full render owns that path.
+    if (state.sortBy === 'distance') { renderFeed(false); return null; }
     const feed = document.getElementById('discovery-feed');
     // No cards yet (first load, or everything filtered away) — the full
     // render owns empty-feed layout, hero logic, and section merging.
@@ -4438,8 +4472,21 @@
 
   function setFilter(category) {
     state.currentFilter = category;
-    document.querySelectorAll('.filter-chip').forEach(c =>
-      c.classList.toggle('active', c.dataset.filter === category));
+    document.querySelectorAll('.filter-chip').forEach(c => {
+      if (c.id === 'sort-distance-chip') return; // the sort toggle keeps its own active state
+      c.classList.toggle('active', c.dataset.filter === category);
+    });
+    renderFeed(true);
+  }
+
+  function setSort(order) {
+    state.sortBy = order;
+    const chip = document.getElementById('sort-distance-chip');
+    if (chip) {
+      chip.classList.toggle('active', order === 'distance');
+      chip.setAttribute('aria-pressed', order === 'distance' ? 'true' : 'false');
+    }
+    if (order === 'distance') track('feed_sort_distance');
     renderFeed(true);
   }
 

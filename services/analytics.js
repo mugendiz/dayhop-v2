@@ -30,7 +30,9 @@ const CLIENT_EVENT_TYPES = new Set([
   // but never registered, so every open was rejected with 400.)
   'featured_event_open', 'featured_back',
   // Quest layer: a plan stop checked off as "been here".
-  'place_visited'
+  'place_visited',
+  // Feed re-sorted to nearest-first (browse/results sort toggle).
+  'feed_sort_distance'
 ]);
 
 // Server-truth events, recorded by their own routes.
