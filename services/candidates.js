@@ -471,6 +471,40 @@ function sanitizeCoords(coords) {
 // City picks get a 20 km radius: a GTA borough centroid + 15 km cut off
 // its neighbours (North York couldn't see east Scarborough), and the
 // deeper maxResults cost nothing extra — same request, bigger page.
+// Google text search happily answers "cool down in the heat" with HVAC
+// contractors — real businesses, terrible day-out ideas. Service trades and
+// B2B categories are dropped at the source, unless the prompt itself names
+// the trade (someone literally searching for a furnace repair gets it).
+const SERVICE_TYPES = new Set([
+  'general_contractor', 'electrician', 'plumber', 'roofing_contractor',
+  'painter', 'moving_company', 'storage', 'locksmith', 'laundry',
+  'insurance_agency', 'real_estate_agency', 'real_estate_agent', 'lawyer',
+  'accounting', 'finance', 'atm', 'bank', 'car_dealer', 'car_rental',
+  'car_repair', 'car_wash', 'gas_station', 'dentist', 'doctor', 'dental_clinic',
+  'drugstore', 'hospital', 'physiotherapist', 'veterinary_care',
+  'funeral_home', 'travel_agency', 'insurance_company', 'corporate_office',
+  'telecommunications_service_provider',
+  // NB: 'manufacturer' and 'consultant' deliberately absent — Google noise-
+  // tags food shops with both (an ice cream shop typed 'consultant' in the
+  // wild), and every real trade hit carries a stronger type anyway.
+  'wholesaler', 'home_improvement_store'
+]);
+const SERVICE_NAME_RE = /\b(hvac|heating|cooling|furnace|air condition\w*|duct(?:s|less|work)?|plumb\w*|roofing|renovation\w*|insulation|contractor\w*|gas (?:service|fitting)s?|water heater\w*|appliance (?:repair|service)s?|windows? (?:and|&) doors|mortgage\w*|realt\w*)\b|\bheat\W{0,3}(?:and|&|\/|\+|n)?\W{0,3}cool/i;
+
+function isServiceBusiness(place) {
+  if ((place.types || []).some(t => SERVICE_TYPES.has(t))) return true;
+  return SERVICE_NAME_RE.test(place.title || '');
+}
+
+// Zero reviews AND no categorization beyond "a place exists here" — nothing
+// for a recommendation to stand on ("Lidoma Airplus Inc." was an HVAC shop
+// wearing exactly this non-profile). Any real venue clears one of the two.
+const GENERIC_TYPES = new Set(['point_of_interest', 'establishment', 'service', 'store']);
+function isUnverifiableStorefront(place) {
+  return (place.rating_count || 0) === 0 &&
+    (place.types || []).every(t => GENERIC_TYPES.has(t));
+}
+
 async function searchPlacesWithThemes(prompt, themeQueries, geo, hyperLocal = false, radiusOverride = null) {
   const radiusMeters = radiusOverride || (hyperLocal ? 5000 : 20000);
   const searches = [
@@ -495,11 +529,21 @@ async function searchPlacesWithThemes(prompt, themeQueries, geo, hyperLocal = fa
     );
   }
   const results = await Promise.all(searches);
+  // The trade gate stands down only when the user explicitly asked for one.
+  const wantsTrades = SERVICE_NAME_RE.test(prompt || '');
   const seen = new Set();
   const out = [];
   for (const place of results.flat()) {
     if (seen.has(place.place_id)) continue;
     seen.add(place.place_id);
+    if (!wantsTrades && isServiceBusiness(place)) {
+      console.log(`[candidates] dropping service business: ${place.title}`);
+      continue;
+    }
+    if (isUnverifiableStorefront(place)) {
+      console.log(`[candidates] dropping unverifiable storefront: ${place.title}`);
+      continue;
+    }
     out.push(place);
   }
   return out;
