@@ -3300,6 +3300,29 @@
       localStorage.setItem(SEEN_KEY, JSON.stringify([...new Set(merged)].slice(-SEEN_MAX)));
     } catch { /* storage unavailable (private mode) — serendipity degrades gracefully */ }
   }
+  // ---------- Corridor memory ----------
+  // Spots this browser regularly browses from ("my end of Yonge Street"),
+  // remembered locally and sent with browse requests — the server answers
+  // with a "Spotted on your route" shelf of high-rated places along them.
+  const CORRIDOR_KEY = 'dayhop_corridors';
+  function getCorridors() {
+    try { const a = JSON.parse(localStorage.getItem(CORRIDOR_KEY)); return Array.isArray(a) ? a : []; }
+    catch { return []; }
+  }
+  function rememberCorridorPoint(coords, label) {
+    if (!coords || coords.lat == null || coords.lng == null) return;
+    try {
+      const list = getCorridors();
+      // ~2.5 km dedupe: same errand radius = same corridor point.
+      const near = list.find(p => {
+        const dLat = (p.lat - coords.lat) * 111, dLng = (p.lng - coords.lng) * 79;
+        return Math.sqrt(dLat * dLat + dLng * dLng) < 2.5;
+      });
+      if (near) { near.at = Date.now(); if (label) near.label = label; }
+      else list.unshift({ lat: coords.lat, lng: coords.lng, label: label || null, at: Date.now() });
+      localStorage.setItem(CORRIDOR_KEY, JSON.stringify(list.slice(0, 3)));
+    } catch { /* storage unavailable — the radar just stays quiet */ }
+  }
   // ---------- Browse feed cache ----------
   // The R&R ⇄ Adventure toggle is the product's signature interaction; it
   // should feel like flipping a card, not re-asking the server (~6 s). Each
@@ -3843,7 +3866,8 @@
             mode: state.mode,
             coords: coordsFresh ? state.coords : undefined,
             owner_id: getOwnerId(),
-            seen: getSeenIdeas()
+            seen: getSeenIdeas(),
+            corridors: getCorridors().map(p => ({ lat: p.lat, lng: p.lng, label: p.label }))
           },
           getDatePayload()
         )),
@@ -3856,6 +3880,7 @@
       if ((data.ideas || []).length) browseCachePut(browseCacheKey(state.mode), { at: Date.now(), data });
       browseAutoRetried = false; // a success re-arms the auto-retry
       recordSeenIdeas(data.ideas);
+      if (state.locationChosen && coordsFresh) rememberCorridorPoint(state.coords, state.city);
       applyBrowsePayload(data);
       prefetchOtherModeFeed();
     } catch (err) {

@@ -18,6 +18,7 @@ const { isAroundSpotlight, formatRange, torontoToday } = require('../services/sp
 const { getSeasonContext } = require('../data/seasons');
 const { haversineKm } = require('../services/relevance');
 const { getSkyTonight } = require('../services/skyConditions');
+const maps = require('../services/googleMaps');
 
 // Sky checks anchor to the user's point when shared, else metro Toronto —
 // close enough for a "clear tonight?" answer anywhere in the GTA.
@@ -82,6 +83,18 @@ router.post('/', async (req, res) => {
     }
 
     const ideas = buildSections(pool, { near: Boolean(coords), weather, part, mode, advisories, spotlight, dateWindow }).slice(0, FEED_CAP);
+
+    // Corridor radar: the client remembers spots this user regularly browses
+    // from ("my end of Yonge Street") and sends them along — high-rated
+    // places along those corridors get their own shelf, so the storefronts
+    // you drive past finally get suggested. Never blocks the feed.
+    const corridors = sanitizeCorridors(req.body && req.body.corridors, coords);
+    if (corridors.length) {
+      try {
+        ideas.push(...await corridorFinds(corridors, new Set(ideas.map(i => i.id))));
+      } catch (err) { /* the radar is a bonus, never a failure */ }
+    }
+
     const featured = pickFeatured(candidates, geo);
     // Real venue photos for curated/open-data cards. Personalized feeds are
     // built per request, but findPhotoUrl caches per venue for 24 h, so the
@@ -114,6 +127,54 @@ router.post('/', async (req, res) => {
     res.status(500).json({ error: 'BROWSE_FAILED', message: 'Could not load ideas right now.' });
   }
 });
+
+// ---------- Corridor radar ----------
+// Corridor points arrive from the client's location memory: up to 3 spots,
+// each meaningfully away from the current origin (the local feed already
+// covers home) and from each other.
+function sanitizeCorridors(raw, origin) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const p of raw.slice(0, 5)) {
+    const lat = Number(p && p.lat), lng = Number(p && p.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    if (lat < 41 || lat > 47 || lng < -85 || lng > -73) continue; // Ontario sanity box
+    if (origin && haversineKm(origin, { lat, lng }) < 5) continue;
+    if (out.some(q => haversineKm(q, { lat, lng }) < 2)) continue;
+    out.push({ lat, lng, label: typeof (p && p.label) === 'string' ? p.label.slice(0, 60) : null });
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
+// One tightly-biased, 6h-cached Places search per corridor point; only
+// crowd-verified spots (4.4+, 50+ reviews, operational, actually within
+// 5 km of the corridor) make the shelf, 3 cards max.
+async function corridorFinds(corridors, excludeIds) {
+  const out = [];
+  const results = await Promise.allSettled(corridors.map(pt =>
+    maps.searchPlaces({
+      query: 'popular restaurants cafes and attractions',
+      lat: pt.lat, lng: pt.lng, radiusMeters: 4000, maxResults: 6
+    }).then(places => ({ pt, places }))));
+  for (const r of results) {
+    if (r.status !== 'fulfilled') continue;
+    const { pt, places } = r.value;
+    for (const p of places) {
+      if (out.length >= 3) break;
+      if (!p.place_id || excludeIds.has(p.place_id)) continue;
+      if (p.business_status && p.business_status !== 'OPERATIONAL') continue;
+      if (!(p.rating >= 4.4 && (p.rating_count || 0) >= 50)) continue;
+      if (p.lat == null || haversineKm(pt, p) > 5) continue;
+      excludeIds.add(p.place_id);
+      out.push(Object.assign(
+        toBrowseIdea(Object.assign({ source: 'google_places', id: p.place_id }, p)),
+        { section: 'Spotted on your route 🚗', route_label: pt.label || undefined }
+      ));
+    }
+  }
+  return out;
+}
 
 // ---------- Per-user, per-day deterministic ordering ----------
 // mulberry32 over a string hash: stable for (user, day), no Math.random —
@@ -234,6 +295,10 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   const hasDate = c => Boolean(c.date);
   const isFood = c => ['food', 'patios'].includes(c.category) ||
     /restaurant|café|cafe|coffee|brunch|breakfast|bakery|food|dining|patio|brewery|winery|dessert|ice cream|pizza|ramen|taco|bistro|eatery/i.test(text(c));
+  // Dining worth a special trip: newly opened, or 4.4+ with a real crowd
+  // behind the rating. Both modes get this shelf — adventurers eat too.
+  const isNotableDining = c => isFood(c) &&
+    (c.newly_opened || (c.rating != null && c.rating >= 4.4 && (c.rating_count || 0) >= 100));
   const isOutdoor = c => ['water', 'adventures'].includes(c.category) ||
     /park|trail|garden|beach|nature|conservation|hike|island|waterfront|zoo|farm|lookout|falls|paddle|kayak/i.test(text(c));
   const isIndoor = c => /museum|gallery|aquarium|science|indoor|arcade|cinema|theatre|theater|library|escape room|bowling|climbing|market hall/i.test(text(c));
@@ -301,6 +366,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
       pool.filter(c => c.distance_km != null && c.distance_km <= 10)
         .slice().sort((a, b) => a.distance_km - b.distance_km), 6);
     takeSeasonOutside(4);
+    take('New & notable dining 🍽️', pool.filter(isNotableDining), 3);
     takeSpotlight();
     take(datedLabel, pool.filter(hasDate), 4);
     take('Hidden gems ✨', pool.filter(isGem), 4);
@@ -313,6 +379,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     takeSpotlight();
     take(datedLabel, pool.filter(hasDate), 4);
     take('Hidden gems ✨', pool.filter(isGem), 3);
+    take('New & notable dining 🍽️', pool.filter(isNotableDining), 3);
     take('Refuel 🍴', pool.filter(isFood), 3);
   } else {
     if (shelter) take('Sheltered picks right now 😷', pool.filter(isSheltered), 5);
@@ -320,6 +387,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     takeJustOpened();
     takeSeasonOutside(5);
     if (!shelter) take('Outdoors & nature 🌳', pool.filter(isOutdoor), 4);
+    take('New & notable dining 🍽️', pool.filter(isNotableDining), 3);
     take('Food & drink 🍴', pool.filter(isFood), 4);
     takeSpotlight();
     take(datedLabel, pool.filter(hasDate), 4);

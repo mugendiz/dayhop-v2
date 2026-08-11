@@ -246,6 +246,14 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
     themeQueries.unshift('best indoor attractions museums galleries aquariums');
   }
 
+  // Dining is universal: one always-on query keeps the "New & notable
+  // dining" shelf fed in BOTH modes (the Adventure prompts contain no food
+  // vocabulary at all, so without this the shelf starves there). Cached 6h
+  // per grid like every other text search.
+  if (!themeQueries.some(q => /restaurant|food|dessert|brunch|patio|cafe/i.test(q))) {
+    themeQueries.push('highly rated restaurants and cafes');
+  }
+
   // One parallel batch: each source is independently optional — a failed or
   // unconfigured source logs one warning and contributes nothing.
   const sources = [
