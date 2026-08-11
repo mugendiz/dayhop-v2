@@ -218,6 +218,35 @@ function humanizeTypes(types) {
     .join(' · ');
 }
 
+// Google place types → DayHop categories. Places results dominate the pool
+// (~36 of 60) yet used to carry NO category, so the R&R/Adventure category
+// boost was a no-op for them and mode ranking hung on a single regex.
+// Ordered: the most specific/telling read of a place wins (a brewery that is
+// also tagged restaurant reads as patios, a water park never reads as park).
+const TYPE_CATEGORIES = [
+  ['adventures', ['adventure_sports_center', 'amusement_park', 'go_kart_track', 'ski_resort',
+    'sports_activity_location', 'roller_coaster', 'off_roading_area', 'cycling_park', 'skateboard_park']],
+  ['water', ['water_park', 'swimming_pool', 'beach', 'marina', 'boat_rental', 'kayaking_area']],
+  ['kids', ['playground', 'zoo', 'aquarium', 'amusement_center', 'bowling_alley',
+    'childrens_camp', 'wildlife_park', 'petting_zoo']],
+  ['culture', ['museum', 'art_gallery', 'performing_arts_theater', 'historical_landmark',
+    'cultural_center', 'movie_theater', 'planetarium', 'auditorium', 'observation_deck']],
+  ['patios', ['bar', 'pub', 'night_club', 'winery', 'brewery', 'wine_bar', 'bar_and_grill']],
+  ['food', ['restaurant', 'cafe', 'coffee_shop', 'bakery', 'ice_cream_shop', 'dessert_shop',
+    'food_court', 'market', 'tea_house', 'brunch_restaurant', 'pizza_restaurant']],
+  ['general', ['park', 'national_park', 'state_park', 'hiking_area', 'botanical_garden',
+    'garden', 'campground', 'picnic_ground', 'visitor_center', 'natural_feature']]
+];
+
+function inferCategory(types) {
+  if (!types || !types.length) return null;
+  const have = new Set(types);
+  for (const [category, list] of TYPE_CATEGORIES) {
+    if (list.some(t => have.has(t))) return category;
+  }
+  return null;
+}
+
 function normalizePlace(p) {
   const types = p.types || [];
   const photoName = p.photos?.[0]?.name || null;
@@ -225,6 +254,7 @@ function normalizePlace(p) {
     place_id: p.id,
     title: p.displayName?.text || 'Unknown place',
     description: humanizeTypes(types),
+    category: inferCategory(types),
     // Served through our /api/photo proxy so the API key stays server-side.
     image_url: photoName ? `/api/photo?name=${encodeURIComponent(photoName)}` : null,
     address: p.formattedAddress || '',

@@ -33,8 +33,10 @@ const cache = new Map();
 let warned = false;
 
 // Only named features: an unnamed OSM node makes a useless recommendation.
-// Nodes and ways only — relations make the query an order of magnitude
-// heavier on a busy server, for marginal extra coverage.
+// route=hiking relations are the one relation type worth the extra server
+// weight — they ARE the named trails (Bruce Trail sections, conservation
+// loops), the heart of the app's outdoors promise. Everything else stays
+// nodes/ways to keep the query polite.
 function buildQuery(lat, lng) {
   const around = `around:${RADIUS_M},${lat},${lng}`;
   return `[out:json][timeout:20];(` +
@@ -43,10 +45,13 @@ function buildQuery(lat, lng) {
     `way(${around})[natural=beach][name];` +
     `way(${around})[leisure=nature_reserve][name];` +
     `node(${around})[leisure=nature_reserve][name];` +
-    `);out center 60;`;
+    `relation(${around})[route=hiking][name];` +
+    `);out center 80;`;
 }
 
 const KINDS = [
+  { match: t => t.route === 'hiking', label: 'Hiking trail', category: 'general',
+    blurb: 'A named hiking route mapped by the OpenStreetMap community — lace up and follow the blazes.' },
   { match: t => t.tourism === 'viewpoint', label: 'Scenic lookout', category: 'general',
     blurb: 'A mapped scenic lookout — open views and a natural pause point for the day.' },
   { match: t => t.waterway === 'waterfall', label: 'Waterfall', category: 'water',

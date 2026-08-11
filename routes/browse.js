@@ -14,7 +14,8 @@ const analytics = require('../services/analytics');
 const { normalizeMode } = require('../services/grok');
 const { gatherCandidates, sanitizeCoords, fallbackIdea, parseDateWindow, DEFAULT_CITY, GTA_TOWNS } = require('../services/candidates');
 const { enrichIdeaImages } = require('../services/ideaPhotos');
-const { isAroundSpotlight, formatRange } = require('../services/spotlight');
+const { isAroundSpotlight, formatRange, torontoToday } = require('../services/spotlight');
+const { getSeasonContext } = require('../data/seasons');
 const { haversineKm } = require('../services/relevance');
 const { getSkyTonight } = require('../services/skyConditions');
 
@@ -214,6 +215,22 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   // answer to "it's all over socials but not in DayHop".
   const takeJustOpened = () => take('Just opened ✨', pool.filter(c => c.newly_opened), 3);
 
+  // Season shelf: spring through fall it's trails ("push trails forward" is
+  // the product promise those months), winter it's OUTDOOR winter — skating
+  // trails, tubing, snowshoe — so cold months still say "get outside".
+  // Skipped entirely under a shelter advisory; the planned date wins when
+  // the picker is set.
+  const seasonCtx = getSeasonContext((dateWindow && dateWindow.start) || torontoToday());
+  const isTrailTime = c =>
+    /\b(trail|hik(e|ing)|conservation|escarpment|bluffs|ravine|gorge|badlands|forest|lookout|boardwalk)\b/i.test(text(c));
+  const isWinterOut = c =>
+    /\b(skat(e|ing)|ice (rink|trail)|toboggan|sledding|snow ?tub(e|ing)|snowshoe|cross.?country ski|xc ski|ski (hill|resort)|snowboard|winter (village|festival|lights?)|light (festival|trail))\b/i.test(text(c));
+  const takeSeasonOutside = n => {
+    if (shelter) return;
+    if (seasonCtx.season === 'winter') take('Winter outside ❄️', pool.filter(isWinterOut), n);
+    else take('Trail time 🥾', pool.filter(isTrailTime), n);
+  };
+
   if (near) {
     // The pool is already ranked against the daypart+mode prompt, so "right
     // now" is simply its top — filtered to indoor picks when it's raining
@@ -225,6 +242,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     take('Within 15 minutes 📍',
       pool.filter(c => c.distance_km != null && c.distance_km <= 10)
         .slice().sort((a, b) => a.distance_km - b.distance_km), 6);
+    takeSeasonOutside(4);
     takeSpotlight();
     take(datedLabel, pool.filter(hasDate), 4);
     take('Hidden gems ✨', pool.filter(isGem), 4);
@@ -233,6 +251,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     take('Top thrills ⚡', pool, 6);
     takeJustOpened();
     if (!shelter) take('Get outside 🌊', pool.filter(isOutdoor), 5);
+    takeSeasonOutside(4);
     takeSpotlight();
     take(datedLabel, pool.filter(hasDate), 4);
     take('Hidden gems ✨', pool.filter(isGem), 3);
@@ -241,6 +260,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     if (shelter) take('Sheltered picks right now 😷', pool.filter(isSheltered), 5);
     take('Restorative picks 🌿', pool, 5);
     takeJustOpened();
+    takeSeasonOutside(5);
     if (!shelter) take('Outdoors & nature 🌳', pool.filter(isOutdoor), 4);
     take('Food & drink 🍴', pool.filter(isFood), 4);
     takeSpotlight();

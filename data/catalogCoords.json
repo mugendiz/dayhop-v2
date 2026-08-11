@@ -348,5 +348,150 @@
     "lat": 43.63787629999999,
     "lng": -79.38472689999999,
     "resolved": "Amsterdam BrewHouse, Harbourfront, Toronto, Ontario, Canada"
+  },
+  "cur-dundas-peak": {
+    "lat": 43.2816662,
+    "lng": -79.9797208,
+    "resolved": "Spencer Gorge Conservation Area, Spencer Gorge, Hamilton, Ontario, Canada"
+  },
+  "cur-mono-cliffs": {
+    "lat": 44.0461406,
+    "lng": -80.06176620000001,
+    "resolved": "Mono Cliffs Provincial Park, Mono, near Orangeville, Ontario, Canada"
+  },
+  "cur-forks-credit": {
+    "lat": 43.8238936,
+    "lng": -80.00415269999999,
+    "resolved": "Forks of the Credit Provincial Park, Caledon, Ontario, Canada"
+  },
+  "cur-hilton-falls": {
+    "lat": 43.505802,
+    "lng": -79.9625463,
+    "resolved": "Hilton Falls Conservation Area, Milton, Ontario, Canada"
+  },
+  "cur-cheltenham-badlands": {
+    "lat": 43.7756256,
+    "lng": -79.942888,
+    "resolved": "Cheltenham Badlands, Caledon, Ontario, Canada"
+  },
+  "cur-rouge-vista": {
+    "lat": 43.8607333,
+    "lng": -79.211384,
+    "resolved": "Rouge National Urban Park, Rouge Valley, Scarborough, Ontario, Canada"
+  },
+  "cur-doris-mccarthy": {
+    "lat": 43.7305902,
+    "lng": -79.2241856,
+    "resolved": "Doris McCarthy Trail, Scarborough, Ontario, Canada"
+  },
+  "cur-limehouse": {
+    "lat": 43.6324025,
+    "lng": -79.9735104,
+    "resolved": "Limehouse Conservation Area, Halton Hills, Ontario, Canada"
+  },
+  "cur-mount-nemo": {
+    "lat": 43.416489,
+    "lng": -79.8826325,
+    "resolved": "Mount Nemo Conservation Area, Burlington, Ontario, Canada"
+  },
+  "cur-seaton-trail": {
+    "lat": 43.8768856,
+    "lng": -79.1510573,
+    "resolved": "Seaton Hiking Trail, Pickering, Ontario, Canada"
+  },
+  "cur-bronte-creek": {
+    "lat": 43.4063552,
+    "lng": -79.77131500000002,
+    "resolved": "Bronte Creek Provincial Park, Oakville, Ontario, Canada"
+  },
+  "cur-lions-valley": {
+    "lat": 43.4594586,
+    "lng": -79.74888729999999,
+    "resolved": "Lion's Valley Park, Oakville, Ontario, Canada"
+  },
+  "cur-durham-forest-trails": {
+    "lat": 44.0507441,
+    "lng": -79.0807718,
+    "resolved": "Durham Regional Forest, Uxbridge, Ontario, Canada"
+  },
+  "cur-kortright": {
+    "lat": 43.8295678,
+    "lng": -79.58425849999999,
+    "resolved": "Kortright Centre for Conservation, Vaughan, Ontario, Canada"
+  },
+  "cur-bentway-skate": {
+    "lat": 43.637542,
+    "lng": -79.40597009999999,
+    "resolved": "The Bentway Skate Trail, Fort York, Toronto, Ontario, Canada"
+  },
+  "cur-nathan-phillips-skate": {
+    "lat": 43.6527069,
+    "lng": -79.38341369999999,
+    "resolved": "Nathan Phillips Square, City Hall, Toronto, Ontario, Canada"
+  },
+  "cur-sam-smith-skate": {
+    "lat": 43.591398,
+    "lng": -79.5133857,
+    "resolved": "Colonel Samuel Smith Park, Etobicoke, Ontario, Canada"
+  },
+  "cur-arrowhead-ice-trail": {
+    "lat": 45.3915527,
+    "lng": -79.2146783,
+    "resolved": "Arrowhead Provincial Park, Huntsville, Muskoka, Ontario, Canada"
+  },
+  "cur-scenic-caves-snowshoe": {
+    "lat": 44.487146,
+    "lng": -80.314937,
+    "resolved": "Scenic Caves Nordic Centre, Blue Mountains, Collingwood, Ontario, Canada"
+  },
+  "cur-albion-hills-winter": {
+    "lat": 43.9335775,
+    "lng": -79.819876,
+    "resolved": "Albion Hills Conservation Park, Caledon, Ontario, Canada"
+  },
+  "cur-distillery-winter-village": {
+    "lat": 43.65030549999999,
+    "lng": -79.35958,
+    "resolved": "The Distillery Winter Village, Distillery District, Toronto, Ontario, Canada"
+  },
+  "cur-horseshoe-tubing": {
+    "lat": 44.5495291,
+    "lng": -79.67223349999999,
+    "resolved": "Horseshoe Resort, Oro-Medonte, near Barrie, Ontario, Canada"
+  },
+  "cur-toronto-archery-range": {
+    "lat": 43.703751,
+    "lng": -79.3368784,
+    "resolved": "Toronto Public Archery Range, E.T. Seton Park, Toronto, Ontario, Canada"
+  },
+  "cur-treetop-brampton": {
+    "lat": 43.737737,
+    "lng": -79.7937548,
+    "resolved": "Treetop Trekking Brampton, Heart Lake Conservation Park, Brampton, Ontario, Canada"
+  },
+  "cur-crothers-woods": {
+    "lat": 43.6970372,
+    "lng": -79.3590117,
+    "resolved": "Crothers Woods, Don Valley, Toronto, Ontario, Canada"
+  },
+  "cur-dagmar-mtb": {
+    "lat": 44.0192808,
+    "lng": -79.0752325,
+    "resolved": "Dagmar North Trails, Uxbridge, Ontario, Canada"
+  },
+  "cur-hardwood-bike": {
+    "lat": 44.5176652,
+    "lng": -79.5917537,
+    "resolved": "Hardwood Ski and Bike, Oro-Medonte, near Barrie, Ontario, Canada"
+  },
+  "cur-goodwood-karts": {
+    "lat": 44.0468983,
+    "lng": -79.2290044,
+    "resolved": "Goodwood Kartways, Stouffville, Ontario, Canada"
+  },
+  "cur-sgt-splatters": {
+    "lat": 43.7036535,
+    "lng": -79.45591979999999,
+    "resolved": "Sgt. Splatter's Project Paintball, North York, Toronto, Ontario, Canada"
   }
 }
