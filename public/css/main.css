@@ -3718,3 +3718,70 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
 }
 .featured-card-actions { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
 .featured-card-actions .primary-btn { align-self: auto; padding: 10px 16px; font-size: 14px; }
+
+/* ---------- Email capture cards (feed card + earned moment) ---------- */
+.capture-card {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  margin: 18px 0;
+  box-shadow: var(--shadow-soft);
+}
+.capture-card--milestone {
+  background: linear-gradient(135deg, #FFF6E8, var(--paper));
+  border-color: var(--marigold);
+}
+.capture-heading {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 19px;
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+.capture-sub {
+  margin: 0 0 14px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  font-size: 14.5px;
+}
+.capture-form { display: flex; gap: 8px; flex-wrap: wrap; }
+.capture-form input {
+  flex: 1 1 180px;
+  padding: 11px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-btn);
+  font: inherit;
+  color: var(--ink);
+  background: #fff;
+}
+.capture-form input:focus { outline: 2px solid var(--coral); outline-offset: 1px; }
+.capture-btn {
+  padding: 11px 20px;
+  border: 0;
+  border-radius: var(--radius-btn);
+  background: var(--coral);
+  color: #fff;
+  font-weight: 700;
+  font-family: var(--body);
+  cursor: pointer;
+}
+.capture-btn:hover { background: var(--coral-dark); }
+.capture-btn:disabled { opacity: 0.6; cursor: default; }
+.capture-fineprint { margin: 10px 0 0; font-size: 12px; color: var(--ink-soft); opacity: 0.8; }
+.capture-msg { margin: 8px 0 0; font-size: 13px; color: var(--coral-dark); }
+.capture-msg:empty { display: none; }
+.capture-dismiss {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  border: 0;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 6px;
+  line-height: 1;
+}
+.capture-dismiss:hover { color: var(--ink); }

@@ -32,7 +32,11 @@ const CLIENT_EVENT_TYPES = new Set([
   // Quest layer: a plan stop checked off as "been here".
   'place_visited',
   // Feed re-sorted to nearest-first (browse/results sort toggle).
-  'feed_sort_distance'
+  'feed_sort_distance',
+  // Email-capture surfaces (feed card / milestone moment): shown →
+  // dismissed | subscribed, with meta.source naming the surface — the
+  // admin funnel compares surfaces without a separate table.
+  'newsletter_prompt_shown', 'newsletter_prompt_dismissed', 'newsletter_prompt_subscribed'
 ]);
 
 // Server-truth events, recorded by their own routes.

@@ -13,7 +13,7 @@
 //     stale-while-revalidate so a revisited share link opens instantly even
 //     through a free-tier cold start.
 // Bump the version to invalidate every cached asset on the next visit.
-const CACHE = 'dayhop-shell-v13'; // v13: seen-store + personalized browse feed
+const CACHE = 'dayhop-shell-v14'; // v14: in-feed email capture card + earned moment
 
 const SHELL = [
   '/',

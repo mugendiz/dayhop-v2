@@ -1542,6 +1542,7 @@
         groups.get(label).push(idea);
       });
       order.forEach(label => appendSection(label, groups.get(label), order.length > 1));
+      if (captureEligible()) insertFeedCaptureCard(feed);
     } else {
       // Prompt results: the direct answers first (minus the hero, which is
       // already on stage), then the "didn't know you could do that" picks,
@@ -2007,6 +2008,16 @@
     persist();
     serverShortlistAdd(idea);
     track('shortlist_add', idea);
+    // Earned moment: the third save is proof the feed is working for them —
+    // the one time an ask feels like a high-five instead of a billboard.
+    // Lands exactly where they're looking (right after the saved card).
+    if (state.shortlist.length === 3 && captureEligible() && !captureState().milestoneShown && card && card.parentNode) {
+      patchCaptureState({ milestoneShown: true });
+      card.parentNode.insertBefore(buildCaptureCard('milestone',
+        '🎉 Three saves!',
+        "You clearly know a good Saturday. Want next week's planned for you? One short email, Thursday 9 AM.",
+        'Yes please'), card.nextSibling);
+    }
     if (card) animateOut(card, 'right', () => removeIdeaCardInPlace(card));
     updateShortlistCount();
     if (navigator.vibrate) navigator.vibrate(10);
@@ -3300,6 +3311,109 @@
       localStorage.setItem(SEEN_KEY, JSON.stringify([...new Set(merged)].slice(-SEEN_MAX)));
     } catch { /* storage unavailable (private mode) — serendipity degrades gracefully */ }
   }
+  // ---------- Email capture: feed card + earned moment ----------
+  // The footer signup is unreachable under an infinite feed, and popups make
+  // a first visit feel like a billboard. Two native surfaces instead: a card
+  // that reads like feed content ~15 ideas deep (self-selected readers
+  // convert better and stay subscribed longer), and one celebratory ask the
+  // moment the user proves they're getting value (third shortlist save).
+  // Dismiss = 14-day snooze; subscribing or having an account = never again.
+  const CAPTURE_KEY = 'dayhop_email_capture';
+  const CAPTURE_SNOOZE_MS = 14 * 24 * 60 * 60 * 1000;
+  const CAPTURE_FEED_POSITION = 15;
+  function captureState() {
+    try { return JSON.parse(localStorage.getItem(CAPTURE_KEY)) || {}; } catch { return {}; }
+  }
+  function patchCaptureState(patch) {
+    try { localStorage.setItem(CAPTURE_KEY, JSON.stringify(Object.assign(captureState(), patch))); }
+    catch { /* storage unavailable — the ask just doesn't persist state */ }
+  }
+  function captureEligible() {
+    if (isLoggedIn()) return false; // we already have their email
+    const s = captureState();
+    if (s.done) return false;
+    if (s.snoozedAt && Date.now() - s.snoozedAt < CAPTURE_SNOOZE_MS) return false;
+    return true;
+  }
+  const captureShownThisSession = {};
+
+  function buildCaptureCard(source, heading, sub, cta) {
+    const el = document.createElement('div');
+    el.className = 'capture-card' + (source === 'milestone' ? ' capture-card--milestone' : '');
+    el.innerHTML = `
+      <button class="capture-dismiss" type="button" aria-label="No thanks">✕</button>
+      <p class="capture-heading"></p>
+      <p class="capture-sub"></p>
+      <form class="capture-form" novalidate>
+        <input type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email address">
+        <button type="submit" class="capture-btn"></button>
+      </form>
+      <p class="capture-fineprint">Free · no spam · one-click unsubscribe</p>
+      <p class="capture-msg" role="status" aria-live="polite"></p>`;
+    el.querySelector('.capture-heading').textContent = heading;
+    el.querySelector('.capture-sub').textContent = sub;
+    el.querySelector('.capture-btn').textContent = cta;
+    el.querySelector('.capture-dismiss').addEventListener('click', () => {
+      patchCaptureState({ snoozedAt: Date.now() });
+      track('newsletter_prompt_dismissed', { source });
+      el.remove();
+    });
+    el.querySelector('.capture-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = el.querySelector('input');
+      const email = (input.value || '').trim();
+      if (!email) return;
+      const btn = el.querySelector('.capture-btn');
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/newsletter/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email, source,
+            owner_id: getOwnerId(),
+            attrib: (window.dayhopAttrib && window.dayhopAttrib()) || undefined
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Try again in a minute.');
+        patchCaptureState({ done: true });
+        track('newsletter_prompt_subscribed', { source });
+        el.querySelector('.capture-form').hidden = true;
+        el.querySelector('.capture-fineprint').hidden = true;
+        el.querySelector('.capture-heading').textContent = 'Check your inbox 📬';
+        el.querySelector('.capture-sub').textContent = 'Click the confirmation link and Thursday mornings are handled.';
+      } catch (err) {
+        const msg = el.querySelector('.capture-msg');
+        msg.textContent = err.message || 'Could not subscribe right now — try again in a minute.';
+        btn.disabled = false;
+      }
+    });
+    if (!captureShownThisSession[source]) {
+      captureShownThisSession[source] = true;
+      track('newsletter_prompt_shown', { source });
+    }
+    return el;
+  }
+
+  // Mid-feed native ask: lands ~15 cards deep (never in a thin feed), reads
+  // like a shelf card, scrolls away like one too.
+  function insertFeedCaptureCard(feed) {
+    const cards = feed.querySelectorAll('.idea-card');
+    if (cards.length < 6) return;
+    let anchor = cards[Math.min(CAPTURE_FEED_POSITION, cards.length - 1)];
+    // Never split a section header from its first card — slot in at the end
+    // of the previous shelf instead.
+    if (anchor.previousElementSibling && anchor.previousElementSibling.classList &&
+        anchor.previousElementSibling.classList.contains('feed-section-header')) {
+      anchor = anchor.previousElementSibling;
+    }
+    anchor.parentNode.insertBefore(buildCaptureCard('feed_card',
+      'Liking these? 👋',
+      'Get five picks like this every Thursday morning — weather-checked, closure-checked, matched to your end of the GTA.',
+      'Send it'), anchor);
+  }
+
   // ---------- Corridor memory ----------
   // Spots this browser regularly browses from ("my end of Yonge Street"),
   // remembered locally and sent with browse requests — the server answers
