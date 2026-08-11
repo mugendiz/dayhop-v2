@@ -193,6 +193,11 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
     }
     if (intent.kids && candidate.category === 'kids') score += 2;
     if (intent.kids && /\b(kid|family|children|all ages)\b/i.test(candidate.good_for_ages || '')) score += 1;
+    if (intent.romantic) {
+      if (['patios', 'food', 'culture'].includes(candidate.category)) score += 1.5;
+      if (/\b(romantic|sunset|view|rooftop|wine|live music|candlelit|stroll|garden)\b/i
+        .test(`${candidate.title || ''} ${candidate.description || ''}`)) score += 2;
+    }
     if (intent.indoor && /\b(museum|gallery|aquarium|indoor|arcade|science|library|market|conservatory)\b/i
       .test(`${candidate.title || ''} ${candidate.description || ''} ${candidate.category || ''}`)) score += 2;
 

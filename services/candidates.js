@@ -446,12 +446,22 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
 
   // Quality gate BEFORE the cap, so the pool fills with excellent
   // candidates instead of capping first and filtering what's left.
-  const candidates = relevance.selectTop(
-    qualityGate(relevance.scoreCandidates(pool, {
-      prompt, themes, filter, mode, advisoryPressure, spotlight, dateWindow
-    })),
-    CANDIDATE_POOL_CAP
-  );
+  const gated = qualityGate(relevance.scoreCandidates(pool, {
+    prompt, themes, filter, mode, advisoryPressure, spotlight, dateWindow
+  }));
+  const candidates = relevance.selectTop(gated, CANDIDATE_POOL_CAP);
+
+  // Wildcards: up to 3 daily-rotating picks from quality-gated material that
+  // MISSED the cap — the deliberate "stumble on something" slots. Kept close
+  // (≤60 km when distance is known) so a wildcard is a plausible day, not a
+  // road trip. Marked so the feed can shelve them distinctly.
+  const inPool = new Set(candidates.map(c => c.id));
+  const rejects = gated
+    .map(e => e.candidate)
+    .filter(c => !inPool.has(c.id) && (c.distance_km == null || c.distance_km <= 60));
+  for (const w of rotateDaily(rejects, 3)) {
+    candidates.push(Object.assign({}, w, { wildcard: true }));
+  }
   return {
     candidates,
     weather,

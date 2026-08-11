@@ -3284,6 +3284,22 @@
   // sectioned server-side. Failures fall back silently to the empty state —
   // a proactive feature must never nag.
   let browseAbort = null;
+  // ---------- Seen-store (serendipity) ----------
+  // Ids this browser has already been shown in the feed, sent with browse
+  // requests so the server slides repeats toward the back — demoted, never
+  // hidden. Repeat visits surface new finds instead of the same page.
+  const SEEN_KEY = 'dayhop_seen_ideas';
+  const SEEN_MAX = 200;
+  function getSeenIdeas() {
+    try { const a = JSON.parse(localStorage.getItem(SEEN_KEY)); return Array.isArray(a) ? a : []; }
+    catch { return []; }
+  }
+  function recordSeenIdeas(ideas) {
+    try {
+      const merged = [...getSeenIdeas(), ...(ideas || []).map(i => String(i.id)).filter(Boolean)];
+      localStorage.setItem(SEEN_KEY, JSON.stringify([...new Set(merged)].slice(-SEEN_MAX)));
+    } catch { /* storage unavailable (private mode) — serendipity degrades gracefully */ }
+  }
   // ---------- Browse feed cache ----------
   // The R&R ⇄ Adventure toggle is the product's signature interaction; it
   // should feel like flipping a card, not re-asking the server (~6 s). Each
@@ -3771,7 +3787,8 @@
             city: state.locationChosen ? state.city : GTA_WIDE,
             mode: other,
             coords: coordsFresh ? state.coords : undefined,
-            owner_id: getOwnerId()
+            owner_id: getOwnerId(),
+            seen: getSeenIdeas()
           },
           getDatePayload()
         ))
@@ -3825,7 +3842,8 @@
             city: state.locationChosen ? state.city : GTA_WIDE,
             mode: state.mode,
             coords: coordsFresh ? state.coords : undefined,
-            owner_id: getOwnerId()
+            owner_id: getOwnerId(),
+            seen: getSeenIdeas()
           },
           getDatePayload()
         )),
@@ -3837,6 +3855,7 @@
       progress.finish();
       if ((data.ideas || []).length) browseCachePut(browseCacheKey(state.mode), { at: Date.now(), data });
       browseAutoRetried = false; // a success re-arms the auto-retry
+      recordSeenIdeas(data.ideas);
       applyBrowsePayload(data);
       prefetchOtherModeFeed();
     } catch (err) {

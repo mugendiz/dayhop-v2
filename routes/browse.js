@@ -43,26 +43,49 @@ router.post('/', async (req, res) => {
   const part = daypart();
   const key = cacheKey(city, coords, part, mode, dateWindow);
 
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
-    recordBrowse(req, hit.payload, true, mode);
-    return res.json(hit.payload);
-  }
-
   try {
-    const [{ candidates, weather, resolvedCity, advisories, advisoriesStatus, spotlight, geo }, sky] =
-      await Promise.all([
+    // The CANDIDATE POOL is what's cached (the expensive part: 14 sources +
+    // ranking) — the feed itself is built per request, so two people at the
+    // same corner no longer read a byte-identical page for 30 minutes.
+    let base;
+    const hit = cache.get(key);
+    const baseCached = Boolean(hit && Date.now() - hit.at < CACHE_TTL_MS);
+    if (baseCached) {
+      base = hit.base;
+    } else {
+      const [gathered, sky] = await Promise.all([
         gatherCandidates(syntheticPrompt(part, mode), city, '', null, coords, mode, dateWindow),
         getSkyTonight(coords || GTA_CENTER)
       ]);
+      base = Object.assign(gathered, { sky });
+      if (gathered.candidates.length) {
+        if (cache.size >= CACHE_MAX_ENTRIES) cache.delete(cache.keys().next().value);
+        cache.set(key, { at: Date.now(), base });
+      }
+    }
+    const { candidates, weather, resolvedCity, advisories, advisoriesStatus, spotlight, geo, sky } = base;
 
-    const ideas = buildSections(candidates, { near: Boolean(coords), weather, part, mode, advisories, spotlight, dateWindow }).slice(0, FEED_CAP);
+    // ---------- Per-user serendipity, applied on top of the shared pool ----------
+    // 1. A seeded shuffle inside 5-rank blocks: near-tied candidates swap
+    //    places per user per day, so your feed is yours and tomorrow's is
+    //    different — without ever promoting a weak pick past a strong block.
+    // 2. Ideas the client says this user has already been shown slide to the
+    //    back half of the ordering (demoted, never dropped — "seen" is not
+    //    "bad", it just shouldn't block discovery).
+    const ownerKey = (req.user && req.user.id) ||
+      (typeof (req.body && req.body.owner_id) === 'string' && req.body.owner_id.trim().slice(0, 80)) || '';
+    let pool = personalOrder(candidates, `${ownerKey}|${new Date().toISOString().slice(0, 10)}`);
+    const seenRaw = Array.isArray(req.body && req.body.seen) ? req.body.seen.slice(0, 200) : [];
+    if (seenRaw.length) {
+      const seen = new Set(seenRaw.map(String));
+      pool = [...pool.filter(c => !seen.has(String(c.id))), ...pool.filter(c => seen.has(String(c.id)))];
+    }
+
+    const ideas = buildSections(pool, { near: Boolean(coords), weather, part, mode, advisories, spotlight, dateWindow }).slice(0, FEED_CAP);
     const featured = pickFeatured(candidates, geo);
-    // Real venue photos for curated/open-data cards; the enriched feed is
-    // what gets cached, so the lookups are paid once per cache window.
-    // Featured and feed get separate budgets, in parallel — sharing one
-    // MAX_LOOKUPS bound let below-the-fold cards starve the hero's photos
-    // (and vice versa).
+    // Real venue photos for curated/open-data cards. Personalized feeds are
+    // built per request, but findPhotoUrl caches per venue for 24 h, so the
+    // lookups are still paid roughly once per cache window.
     await Promise.all([
       enrichIdeaImages(ideas, { city: resolvedCity || city, coords }),
       enrichIdeaImages(featured, { city: resolvedCity || city, coords })
@@ -84,17 +107,47 @@ router.post('/', async (req, res) => {
       generated_at: new Date().toISOString()
     };
 
-    if (ideas.length) {
-      if (cache.size >= CACHE_MAX_ENTRIES) cache.delete(cache.keys().next().value);
-      cache.set(key, { at: Date.now(), payload });
-    }
-    recordBrowse(req, payload, false, mode);
+    recordBrowse(req, payload, baseCached, mode);
     res.json(payload);
   } catch (err) {
     console.error('[browse] failed:', err.message);
     res.status(500).json({ error: 'BROWSE_FAILED', message: 'Could not load ideas right now.' });
   }
 });
+
+// ---------- Per-user, per-day deterministic ordering ----------
+// mulberry32 over a string hash: stable for (user, day), no Math.random —
+// the same user reloading gets the same feed all day; a different user (or
+// tomorrow) gets a different near-tie resolution.
+function hashStr(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+function seededRng(seed) {
+  let t = seed >>> 0;
+  return function () {
+    t += 0x6D2B79F5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function personalOrder(candidates, seedStr) {
+  const rng = seededRng(hashStr(seedStr));
+  const out = [];
+  for (let i = 0; i < candidates.length; i += 5) {
+    const block = candidates.slice(i, i + 5);
+    for (let j = block.length - 1; j > 0; j--) {
+      const k = Math.floor(rng() * (j + 1));
+      [block[j], block[k]] = [block[k], block[j]];
+    }
+    out.push(...block);
+  }
+  return out;
+}
 
 function recordBrowse(req, payload, cached, mode) {
   const ownerKey = (req.user && req.user.id) ||
@@ -184,7 +237,12 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   const isOutdoor = c => ['water', 'adventures'].includes(c.category) ||
     /park|trail|garden|beach|nature|conservation|hike|island|waterfront|zoo|farm|lookout|falls|paddle|kayak/i.test(text(c));
   const isIndoor = c => /museum|gallery|aquarium|science|indoor|arcade|cinema|theatre|theater|library|escape room|bowling|climbing|market hall/i.test(text(c));
-  const isGem = c => c.wow === true;
+  // A gem is a hand-flagged wow, OR a genuinely under-the-radar find: loved
+  // by the few who know it (≥4.6) but not yet discovered by the crowd
+  // (25–100 reviews). The old wow-only read made "Hidden gems" a rerun of
+  // the curated catalog.
+  const isGem = c => c.wow === true ||
+    (c.rating != null && c.rating >= 4.6 && (c.rating_count || 0) >= 25 && (c.rating_count || 0) <= 100);
   // The two mode personalities. Thrill wins ties (a climbing gym is a thrill,
   // not a calm indoor spot), so calm explicitly excludes thrill matches.
   const isThrill = c => c.category === 'adventures' ||
@@ -267,6 +325,10 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     take(datedLabel, pool.filter(hasDate), 4);
     take('Hidden gems ✨', pool.filter(isGem), 4);
   }
+  // Wildcards (candidates.js): daily-rotating quality picks from OUTSIDE
+  // the ranked pool — the deliberate stumble-upon shelf, in every branch.
+  take('Try something different 🎲', pool.filter(c => c.wildcard), 3);
+
   // Catch-all: whatever survived quality gating but missed the curated
   // shelves lands here in relevance order — more to browse, never mixed
   // into (or above) the best picks.
