@@ -113,8 +113,8 @@ const THEMES = [
     tags: ['cruise', 'boat', 'sail', 'ferry', 'island', 'harbour', 'lake ontario']
   },
   {
-    theme: 'date-night',
-    triggers: ['date', 'romantic', 'anniversary', 'couples', 'evening out', 'night out'],
+    theme: 'couples',
+    triggers: ['date', 'romantic', 'anniversary', 'couple', 'couples', 'evening out', 'night out'],
     placesQueries: ['romantic restaurant view', 'evening entertainment venue'],
     categories: ['food', 'patios', 'culture'],
     tags: ['romantic', 'date', 'evening', 'view', 'live music', 'couples']

@@ -5,7 +5,8 @@
 // trimmed while an unrelated event survived. Simple additive keyword/tag
 // scoring — no embeddings, no network calls.
 
-const { isAroundSpotlight } = require('./spotlight');
+const { isAroundSpotlight, torontoToday } = require('./spotlight');
+const seasons = require('../data/seasons');
 
 const STOPWORDS = new Set([
   'a', 'an', 'and', 'the', 'to', 'of', 'in', 'on', 'at', 'for', 'with', 'my',
@@ -97,9 +98,12 @@ function readIntent(prompt) {
  * shapes), the active category filter, and the R&R/Adventure mode.
  * Returns [{ candidate, score }].
  */
-function scoreCandidates(candidates, { prompt, themes = [], filter, mode, advisoryPressure, spotlight } = {}) {
+function scoreCandidates(candidates, { prompt, themes = [], filter, mode, advisoryPressure, spotlight, dateWindow } = {}) {
   const tokens = tokenize(prompt);
   const intent = readIntent(prompt);
+  // Seasonal pressure follows the PLANNED day when the date picker is set —
+  // a February browse planned for May scores like May.
+  const seasonCtx = seasons.getSeasonContext((dateWindow && dateWindow.start) || torontoToday());
   const modeBoost = MODE_CATEGORY_BOOST[mode] || null;
   const modeWords = mode === 'adventure' ? ADVENTURE_WORDS : (mode === 'rr' ? RR_CALM_WORDS : null);
   const themeTags = new Set();
@@ -204,6 +208,12 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
       else if (candidate.distance_km <= 20) score += 1.5;
       else if (candidate.distance_km > 35) score -= 2;
     }
+
+    // Seasonal pressure (data/seasons.js): trails and green outdoors lead
+    // spring through fall (fall-colour weeks especially), outdoor winter
+    // activities lead December–February, and warm-weather-only ideas sink
+    // out of season. Applied to EVERY source — the feed follows the year.
+    score += seasons.seasonAdjustment(candidate, seasonCtx);
 
     // Active advisories (smoke, extreme heat/cold, high wind) push the day
     // indoors: exposed candidates sink, indoor refuges rise.

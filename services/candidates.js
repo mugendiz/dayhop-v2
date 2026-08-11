@@ -31,6 +31,7 @@ try { catalogCoords = require('../data/catalogCoords.json'); }
 catch { console.warn('[candidates] data/catalogCoords.json missing — run scripts/geocode-catalog.js'); }
 const autoCatalog = require('./autoCatalog');
 const { matchThemes } = require('../data/themes');
+const seasons = require('../data/seasons');
 const relevance = require('./relevance');
 const analytics = require('./analytics');
 const { getSpotlight, eventDaysAhead, torontoToday, addDays } = require('./spotlight');
@@ -441,7 +442,7 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   // candidates instead of capping first and filtering what's left.
   const candidates = relevance.selectTop(
     qualityGate(relevance.scoreCandidates(pool, {
-      prompt, themes, filter, mode, advisoryPressure, spotlight
+      prompt, themes, filter, mode, advisoryPressure, spotlight, dateWindow
     })),
     CANDIDATE_POOL_CAP
   );
@@ -564,11 +565,12 @@ async function searchPlacesWithThemes(prompt, themeQueries, geo, hyperLocal = fa
 // the prompt so only the most fitting slice of the catalog joins the pool.
 function catalogCandidates(prompt, themes, limit, regionOpts) {
   const month = Number(torontoToday().slice(5, 7));
-  const inSeason = month >= 5 && month <= 9 ? 'summer' : 'winter';
   // Hand-curated entries plus the discovery autopilot's verified auto-adds
   // (services/autoCatalog) — same shape, same scoring, Canada-wide.
+  // Coarse seasonal tags gate with shoulder months (data/seasons.js);
+  // fine-grained seasonal ranking happens in relevance.js scoring.
   let eligible = [...curatedCatalog, ...autoCatalog.entries()]
-    .filter(e => !e.seasonal || e.seasonal === inSeason);
+    .filter(e => seasons.isCatalogSeasonEligible(e.seasonal, month));
 
   // Outside the GTA, only entries anchored to the asked place qualify —
   // matched by city token against the entry's location/venue/tags. No
