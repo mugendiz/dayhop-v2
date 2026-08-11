@@ -1542,7 +1542,7 @@
         groups.get(label).push(idea);
       });
       order.forEach(label => appendSection(label, groups.get(label), order.length > 1));
-      if (captureEligible()) insertFeedCaptureCard(feed);
+      insertFeedBreakCards(feed);
     } else {
       // Prompt results: the direct answers first (minus the hero, which is
       // already on stage), then the "didn't know you could do that" picks,
@@ -3400,22 +3400,110 @@
     return el;
   }
 
-  // Mid-feed native ask: lands ~15 cards deep (never in a thin feed), reads
-  // like a shelf card, scrolls away like one too.
-  function insertFeedCaptureCard(feed) {
-    const cards = feed.querySelectorAll('.idea-card');
+  // ---------- Break cards: every 15th slot changes texture ----------
+  // Infinite scroll numbs; a pattern break every ~15 cards resets attention.
+  // Three flavours rotate: the Playbook email ask, a GTA fun fact, and a
+  // venue-facing "this spot could be yours" card that feeds the sponsor
+  // funnel. Facts rotate daily so regulars don't reread yesterday's.
+  const FUN_FACTS = [
+    'The Toronto Islands are the largest car-free urban community in North America.',
+    'The Scarborough Bluffs rise 90 metres — taller than Niagara Falls.',
+    "Downtown's PATH is the world's largest underground shopping complex: 30+ km of tunnels.",
+    "High Park's cherry trees were a gift from Tokyo in 1959.",
+    'Casa Loma hides a real 244-metre tunnel running under the street to its stables.',
+    "Ontario holds about 250,000 lakes — roughly a fifth of the world's fresh water.",
+    "Rouge, on Toronto's east edge, is Canada's first national urban park.",
+    "The Bruce Trail is Canada's oldest and longest marked footpath — about 900 km.",
+    "Canada's Wonderland's mountain is hollow — there's a whole coaster inside.",
+    'The Niagara Escarpment is a UNESCO World Biosphere Reserve, 725 km long.'
+  ];
+
+  function buildFunFactCard(fact) {
+    const el = document.createElement('div');
+    el.className = 'capture-card capture-card--fact';
+    el.innerHTML = '<p class="capture-heading">Did you know? 💡</p><p class="capture-sub"></p>';
+    el.querySelector('.capture-sub').textContent = fact;
+    return el;
+  }
+
+  // Venue-facing slot: reads as a friendly open ad space, posts straight
+  // into the existing sponsor-inquiry funnel (analytics event + admin email).
+  function buildAdCard() {
+    const el = document.createElement('div');
+    el.className = 'capture-card capture-card--ad';
+    el.innerHTML = `
+      <img class="capture-art" src="/img/venue-promo.jpg" alt="Illustrated venue in a spotlight" loading="lazy">
+      <p class="capture-heading">This spot could be yours 👀</p>
+      <p class="capture-sub">Run a GTA venue? This feed reaches local families deciding their weekend. Founding partners get 50% off for three months — five spots.</p>
+      <form class="capture-form" novalidate>
+        <input type="email" required autocomplete="email" placeholder="you@yourvenue.ca" aria-label="Venue email address">
+        <button type="submit" class="capture-btn">Get the media kit</button>
+      </form>
+      <p class="capture-fineprint"><a href="/advertise?utm_source=feed&utm_medium=adcard&utm_campaign=founding">See tiers & audience numbers →</a></p>
+      <p class="capture-msg" role="status" aria-live="polite"></p>`;
+    el.querySelector('.capture-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = (el.querySelector('input').value || '').trim();
+      if (!email) return;
+      const btn = el.querySelector('.capture-btn');
+      btn.disabled = true;
+      try {
+        const res = await fetch('/advertise/inquiry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            venue: 'Feed ad-card lead — venue TBD',
+            name: '', email,
+            tier: 'Founding partner (feed card)',
+            message: 'Left their email in the in-feed ad card. Send the media kit.',
+            attrib: (window.dayhopAttrib && window.dayhopAttrib()) || undefined
+          })
+        });
+        if (!res.ok) throw new Error();
+        el.querySelector('.capture-form').hidden = true;
+        el.querySelector('.capture-heading').textContent = 'Media kit on its way 📬';
+        el.querySelector('.capture-sub').textContent = 'We reply within one business day.';
+      } catch (err) {
+        el.querySelector('.capture-msg').textContent = 'Could not send that — try again in a minute.';
+        btn.disabled = false;
+      }
+    });
+    return el;
+  }
+
+  function insertFeedBreakCards(feed) {
+    const cards = [...feed.querySelectorAll('.idea-card')];
     if (cards.length < 6) return;
-    let anchor = cards[Math.min(CAPTURE_FEED_POSITION, cards.length - 1)];
-    // Never split a section header from its first card — slot in at the end
-    // of the previous shelf instead.
-    if (anchor.previousElementSibling && anchor.previousElementSibling.classList &&
-        anchor.previousElementSibling.classList.contains('feed-section-header')) {
-      anchor = anchor.previousElementSibling;
+    const dayOffset = new Date().getDate();
+    let breakIndex = 0;
+    // Slots at card 15, 30, 45… — a feed too short for a full block still
+    // gets one break anchored at its last card.
+    const slots = [];
+    for (let pos = CAPTURE_FEED_POSITION; pos < cards.length; pos += CAPTURE_FEED_POSITION) slots.push(pos);
+    if (!slots.length) slots.push(cards.length - 1);
+    for (const pos of slots) {
+      let anchor = cards[Math.min(pos, cards.length - 1)];
+      if (!anchor) break;
+      // Never split a section header from its first card — slot in at the
+      // end of the previous shelf instead.
+      if (anchor.previousElementSibling && anchor.previousElementSibling.classList &&
+          anchor.previousElementSibling.classList.contains('feed-section-header')) {
+        anchor = anchor.previousElementSibling;
+      }
+      let card;
+      if (breakIndex === 0 && captureEligible()) {
+        card = buildCaptureCard('feed_card',
+          'Get the free GTA Weekend Playbook 📖',
+          '70+ family outings actually worth your Saturday — plus five fresh picks every Thursday morning, weather-checked and closure-checked.',
+          'Send my Playbook');
+      } else if ((breakIndex + dayOffset) % 2 === 0) {
+        card = buildAdCard();
+      } else {
+        card = buildFunFactCard(FUN_FACTS[(dayOffset + breakIndex) % FUN_FACTS.length]);
+      }
+      anchor.parentNode.insertBefore(card, anchor);
+      breakIndex++;
     }
-    anchor.parentNode.insertBefore(buildCaptureCard('feed_card',
-      'Get the free GTA Weekend Playbook 📖',
-      '70+ family outings actually worth your Saturday — plus five fresh picks every Thursday morning, weather-checked and closure-checked.',
-      'Send my Playbook'), anchor);
   }
 
   // ---------- Corridor memory ----------

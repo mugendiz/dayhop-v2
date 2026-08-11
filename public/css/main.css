@@ -3796,3 +3796,17 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
   aspect-ratio: 16 / 10;
   object-fit: cover;
 }
+
+/* Break-card flavours: fun fact (moss tint, quiet) and the venue ad slot
+   (dashed border reads as open ad space). */
+.capture-card--fact {
+  background: linear-gradient(135deg, #EFF5EE, var(--paper));
+  border-color: var(--moss);
+}
+.capture-card--fact .capture-heading { color: var(--moss); }
+.capture-card--ad { border: 2px dashed var(--line-strong); }
+.capture-card--ad .capture-fineprint a { color: var(--ink-soft); }
+
+/* The venue illustration is portrait; crop toward the storefront and the
+   family at its base, not the empty beam above them. */
+.capture-card--ad .capture-art { object-position: center 78%; }

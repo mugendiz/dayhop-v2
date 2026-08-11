@@ -13,7 +13,7 @@
 //     stale-while-revalidate so a revisited share link opens instantly even
 //     through a free-tier cold start.
 // Bump the version to invalidate every cached asset on the next visit.
-const CACHE = 'dayhop-shell-v15'; // v15: capture card promotes Playbook + illustration
+const CACHE = 'dayhop-shell-v16'; // v16: rotating break cards (playbook / fun fact / venue ad)
 
 const SHELL = [
   '/',
