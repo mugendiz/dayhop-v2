@@ -271,6 +271,25 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   // shelves lands here in relevance order — more to browse, never mixed
   // into (or above) the best picks.
   take('More to explore 🧭', pool, FEED_CAP);
+
+  // With precise coordinates, closest-first is the default READING order:
+  // each shelf keeps its relevance-chosen members but displays them nearest
+  // first (unknown distances last). Which ideas made the feed is still
+  // relevance's call; the client's "Nearest first" chip remains the
+  // flat-list override across all shelves.
+  if (near) {
+    const bySection = new Map();
+    ideas.forEach((idea, i) => {
+      if (!bySection.has(idea.section)) bySection.set(idea.section, []);
+      bySection.get(idea.section).push(i);
+    });
+    for (const slots of bySection.values()) {
+      const sorted = slots
+        .map(i => ideas[i])
+        .sort((a, b) => (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity));
+      slots.forEach((slot, k) => { ideas[slot] = sorted[k]; });
+    }
+  }
   return ideas;
 }
 

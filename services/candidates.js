@@ -422,6 +422,12 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
         c.distance_km = relevance.haversineKm(origin, { lat: c.lat, lng: c.lng });
       }
     }
+    // Google text search treats its radius as a bias, not a boundary — a
+    // famous "zipline park" 500 km away can outrank the local one. Places
+    // results past 120 km are bias leaks, not day-trip options; curated
+    // entries (e.g. Arrowhead's ice trail) stay — a human vouched for the
+    // drive being worth it.
+    pool = pool.filter(c => !(c.source === 'google_places' && c.distance_km != null && c.distance_km > 120));
   }
 
   // Discovery Phase 3 feedback loop: newly-opened items carry their last-30d

@@ -198,15 +198,13 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
 
     // Proximity (set when the user shared their location). A top-tier
     // signal, not a tiebreaker: for family and R&R days, "20 minutes away"
-    // IS relevance — nearby beats marginally-better-but-distant, and
-    // anything past ~35 km (an hour across the GTA) must earn its place
-    // on merit. ≤20 km ≈ the 20-30 min drive most day plans tolerate.
+    // IS relevance. Continuous decay instead of the old step bands — 12 km
+    // and 19 km no longer score identically, and the far penalty keeps
+    // growing (capped at −6), so a 130 km attraction can't coast on other
+    // boosts the way it could against a flat −2.
     if (candidate.distance_km != null) {
-      if (candidate.distance_km <= 2) score += 6;
-      else if (candidate.distance_km <= 5) score += 4.5;
-      else if (candidate.distance_km <= 10) score += 3;
-      else if (candidate.distance_km <= 20) score += 1.5;
-      else if (candidate.distance_km > 35) score -= 2;
+      const d = candidate.distance_km;
+      score += 6 * Math.exp(-d / 12) - Math.min(6, Math.max(0, (d - 35) / 15));
     }
 
     // Seasonal pressure (data/seasons.js): trails and green outdoors lead
