@@ -145,6 +145,9 @@ function normalizeProduct(p) {
     title: p.title,
     description: (p.description || '').slice(0, 220),
     rating: p.reviews && p.reviews.combinedAverageRating != null ? p.reviews.combinedAverageRating : null,
+    // rating_count is the field the quality gate and ranker read; without it
+    // rated products passed the gate on a review sample that was never checked.
+    rating_count: p.reviews ? (p.reviews.totalReviews || 0) : 0,
     review_count: p.reviews ? (p.reviews.totalReviews || 0) : 0,
     price_from: p.pricing && p.pricing.summary ? p.pricing.summary.fromPrice : null,
     currency: p.pricing ? (p.pricing.currency || 'USD') : 'USD',

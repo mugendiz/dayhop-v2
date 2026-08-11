@@ -75,6 +75,8 @@ function normalizeActivity(a) {
     title: a.title,
     description: (a.abstract || '').slice(0, 220),
     rating: a.rating || null,
+    // rating_count is the field the quality gate and ranker read.
+    rating_count: a.number_of_ratings || 0,
     review_count: a.number_of_ratings || 0,
     price_from: a.price ? a.price.amount : null,
     currency: a.price ? a.price.currency : 'USD',

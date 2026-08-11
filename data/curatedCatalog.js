@@ -23,7 +23,10 @@ const mapsSearch = q => `https://www.google.com/maps/search/?api=1&query=${encod
 // Optional per-entry fields for the "Just opened" layer (Phase 0 of the
 // social-signal discovery plan):
 //   opened_at    'YYYY-MM-DD' — when the attraction opened to the public
-//   new_until    'YYYY-MM-DD' — badge/shelf expiry (default opened_at + 1y)
+//   new_until    'YYYY-MM-DD' — badge/shelf expiry (default opened_at + 120d
+//                here, + 60d for autopilot entries)
+//   lat / lng    optional inline coordinates; entries without them get
+//                coords from data/catalogCoords.json (scripts/geocode-catalog.js)
 //   booking_url  official ticket page (curated entries may carry one)
 // candidates.js derives `newly_opened` from these at request time, so the
 // badge decays on its own — no cleanup pass needed.

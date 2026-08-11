@@ -218,6 +218,11 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
  * that returned anything keeps at least a small voice (up to 2 entries),
  * so the pool Grok sees stays diverse. Output is relevance-ordered.
  */
+// Affiliate feeds don't get the guaranteed floor: with a small fixed product
+// catalog behind them, a guaranteed 2 slots meant the SAME products appeared
+// in every pool, every day. They still enter pass 2 on merit.
+const NO_FLOOR_SOURCES = new Set(['viator', 'getyourguide']);
+
 function selectTop(scored, cap = 60) {
   const sorted = [...scored].sort((a, b) => b.score - a.score);
   const picked = new Set();
@@ -227,6 +232,7 @@ function selectTop(scored, cap = 60) {
   for (const entry of sorted) {
     if (picked.size >= cap) break;
     const src = entry.candidate.source || 'unknown';
+    if (NO_FLOOR_SOURCES.has(src)) continue;
     const count = perSource.get(src) || 0;
     if (count < 2) {
       picked.add(entry);

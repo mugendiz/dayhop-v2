@@ -117,6 +117,7 @@ async function googleVerdict(item) {
         place_id: match.place_id,
         title: match.title, address: match.address, maps_url: match.maps_url,
         rating: match.rating, rating_count: match.rating_count,
+        lat: match.lat, lng: match.lng,
         image_url: match.image_url, business_status: match.business_status
       }
     };
@@ -165,6 +166,7 @@ function buildEntry(item, place) {
   if (place) {
     if (place.maps_url) entry.maps_url = place.maps_url;
     if (place.rating != null) { entry.rating = place.rating; entry.rating_count = place.rating_count; }
+    if (place.lat != null && place.lng != null) { entry.lat = place.lat; entry.lng = place.lng; }
     if (place.image_url) entry.image_url = place.image_url;
   }
   // The scan already paid for the social-buzz score (news/Reddit/YouTube) —

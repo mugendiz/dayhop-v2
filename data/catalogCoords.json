@@ -1,0 +1,352 @@
+{
+  "cur-niagara-takes-flight": {
+    "lat": 43.0791675,
+    "lng": -79.0788306,
+    "resolved": "Niagara Parks — Table Rock Centre, Table Rock Centre, Niagara Falls, Ontario, Canada"
+  },
+  "cur-monet-immersive": {
+    "lat": 43.7379728,
+    "lng": -79.468259,
+    "resolved": "Claude Monet: The Immersive Experience, YZD (Downsview), Toronto, Ontario, Canada"
+  },
+  "cur-arcadia-earth": {
+    "lat": 43.64299390000001,
+    "lng": -79.39697629999999,
+    "resolved": "Arcadia Earth Toronto, Downtown, Toronto, Ontario, Canada"
+  },
+  "cur-rc-paradise": {
+    "lat": 43.7047018,
+    "lng": -79.4066899,
+    "resolved": "RC Paradise, Eglinton West, Toronto, Ontario, Canada"
+  },
+  "cur-harbourfront-kayak": {
+    "lat": 43.6382044,
+    "lng": -79.3865549,
+    "resolved": "Harbourfront Canoe & Kayak Centre, Harbourfront, Toronto, Ontario, Canada"
+  },
+  "cur-centre-island-paddleboats": {
+    "lat": 43.6185331,
+    "lng": -79.37151209999999,
+    "resolved": "Boat House, Centre Island, Toronto Islands, Toronto, Ontario, Canada"
+  },
+  "cur-wonderland-splash-works": {
+    "lat": 43.8423619,
+    "lng": -79.54121549999999,
+    "resolved": "Canada's Wonderland, Vaughan, Ontario, Canada"
+  },
+  "cur-bluffers-park-beach": {
+    "lat": 43.7096725,
+    "lng": -79.2331205,
+    "resolved": "Bluffer's Park, Scarborough, Ontario, Canada"
+  },
+  "cur-hanlans-ward-beaches": {
+    "lat": 43.6225505,
+    "lng": -79.3746759,
+    "resolved": "Toronto Island Park, Toronto Islands, Toronto, Ontario, Canada"
+  },
+  "cur-cherry-beach": {
+    "lat": 43.6369864,
+    "lng": -79.3440914,
+    "resolved": "Cherry Beach, Port Lands, Toronto, Ontario, Canada"
+  },
+  "cur-professors-lake": {
+    "lat": 43.7465045,
+    "lng": -79.733122,
+    "resolved": "Professor's Lake Recreation Centre, Brampton, Ontario, Canada"
+  },
+  "cur-wet-n-wild-toronto": {
+    "lat": 43.7400216,
+    "lng": -79.6419648,
+    "resolved": "Wet'n'Wild Toronto, Brampton, Ontario, Canada"
+  },
+  "cur-sunnyside-pool": {
+    "lat": 43.6376371,
+    "lng": -79.454574,
+    "resolved": "Sunnyside Gus Ryder Outdoor Pool, Sunnyside, Toronto, Ontario, Canada"
+  },
+  "cur-lake-wilcox-park": {
+    "lat": 43.9469871,
+    "lng": -79.4284447,
+    "resolved": "Lake Wilcox Park, Oak Ridges, Richmond Hill, Ontario, Canada"
+  },
+  "cur-wave-pool-rh": {
+    "lat": 43.8685446,
+    "lng": -79.43995199999999,
+    "resolved": "The Wave Pool, Richmond Hill, Ontario, Canada"
+  },
+  "cur-ontario-place-trillium": {
+    "lat": 43.63007,
+    "lng": -79.4098602,
+    "resolved": "Trillium Park, Ontario Place, Toronto, Ontario, Canada"
+  },
+  "cur-tall-ship-kajama": {
+    "lat": 43.6378584,
+    "lng": -79.3814798,
+    "resolved": "Tall Ship Kajama, Harbourfront, Toronto, Ontario, Canada"
+  },
+  "cur-scarborough-bluffs-paddle": {
+    "lat": 43.7064907,
+    "lng": -79.2315574,
+    "resolved": "Bluffer's Park Marina, Scarborough, Ontario, Canada"
+  },
+  "cur-albion-hills-swim": {
+    "lat": 43.9335775,
+    "lng": -79.819876,
+    "resolved": "Albion Hills Conservation Park, Caledon, Ontario, Canada"
+  },
+  "cur-toronto-heli-tour": {
+    "lat": 43.632253,
+    "lng": -79.39515039999999,
+    "resolved": "Toronto Heli Tours, Billy Bishop Airport, Toronto, Ontario, Canada"
+  },
+  "cur-cn-tower-edgewalk": {
+    "lat": 43.6425662,
+    "lng": -79.3870568,
+    "resolved": "CN Tower, Downtown Toronto, Ontario, Canada"
+  },
+  "cur-treetop-trekking": {
+    "lat": 43.9444563,
+    "lng": -79.344281,
+    "resolved": "Treetop Trekking Stouffville, Stouffville (also Brampton & Barrie), Ontario, Canada"
+  },
+  "cur-ifly-indoor-skydiving": {
+    "lat": 43.509534,
+    "lng": -79.66616499999999,
+    "resolved": "iFLY Toronto, Whitby (also Oakville), Ontario, Canada"
+  },
+  "cur-k1-speed-karting": {
+    "lat": 43.7459119,
+    "lng": -79.47465059999999,
+    "resolved": "K1 Speed Vaughan, Vaughan (also Toronto & Mississauga), Ontario, Canada"
+  },
+  "cur-family-climbing": {
+    "lat": 43.8599076,
+    "lng": -79.3349945,
+    "resolved": "Basecamp Climbing / Hub Climbing, Toronto & Markham, Ontario, Canada"
+  },
+  "cur-combat-archery": {
+    "lat": 43.7537915,
+    "lng": -79.46748099999999,
+    "resolved": "Archers Arena, Markham / Toronto, Ontario, Canada"
+  },
+  "cur-horseback-caledon": {
+    "lat": 43.7175585,
+    "lng": -79.9374582,
+    "resolved": "Caledon-area trail stables, Caledon / Terra Cotta, Ontario, Canada"
+  },
+  "cur-joyride-150": {
+    "lat": 43.8776339,
+    "lng": -79.2728588,
+    "resolved": "Joyride 150 Indoor Bike Park, Markham, Ontario, Canada"
+  },
+  "cur-skydive-toronto": {
+    "lat": 44.23741529999999,
+    "lng": -79.6415557,
+    "resolved": "Skydive Toronto, Innisfil (45 min north of the GTA), Ontario, Canada"
+  },
+  "cur-batl-axe-throwing": {
+    "lat": 43.82622809999999,
+    "lng": -79.5561668,
+    "resolved": "BATL — Backyard Axe Throwing League, Toronto & Vaughan, Ontario, Canada"
+  },
+  "cur-wonderland-coasters": {
+    "lat": 43.8423619,
+    "lng": -79.54121549999999,
+    "resolved": "Canada's Wonderland, Vaughan, Ontario, Canada"
+  },
+  "cur-rec-room-vr": {
+    "lat": 43.64124169999999,
+    "lng": -79.3867806,
+    "resolved": "The Rec Room, Roundhouse, Toronto (also Mississauga), Ontario, Canada"
+  },
+  "cur-casa-loma-escape": {
+    "lat": 43.6780932,
+    "lng": -79.4093817,
+    "resolved": "Casa Loma Escape Series, Midtown Toronto, Ontario, Canada"
+  },
+  "cur-elora-gorge-tubing": {
+    "lat": 43.671904,
+    "lng": -80.444442,
+    "resolved": "Elora Gorge Conservation Area, Elora (90 min west of the GTA), Ontario, Canada"
+  },
+  "cur-humber-paddle": {
+    "lat": 43.6494015,
+    "lng": -79.49230500000002,
+    "resolved": "Toronto Adventures — Humber River, Old Mill, Toronto, Ontario, Canada"
+  },
+  "cur-kelso-mtb": {
+    "lat": 43.5079351,
+    "lng": -79.94014969999999,
+    "resolved": "Kelso Conservation Area, Milton, Ontario, Canada"
+  },
+  "cur-rattlesnake-climbing": {
+    "lat": 43.471371,
+    "lng": -79.912705,
+    "resolved": "Rattlesnake Point Conservation Area, Milton, Ontario, Canada"
+  },
+  "cur-glen-eden-snow": {
+    "lat": 43.504037,
+    "lng": -79.93893949999999,
+    "resolved": "Glen Eden Ski & Snowboard Centre, Milton, Ontario, Canada"
+  },
+  "cur-snow-valley-tubing": {
+    "lat": 44.411344,
+    "lng": -79.79224200000002,
+    "resolved": "Snow Valley Snow Tubing Park, Barrie (1 hr north of the GTA), Ontario, Canada"
+  },
+  "cur-blue-mountain-day": {
+    "lat": 44.5010785,
+    "lng": -80.3160997,
+    "resolved": "Blue Mountain Resort, Collingwood (2 hrs from the GTA), Ontario, Canada"
+  },
+  "cur-glow-mini-putt": {
+    "lat": 43.7882767,
+    "lng": -79.5466404,
+    "resolved": "Putting Edge, Vaughan / Richmond Hill area, Ontario, Canada"
+  },
+  "cur-ripleys-aquarium": {
+    "lat": 43.6421785,
+    "lng": -79.3866022,
+    "resolved": "Ripley's Aquarium of Canada, Downtown Toronto, Ontario, Canada"
+  },
+  "cur-toronto-zoo": {
+    "lat": 43.8178667,
+    "lng": -79.18543729999999,
+    "resolved": "Toronto Zoo, Scarborough, Ontario, Canada"
+  },
+  "cur-science-centre-popups": {
+    "lat": 43.6387887,
+    "lng": -79.3828891,
+    "resolved": "Ontario Science Centre (temporary locations), Toronto, Ontario, Canada"
+  },
+  "cur-legoland-vaughan": {
+    "lat": 43.8249707,
+    "lng": -79.5353885,
+    "resolved": "LEGOLAND Discovery Centre Toronto, Vaughan Mills, Vaughan, Ontario, Canada"
+  },
+  "cur-downeys-farm": {
+    "lat": 43.78497309999999,
+    "lng": -79.8487014,
+    "resolved": "Downey's Farm Market, Caledon, Ontario, Canada"
+  },
+  "cur-chudleighs-farm": {
+    "lat": 43.5505281,
+    "lng": -79.93584849999999,
+    "resolved": "Chudleigh's Farm, Milton, Ontario, Canada"
+  },
+  "cur-riverdale-farm": {
+    "lat": 43.6669731,
+    "lng": -79.3617311,
+    "resolved": "Riverdale Farm, Cabbagetown, Toronto, Ontario, Canada"
+  },
+  "cur-high-park-zoo": {
+    "lat": 43.64353029999999,
+    "lng": -79.45712329999999,
+    "resolved": "High Park Zoo & Jamie Bell Adventure Playground, High Park, Toronto, Ontario, Canada"
+  },
+  "cur-mega-indoor-playgrounds": {
+    "lat": 43.6922354,
+    "lng": -79.53224279999999,
+    "resolved": "Kidstown / Playville / Amazon Indoor Playground, Across the GTA, Ontario, Canada"
+  },
+  "cur-casa-loma": {
+    "lat": 43.6845696,
+    "lng": -79.41108539999999,
+    "resolved": "Casa Loma, Midtown Toronto, Ontario, Canada"
+  },
+  "cur-aga-khan-museum": {
+    "lat": 43.7252521,
+    "lng": -79.3322231,
+    "resolved": "Aga Khan Museum, Don Mills, Toronto, Ontario, Canada"
+  },
+  "cur-mcmichael-gallery": {
+    "lat": 43.8435235,
+    "lng": -79.61646069999999,
+    "resolved": "McMichael Canadian Art Collection, Kleinburg, Vaughan, Ontario, Canada"
+  },
+  "cur-distillery-district": {
+    "lat": 43.6502455,
+    "lng": -79.3591331,
+    "resolved": "The Distillery Historic District, Old Toronto, Ontario, Canada"
+  },
+  "cur-black-creek-village": {
+    "lat": 43.7734388,
+    "lng": -79.5169094,
+    "resolved": "Black Creek Pioneer Village, North York, Toronto, Ontario, Canada"
+  },
+  "cur-graffiti-alley": {
+    "lat": 43.6479167,
+    "lng": -79.398474,
+    "resolved": "Graffiti Alley, Queen West, Toronto, Ontario, Canada"
+  },
+  "cur-david-dunlap-observatory": {
+    "lat": 43.8629356,
+    "lng": -79.4227212,
+    "resolved": "David Dunlap Observatory, Richmond Hill, Ontario, Canada"
+  },
+  "cur-toronto-music-garden": {
+    "lat": 43.636955,
+    "lng": -79.3942958,
+    "resolved": "Toronto Music Garden, Harbourfront, Toronto, Ontario, Canada"
+  },
+  "cur-cathedral-bluffs-lookout": {
+    "lat": 43.71824609999999,
+    "lng": -79.22865259999999,
+    "resolved": "Cathedral Bluffs Park, Scarborough, Ontario, Canada"
+  },
+  "cur-evergreen-brick-works": {
+    "lat": 43.6843314,
+    "lng": -79.3647127,
+    "resolved": "Evergreen Brick Works, Don Valley, Toronto, Ontario, Canada"
+  },
+  "cur-crawford-lake": {
+    "lat": 43.4719963,
+    "lng": -79.9513183,
+    "resolved": "Crawford Lake Conservation Area, Milton, Ontario, Canada"
+  },
+  "cur-rattlesnake-point": {
+    "lat": 43.471371,
+    "lng": -79.912705,
+    "resolved": "Rattlesnake Point Conservation Area, Milton, Ontario, Canada"
+  },
+  "cur-edwards-gardens": {
+    "lat": 43.73380390000001,
+    "lng": -79.357924,
+    "resolved": "Edwards Gardens / Toronto Botanical Garden, North York, Toronto, Ontario, Canada"
+  },
+  "cur-tommy-thompson-park": {
+    "lat": 43.6352117,
+    "lng": -79.3248521,
+    "resolved": "Tommy Thompson Park, Port Lands, Toronto, Ontario, Canada"
+  },
+  "cur-st-lawrence-market": {
+    "lat": 43.6486879,
+    "lng": -79.3715454,
+    "resolved": "St. Lawrence Market, Old Toronto, Ontario, Canada"
+  },
+  "cur-stackt-market": {
+    "lat": 43.64081849999999,
+    "lng": -79.4016875,
+    "resolved": "stackt market, Bathurst & Front, Toronto, Ontario, Canada"
+  },
+  "cur-pacific-mall-food": {
+    "lat": 43.8254045,
+    "lng": -79.3060876,
+    "resolved": "Pacific Mall, Markham, Ontario, Canada"
+  },
+  "cur-unionville-main-street": {
+    "lat": 43.86498,
+    "lng": -79.3105099,
+    "resolved": "Main Street Unionville, Unionville, Markham, Ontario, Canada"
+  },
+  "cur-night-markets": {
+    "lat": 43.84954320000001,
+    "lng": -79.3218478,
+    "resolved": "Night It Up! and TT Night Market sites, Markham / Richmond Hill, Ontario, Canada"
+  },
+  "cur-amsterdam-brewhouse": {
+    "lat": 43.63787629999999,
+    "lng": -79.38472689999999,
+    "resolved": "Amsterdam BrewHouse, Harbourfront, Toronto, Ontario, Canada"
+  }
+}
