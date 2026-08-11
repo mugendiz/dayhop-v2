@@ -3785,3 +3785,14 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
   line-height: 1;
 }
 .capture-dismiss:hover { color: var(--ink); }
+
+/* Playbook illustration atop the feed capture card — full-bleed to the
+   card edges, cropped like the idea-card photos so it reads native. */
+.capture-art {
+  display: block;
+  width: calc(100% + 48px);
+  margin: -22px -24px 16px;
+  border-radius: var(--radius) var(--radius) 0 0;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+}

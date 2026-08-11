@@ -3340,8 +3340,12 @@
   function buildCaptureCard(source, heading, sub, cta) {
     const el = document.createElement('div');
     el.className = 'capture-card' + (source === 'milestone' ? ' capture-card--milestone' : '');
+    // The feed card leads with the Playbook illustration (one-time
+    // AI-generated asset, public/img/playbook-promo.jpg) so it earns the
+    // stop-scroll moment on charm, not interruption.
     el.innerHTML = `
       <button class="capture-dismiss" type="button" aria-label="No thanks">✕</button>
+      ${source === 'feed_card' ? '<img class="capture-art" src="/img/playbook-promo.jpg" alt="Illustrated map of a GTA family day out" loading="lazy">' : ''}
       <p class="capture-heading"></p>
       <p class="capture-sub"></p>
       <form class="capture-form" novalidate>
@@ -3382,7 +3386,7 @@
         el.querySelector('.capture-form').hidden = true;
         el.querySelector('.capture-fineprint').hidden = true;
         el.querySelector('.capture-heading').textContent = 'Check your inbox 📬';
-        el.querySelector('.capture-sub').textContent = 'Click the confirmation link and Thursday mornings are handled.';
+        el.querySelector('.capture-sub').textContent = 'Click the confirmation link and your Playbook (plus Thursday picks) is yours.';
       } catch (err) {
         const msg = el.querySelector('.capture-msg');
         msg.textContent = err.message || 'Could not subscribe right now — try again in a minute.';
@@ -3409,9 +3413,9 @@
       anchor = anchor.previousElementSibling;
     }
     anchor.parentNode.insertBefore(buildCaptureCard('feed_card',
-      'Liking these? 👋',
-      'Get five picks like this every Thursday morning — weather-checked, closure-checked, matched to your end of the GTA.',
-      'Send it'), anchor);
+      'Get the free GTA Weekend Playbook 📖',
+      '70+ family outings actually worth your Saturday — plus five fresh picks every Thursday morning, weather-checked and closure-checked.',
+      'Send my Playbook'), anchor);
   }
 
   // ---------- Corridor memory ----------
