@@ -1,0 +1,29 @@
+# CI — feed-invariant and data-quality tests on every push and PR.
+# Hermetic: node's built-in test runner over pure functions and static data;
+# no network, no API keys, no Supabase.
+#
+# Note: Render auto-deploys main on push and does NOT wait for this workflow.
+# A red run here means the deploy that just went out is suspect — revert or
+# fix forward. To make CI actually gate deploys, turn off Render's auto-deploy
+# and add a deploy-hook curl step behind these tests.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x, 24.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: npm test

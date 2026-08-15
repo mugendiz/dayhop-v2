@@ -518,3 +518,6 @@ function toBrowseIdea(c) {
 }
 
 module.exports = router;
+// Exported for the invariant tests (test/browseSections.test.js) — pure
+// function over candidate objects, no network.
+module.exports.buildSections = buildSections;

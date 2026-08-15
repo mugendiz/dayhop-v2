@@ -264,3 +264,7 @@ function toFeedIdea(c) {
 }
 
 module.exports = router;
+// Exported for the invariant tests (test/surpriseSections.test.js) — pure
+// function over candidate objects, no network.
+module.exports.buildSurpriseSections = buildSurpriseSections;
+module.exports.DRIVE_MAX_KM = DRIVE_MAX_KM;
