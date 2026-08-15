@@ -1209,6 +1209,9 @@
           // can estimate commission potential per click.
           price: idea && idea.price != null ? idea.price : undefined,
           currency: idea && idea.currency ? idea.currency : undefined,
+          // Which feed shelf the card sat in — the click half of the admin
+          // dashboard's per-shelf CTR.
+          section: idea && idea.section ? String(idea.section) : undefined,
           owner_id: getOwnerId(),
           // Ad-campaign attribution (pixel.js first-touch capture); the
           // server only keeps it on funnel events.
@@ -1684,6 +1687,9 @@
     const card = document.createElement('article');
     card.className = 'idea-card';
     card.dataset.id = idea.id;
+    // Shelf label rides into the DOM so the delegated outbound-link listener
+    // can attribute booking/maps clicks to the shelf they came from.
+    if (idea.section) card.dataset.section = idea.section;
     card.style.setProperty('--stop-index', index);
     card.tabIndex = 0;
     card.setAttribute('role', 'group');
@@ -1747,6 +1753,7 @@
     });
     card.querySelector('.btn-detail').addEventListener('click', (e) => {
       e.stopPropagation();
+      track('card_open', idea);
       openDetail(idea);
     });
     const buildBtn = card.querySelector('.btn-build-around');
@@ -5251,7 +5258,8 @@
         id: link.dataset.ideaId || (card && card.dataset.id),
         source: link.dataset.ideaSource || undefined,
         price: link.dataset.ideaPrice != null && link.dataset.ideaPrice !== '' ? Number(link.dataset.ideaPrice) : undefined,
-        currency: link.dataset.ideaCurrency || undefined
+        currency: link.dataset.ideaCurrency || undefined,
+        section: (card && card.dataset.section) || undefined
       };
       const isMaps = link.classList.contains('card-booking-link--secondary');
       track(isMaps ? 'maps_click' : 'booking_click', ideaRef);

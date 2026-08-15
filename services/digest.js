@@ -13,6 +13,7 @@ const { gatherCandidates, parseDateWindow } = require('./candidates');
 const { sendEmail, isConfigured: emailConfigured } = require('./email');
 const newsletter = require('./newsletter');
 const analytics = require('./analytics');
+const digestLinks = require('./digestLinks');
 
 const PICK_COUNT = 5;
 
@@ -94,11 +95,16 @@ function weatherLine(weather) {
   return `${weather.description}, around ${weather.temp_c}°C — ${call}.`;
 }
 
-function digestHtml(d, token) {
+function digestHtml(d, token, tracking) {
   const base = newsletter.baseUrl();
   const unsub = newsletter.unsubscribeUrl(token);
+  // First-party click/open tracking (services/digestLinks.js). `tracking`
+  // is { issue, sid } per recipient; absent (previews) → bare links.
+  const wrap = (url, idx) => tracking
+    ? digestLinks.clickUrl(base, { issue: tracking.issue, sid: tracking.sid, url, idx })
+    : url;
   const picksHtml = d.picks.map((p, i) => {
-    const link = p.booking_url || p.maps_url || base;
+    const link = wrap(p.booking_url || p.maps_url || base, i);
     const where = p.venue || p.location || '';
     const chips = [p.cost_tier, p.good_for_ages && `ages ${p.good_for_ages}`].filter(Boolean).join(' · ');
     return `
@@ -136,7 +142,7 @@ function digestHtml(d, token) {
     ${advisoriesHtml}
     ${picksHtml}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 0;">
-      <a href="${base}/" style="display:inline-block;background:#FF6B4A;color:#ffffff;text-decoration:none;font-weight:700;font-size:15.5px;padding:13px 28px;border-radius:10px;">
+      <a href="${esc(wrap(`${base}/`))}" style="display:inline-block;background:#FF6B4A;color:#ffffff;text-decoration:none;font-weight:700;font-size:15.5px;padding:13px 28px;border-radius:10px;">
         Turn one into a full day plan</a>
       <p style="margin:10px 0 0;font-size:13px;color:#6b7c7e;">One sentence in, a whole day out — venues, timing, weather, the lot.</p>
     </td></tr></table>
@@ -145,6 +151,7 @@ function digestHtml(d, token) {
       DayHop · Richmond Hill, Ontario, Canada · <a href="mailto:admin@dayhop.quest" style="color:#6b7c7e;">admin@dayhop.quest</a><br>
       <a href="${unsub}" style="color:#6b7c7e;">Unsubscribe</a> — one click, no questions.
     </p>
+    ${tracking ? `<img src="${esc(digestLinks.openPixelUrl(base, tracking))}" width="1" height="1" alt="" style="display:block;border:0;">` : ''}
   </div></body></html>`;
 }
 
@@ -195,13 +202,18 @@ async function sendDigest({ testTo = null } = {}) {
     if (!recipients.length) return { sent: 0, skipped: 'NO_SUBSCRIBERS', subject: digest.subject };
   }
 
+  // Issue id = the Toronto date of the send; digest_opened/digest_clicked
+  // events carry it, and digest_sent below records the denominator for it.
+  const issue = TORONTO_DAY_FMT.format(new Date());
+
   let sent = 0;
   const delivered = [];
   for (const r of recipients) {
+    const tracking = { issue, sid: digestLinks.subscriberId(r.email) };
     const result = await sendEmail({
       to: r.email,
       subject: digest.subject,
-      html: digestHtml(digest, r.token),
+      html: digestHtml(digest, r.token, tracking),
       text: digestText(digest, r.token),
       unsubscribeUrl: newsletter.unsubscribeUrl(r.token)
     });
@@ -211,7 +223,7 @@ async function sendDigest({ testTo = null } = {}) {
 
   if (!testTo && delivered.length) {
     await newsletter.markSent(delivered);
-    analytics.recordEvent({ type: 'digest_sent', ownerKey: 'system', meta: { recipients: recipients.length, sent, subject: digest.subject } });
+    analytics.recordEvent({ type: 'digest_sent', ownerKey: 'system', meta: { issue, recipients: recipients.length, sent, subject: digest.subject } });
   }
   lastRun = { at: new Date().toISOString(), test: Boolean(testTo), recipients: recipients.length, sent, subject: digest.subject };
   console.log(`[digest] ${testTo ? 'test ' : ''}send complete: ${sent}/${recipients.length} delivered — "${digest.subject}"`);

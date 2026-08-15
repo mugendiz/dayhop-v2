@@ -185,6 +185,11 @@ const newsletterLimiter = rateLimit({
 });
 app.use('/api/newsletter', newsletterLimiter, require('./routes/newsletter'));
 
+// Digest email tracking (open pixel + signed click redirects). GETs from
+// email clients — never rate-limited, a bounced tracking link is a broken
+// email. Signatures gate what gets counted, not what renders.
+app.use('/api/digest', require('./routes/digestTrack'));
+
 app.use('/api/admin', require('./routes/admin'));
 
 // Inbound article publishing (BabyLoveGrowth → /blog). Secret-gated inside

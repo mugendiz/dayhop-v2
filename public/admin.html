@@ -153,6 +153,28 @@
       <p class="rate" id="retention-note"></p>
     </div>
 
+    <div class="card overflow" id="shelf-ctr-card">
+      <h2>Shelf CTR 🧲</h2>
+      <table>
+        <thead>
+          <tr><th>Shelf</th><th class="num">Impressions</th><th class="num">Engagements</th><th class="num">CTR</th></tr>
+        </thead>
+        <tbody id="shelf-ctr-rows"></tbody>
+      </table>
+      <p class="rate" id="shelf-ctr-note"></p>
+    </div>
+
+    <div class="card overflow" id="digest-card">
+      <h2>Digest performance 📬</h2>
+      <table>
+        <thead>
+          <tr><th>Issue</th><th class="num">Sent</th><th class="num">Opens</th><th class="num">Clicks</th><th class="num">Open rate</th><th class="num">CTR</th></tr>
+        </thead>
+        <tbody id="digest-rows"></tbody>
+      </table>
+      <p class="rate" id="digest-note"></p>
+    </div>
+
     <div class="card overflow" id="acquisition-card">
       <h2>Acquisition by campaign 📣</h2>
       <table>
@@ -506,6 +528,8 @@
     renderAffiliate(data.affiliate || {});
     renderAcquisition(data.acquisition || {});
     renderRetention(data.retention || {});
+    renderShelfCtr(data.shelf_ctr || []);
+    renderDigest(data.digest || {});
     renderHBars($('cities'), data.top_cities || [], 'var(--s4)');
     renderHBars($('sources'), data.booking_sources || [], 'var(--s3)');
     renderDailyTable(data.daily || []);
@@ -533,8 +557,47 @@
       ? 'Week-4 retention: <strong>' + r.week4_avg + '%</strong> across ' + fmt(r.measured_users) + ' users in mature cohorts' +
         (r.week4_avg >= 20 ? ' — healthy; premium-tier investment is justified.' : ' — weak; per the playbook, hold premium-tier investment and fix the habit loop first.')
       : 'Week-4 not measurable yet — a cohort needs 5 full weeks of history.';
-    $('retention-note').textContent = rows.length
-      ? '“—” = window not elapsed yet. Cohorts include signed-in users and guests (stable device ids); anonymous/IP-only traffic is excluded. Weeks run Monday-Monday, Toronto time.'
+    $('retention-note').textContent = (rows.length
+      ? '“—” = window not elapsed yet. Cohorts include signed-in users and guests (stable device ids); anonymous/IP-only traffic is excluded. Weeks run Monday-Monday, Toronto time. '
+      : '') +
+      (r.source === 'sql'
+        ? 'Computed in Postgres over full history.'
+        : r.window_truncated
+          ? '⚠ Computed from a TRUNCATED 20k-event window — rates are inflated. Run the retention_cohorts() migration (db/schema.sql) in the Supabase SQL editor.'
+          : (rows.length ? 'Computed from the recent event window; run the retention_cohorts() migration for full-history accuracy.' : ''));
+  }
+
+  // Per-shelf CTR: impressions = cards served per shelf (server-counted on
+  // every browse/surprise feed); engagements = booking/maps clicks,
+  // shortlist adds, and Details opens attributed to the shelf.
+  function renderShelfCtr(rows) {
+    $('shelf-ctr-rows').innerHTML = rows.length
+      ? rows.map(s =>
+          '<tr><td>' + esc(s.shelf) + '</td><td class="num">' + fmt(s.impressions) + '</td>' +
+          '<td class="num">' + fmt(s.clicks) + '</td>' +
+          '<td class="num">' + (s.ctr_pct == null ? '—' : s.ctr_pct + '%') + '</td></tr>').join('')
+      : '<tr><td colspan="4" style="color:var(--ink-soft)">No shelf data yet — counts start with the first feed served after this shipped.</td></tr>';
+    $('shelf-ctr-note').textContent = rows.length
+      ? 'Engagement = outbound clicks + shortlist adds + Details opens. A shelf with high impressions and near-zero CTR is stealing attention from shelves that convert.'
+      : '';
+  }
+
+  // Digest issues: sent counts from digest_sent, unique opens/clicks from
+  // the tracking pixel + signed redirects. Opens are Apple-MPP inflated —
+  // steer by CTR (docs/email-marketing.md targets CTR ≥3%).
+  function renderDigest(d) {
+    const rows = d.issues || [];
+    $('digest-rows').innerHTML = rows.length
+      ? rows.map(r =>
+          '<tr><td>' + esc(r.issue) + '</td><td class="num">' + fmt(r.sent) + '</td>' +
+          '<td class="num">' + fmt(r.unique_opens) + '</td>' +
+          '<td class="num">' + fmt(r.unique_clicks) + '</td>' +
+          '<td class="num">' + (r.open_rate_pct == null ? '—' : r.open_rate_pct + '%') + '</td>' +
+          '<td class="num"' + (r.ctr_pct >= 3 ? ' style="color:var(--ok,#12855C);font-weight:700"' : '') + '>' +
+          (r.ctr_pct == null ? '—' : r.ctr_pct + '%') + '</td></tr>').join('')
+      : '<tr><td colspan="6" style="color:var(--ink-soft)">No tracked issues yet — tracking starts with the next digest send.</td></tr>';
+    $('digest-note').textContent = rows.length
+      ? 'Opens are inflated by Apple Mail privacy — CTR is the honest number (target ≥3%). Unique subscribers, not raw hits.'
       : '';
   }
 

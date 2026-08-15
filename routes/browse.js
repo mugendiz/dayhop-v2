@@ -214,10 +214,16 @@ function recordBrowse(req, payload, cached, mode) {
   const ownerKey = (req.user && req.user.id) ||
     (typeof (req.body && req.body.owner_id) === 'string' && req.body.owner_id.trim().slice(0, 80)) ||
     `ip-${req.ip}`;
+  // Per-shelf impression counts — the denominator of the admin dashboard's
+  // shelf CTR (clicks arrive from the client with meta.section).
+  const shelves = {};
+  for (const idea of payload.ideas) {
+    if (idea.section) shelves[idea.section] = (shelves[idea.section] || 0) + 1;
+  }
   analytics.recordEvent({
     type: 'browse_feed',
     ownerKey,
-    meta: { city: payload.city, near: payload.near, mode, ideas: payload.ideas.length, cached }
+    meta: { city: payload.city, near: payload.near, mode, ideas: payload.ideas.length, cached, shelves }
   });
 }
 

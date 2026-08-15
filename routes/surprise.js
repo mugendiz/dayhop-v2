@@ -127,10 +127,15 @@ router.post('/', async (req, res) => {
     const ownerKey = (req.user && req.user.id) ||
       (typeof body.owner_id === 'string' && body.owner_id.trim().slice(0, 80)) ||
       `ip-${req.ip}`;
+    // Per-shelf impression counts for the admin shelf-CTR rollup.
+    const shelves = {};
+    for (const idea of ideas) {
+      if (idea.section) shelves[idea.section] = (shelves[idea.section] || 0) + 1;
+    }
     analytics.recordEvent({
       type: 'surprise_feed',
       ownerKey,
-      meta: { city: resolvedCity || city, mode, wider, ideas: ideas.length, excluded: excludeIds.size }
+      meta: { city: resolvedCity || city, mode, wider, ideas: ideas.length, excluded: excludeIds.size, shelves }
     });
 
     res.json({

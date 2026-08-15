@@ -16,7 +16,7 @@ const metaPixel = require('../services/metaPixel');
 const CLIENT_TYPES = analytics.CLIENT_EVENT_TYPES;
 
 router.post('/', (req, res) => {
-  const { type, idea_id, source, owner_id, price, currency, attrib } = req.body || {};
+  const { type, idea_id, source, owner_id, price, currency, attrib, section } = req.body || {};
   if (!CLIENT_TYPES.has(type)) {
     return res.status(400).json({ error: 'BAD_EVENT', message: 'Unknown event type.' });
   }
@@ -36,6 +36,14 @@ router.post('/', (req, res) => {
   if (type === 'signup' || type === 'upgrade_viewed') {
     const utm = analytics.sanitizeAttrib(attrib);
     if (utm) meta = Object.assign(meta || {}, { utm });
+  }
+  // Shelf attribution for CTR: which feed section the engaged card sat in.
+  // Deliberately NOT the `source` field — that means partner/provider and
+  // feeds the affiliate rollup. Length-capped string, engagement types only.
+  if ((type === 'booking_click' || type === 'maps_click' ||
+       type === 'shortlist_add' || type === 'card_open') &&
+      typeof section === 'string' && section.trim()) {
+    meta = Object.assign(meta || {}, { section: section.trim().slice(0, 60) });
   }
   analytics.recordEvent({
     type,

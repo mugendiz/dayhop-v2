@@ -36,7 +36,11 @@ const CLIENT_EVENT_TYPES = new Set([
   // Email-capture surfaces (feed card / milestone moment): shown →
   // dismissed | subscribed, with meta.source naming the surface — the
   // admin funnel compares surfaces without a separate table.
-  'newsletter_prompt_shown', 'newsletter_prompt_dismissed', 'newsletter_prompt_subscribed'
+  'newsletter_prompt_shown', 'newsletter_prompt_dismissed', 'newsletter_prompt_subscribed',
+  // Card engagement: the Details panel opened from a feed card. With
+  // meta.section it's the click half of per-shelf CTR (impressions come
+  // from browse_feed/surprise_feed meta.shelves).
+  'card_open'
 ]);
 
 // Server-truth events, recorded by their own routes.
@@ -59,6 +63,10 @@ const SERVER_EVENT_TYPES = new Set([
   'newsletter_subscribe', 'newsletter_confirmed', 'newsletter_unsubscribed', 'digest_sent',
   // Lead magnet: teaser vs full views of /playbook (source field says which).
   'playbook_view',
+  // Digest tracking (routes/digestTrack.js): open pixel + signed click
+  // redirects. owner_key is `sub-<sid>` (opaque HMAC of the email) — those
+  // keys are excluded from user counts and cohorts below.
+  'digest_opened', 'digest_clicked',
   // Sponsorship funnel (routes/advertise.js): a venue asked about placements.
   // The event IS the CRM until real sponsor management exists.
   'sponsor_inquiry'
@@ -196,6 +204,22 @@ const COMMISSION_RATE = (() => {
   return Number.isFinite(r) && r > 0 && r < 1 ? r : 0.08;
 })();
 
+// Shelf labels are not a stable enumeration: emoji suffixes, date-aware
+// variants ('On today 📅' vs 'On that day 📅'), holiday names. Normalize to
+// a stable key before aggregating so CTR doesn't fragment across variants.
+function normalizeShelf(label) {
+  const s = String(label || '')
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/gu, '')
+    .replace(/\s+/g, ' ').trim();
+  if (!s) return null;
+  if (/^(on today|on now|on that day|those days)$/i.test(s)) return 'On today';
+  return s.slice(0, 40);
+}
+
+// The click half of shelf CTR: any of these carrying meta.section counts as
+// engagement with a card on that shelf.
+const SHELF_CLICK_TYPES = new Set(['booking_click', 'maps_click', 'shortlist_add', 'card_open']);
+
 function aggregate(events) {
   const totals = {};
   const daily = new Map(); // day -> { day, counts per type, owners:Set }
@@ -214,6 +238,20 @@ function aggregate(events) {
   // only — 'anon' is nobody and ip-* keys churn with DHCP/NAT, so both would
   // poison week-over-week return rates.
   const ownerTs = new Map(); // owner -> number[] (event timestamps, ms)
+  // Per-shelf CTR: impressions from feed events' meta.shelves, clicks from
+  // engagement events' meta.section (routes/track.js sanitizes it in).
+  const shelves = new Map(); // shelf key -> { shelf, impressions, clicks }
+  const shelfRow = key => {
+    if (!shelves.has(key)) shelves.set(key, { shelf: key, impressions: 0, clicks: 0 });
+    return shelves.get(key);
+  };
+  // Digest per-issue rollup: sent (denominator) from digest_sent, unique
+  // subscriber opens/clicks from the tracking endpoints.
+  const digestIssues = new Map(); // issue -> { issue, sent, opens:Set, clicks:Set }
+  const digestRow = issue => {
+    if (!digestIssues.has(issue)) digestIssues.set(issue, { issue, sent: 0, opens: new Set(), clicks: new Set() });
+    return digestIssues.get(issue);
+  };
   const since30d = Date.now() - 30 * 24 * 3600 * 1000;
   let affiliateClicks30d = 0;
   for (const e of events) {
@@ -222,6 +260,28 @@ function aggregate(events) {
     if (e.type === 'prompt_generated' || e.type === 'browse_feed') {
       if (meta.city) cities.set(meta.city, (cities.get(meta.city) || 0) + 1);
       if (meta.mode) modeSplit.set(meta.mode, (modeSplit.get(meta.mode) || 0) + 1);
+    }
+    if ((e.type === 'browse_feed' || e.type === 'surprise_feed') &&
+        meta.shelves && typeof meta.shelves === 'object') {
+      for (const [label, n] of Object.entries(meta.shelves)) {
+        const key = normalizeShelf(label);
+        const count = Number(n);
+        if (key && Number.isFinite(count) && count > 0 && count <= 500) {
+          shelfRow(key).impressions += count;
+        }
+      }
+    }
+    if (SHELF_CLICK_TYPES.has(e.type) && meta.section) {
+      const key = normalizeShelf(meta.section);
+      if (key) shelfRow(key).clicks++;
+    }
+    if (e.type === 'digest_sent') {
+      const issue = typeof meta.issue === 'string' ? meta.issue : torontoDay(e.created_at);
+      digestRow(issue).sent += Number(meta.sent) || 0;
+    }
+    if ((e.type === 'digest_opened' || e.type === 'digest_clicked') && typeof meta.issue === 'string') {
+      const row = digestRow(meta.issue);
+      (e.type === 'digest_opened' ? row.opens : row.clicks).add(e.owner_key);
     }
     if (meta.utm && meta.utm.utm_source &&
         (e.type === 'signup' || e.type === 'newsletter_subscribe' || e.type === 'upgrade_started')) {
@@ -261,7 +321,10 @@ function aggregate(events) {
     if (e.type === 'shortlist_add') d.shortlist_adds++;
     if (e.type === 'booking_click' || e.type === 'maps_click') d.booking_clicks++;
     if (e.type === 'plan_built') d.plans_built++;
-    if (e.owner_key && e.owner_key !== 'anon') {
+    // sub-* keys are email subscribers hitting digest tracking, not product
+    // users — keep them out of active/new-user counts entirely.
+    if (e.owner_key && e.owner_key !== 'anon' && e.owner_key !== 'system' &&
+        !e.owner_key.startsWith('sub-')) {
       d.owners.add(e.owner_key);
       if (!firstSeen.has(e.owner_key)) firstSeen.set(e.owner_key, day);
       if (!e.owner_key.startsWith('ip-')) {
@@ -317,7 +380,13 @@ function aggregate(events) {
   const retention = {
     cohorts: retentionCohorts,
     week4_avg: w4Users ? Math.round((w4Retained / w4Users) * 100) : null,
-    measured_users: w4Users
+    measured_users: w4Users,
+    // The event fetch caps at 20k rows. Once that cap is hit, first-seen
+    // dates re-derive from a truncated window and rates inflate — flag it
+    // loudly. metrics() replaces this whole block with the SQL cohort RPC
+    // (full history) whenever the DB function is available.
+    source: 'event-window',
+    window_truncated: events.length >= 20000
   };
 
   const days = [...daily.values()]
@@ -356,8 +425,40 @@ function aggregate(events) {
     }))
   })).sort((a, b) => b.clicks - a.clicks);
 
+  // Shelf CTR: impressions-ranked; ctr_pct null until a shelf has been seen.
+  const shelfCtr = [...shelves.values()]
+    .sort((a, b) => b.impressions - a.impressions)
+    .slice(0, 20)
+    .map(s => ({
+      shelf: s.shelf,
+      impressions: s.impressions,
+      clicks: s.clicks,
+      ctr_pct: s.impressions ? Math.round((s.clicks / s.impressions) * 1000) / 10 : null
+    }));
+
+  // Digest: newest issues first; rates only when a denominator exists.
+  const digestRows = [...digestIssues.values()]
+    .sort((a, b) => b.issue.localeCompare(a.issue))
+    .slice(0, 8)
+    .map(r => ({
+      issue: r.issue,
+      sent: r.sent,
+      unique_opens: r.opens.size,
+      unique_clicks: r.clicks.size,
+      open_rate_pct: r.sent ? Math.round((r.opens.size / r.sent) * 1000) / 10 : null,
+      ctr_pct: r.sent ? Math.round((r.clicks.size / r.sent) * 1000) / 10 : null,
+      click_to_open_pct: r.opens.size ? Math.round((r.clicks.size / r.opens.size) * 1000) / 10 : null
+    }));
+
   return {
     retention,
+    shelf_ctr: shelfCtr,
+    digest: {
+      // Opens reported but MPP-inflated (docs/email-marketing.md) — clicks
+      // are the number that gates decisions.
+      issues: digestRows,
+      note: 'open rates inflated by Apple MPP; steer by ctr_pct'
+    },
     acquisition: {
       sources: [...acquisition.values()]
         .sort((a, b) => (b.checkouts - a.checkouts) || (b.signups - a.signups) || (b.subscribers - a.subscribers))
@@ -448,12 +549,67 @@ async function fetchEventsUncached() {
   };
 }
 
+// ---------- retention from SQL (full history) ----------
+// The in-aggregate cohort math only sees the 20k-row event window; the
+// public.retention_cohorts() function (db/schema.sql) computes first-seen
+// and week-N activity over ALL history in Postgres. Preferred whenever the
+// RPC exists; fail-soft to the event-window numbers (flagged) otherwise.
+let retentionCache = null; // { at, result }
+const RETENTION_CACHE_TTL_MS = 60 * 1000;
+
+async function retentionFromDb() {
+  if (!hasServiceKey()) return null;
+  if (retentionCache && Date.now() - retentionCache.at < RETENTION_CACHE_TTL_MS) {
+    return retentionCache.result;
+  }
+  let result = null;
+  try {
+    const { data, error } = await dbClient.getClient().rpc('retention_cohorts');
+    if (error) throw error;
+    if (Array.isArray(data) && data.length) {
+      const WEEK_MS = 7 * 24 * 3600 * 1000;
+      const nowMs = Date.now();
+      const cohorts = data.slice(-12).map(r => {
+        const monday = String(r.week).slice(0, 10);
+        const cohortEndMs = Date.parse(`${monday}T00:00:00Z`) + WEEK_MS;
+        const row = { week: monday, users: Number(r.users) || 0 };
+        for (let w = 1; w <= 4; w++) {
+          // Same maturity rule as the in-memory calc: a cell only fills once
+          // the whole window has elapsed for everyone in the cohort.
+          row[`w${w}`] = row.users && nowMs >= cohortEndMs + w * WEEK_MS
+            ? Math.round(((Number(r[`w${w}`]) || 0) / row.users) * 100)
+            : null;
+        }
+        return row;
+      });
+      let w4Users = 0, w4Retained = 0;
+      for (const r of cohorts) {
+        if (r.w4 != null) { w4Users += r.users; w4Retained += r.users * r.w4 / 100; }
+      }
+      result = {
+        cohorts,
+        week4_avg: w4Users ? Math.round((w4Retained / w4Users) * 100) : null,
+        measured_users: w4Users,
+        source: 'sql',
+        window_truncated: false
+      };
+    }
+  } catch (err) {
+    console.warn('[analytics] retention RPC unavailable, using event-window numbers:', err.message);
+  }
+  retentionCache = { at: Date.now(), result };
+  return result;
+}
+
 /**
  * Metrics for the admin route. { source: 'supabase'|'memory', ...aggregates }.
  */
 async function metrics() {
   const { source, events } = await fetchEvents();
-  return { source, ...aggregate(events) };
+  const result = { source, ...aggregate(events) };
+  const sqlRetention = await retentionFromDb();
+  if (sqlRetention) result.retention = sqlRetention;
+  return result;
 }
 
 /**
@@ -550,4 +706,4 @@ async function engagementByIdea(ideaIds, { days = 30 } = {}) {
   return counts;
 }
 
-module.exports = { recordEvent, countToday, metrics, userActivity, engagementByIdea, sanitizeAttrib, EVENT_TYPES, CLIENT_EVENT_TYPES };
+module.exports = { recordEvent, countToday, metrics, userActivity, engagementByIdea, sanitizeAttrib, normalizeShelf, EVENT_TYPES, CLIENT_EVENT_TYPES };
