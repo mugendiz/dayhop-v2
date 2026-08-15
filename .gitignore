@@ -10,3 +10,7 @@ npm-debug.log*
 .env.*
 !.env.example
 public/dist/
+
+# Social content batches & raw media stay local (never in the repo)
+social/
+hiking-trail-dayhop-*.jpg
