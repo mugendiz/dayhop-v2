@@ -8,10 +8,15 @@
 // admin Discovery inbox for the human pass. Trust contract > coverage —
 // "verified" is earned by the chain or by a human, never assumed.
 //
-// Feeds verified live 2026-07-25, Canada-wide (BlogTO and DailyHive have
-// no public RSS — don't re-add them). Global News regional feeds carry
-// general news; the headline gate + Grok filtering strip the non-attraction
-// noise.
+// Feeds verified live 2026-07-25 (BlogTO and DailyHive have no public RSS —
+// don't re-add them). Global News regional feeds carry general news; the
+// headline gate + Grok filtering strip the non-attraction noise.
+//
+// 2026-08-15: feed list narrowed from Canada-wide to the southern-Ontario
+// day-trip belt. Publishing is now geography-gated (services/regionGate.js),
+// so Quebec/West/East feeds could no longer produce publishable entries —
+// they only crowded Ontario items out of the 100-headline Grok batch.
+// Restore any feed via NEW_OPENINGS_FEEDS if the serving region ever grows.
 
 const axios = require('axios');
 const { callGrok } = require('./grok');
@@ -19,36 +24,18 @@ const { scoreBuzz } = require('./buzz');
 const autoCatalog = require('./autoCatalog');
 
 const DEFAULT_FEEDS =
-  // Ontario
   'Curiocity|https://curiocity.com/feed/;' +
   'Narcity Toronto|https://www.narcity.com/feeds/toronto.rss;' +
-  'Narcity Ottawa|https://www.narcity.com/feeds/ottawa.rss;' +
   'NOW Toronto|https://nowtoronto.com/feed/;' +
   'Streets of Toronto|https://streetsoftoronto.com/feed/;' +
   'ToDoCanada|https://www.todocanada.ca/feed/;' +
   'Global Toronto|https://globalnews.ca/toronto/feed/;' +
-  'Global Ottawa|https://globalnews.ca/ottawa/feed/;' +
   'Global Hamilton|https://globalnews.ca/hamilton/feed/;' +
   'Global London|https://globalnews.ca/london/feed/;' +
   'Global Kingston|https://globalnews.ca/kingston/feed/;' +
   'Global Barrie|https://globalnews.ca/barrie/feed/;' +
   'Global Guelph|https://globalnews.ca/guelph/feed/;' +
-  'Global Peterborough|https://globalnews.ca/peterborough/feed/;' +
-  // Quebec
-  'Narcity Montreal|https://www.narcity.com/feeds/montreal.rss;' +
-  'MTL Blog|https://www.mtlblog.com/feeds/news.rss;' +
-  'Global Montreal|https://globalnews.ca/montreal/feed/;' +
-  // West
-  'Narcity Vancouver|https://www.narcity.com/feeds/vancouver.rss;' +
-  'Global BC|https://globalnews.ca/bc/feed/;' +
-  'Narcity Calgary|https://www.narcity.com/feeds/calgary.rss;' +
-  'Global Calgary|https://globalnews.ca/calgary/feed/;' +
-  'Narcity Edmonton|https://www.narcity.com/feeds/edmonton.rss;' +
-  'Global Edmonton|https://globalnews.ca/edmonton/feed/;' +
-  'Global Winnipeg|https://globalnews.ca/winnipeg/feed/;' +
-  'Global Saskatoon|https://globalnews.ca/saskatoon/feed/;' +
-  // East
-  'Global Halifax|https://globalnews.ca/halifax/feed/';
+  'Global Peterborough|https://globalnews.ca/peterborough/feed/';
 
 const TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_ITEM_AGE_DAYS = 45;
@@ -154,7 +141,7 @@ async function extractCandidates(items) {
   const messages = [
     {
       role: 'system',
-      content: 'You are DayHop\'s new-openings scout for Canada (Toronto/GTA, Ottawa, Montreal, Vancouver, Calgary, Edmonton, Winnipeg, Saskatoon, Halifax, Niagara, Muskoka, and everywhere between). From local-news items you identify REAL, physical, visitable attractions/venues/experiences that are newly opened or opening — things a person could put on a day plan. Always include the town/city in "area" (e.g. "Plateau, Montreal" or "Kitsilano, Vancouver"). Exclude: closures, roundup listicles with no single new place, real-estate/transit/political news, one-night-only events, and anything outside Canada. Be conservative: when unsure, leave it out. Respond with JSON only.'
+      content: 'You are DayHop\'s new-openings scout for southern Ontario — the Toronto/GTA and its day-trip belt (Hamilton, Niagara, Guelph, Kitchener-Waterloo, London, Barrie, Collingwood, Peterborough, Kingston, Prince Edward County, Muskoka). From local-news items you identify REAL, physical, visitable attractions/venues/experiences that are newly opened or opening — things a person could put on a day plan. Always include the town/city in "area" (e.g. "Leslieville, Toronto" or "Vineland, Niagara"). Exclude: closures, roundup listicles with no single new place, real-estate/transit/political news, one-night-only events, and anything outside this southern-Ontario region. Be conservative: when unsure, leave it out. Respond with JSON only.'
     },
     {
       role: 'user',

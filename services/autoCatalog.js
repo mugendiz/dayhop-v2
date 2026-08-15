@@ -20,6 +20,7 @@
 
 const maps = require('./googleMaps');
 const { callGrok } = require('./grok');
+const { regionVerdict } = require('./regionGate');
 const dbClient = require('./db/client');
 const curatedCatalog = require('../data/curatedCatalog');
 
@@ -206,6 +207,20 @@ async function verifyAndAdd(item) {
       }
     }
   }
+  // Geography gate (services/regionGate.js): DayHop serves day trips from
+  // the GTA — a verified-open, verified-legit find in Golden B.C. still
+  // doesn't belong in the catalog. Runs before the Grok verdict so
+  // out-of-region finds never cost a verification call.
+  const region = regionVerdict({
+    lat: google.place && google.place.lat,
+    lng: google.place && google.place.lng,
+    text: [item.area, item.draft && item.draft.location, google.place && google.place.address]
+      .filter(Boolean).join(' | ')
+  });
+  if (!region.pass) {
+    return { added: false, status: 'rejected', checks: { google: 'ok', region: region.reason } };
+  }
+
   const grok = await grokVerdict(item, google.place);
   if (!grok.pass) {
     return { added: false, status: 'rejected', checks: { google: 'ok', grok: grok.reason } };
