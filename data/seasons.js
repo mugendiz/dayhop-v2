@@ -36,6 +36,13 @@ const WINDOWS = [
     re: /\b(blossom|sakura|cherry tree|magnolia|tulip|lilac)\b/i },
   { label: 'strawberry season', from: '06-05', to: '07-10', weight: 3,
     re: /\b(strawberr|u.?pick|berry (farm|pick))\b/i },
+  { label: 'beach & splash', from: '06-10', to: '09-07', weight: 3, re: WARM_ONLY_RE },
+  { label: 'summer festivals', from: '06-20', to: '09-07', weight: 2,
+    re: /\b(festival|fireworks|outdoor concert|open.?air (cinema|movie)|movie under the stars|night market|ribfest|carnival|midway|cne|canadian national exhibition|buskers?)\b/i },
+  // Deliberately "falls boat"/"boat tour", never bare falls/cruise — those
+  // already score via TRAIL_OUTDOOR_RE and would double-boost every harbour cruise.
+  { label: 'big water & caves', from: '06-15', to: '09-15', weight: 2,
+    re: /\b(boat (tour|cruise)|falls boat|cave|cavern|grotto|gorge|provincial park|scenic drive|beach town)\b/i },
   { label: 'fall colours', from: '09-20', to: '11-02', weight: 3,
     re: /\b(fall colours?|fall colors?|autumn|foliage|leaf|leaves|scenic (drive|lookout)|lookout|escarpment)\b/i },
   { label: 'apple & pumpkin', from: '09-01', to: '10-31', weight: 3,

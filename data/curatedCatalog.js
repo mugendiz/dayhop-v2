@@ -1245,5 +1245,174 @@ module.exports = [
     cost_tier: '$$', good_for_ages: '10+',
     maps_url: mapsSearch("Sgt Splatter's paintball Toronto"),
     wow: false, seasonal: null
+  },
+
+  // ---------- Day-trip icons (ontario-summer content sprint, 2026-08-15) ----------
+  // Classic Ontario summer destinations within day-trip range of the GTA.
+  // WildPlay 2026 operation and Ontario Place closures verified 2026-08-15;
+  // Ontario Place skipped — West Island/marina closed for construction,
+  // Trillium Park already covered above.
+  {
+    id: 'cur-niagara-falls-boat',
+    title: "Voyage to the Falls — the boat into the Horseshoe mist",
+    category: 'cruises',
+    tags: ['niagara', 'falls', 'boat tour', 'falls boat', 'mist', 'horseshoe falls', 'summer', 'family', 'wow'],
+    location: "Niagara Falls",
+    venue: "Niagara City Cruises",
+    description: "The pink-poncho boat that noses right into the Horseshoe Falls basin — 20 minutes of roar and spray. Book the first sailing or after 6pm to skip the longest lines.",
+    cost_tier: '$$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Niagara City Cruises Niagara Falls'),
+    booking_url: 'https://www.cityexperiences.com/niagara-ca/city-cruises/niagara/',
+    wow: true, seasonal: 'summer'
+  },
+  {
+    id: 'cur-journey-behind-falls',
+    title: "Journey Behind the Falls — tunnels under the Horseshoe",
+    category: 'general',
+    tags: ['niagara', 'falls', 'tunnels', 'observation deck', 'waterfall', 'rainy', 'family'],
+    location: "Niagara Falls",
+    venue: "Niagara Parks — Journey Behind the Falls",
+    description: "130-year-old tunnels through the bedrock to portals directly behind the falling water, plus a lower deck in the spray. Works rain or shine, any month of the year.",
+    cost_tier: '$$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Journey Behind the Falls Niagara Parks'),
+    booking_url: 'https://www.niagaraparks.com/visit/attractions/journey-behind-the-falls/',
+    wow: true, seasonal: null
+  },
+  {
+    id: 'cur-wildplay-mistrider-zipline',
+    title: "MistRider Zipline — 670 m along the gorge to the falls",
+    category: 'adventures',
+    tags: ['zipline', 'niagara', 'falls', 'gorge', 'adrenaline', 'summer'],
+    location: "Niagara Falls",
+    venue: "WildPlay Niagara",
+    description: "Four side-by-side lines send you 670 m down the Niagara gorge rim to the falls observation landing at 70+ km/h. Riders from age 7; night illumination flights in summer.",
+    cost_tier: '$$', good_for_ages: '7+',
+    maps_url: mapsSearch('WildPlay MistRider Zipline Niagara Falls'),
+    booking_url: 'https://www.wildplay.com/niagara-falls/',
+    wow: true, seasonal: 'summer'
+  },
+  {
+    id: 'cur-niagara-parkway-drive',
+    title: "Niagara Parkway — the river road from NOTL to the falls",
+    category: 'general',
+    tags: ['scenic drive', 'niagara', 'parkway', 'river', 'floral clock', 'botanical gardens', 'picnic', 'free'],
+    location: "Niagara-on-the-Lake to Niagara Falls",
+    venue: "Niagara Parkway",
+    description: "Follow the river road past the floral clock, botanical gardens, whirlpool lookouts, and fruit stands. Free parking pull-offs the whole way — pack a picnic and wander.",
+    cost_tier: 'free', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Niagara Parkway scenic drive'),
+    wow: true, seasonal: null
+  },
+  {
+    id: 'cur-wasaga-beach',
+    title: "Wasaga Beach — the world's longest freshwater beach",
+    category: 'water',
+    tags: ['beach', 'swim', 'sand', 'georgian bay', 'wasaga', 'sunset', 'summer', 'family'],
+    location: "Wasaga Beach, Georgian Bay",
+    venue: "Wasaga Beach Provincial Park (Beach Area 1)",
+    description: "Shallow, warm Georgian Bay water off a sandbar that runs 14 km — the world's longest freshwater beach. Buy the daily vehicle permit online before you drive up.",
+    cost_tier: '$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Wasaga Beach Provincial Park Beach Area 1'),
+    booking_url: 'https://reservations.ontarioparks.ca/',
+    wow: true, seasonal: 'summer'
+  },
+  {
+    id: 'cur-scenic-caves-summer',
+    title: "Scenic Caves — caverns and a 25 m suspension bridge up top",
+    category: 'adventures',
+    tags: ['caves', 'cavern', 'suspension bridge', 'lookout', 'georgian bay', 'hike', 'treetop walk', 'summer', 'family'],
+    location: "Blue Mountains, Collingwood",
+    venue: "Scenic Caves Nature Adventures",
+    description: "Squeeze through escarpment caves 300 m above Georgian Bay, then cross southern Ontario's longest suspension footbridge for the view. Caves stay cool on the hottest days.",
+    cost_tier: '$$', good_for_ages: '5+',
+    maps_url: mapsSearch('Scenic Caves Nature Adventures Collingwood'),
+    wow: true, seasonal: 'summer'
+  },
+  {
+    id: 'cur-blue-mountain-summer',
+    title: "Blue Mountain in summer — coaster, gondola, open-air village",
+    category: 'adventures',
+    tags: ['mountain coaster', 'ridge runner', 'blue mountain', 'village', 'gondola', 'collingwood', 'summer', 'family'],
+    location: "The Blue Mountains, Collingwood",
+    venue: "Blue Mountain Resort",
+    description: "Ride the Ridge Runner coaster down the escarpment, take the open gondola back up, and land in the pedestrian village for patios and live music. Book coaster times online.",
+    cost_tier: '$$', good_for_ages: '3+',
+    maps_url: mapsSearch('Blue Mountain Village Collingwood'),
+    booking_url: 'https://www.bluemountain.ca/',
+    wow: false, seasonal: 'summer'
+  },
+  {
+    id: 'cur-sandbanks-beach',
+    title: "Sandbanks — dunes and warm shallows in the County",
+    category: 'water',
+    tags: ['beach', 'dunes', 'sandbanks', 'prince edward county', 'swim', 'provincial park', 'summer'],
+    location: "Prince Edward County",
+    venue: "Sandbanks Provincial Park",
+    description: "The world's largest baymouth sand dune system: climb the dunes, then float in warm, waist-deep Lake Ontario shallows. Reserve day-use on ontarioparks.ca — it sells out.",
+    cost_tier: '$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Sandbanks Provincial Park'),
+    booking_url: 'https://reservations.ontarioparks.ca/',
+    wow: true, seasonal: 'summer'
+  },
+  {
+    id: 'cur-cobourg-beach',
+    title: "Cobourg Beach — the boardwalk beach an hour east",
+    category: 'water',
+    tags: ['beach', 'cobourg', 'sand', 'boardwalk', 'pier', 'family', 'summer', 'free'],
+    location: "Cobourg",
+    venue: "Cobourg Beach",
+    description: "A clean sandy crescent with a Victorian boardwalk, splash pad, and walkable pier — the easiest real-beach-town day from the eastern GTA. Arrive before 11 on weekends.",
+    cost_tier: 'free', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Cobourg Beach Victoria Park'),
+    wow: false, seasonal: 'summer'
+  },
+  {
+    id: 'cur-warsaw-caves',
+    title: "Warsaw Caves — crawl seven limestone caves, swim after",
+    category: 'adventures',
+    tags: ['caves', 'kettles', 'hike', 'conservation', 'swim', 'peterborough', 'kawarthas', 'summer'],
+    location: "Warsaw, near Peterborough",
+    venue: "Warsaw Caves Conservation Area",
+    description: "Seven wild limestone caves you explore with your own flashlight, plus glacial kettles and a river beach to rinse off. Closed in winter for hibernating bats — summer only.",
+    cost_tier: '$', good_for_ages: '8+',
+    maps_url: mapsSearch('Warsaw Caves Conservation Area'),
+    wow: true, seasonal: 'summer'
+  },
+  {
+    id: 'cur-algonquin-canoe-day',
+    title: "Canoe Lake day trip — paddle Algonquin and be home by dark",
+    category: 'water',
+    tags: ['canoe', 'algonquin', 'provincial park', 'lake', 'portage', 'moose', 'paddle', 'summer'],
+    location: "Algonquin Provincial Park, Hwy 60",
+    venue: "Canoe Lake access point, Algonquin Park",
+    description: "Rent a canoe right on Canoe Lake and paddle Tom Thomson's lake past loons and quiet moose bays. The far edge of a day trip: leave the GTA by 7 and you're home by dark.",
+    cost_tier: '$$', good_for_ages: '8+',
+    maps_url: mapsSearch('Canoe Lake access point Algonquin Park'),
+    wow: true, seasonal: 'summer'
+  },
+  {
+    id: 'cur-arrowhead-summer',
+    title: "Arrowhead in summer — Stubbs Falls, lake beaches, easy canoes",
+    category: 'general',
+    tags: ['provincial park', 'muskoka', 'waterfall', 'stubbs falls', 'canoe', 'beach', 'hike', 'huntsville', 'summer'],
+    location: "Huntsville, Muskoka",
+    venue: "Arrowhead Provincial Park",
+    description: "The ice-trail park is a quiet Muskoka classic in July: hike to Stubbs Falls, swim off sandy lake beaches, rent a canoe on Mayflower Lake. Calmer than Algonquin's corridor.",
+    cost_tier: '$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Arrowhead Provincial Park Huntsville'),
+    booking_url: 'https://reservations.ontarioparks.ca/',
+    wow: false, seasonal: 'summer'
+  },
+  {
+    id: 'cur-forks-credit-drive',
+    title: "Forks of the Credit Road — the GTA's own hairpin drive",
+    category: 'general',
+    tags: ['scenic drive', 'caledon', 'forks of the credit', 'hairpin', 'waterfall', 'belfountain', 'ice cream', 'free'],
+    location: "Caledon",
+    venue: "Forks of the Credit Road",
+    description: "A one-lane hairpin switchback down the Credit valley, Belfountain's general store at one end and Cataract Falls at the other. 40 minutes out; add the park loop trail.",
+    cost_tier: 'free', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Forks of the Credit Road Caledon'),
+    wow: true, seasonal: null
   }
 ];

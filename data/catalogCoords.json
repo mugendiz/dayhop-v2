@@ -493,5 +493,70 @@
     "lat": 43.7036535,
     "lng": -79.45591979999999,
     "resolved": "Sgt. Splatter's Project Paintball, North York, Toronto, Ontario, Canada"
+  },
+  "cur-niagara-falls-boat": {
+    "lat": 43.0887891,
+    "lng": -79.0737943,
+    "resolved": "Niagara City Cruises, Niagara Falls, Ontario, Canada"
+  },
+  "cur-journey-behind-falls": {
+    "lat": 43.0791958,
+    "lng": -79.07849619999999,
+    "resolved": "Niagara Parks — Journey Behind the Falls, Niagara Falls, Ontario, Canada"
+  },
+  "cur-wildplay-mistrider-zipline": {
+    "lat": 43.0888361,
+    "lng": -79.07358099999999,
+    "resolved": "WildPlay Niagara, Niagara Falls, Ontario, Canada"
+  },
+  "cur-niagara-parkway-drive": {
+    "lat": 43.0637851,
+    "lng": -79.0512882,
+    "resolved": "Niagara Parkway, Niagara-on-the-Lake to Niagara Falls, Ontario, Canada"
+  },
+  "cur-wasaga-beach": {
+    "lat": 44.5242738,
+    "lng": -80.0173976,
+    "resolved": "Wasaga Beach Provincial Park (Beach Area 1), Wasaga Beach, Georgian Bay, Ontario, Canada"
+  },
+  "cur-scenic-caves-summer": {
+    "lat": 44.487146,
+    "lng": -80.314937,
+    "resolved": "Scenic Caves Nature Adventures, Blue Mountains, Collingwood, Ontario, Canada"
+  },
+  "cur-blue-mountain-summer": {
+    "lat": 44.5010785,
+    "lng": -80.3160997,
+    "resolved": "Blue Mountain Resort, The Blue Mountains, Collingwood, Ontario, Canada"
+  },
+  "cur-sandbanks-beach": {
+    "lat": 43.90702659999999,
+    "lng": -77.2392234,
+    "resolved": "Sandbanks Provincial Park, Prince Edward County, Ontario, Canada"
+  },
+  "cur-cobourg-beach": {
+    "lat": 43.9571768,
+    "lng": -78.16177480000002,
+    "resolved": "Cobourg Beach, Cobourg, Ontario, Canada"
+  },
+  "cur-warsaw-caves": {
+    "lat": 44.4576292,
+    "lng": -78.12832829999999,
+    "resolved": "Warsaw Caves Conservation Area, Warsaw, near Peterborough, Ontario, Canada"
+  },
+  "cur-algonquin-canoe-day": {
+    "lat": 45.5351321,
+    "lng": -78.7062559,
+    "resolved": "Canoe Lake access point, Algonquin Park, Algonquin Provincial Park, Hwy 60, Ontario, Canada"
+  },
+  "cur-arrowhead-summer": {
+    "lat": 45.3915527,
+    "lng": -79.2146783,
+    "resolved": "Arrowhead Provincial Park, Huntsville, Muskoka, Ontario, Canada"
+  },
+  "cur-forks-credit-drive": {
+    "lat": 43.8109038,
+    "lng": -79.9815602,
+    "resolved": "Forks of the Credit Road, Caledon, Ontario, Canada"
   }
 }

@@ -354,6 +354,17 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     else take('Trail time 🥾', pool.filter(isTrailTime), n);
   };
 
+  // Summer-only shelf for the day-trip icons (Niagara, Wasaga, Sandbanks…):
+  // far entries rank low under the distance penalty, so genuine
+  // worth-the-drive picks get a named home BELOW every local shelf instead
+  // of vanishing. Label matches the surprise page's wider-radius band.
+  const isWorthDrive = c => c.distance_km != null && c.distance_km > 40 &&
+    (c.wow === true || (c.rating != null && c.rating >= 4.5 && (c.rating_count || 0) >= 50));
+  const takeWorthDrive = n => {
+    if (shelter) return;
+    if (seasonCtx.season === 'summer') take('Worth the drive 🚗', pool.filter(isWorthDrive), n);
+  };
+
   if (near) {
     // The pool is already ranked against the daypart+mode prompt, so "right
     // now" is simply its top — filtered to indoor picks when it's raining
@@ -368,6 +379,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     takeSeasonOutside(4);
     take('New & notable dining 🍽️', pool.filter(isNotableDining), 3);
     takeSpotlight();
+    takeWorthDrive(3);
     take(datedLabel, pool.filter(hasDate), 4);
     take('Hidden gems ✨', pool.filter(isGem), 4);
   } else if (mode === 'adventure') {
@@ -376,6 +388,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     takeJustOpened();
     if (!shelter) take('Get outside 🌊', pool.filter(isOutdoor), 5);
     takeSeasonOutside(4);
+    takeWorthDrive(3);
     takeSpotlight();
     take(datedLabel, pool.filter(hasDate), 4);
     take('Hidden gems ✨', pool.filter(isGem), 3);
@@ -387,6 +400,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     takeJustOpened();
     takeSeasonOutside(5);
     if (!shelter) take('Outdoors & nature 🌳', pool.filter(isOutdoor), 4);
+    takeWorthDrive(3);
     take('New & notable dining 🍽️', pool.filter(isNotableDining), 3);
     take('Food & drink 🍴', pool.filter(isFood), 4);
     takeSpotlight();

@@ -65,6 +65,40 @@ router.get('/discovery', requireAdmin, async (req, res) => {
   }
 });
 
+// Catalog audit: what the autopilot has actually published, straight from
+// public.auto_catalog — the one content store not visible in the repo.
+// Read-only; ?status=retired (default active) to see pulled entries.
+router.get('/catalog', requireAdmin, async (req, res) => {
+  try {
+    const dbClient = require('../services/db/client');
+    const curatedCatalog = require('../data/curatedCatalog');
+    if (dbClient.status().service_key !== true) {
+      return res.status(503).json({ error: 'NO_SERVICE_KEY', message: 'auto_catalog needs the Supabase service key.' });
+    }
+    const status = req.query.status === 'retired' ? 'retired' : 'active';
+    const { data, error } = await dbClient.getClient()
+      .from('auto_catalog')
+      .select('id, entry, status, created_at')
+      .eq('status', status)
+      .order('created_at', { ascending: false })
+      .limit(500);
+    if (error) throw error;
+    const rows = (data || []).map(r => ({
+      id: r.id,
+      title: r.entry && r.entry.title,
+      category: r.entry && r.entry.category,
+      location: r.entry && r.entry.location,
+      buzz_score: r.entry && r.entry.buzz_score,
+      status: r.status,
+      created_at: r.created_at
+    }));
+    res.json({ status, count: rows.length, rows, curated_count: curatedCatalog.length, generated_at: new Date().toISOString() });
+  } catch (err) {
+    console.error('[admin] catalog failed:', err.message);
+    res.status(500).json({ error: 'CATALOG_FAILED', message: 'Could not list the auto catalog.' });
+  }
+});
+
 router.get('/metrics', requireAdmin, async (req, res) => {
   try {
     const data = await analytics.metrics();

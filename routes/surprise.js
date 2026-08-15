@@ -226,8 +226,12 @@ function buildSurpriseSections(candidates, { mode, near, wider }) {
   }
 
   // 3) Curated by the discovery engine — catalog picks and hidden gems.
+  // Same distance band as shelf 2: the catalog now carries day-trip icons
+  // (Niagara, Wasaga…) well past 80 km, and "surprise" still never means
+  // "road trip". Unknown distance (no coords shared) stays eligible.
   const curated = pool.filter(c =>
-    c.source === 'curated_catalog' || c.source === 'curated' || c.wow === true);
+    (c.source === 'curated_catalog' || c.source === 'curated' || c.wow === true) &&
+    (c.distance_km == null || inBand(c) || c.distance_km <= DRIVE_MAX_KM));
   take('Curated by the discovery engine ✨', sample(curated, SECTION_CAP), SECTION_CAP);
 
   // Backstop: a thin area (or a deep Next page) never renders an anemic

@@ -65,10 +65,14 @@ function planningArea(city, region) {
 }
 
 function locationRule(city) {
+  // Shared with both branches: the classic Ontario day-trip icons may take a
+  // slot or two — the curated catalog now carries them — without ever
+  // outnumbering local picks.
+  const dayTripIcons = `\n- Classic Ontario day-trip icons within roughly a 2-hour drive — Niagara Falls and the Niagara Parkway, Elora, the Blue Mountains/Collingwood/Wasaga Beach, and (for a long summer day) Sandbanks or Algonquin's Hwy-60 corridor — are fair game for one or two slots when they clearly fit the request (a beach day, a waterfall, a "make it special" outing). Never let far-away picks outnumber local ones, and present them honestly as a drive.`;
   if (isGtaWide(city)) {
-    return `- The user wants ideas from across the Greater Toronto Area. Draw from a healthy mix of areas — Toronto itself (downtown, the waterfront, the Islands, Scarborough Bluffs, High Park) and the surrounding regions: York (Richmond Hill, Markham, Vaughan, Newmarket, Aurora), Peel (Mississauga, Brampton, Caledon), Halton (Oakville, Burlington, Milton), and Durham (Pickering, Ajax, Whitby, Oshawa). Spread suggestions across a few different parts of the GTA rather than clustering them all in one city, unless the user names a specific area.`;
+    return `- The user wants ideas from across the Greater Toronto Area. Draw from a healthy mix of areas — Toronto itself (downtown, the waterfront, the Islands, Scarborough Bluffs, High Park) and the surrounding regions: York (Richmond Hill, Markham, Vaughan, Newmarket, Aurora), Peel (Mississauga, Brampton, Caledon), Halton (Oakville, Burlington, Milton), and Durham (Pickering, Ajax, Whitby, Oshawa). Spread suggestions across a few different parts of the GTA rather than clustering them all in one city, unless the user names a specific area.${dayTripIcons}`;
   }
-  return `- Center suggestions on ${city} and what's a reasonable drive from it within the Greater Toronto Area. You may include a standout option a bit further out, but most ideas should be in or near ${city}. Defer to any other location the user names in their request.`;
+  return `- Center suggestions on ${city} and what's a reasonable drive from it within the Greater Toronto Area. You may include a standout option a bit further out, but most ideas should be in or near ${city}. Defer to any other location the user names in their request.${dayTripIcons}`;
 }
 
 // ---------- Modes: R&R vs Adventure ----------
