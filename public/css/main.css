@@ -1172,6 +1172,13 @@ button, .filter-chip {
   box-shadow: 0 2px 8px rgba(16,42,46,0.3);
 }
 
+/* Paid placement — always disclosed, never dressed as an organic pick. */
+.card-badge--sponsored {
+  color: var(--paper);
+  background: var(--moss);
+  box-shadow: 0 2px 8px rgba(16,42,46,0.3);
+}
+
 /* Top 1-2 direct answers to the prompt — the "start here" crown. */
 .card-badge--best {
   color: var(--paper);

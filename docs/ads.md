@@ -78,3 +78,26 @@ The pixel only loads once `META_PIXEL_ID` is set — at that point the privacy
 policy should mention Meta advertising cookies. Emails sent to the Conversions
 API are SHA-256 hashed client-of-Meta-side (in `services/metaPixel.js`);
 raw addresses never leave the server unencrypted-for-Meta.
+
+## Zeely launch brief (2026-08-15 — user chose Zeely over Meta Ads Manager)
+
+Destination (keeps the whole UTM→Stripe attribution chain working):
+`https://dayhop.quest/playbook?utm_source=zeely&utm_medium=cpc&utm_campaign=playbook-aug`
+
+- **Offer in the ad**: the free GTA Family Weekend Playbook (lead magnet) —
+  NOT the $5 subscription. Cold traffic converts on free value; the digest
+  list is also the sponsorship inventory, so every subscriber has B2B value
+  even before consumer revenue works.
+- **Copy A (problem)**: "It's Thursday night and you still don't know what
+  to do with the kids this weekend. This free GTA playbook fixes that —
+  6 sections, age & budget filters, rain-proof backups."
+- **Copy B (proof)**: "Real GTA spots, live weather, honest closure alerts.
+  The weekend planner Toronto families actually use. Grab the free playbook."
+- **Creative**: the storybook-flat illustration set (social/ palette:
+  cream/coral/marigold/moss). The trail photo asset works for A.
+- **Audience**: GTA parents 27–45, 40 km radius on Toronto, interests
+  family/parenting/weekend activities. Start CAD $5–10/day.
+- **Success math**: playbook page converts via double opt-in; a digest
+  subscriber is the unit that makes Spotlight ($299/mo) sellable. Watch
+  acquisition card (utm_source=zeely rows) + newsletter funnel on the admin
+  dashboard; kill or iterate weekly, one variable at a time.

@@ -1715,7 +1715,8 @@
         <img src="${escapeAttr(idea.image_url || categoryImage(idea.category))}" alt="" loading="lazy" decoding="async">
         <span class="card-stamp">STOP ${stopNumber}</span>
         ${bestMatch ? '<span class="card-badge card-badge--best">🎯 Best match for you</span>' : ''}
-        ${idea.wow_reason ? '<span class="card-badge card-badge--wow">✨ Unexpected find</span>' : ''}
+        ${idea.sponsored ? '<span class="card-badge card-badge--sponsored">⭐ Sponsored</span>' : ''}
+        ${!idea.sponsored && idea.wow_reason ? '<span class="card-badge card-badge--wow">✨ Unexpected find</span>' : ''}
         <span class="card-category">${categoryLabel}</span>
       </div>
       <div class="card-body">

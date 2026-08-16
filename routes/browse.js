@@ -19,6 +19,7 @@ const { getSeasonContext } = require('../data/seasons');
 const { haversineKm } = require('../services/relevance');
 const { getSkyTonight } = require('../services/skyConditions');
 const maps = require('../services/googleMaps');
+const sponsors = require('../services/sponsors');
 
 // Sky checks anchor to the user's point when shared, else metro Toronto —
 // close enough for a "clear tonight?" answer anywhere in the GTA.
@@ -82,7 +83,16 @@ router.post('/', async (req, res) => {
       pool = [...pool.filter(c => !seen.has(String(c.id))), ...pool.filter(c => seen.has(String(c.id)))];
     }
 
-    const ideas = buildSections(pool, { near: Boolean(coords), weather, part, mode, advisories, spotlight, dateWindow }).slice(0, FEED_CAP);
+    // Sponsored placement: at most ONE per feed, gated on relevance
+    // (distance/season) inside pickFor and always clearly labeled by its
+    // shelf. The advisory shelter check inside buildSections suppresses it
+    // entirely on stay-indoors days — the trust contract outranks revenue.
+    const sponsorPick = sponsors.pickFor({
+      coords,
+      month: Number(String((dateWindow && dateWindow.start) || torontoToday()).slice(5, 7)) || null
+    });
+
+    const ideas = buildSections(pool, { near: Boolean(coords), weather, part, mode, advisories, spotlight, dateWindow, sponsor: sponsorPick }).slice(0, FEED_CAP);
 
     // Corridor radar: the client remembers spots this user regularly browses
     // from ("my end of Yonge Street") and sends them along — high-rated
@@ -220,10 +230,15 @@ function recordBrowse(req, payload, cached, mode) {
   for (const idea of payload.ideas) {
     if (idea.section) shelves[idea.section] = (shelves[idea.section] || 0) + 1;
   }
+  // Sponsor impression: which placement (if any) this feed carried — the
+  // denominator of the sponsor's monthly performance report.
+  const sponsorIdea = payload.ideas.find(i => i.sponsored);
   analytics.recordEvent({
     type: 'browse_feed',
     ownerKey,
-    meta: { city: payload.city, near: payload.near, mode, ideas: payload.ideas.length, cached, shelves }
+    meta: Object.assign(
+      { city: payload.city, near: payload.near, mode, ideas: payload.ideas.length, cached, shelves },
+      sponsorIdea ? { sponsor: sponsorIdea.id } : null)
   });
 }
 
@@ -272,7 +287,7 @@ function cacheKey(city, coords, part, mode, dateWindow) {
 
 // Assign ranked candidates to named sections, first match wins (a card never
 // repeats across sections). Section order is the display order.
-function buildSections(candidates, { near, weather, part, mode, advisories, spotlight, dateWindow }) {
+function buildSections(candidates, { near, weather, part, mode, advisories, spotlight, dateWindow, sponsor }) {
   // The "date aware" picker relabels the dated-events shelf so it reads
   // right whether the user is browsing "any day" or a specific date/range.
   const datedLabel = dateWindow
@@ -344,6 +359,13 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   // answer to "it's all over socials but not in DayHop".
   const takeJustOpened = () => take('Just opened ✨', pool.filter(c => c.newly_opened), 3);
 
+  // The one sponsored slot (services/sponsors.js picked it, relevance-gated).
+  // Always its own labeled shelf — a sponsor never masquerades as an organic
+  // pick — and suppressed entirely under a shelter advisory.
+  const takeSponsor = () => {
+    if (sponsor && !shelter) take('Partner pick · Sponsored ⭐', [sponsor], 1);
+  };
+
   // Season shelf: spring through fall it's trails ("push trails forward" is
   // the product promise those months), winter it's OUTDOOR winter — skating
   // trails, tubing, snowshoe — so cold months still say "get outside".
@@ -379,6 +401,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
       : (weather && weather.is_rainy) ? pool.filter(isIndoor) : pool;
     take(rightNowLabel(part, weather, shelter), rightNow, 6);
     takeJustOpened();
+    takeSponsor();
     take('Within 15 minutes 📍',
       pool.filter(c => c.distance_km != null && c.distance_km <= 10)
         .slice().sort((a, b) => a.distance_km - b.distance_km), 6);
@@ -392,6 +415,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     if (shelter) take('Indoor thrills right now 😷', pool.filter(isSheltered), 5);
     take('Top thrills ⚡', pool, 6);
     takeJustOpened();
+    takeSponsor();
     if (!shelter) take('Get outside 🌊', pool.filter(isOutdoor), 5);
     takeSeasonOutside(4);
     takeWorthDrive(3);
@@ -404,6 +428,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     if (shelter) take('Sheltered picks right now 😷', pool.filter(isSheltered), 5);
     take('Restorative picks 🌿', pool, 5);
     takeJustOpened();
+    takeSponsor();
     takeSeasonOutside(5);
     if (!shelter) take('Outdoors & nature 🌳', pool.filter(isOutdoor), 4);
     takeWorthDrive(3);
@@ -519,6 +544,7 @@ function toBrowseIdea(c) {
     also_from: c.also_from || undefined,
     wow: c.wow === true || undefined,
     newly_opened: c.newly_opened === true || undefined,
+    sponsored: c.sponsored === true || undefined,
     distance_km: c.distance_km != null ? c.distance_km : undefined
   });
 }

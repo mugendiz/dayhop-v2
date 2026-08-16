@@ -362,3 +362,22 @@ $$;
 -- Server-side only: the service key may run it, browsers may not.
 revoke execute on function public.retention_cohorts() from public, anon, authenticated;
 grant execute on function public.retention_cohorts() to service_role;
+
+-- ---------- sponsors (sponsored venue placements, 2026-08-15) ----------
+-- The B2B revenue layer: one row per paying placement. entry is a
+-- catalog-shaped card (title/category/tags/location/venue/description/
+-- cost_tier/good_for_ages/maps_url/booking_url/lat/lng). Serving rules live
+-- in services/sponsors.js (max 1 per feed, relevance-gated, always labeled).
+-- Service-key only: no anon/authenticated policies on purpose.
+create table if not exists public.sponsors (
+  id                      text primary key,
+  entry                   jsonb not null,
+  tier                    text not null check (tier in ('featured','spotlight','anchor')),
+  status                  text not null default 'active' check (status in ('active','paused','ended')),
+  stripe_customer_id      text,
+  stripe_subscription_id  text,
+  starts_at               timestamptz not null default now(),
+  ends_at                 timestamptz,
+  created_at              timestamptz not null default now()
+);
+alter table public.sponsors enable row level security;

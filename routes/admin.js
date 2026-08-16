@@ -99,6 +99,48 @@ router.get('/catalog', requireAdmin, async (req, res) => {
   }
 });
 
+// Sponsored placements: list (+30d performance), add/update, pause/resume.
+// The monthly-report numbers sponsors are paying for come from stats().
+router.get('/sponsors', requireAdmin, async (req, res) => {
+  try {
+    const sponsors = require('../services/sponsors');
+    const rows = sponsors.list();
+    const perf = await sponsors.stats(rows.map(r => r.id));
+    res.json({
+      sponsors: rows.map(r => Object.assign({
+        id: r.id, tier: r.tier, status: r.status,
+        title: r.entry && r.entry.title, location: r.entry && r.entry.location,
+        starts_at: r.starts_at, ends_at: r.ends_at
+      }, perf.get(r.id) || { impressions: 0, engagements: 0 })),
+      generated_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('[admin] sponsors list failed:', err.message);
+    res.status(500).json({ error: 'SPONSORS_FAILED', message: 'Could not list sponsors.' });
+  }
+});
+
+router.post('/sponsors', requireAdmin, async (req, res) => {
+  try {
+    const sponsors = require('../services/sponsors');
+    const row = await sponsors.upsert(req.body || {});
+    res.json({ sponsor: row });
+  } catch (err) {
+    res.status(400).json({ error: 'INVALID_SPONSOR', message: err.message });
+  }
+});
+
+router.post('/sponsors/status', requireAdmin, async (req, res) => {
+  try {
+    const sponsors = require('../services/sponsors');
+    const { id, status } = req.body || {};
+    const row = await sponsors.setStatus(String(id || ''), String(status || ''));
+    res.json({ sponsor: { id: row.id, status: row.status } });
+  } catch (err) {
+    res.status(400).json({ error: 'INVALID_SPONSOR', message: err.message });
+  }
+});
+
 router.get('/metrics', requireAdmin, async (req, res) => {
   try {
     const data = await analytics.metrics();
