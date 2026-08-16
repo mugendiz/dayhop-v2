@@ -157,6 +157,138 @@ async function getPriceInfo() {
   return _priceCache.value;
 }
 
+// ---------- admin: premium members panel ----------
+// Stripe is the source of truth for subscription lifecycle (trial dates,
+// cancel state, end reasons); the subscriptions table only maps a Stripe
+// subscription back to an app owner. One list call, merged, cached 60s.
+
+const DAY_MS = 24 * 3600 * 1000;
+
+// Pure per-subscription summary — exported for tests. `sub` is a Stripe
+// subscription object (customer expanded or not).
+function summarizeSubscription(sub, ownerId, nowMs = Date.now()) {
+  const item = sub.items && sub.items.data && sub.items.data[0];
+  const price = item && item.price;
+  const customer = typeof sub.customer === 'object' && sub.customer !== null ? sub.customer : null;
+  const trialStart = sub.trial_start ? sub.trial_start * 1000 : null;
+  const trialEnd = sub.trial_end ? sub.trial_end * 1000 : null;
+  const startedMs = (sub.start_date || sub.created) * 1000;
+
+  // Trial stage: day N of the trial window (1-based), only meaningful while
+  // Stripe says `trialing`. A completed trial keeps its dates for the
+  // conversion math below.
+  const trialDays = trialStart && trialEnd ? Math.round((trialEnd - trialStart) / DAY_MS) : null;
+  const inTrial = sub.status === 'trialing';
+  const trialDay = inTrial && trialStart
+    ? Math.min(trialDays || 1, Math.floor((nowMs - trialStart) / DAY_MS) + 1)
+    : null;
+  const hadTrial = Boolean(trialStart && trialEnd);
+  const trialCompleted = hadTrial && nowMs >= trialEnd;
+
+  // Monday-anchored start week — the "launch cohort" a member belongs to.
+  const d = new Date(startedMs);
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  const cohortWeek = d.toISOString().slice(0, 10);
+
+  return {
+    owner_id: ownerId || null,
+    email: (customer && (customer.email || (customer.deleted ? null : customer.name))) || sub.customer_email || null,
+    status: sub.status, // trialing | active | past_due | canceled | incomplete | unpaid
+    started_at: new Date(startedMs).toISOString(),
+    cohort_week: cohortWeek,
+    in_trial: inTrial,
+    trial_day: trialDay,
+    trial_days: trialDays,
+    trial_ends_at: trialEnd ? new Date(trialEnd).toISOString() : null,
+    had_trial: hadTrial,
+    trial_completed: trialCompleted,
+    // Converted = finished the trial and is still paying (past_due counts:
+    // the card failed, the intent to pay didn't).
+    converted: trialCompleted && (sub.status === 'active' || sub.status === 'past_due'),
+    cancel_at_period_end: Boolean(sub.cancel_at_period_end),
+    canceled_at: sub.canceled_at ? new Date(sub.canceled_at * 1000).toISOString() : null,
+    ended_at: sub.ended_at ? new Date(sub.ended_at * 1000).toISOString() : null,
+    current_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
+    amount: price && price.unit_amount != null ? price.unit_amount / 100 : null,
+    currency: price && price.currency ? price.currency.toUpperCase() : null,
+    interval: (price && price.recurring && price.recurring.interval) || 'month',
+    utm_campaign: (sub.metadata && sub.metadata.utm_campaign) || null,
+    utm_source: (sub.metadata && sub.metadata.utm_source) || null
+  };
+}
+
+let _adminSubsCache = null; // { at, value }
+const ADMIN_SUBS_TTL_MS = 60 * 1000;
+
+async function adminSubscriptions() {
+  if (!isConfigured()) return { configured: false, members: [], summary: null, cohorts: [] };
+  if (_adminSubsCache && Date.now() - _adminSubsCache.at < ADMIN_SUBS_TTL_MS) {
+    return _adminSubsCache.value;
+  }
+
+  // Owner mapping from the app's table (webhook-written).
+  const ownerBySub = new Map();
+  if (hasServiceKey()) {
+    try {
+      const { data } = await dbClient.getClient()
+        .from('subscriptions').select('owner_id, stripe_subscription_id').limit(1000);
+      for (const row of data || []) {
+        if (row.stripe_subscription_id) ownerBySub.set(row.stripe_subscription_id, row.owner_id);
+      }
+    } catch (err) {
+      console.warn('[billing] admin owner mapping failed:', err.message);
+    }
+  }
+
+  const subs = await getStripe().subscriptions.list({
+    status: 'all', limit: 100, expand: ['data.customer']
+  });
+  const now = Date.now();
+  const members = subs.data
+    .map(s => summarizeSubscription(s, ownerBySub.get(s.id), now))
+    .sort((a, b) => b.started_at.localeCompare(a.started_at));
+
+  const isOn = m => m.status === 'active' || m.status === 'trialing' || m.status === 'past_due';
+  const activePaying = members.filter(m => m.status === 'active');
+  const trialsDone = members.filter(m => m.trial_completed);
+  const summary = {
+    total: members.length,
+    active_paying: activePaying.length,
+    in_trial: members.filter(m => m.in_trial).length,
+    past_due: members.filter(m => m.status === 'past_due').length,
+    pending_cancel: members.filter(m => isOn(m) && m.cancel_at_period_end).length,
+    churned: members.filter(m => m.status === 'canceled' || m.status === 'unpaid').length,
+    new_last_7d: members.filter(m => now - Date.parse(m.started_at) <= 7 * DAY_MS).length,
+    trials_completed: trialsDone.length,
+    trial_conversion_pct: trialsDone.length
+      ? Math.round((trialsDone.filter(m => m.converted).length / trialsDone.length) * 100)
+      : null,
+    // MRR from what active members actually pay (yearly prices prorated).
+    mrr: Math.round(activePaying.reduce((sum, m) =>
+      sum + (m.amount || 0) / (m.interval === 'year' ? 12 : 1), 0) * 100) / 100,
+    currency: (activePaying[0] && activePaying[0].currency) || (members[0] && members[0].currency) || 'CAD'
+  };
+
+  // Launch cohorts: start week → how that week's signups are doing now.
+  const cohortMap = new Map();
+  for (const m of members) {
+    if (!cohortMap.has(m.cohort_week)) {
+      cohortMap.set(m.cohort_week, { week: m.cohort_week, started: 0, in_trial: 0, active: 0, churned: 0 });
+    }
+    const c = cohortMap.get(m.cohort_week);
+    c.started++;
+    if (m.in_trial) c.in_trial++;
+    if (m.status === 'active') c.active++;
+    if (m.status === 'canceled' || m.status === 'unpaid') c.churned++;
+  }
+  const cohorts = [...cohortMap.values()].sort((a, b) => b.week.localeCompare(a.week)).slice(0, 12);
+
+  const value = { configured: true, members, summary, cohorts, generated_at: new Date().toISOString() };
+  _adminSubsCache = { at: Date.now(), value };
+  return value;
+}
+
 // ---------- Stripe operations ----------
 
 // Card up front, 7 days free. Seven (not three) so every trial spans at
@@ -279,4 +411,4 @@ async function handleWebhook(rawBody, signature) {
   }
 }
 
-module.exports = { isConfigured, status, isPro, getSubscription, getPriceInfo, createCheckoutSession, setCancelAtPeriodEnd, handleWebhook };
+module.exports = { isConfigured, status, isPro, getSubscription, getPriceInfo, createCheckoutSession, setCancelAtPeriodEnd, handleWebhook, adminSubscriptions, summarizeSubscription };

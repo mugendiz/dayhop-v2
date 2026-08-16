@@ -141,6 +141,26 @@
       <p class="rate" id="affiliate-note"></p>
     </div>
 
+    <div class="card overflow" id="premium-card">
+      <h2>Premium members 💳</h2>
+      <p class="rate" id="premium-headline" style="margin:0 0 10px"></p>
+      <div class="tiles" id="premium-tiles"></div>
+      <table style="margin-top:14px">
+        <thead>
+          <tr><th>Member</th><th>Status</th><th>Trial</th><th>Started</th><th>Renews / ends</th><th>Campaign</th></tr>
+        </thead>
+        <tbody id="premium-rows"></tbody>
+      </table>
+      <h2 style="margin-top:18px;font-size:15px">Launch cohorts</h2>
+      <table>
+        <thead>
+          <tr><th>Start week</th><th class="num">Started</th><th class="num">In trial</th><th class="num">Paying now</th><th class="num">Churned</th></tr>
+        </thead>
+        <tbody id="premium-cohort-rows"></tbody>
+      </table>
+      <p class="rate" id="premium-note"></p>
+    </div>
+
     <div class="card overflow" id="retention-card">
       <h2>Retention cohorts 🔁</h2>
       <p class="rate" id="retention-headline" style="margin:0 0 10px"></p>
@@ -505,6 +525,7 @@
       render(data, email);
       peekDiscovery();
       loadNewsletter();
+      loadSubscriptions(headers);
       return true;
     } catch (e) {
       $('error').textContent = 'Could not reach the metrics endpoint.';
@@ -538,6 +559,63 @@
     $('source').textContent = 'Data source: ' + data.source + ' · billing ' +
       (data.billing && data.billing.configured ? 'configured' : 'not configured') +
       ' · generated ' + data.generated_at;
+  }
+
+  // Premium members: live Stripe lifecycle. Trial column shows "day N of 7"
+  // while trialing; status colors: green = paying, amber = trialing/past_due,
+  // grey = churned. Fetched separately from metrics (own endpoint, 60s
+  // server cache) so a Stripe hiccup never blanks the rest of the dashboard.
+  async function loadSubscriptions(headers) {
+    const card = $('premium-card');
+    try {
+      const res = await fetch('/api/admin/subscriptions', { headers });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.message || res.status);
+      if (d.configured === false) {
+        $('premium-headline').textContent = 'Stripe is not configured on this environment.';
+        return;
+      }
+      const s = d.summary || {};
+      $('premium-headline').innerHTML =
+        'MRR: <strong>$' + fmt(s.mrr || 0) + ' ' + esc(s.currency || '') + '</strong>' +
+        (s.trial_conversion_pct != null
+          ? ' · trial → paid: <strong>' + s.trial_conversion_pct + '%</strong> (' + fmt(s.trials_completed) + ' trials completed)'
+          : ' · no completed trials yet');
+      const tiles = [
+        ['Paying now', s.active_paying], ['In trial', s.in_trial],
+        ['Pending cancel', s.pending_cancel], ['Past due', s.past_due],
+        ['Churned', s.churned], ['New (7d)', s.new_last_7d]
+      ];
+      $('premium-tiles').innerHTML = tiles.map(([l, v]) =>
+        '<div class="tile"><div class="v">' + fmt(v || 0) + '</div><div class="l">' + l + '</div></div>').join('');
+
+      const statusChip = m => {
+        const color = m.status === 'active' ? 'var(--ok,#12855C)'
+          : (m.status === 'trialing' || m.status === 'past_due') ? '#b07d00'
+          : 'var(--ink-soft)';
+        const label = m.status + (m.cancel_at_period_end && (m.status === 'active' || m.status === 'trialing') ? ' · cancels' : '');
+        return '<span style="color:' + color + ';font-weight:600">' + esc(label) + '</span>';
+      };
+      const day = iso => iso ? esc(String(iso).slice(0, 10)) : '—';
+      $('premium-rows').innerHTML = (d.members || []).length
+        ? d.members.map(m =>
+            '<tr><td>' + esc(m.email || m.owner_id || 'unknown') + '</td>' +
+            '<td>' + statusChip(m) + '</td>' +
+            '<td>' + (m.in_trial ? 'day ' + m.trial_day + ' of ' + m.trial_days : (m.had_trial ? 'done' : '—')) + '</td>' +
+            '<td>' + day(m.started_at) + '</td>' +
+            '<td>' + (m.status === 'canceled' ? day(m.ended_at) : day(m.current_period_end)) + '</td>' +
+            '<td>' + esc(m.utm_campaign || m.utm_source || '—') + '</td></tr>').join('')
+        : '<tr><td colspan="6" style="color:var(--ink-soft)">No subscriptions yet — this fills in with the first trial start.</td></tr>';
+
+      $('premium-cohort-rows').innerHTML = (d.cohorts || []).map(c =>
+        '<tr><td>' + esc(c.week) + '</td><td class="num">' + fmt(c.started) + '</td>' +
+        '<td class="num">' + fmt(c.in_trial) + '</td><td class="num">' + fmt(c.active) + '</td>' +
+        '<td class="num">' + fmt(c.churned) + '</td></tr>').join('');
+      $('premium-note').textContent =
+        'Live from Stripe (60s cache). "Pending cancel" members keep access until their period ends. Campaign comes from checkout UTM metadata.';
+    } catch (e) {
+      $('premium-headline').textContent = 'Could not load subscriptions: ' + e.message;
+    }
   }
 
   // Retention cohorts: users grouped by first-seen week; WN = % who came back

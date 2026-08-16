@@ -141,6 +141,18 @@ router.post('/sponsors/status', requireAdmin, async (req, res) => {
   }
 });
 
+// Premium members: live Stripe subscription lifecycle (trial stage, pending
+// cancels, churn, launch cohorts) merged with owner ids. The dashboard's
+// money panel — Stripe is the source of truth, not the events stream.
+router.get('/subscriptions', requireAdmin, async (req, res) => {
+  try {
+    res.json(await billing.adminSubscriptions());
+  } catch (err) {
+    console.error('[admin] subscriptions failed:', err.message);
+    res.status(500).json({ error: 'SUBSCRIPTIONS_FAILED', message: 'Could not load subscriptions from Stripe.' });
+  }
+});
+
 router.get('/metrics', requireAdmin, async (req, res) => {
   try {
     const data = await analytics.metrics();
