@@ -3544,19 +3544,24 @@
   // successful render the *other* mode is quietly prefetched — so the first
   // toggle is already instant.
   const BROWSE_CACHE_TTL_MS = 10 * 60 * 1000;
+  // Entries older than the fresh TTL but younger than this are still worth
+  // PAINTING instantly (stale-while-revalidate) — yesterday's feed on screen
+  // in 0 ms beats 6 s of skeletons, and the network refresh swaps it out.
+  const BROWSE_CACHE_STALE_MS = 24 * 60 * 60 * 1000;
   const browseCache = new Map();
   let browsePrefetchKey = null;
 
-  // Mirror the browse cache into sessionStorage: a Map dies on reload, so a
-  // returning back-navigation or refresh re-paid the full ~6s browse fetch
-  // for data that was valid 30 seconds ago. Restore still-fresh entries at
-  // startup; persist the newest few on every write (payloads are chunky).
-  const BROWSE_CACHE_SS_KEY = 'dayhop_browse_cache_v1';
+  // Mirror the browse cache into localStorage: a Map dies on reload and
+  // sessionStorage dies with the tab, so every fresh session re-paid the
+  // full ~6s browse fetch. Restore stale-but-paintable entries at startup;
+  // persist the newest few on every write (payloads are chunky).
+  const BROWSE_CACHE_LS_KEY = 'dayhop_browse_cache_v2';
   try {
-    const saved = JSON.parse(sessionStorage.getItem(BROWSE_CACHE_SS_KEY)) || {};
+    const saved = JSON.parse(localStorage.getItem(BROWSE_CACHE_LS_KEY)) || {};
     Object.entries(saved).forEach(([k, v]) => {
-      if (v && v.at && Date.now() - v.at < BROWSE_CACHE_TTL_MS) browseCache.set(k, v);
+      if (v && v.at && Date.now() - v.at < BROWSE_CACHE_STALE_MS) browseCache.set(k, v);
     });
+    sessionStorage.removeItem('dayhop_browse_cache_v1'); // pre-v2 mirror
   } catch (e) { /* corrupt/private mode — start empty */ }
 
   function browseCachePut(key, entry) {
@@ -3564,7 +3569,7 @@
     try {
       const out = {};
       [...browseCache.entries()].slice(-4).forEach(([k, v]) => { out[k] = v; });
-      sessionStorage.setItem(BROWSE_CACHE_SS_KEY, JSON.stringify(out));
+      localStorage.setItem(BROWSE_CACHE_LS_KEY, JSON.stringify(out));
     } catch (e) { /* quota — the in-memory cache still works */ }
   }
 
@@ -4043,28 +4048,43 @@
     if (state.allIdeas.length && !state.browseMode) return;
     if (browseAbort) browseAbort.abort();
 
-    // Cache hit → instant swap, no skeletons, no spinner, no network.
+    // Fresh cache hit → instant swap, no skeletons, no spinner, no network.
     const cacheHit = browseCache.get(browseCacheKey(state.mode));
-    if (cacheHit && Date.now() - cacheHit.at < BROWSE_CACHE_TTL_MS) {
+    const cacheAge = cacheHit ? Date.now() - cacheHit.at : Infinity;
+    if (cacheHit && cacheAge < BROWSE_CACHE_TTL_MS) {
       browseAbort = null;
       document.getElementById('empty-state').hidden = true;
       document.getElementById('noresults-state').hidden = true;
       applyBrowsePayload(cacheHit.data);
+      setFeedRefreshing(false); // a superseded background refresh may have left the pill on
       const feedEl = document.getElementById('discovery-feed');
       if (feedEl) feedEl.setAttribute('aria-busy', 'false');
       prefetchOtherModeFeed();
       return;
     }
 
+    // Stale hit (up to 24 h old) → paint it NOW, refresh in the background.
+    // A returning visitor sees their feed in 0 ms instead of ~6 s of
+    // skeletons; the network fetch below quietly swaps in fresh data.
+    const staleShown = Boolean(cacheHit && cacheAge < BROWSE_CACHE_STALE_MS);
+
     const ctl = new AbortController();
     browseAbort = ctl;
 
     const feed = document.getElementById('discovery-feed');
-    feed.setAttribute('aria-busy', 'true');
     document.getElementById('empty-state').hidden = true;
     document.getElementById('noresults-state').hidden = true;
-    renderSkeletons();
-    const progress = startProgress('browse');
+    let progress = null;
+    if (staleShown) {
+      applyBrowsePayload(cacheHit.data);
+      feed.setAttribute('aria-busy', 'false');
+      setFeedRefreshing(true);
+    } else {
+      setFeedRefreshing(false);
+      feed.setAttribute('aria-busy', 'true');
+      renderSkeletons();
+      progress = startProgress('browse');
+    }
 
     try {
       const coordsFresh = state.coords && Date.now() - state.coordsAt < COORDS_FRESH_MS;
@@ -4087,10 +4107,10 @@
         )),
         signal: ctl.signal
       });
-      if (ctl !== browseAbort) { progress.fail(); return; } // superseded by a newer browse/prompt
+      if (ctl !== browseAbort) { if (progress) progress.fail(); return; } // superseded by a newer browse/prompt
       if (!res.ok) throw new Error('browse failed');
       const data = await res.json();
-      progress.finish();
+      if (progress) progress.finish();
       if ((data.ideas || []).length) browseCachePut(browseCacheKey(state.mode), { at: Date.now(), data });
       browseAutoRetried = false; // a success re-arms the auto-retry
       recordSeenIdeas(data.ideas);
@@ -4098,11 +4118,15 @@
       applyBrowsePayload(data);
       prefetchOtherModeFeed();
     } catch (err) {
-      progress.fail();
+      if (progress) progress.fail();
       if (err.name === 'AbortError') return;
+      // A failed background refresh never clobbers the stale feed already on
+      // screen — the user keeps browsing yesterday's picks, no retry card.
+      if (staleShown) return;
       state.browseMode = false;
       renderBrowseRetry();
     } finally {
+      if (ctl === browseAbort) setFeedRefreshing(false);
       if (ctl === browseAbort && !state.isGenerating) {
         feed.setAttribute('aria-busy', 'false');
       }
@@ -4682,6 +4706,13 @@
     cruises: 'On the water',
     general: 'Local favourites'
   };
+
+  // "Refreshing…" pill in the results header: visible while a stale cached
+  // feed is on screen and the background browse refresh is in flight.
+  function setFeedRefreshing(on) {
+    const pill = document.getElementById('feed-refreshing');
+    if (pill) pill.hidden = !on;
+  }
 
   function renderResultsHeader() {
     const header = document.getElementById('results-header');
@@ -5284,7 +5315,12 @@
         if (k && k.indexOf('sb-') === 0 && k.indexOf('-auth-token') !== -1) { hasStoredSession = true; break; }
       }
     } catch (e) { /* private mode */ }
-    if (!hasStoredSession) refreshProStatus();
+    // Deferred to idle: this only gates the "Go Pro" button, and the Supabase
+    // usage lookup behind it shouldn't compete with the feed on the wire.
+    if (!hasStoredSession) {
+      if ('requestIdleCallback' in window) requestIdleCallback(() => refreshProStatus(), { timeout: 2000 });
+      else setTimeout(refreshProStatus, 2000);
+    }
 
     renderFeed();
 

@@ -839,6 +839,25 @@ button, .filter-chip {
   color: var(--ink-soft);
 }
 
+/* Shown while a cached feed is on screen and a background refresh runs. */
+.feed-refreshing {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line, currentColor);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  animation: feed-refreshing-pulse 1.6s ease-in-out infinite;
+}
+.feed-refreshing[hidden] { display: none; }
+@keyframes feed-refreshing-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
 .collections {
   display: flex;
   gap: 12px;

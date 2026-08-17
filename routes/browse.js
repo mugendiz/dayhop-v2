@@ -101,7 +101,13 @@ router.post('/', async (req, res) => {
     const corridors = sanitizeCorridors(req.body && req.body.corridors, coords);
     if (corridors.length) {
       try {
-        ideas.push(...await corridorFinds(corridors, new Set(ideas.map(i => i.id))));
+        // Deadline: up to 3 live Places searches must never hold the feed —
+        // past 1.5 s the shelf is simply absent this load (the searches are
+        // 6h-cached, so the next request usually gets it for free).
+        ideas.push(...await Promise.race([
+          corridorFinds(corridors, new Set(ideas.map(i => i.id))),
+          new Promise(resolve => setTimeout(() => resolve([]), 1500))
+        ]));
       } catch (err) { /* the radar is a bonus, never a failure */ }
     }
 
@@ -549,7 +555,39 @@ function toBrowseIdea(c) {
   });
 }
 
+// ---------- Default-pool warmer ----------
+// The most common first-visit request is the anonymous GTA-wide feed (the
+// client sends 'Across the GTA' until a location is chosen). Prime its
+// candidate pool for both modes whenever the entry is missing or expired,
+// so a brand-new visitor hits the 30-min cache (~1-2 s) instead of paying
+// the cold 14-source fan-out (4-9 s). Called from server.js on boot and on
+// the keep-alive tick; a no-op while the entries are still fresh, so the
+// partner-API cost is at most one gather per mode per TTL window.
+const GTA_WIDE_CITY = 'Across the GTA'; // mirrors GTA_WIDE in public/app.js
+async function warmDefaultPool() {
+  const part = daypart();
+  for (const mode of ['rr', 'adventure']) {
+    const key = cacheKey(GTA_WIDE_CITY, null, part, mode, null);
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.at < CACHE_TTL_MS) continue;
+    try {
+      const [gathered, sky] = await Promise.all([
+        gatherCandidates(syntheticPrompt(part, mode), GTA_WIDE_CITY, '', null, null, mode, null),
+        getSkyTonight(GTA_CENTER)
+      ]);
+      if (gathered.candidates.length) {
+        if (cache.size >= CACHE_MAX_ENTRIES) cache.delete(cache.keys().next().value);
+        cache.set(key, { at: Date.now(), base: Object.assign(gathered, { sky }) });
+        console.log(`[browse] warmed default pool (${mode}/${part}): ${gathered.candidates.length} candidates`);
+      }
+    } catch (err) {
+      console.warn(`[browse] default pool warm failed (${mode}):`, err.message);
+    }
+  }
+}
+
 module.exports = router;
 // Exported for the invariant tests (test/browseSections.test.js) — pure
 // function over candidate objects, no network.
 module.exports.buildSections = buildSections;
+module.exports.warmDefaultPool = warmDefaultPool;

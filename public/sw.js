@@ -3,8 +3,10 @@
 //   - App shell (HTML/JS/CSS/manifest/icon) is pre-cached on install, so the
 //     app opens with no connection. Shortlist/plans/mode already live in
 //     localStorage, so an offline open still shows the user's own stuff.
-//   - Navigations are network-first (deploys land immediately), falling back
-//     to the cached shell offline.
+//   - Navigations are network-first with a short timeout (deploys land
+//     immediately on any healthy connection), falling back to the cached
+//     shell when the network is slow — a free-tier cold start paints the
+//     app instantly instead of a 30-60 s white screen — or offline.
 //   - Other same-origin static GETs + font/CDN assets are
 //     stale-while-revalidate: instant from cache, refreshed in background.
 //   - /api/* is never cached — live data must never go stale silently, and
@@ -13,10 +15,11 @@
 //     stale-while-revalidate so a revisited share link opens instantly even
 //     through a free-tier cold start.
 // Bump the version to invalidate every cached asset on the next visit.
-const CACHE = 'dayhop-shell-v16'; // v16: rotating break cards (playbook / fun fact / venue ad)
+const CACHE = 'dayhop-shell-v17'; // v17: nav timeout→cached shell, pixel.js precached
 
 const SHELL = [
   '/',
+  '/pixel.js',
   '/app.js',
   '/auth.js',
   '/motion.js',
@@ -59,19 +62,41 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return; // POSTs (generate/browse/track) hit the network
   const url = new URL(req.url);
 
-  // Page loads: freshest available, cached copy when offline. Cache under
-  // the actual URL — putting every navigation under '/' let a shared-guide
-  // visit replace the app shell in the offline cache.
+  // Page loads: freshest available, but never let a slow server (free-tier
+  // cold start: 30-60 s) hold a blank screen when a good shell is cached —
+  // after NAV_TIMEOUT_MS the cached copy paints and the network response
+  // just refreshes the cache for next time. Cache under the actual URL —
+  // putting every navigation under '/' let a shared-guide visit replace the
+  // app shell in the offline cache.
   if (req.mode === 'navigate') {
+    const NAV_TIMEOUT_MS = 2500;
+    const network = fetch(req)
+      .then(res => {
+        const copy = res.clone();
+        // waitUntil: the SW must not be terminated mid-write (and the write
+        // must survive the timeout branch having already responded).
+        event.waitUntil(caches.open(CACHE).then(c => c.put(req, copy)));
+        return res;
+      });
     event.respondWith(
-      fetch(req)
-        .then(res => {
-          const copy = res.clone();
-          // waitUntil: the SW must not be terminated mid-write.
-          event.waitUntil(caches.open(CACHE).then(c => c.put(req, copy)));
-          return res;
-        })
-        .catch(() => caches.match(req).then(hit => hit || caches.match('/')))
+      new Promise(resolve => {
+        let settled = false;
+        const settle = res => { if (!settled && res) { settled = true; resolve(res); } };
+        const timer = setTimeout(() => {
+          caches.match(req)
+            .then(hit => hit || caches.match('/'))
+            .then(settle)
+            .catch(() => {}); // no cached copy → keep waiting on the network
+        }, NAV_TIMEOUT_MS);
+        network
+          .then(res => { clearTimeout(timer); settle(res); })
+          .catch(() => {
+            clearTimeout(timer);
+            caches.match(req)
+              .then(hit => hit || caches.match('/'))
+              .then(res => settle(res || Response.error()));
+          });
+      })
     );
     return;
   }

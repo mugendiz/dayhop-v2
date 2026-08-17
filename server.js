@@ -40,6 +40,7 @@ const fs = require('fs');
 const minifiedShell = {};
 if (isProd) {
   for (const [urlPath, distRel] of Object.entries({
+    '/pixel.js': 'dist/pixel.min.js',
     '/app.js': 'dist/app.min.js',
     '/auth.js': 'dist/auth.min.js',
     '/motion.js': 'dist/motion.min.js',
@@ -312,6 +313,19 @@ if (isProd && keepAliveBase && keepAliveBase !== 'off') {
   const ping = () => fetch(new URL('/health', keepAliveBase)).catch(() => {});
   setInterval(ping, 10 * 60 * 1000).unref();
   console.log(`[keepalive] pinging ${keepAliveBase}/health every 10 min`);
+}
+
+// Warm the default GTA-wide browse pool so the most common first-visit
+// request (anonymous, no location chosen) is a cache hit instead of a cold
+// 14-source fan-out. Runs shortly after boot (cold start included), then on
+// the same 10-min cadence as keep-alive; a no-op while the pool is fresh.
+// Runs on localhost too so the instant-load path is testable in dev; set
+// WARM_POOL=off to skip it (e.g. to save partner-API calls while hacking).
+if (process.env.WARM_POOL !== 'off') {
+  const { warmDefaultPool } = require('./routes/browse');
+  const warm = () => warmDefaultPool().catch(() => {});
+  setTimeout(warm, isProd ? 30 * 1000 : 5 * 1000).unref();
+  setInterval(warm, 10 * 60 * 1000).unref();
 }
 
 // Discovery autopilot: every SUNDAY AT MIDNIGHT (Toronto time) scan

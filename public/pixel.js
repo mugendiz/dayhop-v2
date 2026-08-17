@@ -83,11 +83,14 @@
     }
   }
 
-  // /api/config is already fetched by the SPA, but blog/playbook/guide pages
-  // have no app.js — fetch here (it's Cache-Control: 300s, so the SPA's own
-  // fetch and this one share one network hit).
-  fetch('/api/config')
-    .then(function (r) { return r.ok ? r.json() : null; })
+  // One /api/config fetch per page load, shared with app.js/auth.js via a
+  // window-level promise (whichever script runs first creates it — with
+  // `defer` ordering that's this one). Blog/playbook/guide pages have no
+  // app.js, so the fetch still has to live here.
+  (window.DayHopConfig || (window.DayHopConfig = fetch('/api/config').then(function (r) {
+    if (!r.ok) throw new Error('config ' + r.status);
+    return r.json();
+  })))
     .then(function (cfg) {
       if (cfg && cfg.metaPixelId) bootPixel(String(cfg.metaPixelId));
     })

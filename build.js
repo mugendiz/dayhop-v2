@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 
 const targets = [
+  { in: 'public/pixel.js', out: 'public/dist/pixel.min.js' },
   { in: 'public/app.js', out: 'public/dist/app.min.js' },
   { in: 'public/auth.js', out: 'public/dist/auth.min.js' },
   { in: 'public/motion.js', out: 'public/dist/motion.min.js' },
@@ -32,6 +33,12 @@ Promise.all(targets.map(t =>
   })
 )).catch(err => {
   // A failed minify must never break install/deploy — production simply
-  // falls back to serving the unminified sources.
-  console.warn('[build] minification failed (serving unminified sources):', err.message);
+  // falls back to serving the unminified sources. But it costs ~2x the
+  // gzipped bytes on the wire, so shout in the deploy log instead of
+  // whispering.
+  console.error('========================================');
+  console.error('[build] FAILED: minification error — production will serve');
+  console.error('[build] UNMINIFIED sources (~2x wire size) until this is fixed.');
+  console.error('[build]', err.message);
+  console.error('========================================');
 });

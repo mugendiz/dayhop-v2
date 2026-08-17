@@ -27,9 +27,17 @@
 <link rel="preload" as="image" fetchpriority="high" media="(min-width: 1200px)"
   href="https://images.unsplash.com/photo-1517935706615-2717063c2225?auto=format&fit=crop&w=2100&q=80">
 <!-- Satoshi is served by Fontshare (not available on Google Fonts).
-     Weights 500/700 only — 701 (italic) never appears in main.css. -->
-<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+     Weights 500/700 only — 701 (italic) never appears in main.css.
+     media="print" + onload flip = non-render-blocking: first paint no
+     longer waits on two third-party CSS round trips. display=swap means
+     text shows in fallback fonts immediately and upgrades when the webfonts
+     land. Only main.css (local, small) stays blocking — it owns layout. -->
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+</noscript>
 <link rel="stylesheet" href="/css/main.css">
 </head>
 <body>
@@ -196,6 +204,7 @@
   <div id="results-header" class="results-header" hidden>
     <h2 id="results-headline"></h2>
     <p class="results-sub" id="results-sub"></p>
+    <span id="feed-refreshing" class="feed-refreshing" hidden aria-live="polite">Refreshing…</span>
   </div>
 
   <div id="collections" class="collections" hidden aria-label="Curated collections"></div>
