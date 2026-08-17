@@ -155,7 +155,15 @@ router.get('/subscriptions', requireAdmin, async (req, res) => {
 
 router.get('/metrics', requireAdmin, async (req, res) => {
   try {
-    const data = await analytics.metrics();
+    // ?me= is the dashboard browser's own guest owner id (admin.html reads
+    // its localStorage) — combined with the requesting IP it lets metrics()
+    // separate the developer's traffic from real users. ?exclude_internal=1
+    // computes every aggregate over external events only.
+    const data = await analytics.metrics({
+      meOwner: typeof req.query.me === 'string' ? req.query.me.trim().slice(0, 80) : null,
+      meIp: req.ip,
+      excludeInternal: req.query.exclude_internal === '1'
+    });
     res.json(Object.assign({ billing: billing.status(), generated_at: new Date().toISOString() }, data));
   } catch (err) {
     console.error('[admin] metrics failed:', err.message);

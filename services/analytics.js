@@ -9,6 +9,7 @@
 
 const dbClient = require('./db/client');
 const { genId } = require('./db/ids');
+const requestContext = require('./requestContext');
 
 // Client-originated events, accepted by POST /api/track. Lives here beside
 // the server list so the two can never drift again — track.js imports this
@@ -139,13 +140,18 @@ function torontoDayStartIso(day) {
  */
 function recordEvent({ type, ownerKey, ideaId, source, meta }) {
   if (!EVENT_TYPES.has(type)) return;
+  // Stamp the requester's IP (from the request-context middleware) into
+  // meta so the admin dashboard can separate internal/developer traffic
+  // from real users. Cron/startup events have no request → no ip.
+  const ip = requestContext.getIp();
+  const fullMeta = ip ? Object.assign({}, meta || {}, { ip }) : (meta || null);
   const event = {
     id: genId('ev'),
     type,
     owner_key: String(ownerKey || 'anon').slice(0, 80),
     idea_id: ideaId != null ? String(ideaId).slice(0, 120) : null,
     source: source ? String(source).slice(0, 40) : null,
-    meta: meta || null,
+    meta: fullMeta,
     created_at: new Date().toISOString()
   };
 
@@ -526,12 +532,23 @@ async function fetchEvents() {
 async function fetchEventsUncached() {
   if (hasServiceKey()) {
     try {
-      const { data, error } = await dbClient.getClient()
-        .from('events')
-        .select('type, owner_key, source, meta, created_at')
-        .order('created_at', { ascending: false })
-        .limit(20000);
-      if (error) throw error;
+      // Supabase (PostgREST) caps any single select at its max-rows setting
+      // (default 1000) no matter what .limit() asks for — a plain
+      // .limit(20000) silently returned only the newest 1000 events and
+      // every metric was computed on that truncated window. Page through in
+      // 1000-row chunks up to the 20k cap instead.
+      const data = [];
+      const PAGE = 1000;
+      while (data.length < 20000) {
+        const { data: page, error } = await dbClient.getClient()
+          .from('events')
+          .select('type, owner_key, source, meta, created_at')
+          .order('created_at', { ascending: false })
+          .range(data.length, data.length + PAGE - 1);
+        if (error) throw error;
+        data.push(...(page || []));
+        if (!page || page.length < PAGE) break;
+      }
       if ((data || []).length === 0 && mirror.length > 0) {
         return {
           source: 'memory (Supabase read returned 0 rows — check SUPABASE_SERVICE_KEY is the service_role secret)',
@@ -601,14 +618,118 @@ async function retentionFromDb() {
   return result;
 }
 
+// ---------- internal-traffic separation ----------
+// The developer's own browsing looks exactly like real usage and can add up
+// to "hundreds of users and searches" that are actually one person testing.
+// Internal events are identified by:
+//   - the admin's own guest owner id (admin.html sends its localStorage
+//     dayhop_owner_id as ?me=) — this catches HISTORICAL traffic too, since
+//     the owner id predates IP stamping;
+//   - the admin's current IP (whoever is loading the dashboard);
+//   - INTERNAL_IPS env (comma-separated) for other known dev devices;
+//   - any owner_key that has ever sent an event from an internal IP, so a
+//     dev device's older events reclassify once one stamped event ties the
+//     owner to the IP.
+const SEARCH_TYPES = new Set(['prompt_generated', 'browse_feed', 'surprise_feed']);
+
+function internalSets(events, { meOwner, meIp } = {}) {
+  const ips = new Set();
+  if (meIp) ips.add(String(meIp));
+  String(process.env.INTERNAL_IPS || '')
+    .split(',').map(s => s.trim()).filter(Boolean)
+    .forEach(ip => ips.add(ip));
+  const owners = new Set();
+  if (meOwner) owners.add(String(meOwner).slice(0, 80));
+  for (const ip of ips) owners.add(`ip-${ip}`);
+  for (const e of events) {
+    const meta = e.meta && typeof e.meta === 'object' ? e.meta : {};
+    if (meta.ip && ips.has(meta.ip) && e.owner_key && e.owner_key !== 'anon') {
+      owners.add(e.owner_key);
+    }
+  }
+  return { ips, owners };
+}
+
+function isInternalEvent(e, sets) {
+  if (sets.owners.has(e.owner_key)) return true;
+  const meta = e.meta && typeof e.meta === 'object' ? e.meta : {};
+  return Boolean(meta.ip && sets.ips.has(meta.ip));
+}
+
+// Per-IP rollup for the admin "Traffic by IP" table. Only events recorded
+// since IP stamping shipped carry meta.ip; older ones are counted under
+// no_ip_events so the table never silently under-reports.
+function trafficByIp(events, sets) {
+  const rows = new Map();
+  let noIp = 0;
+  for (const e of events) {
+    const meta = e.meta && typeof e.meta === 'object' ? e.meta : {};
+    if (!meta.ip) { noIp++; continue; }
+    if (!rows.has(meta.ip)) {
+      rows.set(meta.ip, {
+        ip: meta.ip, events: 0, searches: 0, owners: new Set(),
+        first_seen: e.created_at, last_seen: e.created_at
+      });
+    }
+    const r = rows.get(meta.ip);
+    r.events++;
+    if (SEARCH_TYPES.has(e.type)) r.searches++;
+    if (e.owner_key && e.owner_key !== 'anon' && !e.owner_key.startsWith('sub-')) {
+      r.owners.add(e.owner_key);
+    }
+    if (e.created_at < r.first_seen) r.first_seen = e.created_at;
+    if (e.created_at > r.last_seen) r.last_seen = e.created_at;
+  }
+  return {
+    no_ip_events: noIp,
+    ips: [...rows.values()]
+      .sort((a, b) => b.events - a.events)
+      .slice(0, 25)
+      .map(r => ({
+        ip: r.ip,
+        internal: sets.ips.has(r.ip),
+        events: r.events,
+        searches: r.searches,
+        owners: r.owners.size,
+        first_seen: r.first_seen,
+        last_seen: r.last_seen
+      }))
+  };
+}
+
 /**
  * Metrics for the admin route. { source: 'supabase'|'memory', ...aggregates }.
+ * opts: { meOwner, meIp, excludeInternal } — when excludeInternal is set,
+ * every aggregate (totals, funnel, daily, cities, retention…) is computed
+ * over external events only; the traffic block always reports both halves.
  */
-async function metrics() {
+async function metrics(opts = {}) {
   const { source, events } = await fetchEvents();
-  const result = { source, ...aggregate(events) };
-  const sqlRetention = await retentionFromDb();
-  if (sqlRetention) result.retention = sqlRetention;
+  const sets = internalSets(events, opts);
+  const internal = [];
+  const external = [];
+  for (const e of events) (isInternalEvent(e, sets) ? internal : external).push(e);
+  const excluded = Boolean(opts.excludeInternal);
+
+  const result = { source, ...aggregate(excluded ? external : events) };
+  const countSearches = list => list.reduce((n, e) => n + (SEARCH_TYPES.has(e.type) ? 1 : 0), 0);
+  const countOwners = list => new Set(list
+    .map(e => e.owner_key)
+    .filter(k => k && k !== 'anon' && k !== 'system' && !k.startsWith('sub-'))).size;
+  result.traffic = {
+    excluded_internal: excluded,
+    internal: { events: internal.length, searches: countSearches(internal), users: countOwners(internal) },
+    external: { events: external.length, searches: countSearches(external), users: countOwners(external) },
+    internal_owner_keys: [...sets.owners].slice(0, 20),
+    ...trafficByIp(events, sets)
+  };
+  // The SQL retention RPC runs over ALL history and cannot exclude internal
+  // owners — only override the (already filtered) event-window cohorts with
+  // it when internal traffic is included anyway.
+  if (!excluded) {
+    const sqlRetention = await retentionFromDb();
+    if (sqlRetention) result.retention = sqlRetention;
+  }
   return result;
 }
 
@@ -627,11 +748,15 @@ async function userActivity(limit = 200) {
       users.set(key, {
         owner_key: key, first_seen: e.created_at, last_seen: e.created_at, events: 0,
         prompts: 0, browses: 0, shortlist_adds: 0, booking_clicks: 0,
-        plans_built: 0, guides_saved: 0, signups: 0, cities: new Map()
+        plans_built: 0, guides_saved: 0, signups: 0, cities: new Map(), ips: new Set()
       });
     }
     const u = users.get(key);
     u.events++;
+    {
+      const m = e.meta && typeof e.meta === 'object' ? e.meta : {};
+      if (m.ip && u.ips.size < 5) u.ips.add(m.ip);
+    }
     if (e.created_at < u.first_seen) u.first_seen = e.created_at;
     if (e.created_at > u.last_seen) u.last_seen = e.created_at;
     if (e.type === 'prompt_generated') u.prompts++;
@@ -652,6 +777,7 @@ async function userActivity(limit = 200) {
       const topCity = [...u.cities.entries()].sort((a, b) => b[1] - a[1])[0];
       return Object.assign({}, u, {
         cities: undefined,
+        ips: [...u.ips],
         top_city: topCity ? topCity[0] : null,
         kind: u.owner_key.startsWith('ip-') ? 'ip' : (UUID_RE.test(u.owner_key) ? 'user' : 'guest')
       });

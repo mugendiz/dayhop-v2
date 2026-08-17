@@ -27,6 +27,10 @@ app.use(helmet({
 }));
 app.use(compression());
 app.use(cors());
+// Request context (client IP) for deep call sites — analytics stamps every
+// event with the requester's IP so the admin dashboard can tell internal
+// (developer) traffic apart from real users.
+app.use(require('./services/requestContext').middleware);
 // Stripe webhook needs the raw body for signature verification, so it mounts
 // BEFORE the JSON parser. Everything else gets parsed JSON as usual.
 app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), require('./routes/billingWebhook'));
