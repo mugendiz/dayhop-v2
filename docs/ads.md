@@ -10,6 +10,7 @@ env vars are set — and UTM attribution works TODAY with zero configuration.
 |---|---|---|
 | Attribution capture | `public/pixel.js` | On every page: `utm_*` / `fbclid` / `gclid` from the landing URL → localStorage, first-touch, 90-day window. No keys needed. |
 | Meta Pixel loader | `public/pixel.js` + `/api/config` | Injects Meta's `fbevents.js` + PageView **only** when `META_PIXEL_ID` is set server-side. Included on the app, blog, playbook, and shared-guide pages. |
+| GA4 loader | `public/pixel.js` + `/api/config` | Injects `gtag.js` + page_view **only** when `GA4_MEASUREMENT_ID` is set server-side. Property "DayHop" (Zoka Developer Store account, mugendiz@gmail.com), web stream dayhop.quest, ID `G-DJSKM1YMNE`. Feeds BabyLoveGrowth's Site Traffic panel. |
 | Conversions API | `services/metaPixel.js` | Server-side events (survive ad blockers): needs `META_PIXEL_ID` + `META_CAPI_TOKEN`. Emails are SHA-256-hashed before sending. Fail-soft like every integration. |
 | Funnel events | routes/services | `Lead` (newsletter subscribe) → `NewsletterConfirmed` (double opt-in) → `CompleteRegistration` (account signup) → `InitiateCheckout` (checkout created) → `StartTrial` (Stripe webhook, carries $5 CAD value). Browser sends only PageView, so nothing double-counts. |
 | Stripe attribution | `services/billing.js` | The visitor's campaign (`utm_source/campaign/…`) is stamped into Checkout **and** subscription metadata — every paying customer answers "which ad brought you here" in the Stripe dashboard, forever. |

@@ -21,6 +21,9 @@ router.get('/', (req, res) => {
     // Meta Pixel ID is public by design (it ships in every advertiser's page
     // source). pixel.js only injects Meta's script when this is non-null.
     metaPixelId: process.env.META_PIXEL_ID || null,
+    // GA4 measurement ID — same contract as the pixel: public value, and
+    // pixel.js only injects gtag.js when this is non-null.
+    ga4MeasurementId: process.env.GA4_MEASUREMENT_ID || null,
     // Seasonal spotlight: drives the hero eyebrow and holiday chrome
     // client-side (World Cup while live, then the next stat holiday).
     spotlight: getSpotlight()

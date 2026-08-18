@@ -83,6 +83,21 @@
     }
   }
 
+  // GA4 (gtag.js): same contract as the Meta pixel — /api/config carries
+  // ga4MeasurementId only when GA4_MEASUREMENT_ID is set server-side, and
+  // Google's script is never requested without it. page_view fires on config.
+  function bootGa4(measurementId) {
+    if (window.gtag) return;
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    window.gtag('js', new Date());
+    window.gtag('config', measurementId);
+    var s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(measurementId);
+    document.head.appendChild(s);
+  }
+
   // One /api/config fetch per page load, shared with app.js/auth.js via a
   // window-level promise (whichever script runs first creates it — with
   // `defer` ordering that's this one). Blog/playbook/guide pages have no
@@ -93,6 +108,7 @@
   })))
     .then(function (cfg) {
       if (cfg && cfg.metaPixelId) bootPixel(String(cfg.metaPixelId));
+      if (cfg && cfg.ga4MeasurementId) bootGa4(String(cfg.ga4MeasurementId));
     })
     .catch(function () { /* no config, no pixel — page works regardless */ });
 })();
