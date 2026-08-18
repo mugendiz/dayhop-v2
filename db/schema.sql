@@ -381,3 +381,52 @@ create table if not exists public.sponsors (
   created_at              timestamptz not null default now()
 );
 alter table public.sponsors enable row level security;
+
+-- ---------- outreach CRM + admin roles (2026-08-18) ----------
+-- One row per prospect (venues now, investors later). The cadence engine
+-- (services/outreach.js) and the admin panel's CRM tab share these rows, so
+-- automation and human actions never disagree about state. Service-key only.
+create table if not exists public.outreach (
+  id             text primary key,
+  kind           text not null default 'venue',
+  name           text not null,
+  contact_name   text,
+  email          text not null,
+  tier           text,
+  stage          text not null default 'drafted',
+  hook           text,
+  draft          jsonb,
+  thread         jsonb not null default '[]'::jsonb,
+  last_touch_at  timestamptz,
+  next_touch_due timestamptz,
+  suppressed     boolean not null default false,
+  notes          text,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+create index if not exists outreach_due_idx   on public.outreach (next_touch_due) where not suppressed;
+create index if not exists outreach_stage_idx on public.outreach (stage);
+alter table public.outreach enable row level security;
+
+-- Panel roles beyond the env-var owners: operators see the CRM and reduced
+-- metrics only. Managed from the panel's Team section (owner-only routes).
+create table if not exists public.admin_users (
+  email      text primary key,
+  role       text not null default 'operator' check (role in ('owner', 'operator')),
+  added_by   text,
+  created_at timestamptz not null default now()
+);
+alter table public.admin_users enable row level security;
+
+-- Audit trail + delivery signals: automated sends, Resend webhook events,
+-- and every human CRM action, with who/when. Never deleted.
+create table if not exists public.outreach_events (
+  id          bigint generated always as identity primary key,
+  outreach_id text not null,
+  type        text not null,
+  actor       text,
+  payload     jsonb,
+  created_at  timestamptz not null default now()
+);
+create index if not exists outreach_events_row_idx on public.outreach_events (outreach_id, created_at desc);
+alter table public.outreach_events enable row level security;

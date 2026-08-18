@@ -225,7 +225,7 @@
       </div>
     </div>
 
-    <div class="card overflow">
+    <div class="card overflow" id="daily-detail-card">
       <h2>Daily detail</h2>
       <table>
         <thead>
@@ -250,7 +250,7 @@
       <p class="rate" id="traffic-note"></p>
     </div>
 
-    <div class="card overflow">
+    <div class="card overflow" id="users-card">
       <h2>Users &amp; moderation</h2>
       <p class="rate" style="margin:0 0 10px">Pseudonymous activity per signed-in user, guest, or IP key.
          Banning blocks all API access for that key; admin routes stay open so it's always reversible.</p>
@@ -264,11 +264,48 @@
       </table>
     </div>
 
-    <div class="card overflow">
+    <div class="card overflow" id="events-card">
       <h2>All events by type</h2>
       <table>
         <thead><tr><th>Event</th><th class="num">Count</th></tr></thead>
         <tbody id="events-table"></tbody>
+      </table>
+    </div>
+
+    <div class="card overflow" id="crm-card">
+      <h2>Outreach CRM 🤝</h2>
+      <p class="rate" id="crm-summary" style="margin:0 0 10px">Loading…</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <button id="crm-tick" class="mini-btn" hidden>Run due sends now</button>
+        <button id="crm-add" class="mini-btn">Add prospect</button>
+        <span class="rate" id="crm-msg"></span>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Prospect</th><th>Tier</th><th>Stage</th><th>Last touch</th><th>Next due</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="crm-rows"></tbody>
+      </table>
+      <p class="rate">Cadence: opener sends after owner approval → bump on day 4 → one closing note on day 10,
+        then it stops. Replies land at admin@dayhop.quest — mark the row <strong>Replied</strong>, then
+        <strong>Send code</strong> fires the FOUNDING50 email on the same thread. Pausing a row stops
+        everything instantly; opt-out suppresses it forever.</p>
+    </div>
+
+    <div class="card" id="team-card" hidden>
+      <h2>Team 👥</h2>
+      <p class="rate" style="margin:0 0 10px">Operators sign in with their DayHop account (regular app sign-in,
+        then open this page) and see the CRM plus reach metrics only — no revenue, no subscriber emails, no
+        moderation. Owners come from <code>ADMIN_EMAILS</code>. Every CRM action is logged with who did it.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="team-email" type="email" placeholder="operator@email.com"
+               style="font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px">
+        <button id="team-add" class="mini-btn">Add operator</button>
+        <span class="rate" id="team-msg"></span>
+      </div>
+      <table style="margin-top:10px">
+        <thead><tr><th>Email</th><th>Role</th><th>Added</th><th></th></tr></thead>
+        <tbody id="team-rows"></tbody>
       </table>
     </div>
 
@@ -332,6 +369,169 @@
   ];
 
   let lastAuth = null;
+  let adminRole = 'owner';
+
+  // ---------- Outreach CRM ----------
+  const CRM_STAGES = ['drafted', 'queued', 'sent', 'bumped', 'closed_out', 'replied', 'won', 'lost', 'optout'];
+  const CRM_STAGE_COLOR = {
+    drafted: '#C98500', queued: '#1471B8', sent: '#1471B8', bumped: '#1471B8',
+    closed_out: 'var(--muted)', replied: '#12855C', won: '#12855C',
+    lost: 'var(--muted)', optout: '#B3301B'
+  };
+  let crmRows = [];
+
+  function crmMsg(text, ok) {
+    $('crm-msg').innerHTML = ok
+      ? '<span style="color:#12855C;font-weight:600">' + esc(text) + '</span>' : esc(text);
+  }
+
+  async function crmPost(path, body) {
+    const res = await fetch('/api/admin/crm' + path, {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, lastAuth.headers),
+      body: JSON.stringify(body || {})
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || ('Error ' + res.status));
+    return data;
+  }
+
+  async function loadCrm() {
+    if (!lastAuth) return;
+    try {
+      const res = await fetch('/api/admin/crm', { headers: lastAuth.headers });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || ('Error ' + res.status));
+      crmRows = data.rows || [];
+      renderCrm(data.summary || {});
+    } catch (e) {
+      $('crm-summary').textContent = 'Could not load the pipeline: ' + e.message;
+    }
+  }
+
+  function renderCrm(sum) {
+    $('crm-tick').hidden = adminRole !== 'owner';
+    $('crm-summary').innerHTML =
+      '<strong>' + fmt(sum.total) + '</strong> prospects · ' +
+      Object.entries(sum.by_stage || {}).map(([k, v]) => k + ': ' + v).join(' · ') +
+      (sum.awaiting_approval ? ' · <strong style="color:#C98500">' + sum.awaiting_approval + ' awaiting approval</strong>' : '') +
+      (sum.due_now ? ' · <strong>' + sum.due_now + ' due to send</strong>' : '');
+    const day = iso => iso ? esc(String(iso).slice(0, 10)) : '—';
+    const chip = s => '<span style="color:' + (CRM_STAGE_COLOR[s] || 'var(--soft)') + ';font-weight:600">' + esc(s) + '</span>';
+    $('crm-rows').innerHTML = crmRows.length ? crmRows.map((r, i) =>
+      '<tr' + (r.suppressed ? ' style="opacity:0.55"' : '') + '>' +
+      '<td title="' + esc(r.email) + '">' + esc(r.name) +
+        (r.contact_name ? ' <span class="rate">(' + esc(r.contact_name) + ')</span>' : '') +
+        (r.suppressed ? ' <span class="badge-banned">paused</span>' : '') + '</td>' +
+      '<td>' + esc(r.tier || '—') + '</td>' +
+      '<td>' + chip(r.stage) + '</td>' +
+      '<td>' + day(r.last_touch_at) + '</td>' +
+      '<td>' + day(r.next_touch_due) + '</td>' +
+      '<td style="white-space:nowrap">' +
+        (r.stage === 'drafted' && adminRole === 'owner'
+          ? '<button class="mini-btn" data-act="approve" data-i="' + i + '">Approve</button> ' : '') +
+        '<button class="mini-btn" data-act="replied" data-i="' + i + '">Replied</button> ' +
+        '<button class="mini-btn" data-act="code" data-i="' + i + '">Send code</button> ' +
+        '<button class="mini-btn" data-act="won" data-i="' + i + '">Won</button> ' +
+        '<button class="mini-btn' + (r.suppressed ? '' : ' danger') + '" data-act="pause" data-i="' + i + '">' +
+          (r.suppressed ? 'Resume' : 'Pause') + '</button>' +
+      '</td></tr>').join('')
+      : '<tr><td colspan="6" class="rate">No prospects yet — Add prospect, or run the seed script.</td></tr>';
+    $('crm-rows').querySelectorAll('button[data-act]').forEach(btn => {
+      btn.addEventListener('click', () => crmAction(btn.dataset.act, crmRows[Number(btn.dataset.i)]));
+    });
+  }
+
+  async function crmAction(act, row) {
+    if (!row) return;
+    try {
+      if (act === 'approve') {
+        if (!confirm('Approve the opener for ' + row.name + '? It sends on the next cadence run (daily, 8 AM Toronto — or "Run due sends now").')) return;
+        await crmPost('/' + row.id + '/approve');
+        crmMsg('Approved — ' + row.name + ' is queued.', true);
+      } else if (act === 'replied' || act === 'won') {
+        await crmPost('/' + row.id + '/stage', { stage: act });
+        crmMsg(row.name + ' marked ' + act + '.', true);
+      } else if (act === 'code') {
+        if (!confirm('Email the FOUNDING50 code to ' + row.name + ' (' + row.email + ') now?')) return;
+        await crmPost('/' + row.id + '/send-code');
+        crmMsg('Code sent to ' + row.name + '.', true);
+      } else if (act === 'pause') {
+        await crmPost('/' + row.id + '/suppress', { suppressed: !row.suppressed });
+        crmMsg(row.name + (row.suppressed ? ' resumed.' : ' paused.'), true);
+      }
+      loadCrm();
+    } catch (e) { crmMsg(e.message); }
+  }
+
+  function wireCrmButtons() {
+    $('crm-tick').addEventListener('click', async () => {
+      if (!confirm('Send every due outreach email now?')) return;
+      try {
+        const out = await crmPost('/tick');
+        crmMsg('Sent ' + (out.processed || 0) + ' email' + (out.processed === 1 ? '' : 's') + '.', true);
+        loadCrm();
+      } catch (e) { crmMsg(e.message); }
+    });
+    $('crm-add').addEventListener('click', async () => {
+      const name = prompt('Venue name?'); if (!name) return;
+      const email = prompt('Contact email?'); if (!email) return;
+      const tier = prompt('Tier (featured / spotlight / anchor)?', 'featured') || null;
+      const hook = prompt('Personalization hook (one sentence, optional)?') || null;
+      try {
+        await crmPost('', { name, email, tier, hook });
+        crmMsg(name + ' added as drafted.', true);
+        loadCrm();
+      } catch (e) { crmMsg(e.message); }
+    });
+    $('team-add').addEventListener('click', async () => {
+      const email = $('team-email').value.trim();
+      if (!email) return;
+      try {
+        const res = await fetch('/api/admin/team', {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, lastAuth.headers),
+          body: JSON.stringify({ email, role: 'operator' })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.message || res.status);
+        $('team-msg').textContent = email + ' added as operator.';
+        $('team-email').value = '';
+        loadTeam();
+      } catch (e) { $('team-msg').textContent = e.message; }
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wireCrmButtons);
+  } else {
+    wireCrmButtons();
+  }
+
+  async function loadTeam() {
+    if (!lastAuth || adminRole !== 'owner') return;
+    try {
+      const res = await fetch('/api/admin/team', { headers: lastAuth.headers });
+      const data = await res.json();
+      if (!res.ok) return;
+      $('team-card').hidden = false;
+      $('team-rows').innerHTML = (data.team || []).length ? data.team.map(m =>
+        '<tr><td>' + esc(m.email) + '</td><td>' + esc(m.role) + '</td>' +
+        '<td>' + esc(String(m.created_at || '').slice(0, 10)) + '</td>' +
+        '<td><button class="mini-btn danger" data-email="' + esc(m.email) + '">Remove</button></td></tr>').join('')
+        : '<tr><td colspan="4" class="rate">No operators yet. Owners come from ADMIN_EMAILS.</td></tr>';
+      $('team-rows').querySelectorAll('button[data-email]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Remove ' + btn.dataset.email + '?')) return;
+          await fetch('/api/admin/team/remove', {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, lastAuth.headers),
+            body: JSON.stringify({ email: btn.dataset.email })
+          });
+          loadTeam();
+        });
+      });
+    } catch (e) { /* team card stays hidden */ }
+  }
 
   async function boot() {
     // Convenience: /admin.html?key=… loads straight away (internal tool).
@@ -567,17 +767,62 @@
     try {
       const res = await fetch('/api/admin/metrics' + metricsQuery(), { headers });
       const data = await res.json();
-      if (!res.ok) { $('error').textContent = data.message || ('Error ' + res.status); return false; }
+      if (!res.ok) {
+        // Not an owner — maybe an operator (limited role). One extra round
+        // trip decides; anything else shows the original error.
+        if (res.status === 401 && await loadOperator(headers, email)) return true;
+        $('error').textContent = data.message || ('Error ' + res.status);
+        return false;
+      }
       lastAuth = { headers, email };
+      adminRole = 'owner';
       render(data, email);
       peekDiscovery();
       loadNewsletter();
       loadSubscriptions(headers);
+      loadCrm();
+      loadTeam();
       return true;
     } catch (e) {
       $('error').textContent = 'Could not reach the metrics endpoint.';
       return false;
     }
+  }
+
+  // ---------- Operator mode (limited role) ----------
+  // Operators get the CRM plus reach metrics; every owner-only card is
+  // removed outright (the server refuses those endpoints anyway — this
+  // just keeps the page honest about it).
+  const OWNER_ONLY_CARDS = ['affiliate-card', 'premium-card', 'retention-card', 'digest-card',
+    'acquisition-card', 'traffic-card', 'users-card', 'events-card', 'discovery-card',
+    'newsletter-card', 'team-card'];
+
+  async function loadOperator(headers, email) {
+    try {
+      const who = await fetch('/api/admin/whoami', { headers }).then(r => r.ok ? r.json() : null);
+      if (!who || who.role !== 'operator') return false;
+      const res = await fetch('/api/admin/metrics-lite', { headers });
+      const data = await res.json();
+      if (!res.ok) return false;
+      lastAuth = { headers, email };
+      adminRole = 'operator';
+      $('gate').hidden = true;
+      $('report').hidden = false;
+      $('refresh').hidden = false;
+      $('who').innerHTML = 'Signed in as <strong>' + esc(email || who.actor) + '</strong> (operator — CRM + reach metrics)';
+      document.querySelector('.toggle-row').hidden = true; // always external-only for operators
+      for (const id of OWNER_ONLY_CARDS) { const el = $(id); if (el) el.remove(); }
+      renderTiles(data.totals || {}, {});
+      renderDailyChart(data.daily || []);
+      renderFunnel(data.funnel || {});
+      renderModeSplit(data.mode_split || []);
+      renderShelfCtr(data.shelf_ctr || []);
+      renderHBars($('cities'), data.top_cities || [], 'var(--s4)');
+      renderDailyTable(data.daily || []);
+      $('source').textContent = 'Reduced operator view · generated ' + data.generated_at;
+      loadCrm();
+      return true;
+    } catch (e) { return false; }
   }
 
   function render(data, email) {

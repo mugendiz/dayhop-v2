@@ -45,8 +45,10 @@ let warnedUnconfigured = false;
  *                    unsubscribe headers. Omit for transactional email.
  *   attachments    — optional [{ filename, content: Buffer }] (kept small:
  *                    Resend caps messages at 40MB but inboxes punish bulk)
+ *   from           — optional sender override (must stay on the verified
+ *                    domain), e.g. outreach sends as "Andrew at DayHop <…>"
  */
-async function sendEmail({ to, subject, html, text, unsubscribeUrl, attachments }) {
+async function sendEmail({ to, subject, html, text, unsubscribeUrl, attachments, from }) {
   if (!isConfigured()) {
     if (!warnedUnconfigured) {
       warnedUnconfigured = true;
@@ -54,7 +56,7 @@ async function sendEmail({ to, subject, html, text, unsubscribeUrl, attachments 
     }
     return { sent: false, reason: 'EMAIL_NOT_CONFIGURED' };
   }
-  const payload = { from: FROM, to: [to], subject, html, text, reply_to: REPLY_TO };
+  const payload = { from: from || FROM, to: [to], subject, html, text, reply_to: REPLY_TO };
   if (Array.isArray(attachments) && attachments.length) {
     payload.attachments = attachments.map(a => ({
       filename: a.filename,

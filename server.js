@@ -34,6 +34,9 @@ app.use(require('./services/requestContext').middleware);
 // Stripe webhook needs the raw body for signature verification, so it mounts
 // BEFORE the JSON parser. Everything else gets parsed JSON as usual.
 app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), require('./routes/billingWebhook'));
+// Resend delivery webhooks (outreach CRM signals) — Svix signatures need the
+// raw bytes too, so this also mounts ahead of the JSON parser.
+app.post('/api/webhooks/resend', express.raw({ type: 'application/json' }), require('./routes/resendWebhook'));
 app.use(express.json({ limit: '100kb' }));
 
 // Minified shell (build.js output, produced on postinstall). URL space is
@@ -392,6 +395,38 @@ if (process.env.RESEND_API_KEY && process.env.DIGEST_AUTO !== 'off') {
     }
   }, 20 * 60 * 1000).unref();
   console.log(`[digest] weekly schedule armed: Thursdays ${digestHour}:00-${digestHour}:59 Toronto`);
+}
+
+// Outreach cadence: EVERY MORNING AT 8 (Toronto) send whatever follow-ups
+// are due (opener day 0 after approval, bump day 4, closing note day 10),
+// then on MONDAYS AT 9 send the operator report. Same DST-proof clock-check
+// pattern as the digest. OUTREACH_AUTO=off disables the cadence,
+// OPERATOR_REPORT=off the report; the CRM tab's manual buttons still work.
+if (process.env.RESEND_API_KEY) {
+  let lastCadenceRun = 0;
+  let lastReportRun = 0;
+  const torontoParts = () => Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Toronto', weekday: 'short', hour: '2-digit', hour12: false
+    }).formatToParts(new Date()).map(p => [p.type, p.value])
+  );
+  setInterval(() => {
+    const parts = torontoParts();
+    if (process.env.OUTREACH_AUTO !== 'off'
+        && parts.hour === '08' && Date.now() - lastCadenceRun > 12 * 60 * 60 * 1000) {
+      lastCadenceRun = Date.now();
+      require('./services/outreach').tick()
+        .catch(err => console.warn('[outreach] cadence tick failed:', err.message));
+    }
+    if (process.env.OPERATOR_REPORT !== 'off'
+        && parts.weekday === 'Mon' && parts.hour === '09'
+        && Date.now() - lastReportRun > 12 * 60 * 60 * 1000) {
+      lastReportRun = Date.now();
+      require('./services/operatorReport').sendReport()
+        .catch(err => console.warn('[report] Monday report failed:', err.message));
+    }
+  }, 20 * 60 * 1000).unref();
+  console.log('[outreach] cadence armed: daily 08:00-08:59 Toronto; operator report Mondays 09:00-09:59');
 }
 
 const server = app.listen(PORT, () => {

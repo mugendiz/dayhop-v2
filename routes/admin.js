@@ -49,6 +49,32 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// ---------- Roles (2026-08-18) ----------
+// Two tiers. Owners = ADMIN_EMAILS env or the admin key (everything —
+// requireAdmin above is unchanged and stays the default on every route).
+// Operators = rows in admin_users (role=operator): the CRM tab and a
+// reduced metrics payload ONLY. Deny-by-default: a route accepts operators
+// only by explicitly using requireStaff.
+async function resolveRole(req) {
+  if (isAdmin(req.user)) return { role: 'owner', actor: req.user.email };
+  if (keyMatches(req.headers['x-admin-key'])) return { role: 'owner', actor: 'admin-key' };
+  const email = req.user && req.user.email;
+  if (!email) return null;
+  const role = await require('../services/outreach').roleFor(email);
+  return role ? { role, actor: String(email).toLowerCase() } : null;
+}
+
+function requireStaff(req, res, next) {
+  resolveRole(req)
+    .then(r => {
+      if (!r) return res.status(401).json({ error: 'FORBIDDEN', message: 'Admin or operator sign-in required.' });
+      req.adminRole = r.role;
+      req.adminActor = r.actor;
+      next();
+    })
+    .catch(next);
+}
+
 // Discovery inbox (Phase 1): RSS scan + Grok entity extraction → candidate
 // new openings with paste-ready catalog drafts. Cached 6h server-side; the
 // first call in a window takes ~10–20s (feeds + one Grok call).
@@ -278,6 +304,153 @@ router.post('/unban', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('[admin] unban failed:', err.message);
     res.status(500).json({ error: 'UNBAN_FAILED', message: 'Could not unban that account.' });
+  }
+});
+
+// ---------- CRM + roles (2026-08-18) ----------
+const outreachSvc = require('../services/outreach');
+
+// Panel boot: who am I and what may I see? 401 here means "not staff at all"
+// — admin.html shows the sign-in prompt on that.
+router.get('/whoami', requireStaff, (req, res) => {
+  res.json({ role: req.adminRole, actor: req.adminActor });
+});
+
+// The pipeline. Staff (owners + operators) — this tab is the operator's job.
+router.get('/crm', requireStaff, async (req, res) => {
+  try {
+    const [rows, sum] = await Promise.all([outreachSvc.list(), outreachSvc.summary()]);
+    res.json({ role: req.adminRole, summary: sum, rows, generated_at: new Date().toISOString() });
+  } catch (err) {
+    console.error('[admin] crm list failed:', err.message);
+    res.status(500).json({ error: 'CRM_FAILED', message: 'Could not load the pipeline.' });
+  }
+});
+
+router.get('/crm/:id/history', requireStaff, async (req, res) => {
+  try {
+    res.json({ events: await outreachSvc.history(req.params.id) });
+  } catch (err) {
+    res.status(500).json({ error: 'CRM_FAILED', message: err.message });
+  }
+});
+
+router.post('/crm', requireStaff, async (req, res) => {
+  try {
+    res.json({ row: await outreachSvc.upsert(req.body || {}, req.adminActor) });
+  } catch (err) {
+    res.status(400).json({ error: 'INVALID_ROW', message: err.message });
+  }
+});
+
+router.post('/crm/:id/stage', requireStaff, async (req, res) => {
+  try {
+    res.json({ row: await outreachSvc.setStage(req.params.id, String((req.body || {}).stage || ''), req.adminActor) });
+  } catch (err) {
+    res.status(400).json({ error: 'INVALID_STAGE', message: err.message });
+  }
+});
+
+router.post('/crm/:id/note', requireStaff, async (req, res) => {
+  try {
+    const note = String((req.body || {}).note || '').trim().slice(0, 2000);
+    if (!note) return res.status(400).json({ error: 'INVALID_INPUT', message: 'note is required.' });
+    res.json({ row: await outreachSvc.addNote(req.params.id, note, req.adminActor) });
+  } catch (err) {
+    res.status(400).json({ error: 'CRM_FAILED', message: err.message });
+  }
+});
+
+router.post('/crm/:id/suppress', requireStaff, async (req, res) => {
+  try {
+    res.json({ row: await outreachSvc.setSuppressed(req.params.id, Boolean((req.body || {}).suppressed), req.adminActor) });
+  } catch (err) {
+    res.status(400).json({ error: 'CRM_FAILED', message: err.message });
+  }
+});
+
+// Opener approval gates real outbound email in the founder's name — owner only.
+router.post('/crm/:id/approve', requireAdmin, async (req, res) => {
+  try {
+    res.json({ row: await outreachSvc.approve(req.params.id, 'owner') });
+  } catch (err) {
+    res.status(400).json({ error: 'APPROVE_FAILED', message: err.message });
+  }
+});
+
+// FOUNDING50 one-clicker: reply came in, send the code on the same thread.
+router.post('/crm/:id/send-code', requireStaff, async (req, res) => {
+  try {
+    res.json(await outreachSvc.sendCoupon(req.params.id, req.adminActor));
+  } catch (err) {
+    res.status(400).json({ error: 'SEND_FAILED', message: err.message });
+  }
+});
+
+// Manual cadence tick (owner) — the daily scheduler runs this automatically;
+// the button exists so "run the due sends now" never waits for the clock.
+router.post('/crm/tick', requireAdmin, async (req, res) => {
+  try {
+    res.json(await outreachSvc.tick());
+  } catch (err) {
+    res.status(500).json({ error: 'TICK_FAILED', message: err.message });
+  }
+});
+
+// Reduced metrics for operators: reach numbers a sponsor conversation needs,
+// none of the money, PII, or per-user detail. Server-side allowlist — the
+// full metrics route above stays owner-only.
+router.get('/metrics-lite', requireStaff, async (req, res) => {
+  try {
+    const data = await analytics.metrics({ excludeInternal: true });
+    res.json({
+      totals: data.totals ? {
+        distinct_users: data.totals.distinct_users,
+        prompts: data.totals.prompts,
+        browses: data.totals.browses,
+        shortlist_adds: data.totals.shortlist_adds,
+        booking_clicks: data.totals.booking_clicks,
+        plans_built: data.totals.plans_built
+      } : null,
+      funnel: data.funnel || null,
+      mode_split: data.mode_split || null,
+      top_cities: data.top_cities || null,
+      shelf_ctr: data.shelf_ctr || null,
+      daily: data.daily || [], // aggregate engagement counts only — no PII
+
+      week4_retention_pct: data.retention ? data.retention.week4_avg : null,
+      generated_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('[admin] metrics-lite failed:', err.message);
+    res.status(500).json({ error: 'METRICS_FAILED', message: 'Could not compute metrics.' });
+  }
+});
+
+// Team management (owner only): add/remove operator logins from the panel.
+router.get('/team', requireAdmin, async (req, res) => {
+  try {
+    res.json({ team: await outreachSvc.listTeam() });
+  } catch (err) {
+    res.status(500).json({ error: 'TEAM_FAILED', message: err.message });
+  }
+});
+
+router.post('/team', requireAdmin, async (req, res) => {
+  try {
+    const { email, role } = req.body || {};
+    res.json({ member: await outreachSvc.addTeamMember(String(email || ''), String(role || 'operator'), 'owner') });
+  } catch (err) {
+    res.status(400).json({ error: 'INVALID_MEMBER', message: err.message });
+  }
+});
+
+router.post('/team/remove', requireAdmin, async (req, res) => {
+  try {
+    await outreachSvc.removeTeamMember(String((req.body || {}).email || ''));
+    res.json({ removed: true });
+  } catch (err) {
+    res.status(400).json({ error: 'TEAM_FAILED', message: err.message });
   }
 });
 
