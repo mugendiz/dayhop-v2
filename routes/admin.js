@@ -427,6 +427,60 @@ router.get('/metrics-lite', requireStaff, async (req, res) => {
   }
 });
 
+// Traction snapshot (owner only): the numbers every application and investor
+// email asks for, always current, from data DayHop already owns. Copy-paste
+// shaped so a DMZ form or a monthly update takes minutes, not an evening.
+router.get('/traction', requireAdmin, async (req, res) => {
+  try {
+    const [m, subs, nl, pipe] = await Promise.all([
+      analytics.metrics({ excludeInternal: true }),
+      billing.adminSubscriptions().catch(() => null),
+      require('../services/newsletter').stats().catch(() => null),
+      outreachSvc.summary().catch(() => null)
+    ]);
+    const sponsors = require('../services/sponsors').list().filter(s => s.status === 'active');
+    const daily = m.daily || [];
+    const last7 = daily.slice(-7);
+    const sum = (rows, k) => rows.reduce((a, d) => a + (d[k] || 0), 0);
+    const t = m.totals || {};
+    const bs = (subs && subs.summary) || {};
+    res.json({
+      as_of: new Date().toISOString().slice(0, 10),
+      users: {
+        total_distinct: t.distinct_users || 0,
+        weekly_active: sum(last7, 'active_users'),
+        new_last_7d: sum(last7, 'new_users'),
+        week4_retention_pct: m.retention ? m.retention.week4_avg : null
+      },
+      engagement: {
+        prompts_total: t.prompts || 0,
+        plans_built: t.plans_built || 0,
+        booking_clicks: t.booking_clicks || 0,
+        signups: t.signups || 0
+      },
+      revenue: {
+        mrr: bs.mrr || 0,
+        currency: bs.currency || 'CAD',
+        paying_subscribers: bs.active_paying || 0,
+        in_trial: bs.in_trial || 0,
+        active_sponsors: sponsors.length,
+        sponsor_tiers: sponsors.map(s => s.tier)
+      },
+      audience: {
+        newsletter_subscribed: (nl && nl.counts && nl.counts.subscribed) || 0,
+        instagram: '@dayhopofficial',
+        tiktok: 'dayhop3'
+      },
+      sales_pipeline: pipe,
+      acquisition: (m.acquisition && m.acquisition.sources) || [],
+      generated_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('[admin] traction failed:', err.message);
+    res.status(500).json({ error: 'TRACTION_FAILED', message: 'Could not build the traction snapshot.' });
+  }
+});
+
 // Team management (owner only): add/remove operator logins from the panel.
 router.get('/team', requireAdmin, async (req, res) => {
   try {

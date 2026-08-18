@@ -405,9 +405,21 @@ if (process.env.RESEND_API_KEY && process.env.DIGEST_AUTO !== 'off') {
 if (process.env.RESEND_API_KEY) {
   let lastCadenceRun = 0;
   let lastReportRun = 0;
+  let lastSocialRun = 0;
+  const remindersSent = new Set();
+  // One-off operator reminders, Toronto-date-keyed. Fire at 9 AM alongside
+  // the other operator email slots; each key sends at most once per process
+  // (and the dates pass, so a restart can't spam much).
+  const REMINDERS = [
+    { date: '2026-08-25', subject: 'DMZ application: one week to the Sept 1 deadline',
+      text: 'The DMZ incubator application is due Monday September 1. The ready-to-paste draft answers are saved (ask Claude for "DMZ application draft"), and /api/admin/traction has current numbers for the metrics questions. Budget an hour this week; do not leave it for the weekend.' },
+    { date: '2026-08-30', subject: 'DMZ application: due in 2 days',
+      text: 'Final call — the DMZ application closes Monday September 1. Draft answers are saved in Claude memory; traction numbers are at /api/admin/traction. Submit today or tomorrow.' }
+  ];
   const torontoParts = () => Object.fromEntries(
     new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Toronto', weekday: 'short', hour: '2-digit', hour12: false
+      timeZone: 'America/Toronto', weekday: 'short', year: 'numeric', month: '2-digit',
+      day: '2-digit', hour: '2-digit', hour12: false
     }).formatToParts(new Date()).map(p => [p.type, p.value])
   );
   setInterval(() => {
@@ -425,8 +437,27 @@ if (process.env.RESEND_API_KEY) {
       require('./services/operatorReport').sendReport()
         .catch(err => console.warn('[report] Monday report failed:', err.message));
     }
+    // Tuesday social batch: Grok drafts the week's posts (needs the AI key).
+    if (process.env.SOCIAL_BATCH !== 'off' && process.env.GROK_API_KEY
+        && parts.weekday === 'Tue' && parts.hour === '09'
+        && Date.now() - lastSocialRun > 12 * 60 * 60 * 1000) {
+      lastSocialRun = Date.now();
+      require('./services/socialBatch').sendBatch()
+        .catch(err => console.warn('[social] Tuesday batch failed:', err.message));
+    }
+    const today = `${parts.year}-${parts.month}-${parts.day}`;
+    for (const r of REMINDERS) {
+      if (r.date === today && parts.hour === '09' && !remindersSent.has(r.date)) {
+        remindersSent.add(r.date);
+        require('./services/email').sendEmail({
+          to: process.env.OPERATOR_REPORT_TO || 'dayhopadmin@gmail.com',
+          subject: r.subject, text: r.text
+        }).catch(() => {});
+        console.log(`[reminders] sent: ${r.subject}`);
+      }
+    }
   }, 20 * 60 * 1000).unref();
-  console.log('[outreach] cadence armed: daily 08:00-08:59 Toronto; operator report Mondays 09:00-09:59');
+  console.log('[outreach] operator automation armed: cadence daily 08h, report Mon 09h, social batch Tue 09h (Toronto)');
 }
 
 const server = app.listen(PORT, () => {
