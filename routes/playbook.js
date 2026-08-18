@@ -181,6 +181,8 @@ async function teaserBody(entries) {
   <span class="eyebrow">Free with the weekend brief</span>
   <h1>The GTA Family Weekend Playbook</h1>
   <p class="sub">${entries.length} outings actually worth your Saturday — hand-curated and verified, organized by age, budget, and rain-proofness. Here's a taste:</p>
+  <p style="margin:16px 0 4px"><a class="cta" href="/?plan=${encodeURIComponent('Plan my family a great day out this weekend')}">⚡ Skip the reading — plan Saturday in one tap</a></p>
+  <p class="sub" style="font-size:13.5px;margin:6px 0 0">The planner builds your whole day from picks like these, with real venues and live weather.</p>
 </header>
 ${samples.map(e => card(e, { photo: true })).join('')}
 ${tiles.length >= 4 ? `
@@ -238,7 +240,7 @@ ${sectionsHtml}
 <div class="gate" style="margin-top:40px">
   <strong>Turn any of these into a full day</strong>
   <p>Tell the planner what kind of day you want, in one sentence — it builds the whole thing with real venues, timing, and live weather.</p>
-  <a class="cta" href="/">Plan my day →</a>
+  <a class="cta" href="/?plan=${encodeURIComponent('Plan my family a great day out this weekend')}">Plan my day →</a>
 </div>`
   }));
 });

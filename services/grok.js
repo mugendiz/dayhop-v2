@@ -163,26 +163,25 @@ Return 8 to 12 ideas — quality over quantity. Every idea must be one you would
  * not fabricate. This is what makes DayHop trustworthy with real venues
  * instead of just confidently wrong.
  */
-// Shared advisory rules for every prompt that receives an advisoriesHint.
-// Safety-first but not alarmist: honor the advisory, still serve the user.
-// Written as hard numeric constraints — the fast non-reasoning model
-// follows "at most 3" far more reliably than "prefer".
-function advisoryRules(advisoriesHint) {
-  if (!advisoriesHint) return '';
-  return `- ADVISORIES ARE IN EFFECT (see ACTIVE ADVISORIES above). Serve the user's request, but honestly: every outdoor/open-air pick's "why" MUST end with a short practical clause acknowledging the advisory (e.g. "— one to save for when the smoke clears" or "— go early before the heat peaks"). Never claim an outdoor place is protected or unaffected (no "sheltered from the smoke" for an open park), and never call an outdoor pick perfect for today.
-- Also include 2-3 of the best indoor or genuinely covered candidates as advisory-safe alternatives, even if the request leaned outdoor — the user may not know about the advisory yet.
-- Warm and practical, never alarmist: one short clause per affected pick is enough.
-`;
-}
+// (Advisory rules now live inline in the grounded/replan prompts, phrased
+// conditionally on the user message's advisories_context field — so the
+// system prefix stays byte-stable whether or not an advisory is active.)
 
-function buildGroundedSystemPrompt({ city, weatherHint, advisoriesHint, dateHint, mode }) {
+// NOTE (cost/latency): this prompt varies ONLY by (city, mode) — a handful
+// of byte-stable prefixes, so xAI's automatic prompt caching hits on nearly
+// every generate. Volatile context (weather, advisories, dates) rides in the
+// USER message as weather_context / advisories_context / date_context; the
+// rules below reference those fields conditionally. Never interpolate
+// per-request data into this string.
+function buildGroundedSystemPrompt({ city, mode }) {
   return `You are the planning engine behind DayHop, a trusted AI local adventure companion, currently planning for ${city}.
 
-You will be given a user request plus a JSON list of REAL candidate places, live local events, and bookable activities (from Google Places, Ticketmaster, Eventbrite, city open-data event calendars, Viator, GetYourGuide, and DayHop's curated list). ${weatherHint || ''}${advisoriesHint ? `\n\n${advisoriesHint}` : ''}${dateHint ? `\n\n${dateHint}` : ''}
+You will be given a user request plus a JSON list of REAL candidate places, live local events, and bookable activities (from Google Places, Ticketmaster, Eventbrite, city open-data event calendars, Viator, GetYourGuide, and DayHop's curated list). The request JSON may also carry "weather_context" (live local weather), "advisories_context" (active safety advisories), and "date_context" (the specific day(s) being planned) — treat each as authoritative live context when present.
 
 Hard rules:
 - Only recommend items that appear in the provided candidate list. Do not invent venues that are not in the candidates.
-${advisoryRules(advisoriesHint)}${modeDirective(mode)}
+- IF "advisories_context" is present, advisories are in effect: serve the user's request, but honestly — every outdoor/open-air pick's "why" MUST end with a short practical clause acknowledging the advisory (e.g. "— one to save for when the smoke clears" or "— go early before the heat peaks"). Never claim an outdoor place is protected or unaffected (no "sheltered from the smoke" for an open park), and never call an outdoor pick perfect for today. Also include 2-3 of the best indoor or genuinely covered candidates as advisory-safe alternatives, even if the request leaned outdoor. Warm and practical, never alarmist: one short clause per affected pick is enough.
+${modeDirective(mode)}
 - If the candidates don't cover something the user asked for, say so honestly in that idea's "why" rather than fabricating a match — or simply omit that angle.
 - Use the live weather context to favor indoor or outdoor picks appropriately, and mention it briefly in "why" when it materially affected the choice.
 - Preserve each selected item's "id" and "source" fields exactly as given so we can re-attach booking/map links.
@@ -292,14 +291,18 @@ JSON shape:
  * and replacements by candidate_id so the caller can re-attach full idea
  * payloads (photos, booking links) without trusting the model to copy them.
  */
-function buildReplanSystemPrompt({ city, weatherHint, advisoriesHint, dateHint, hasCandidates, multiDay, mode }) {
+// Same caching contract as the grounded prompt: varies only by low-cardinality
+// flags (city, mode, hasCandidates, multiDay); volatile context rides in the
+// user message fields weather_context / advisories_context / date_context.
+function buildReplanSystemPrompt({ city, hasCandidates, multiDay, mode }) {
   const where = whereLabel(city);
-  return `You are DayHop's smart re-planning engine for ${where}. You will receive a family's CURRENT itinerary ("current_plan"), their adjustment request ("request")${hasCandidates ? ', and a list of REAL candidate places/activities ("candidates") you may swap in' : ''}. ${weatherHint || ''}${advisoriesHint ? `\n\n${advisoriesHint}` : ''}${dateHint ? `\n\n${dateHint}` : ''}
+  return `You are DayHop's smart re-planning engine for ${where}. You will receive a family's CURRENT itinerary ("current_plan"), their adjustment request ("request")${hasCandidates ? ', and a list of REAL candidate places/activities ("candidates") you may swap in' : ''}. The request JSON may also carry "weather_context", "advisories_context", and "date_context" — treat each as authoritative live context when present.
 
 Your job: revise the plan to honor the request while keeping everything that still works. Change what needs changing — no more, no less.
 
 Hard rules:
-${advisoryRules(advisoriesHint)}${modeDirective(mode)}
+- IF "advisories_context" is present, advisories are in effect: honor them honestly — every outdoor/open-air stop's transition note or the change_summary MUST acknowledge the advisory practically, never claim an outdoor place is protected or unaffected, and prefer indoor or genuinely covered swaps where the request allows.
+${modeDirective(mode)}
 - Each output stop is EITHER a kept stop (set "keep_id" to that stop's original id — copy it exactly) OR ${hasCandidates ? 'a swap-in from the candidates (set "candidate_id" to the candidate\'s id — copy it exactly)' : 'a kept stop; with no candidates provided you may only reorder, retime, remove, or annotate stops'}. Never both, and NEVER invent a venue that is in neither list.
 - Kept stops may be reordered, retimed, or given new transition notes. Keep their titles as-is.
 - Remove stops that conflict with the request (e.g. outdoor stops when rain-proofing, pricey stops for a budget version) — removal is often the right move.
@@ -325,6 +328,20 @@ ${multiDay ? `  "days": [
   "stops": [ { "keep_id": "string (kept stops only)", "candidate_id": "string (swap-ins only)", "title": "string", "suggested_time": "string", "transition_note": "string or empty", "changed": boolean } ],
 `}  "notes": "string, empty unless the revised plan needs an honest flag"
 }`;
+}
+
+// Candidates carry fields the model never reads — booking/maps/image URLs
+// (long), raw coords (km_away already computed), internal ranking scores.
+// The caller re-attaches everything by id after selection, so dropping them
+// here costs nothing and cuts the largest chunk of per-generate input tokens.
+const CANDIDATE_DROP = new Set(['booking_url', 'maps_url', 'image_url', 'lat', 'lng', 'photo_ref']);
+function slimCandidate(c) {
+  const out = {};
+  for (const [k, v] of Object.entries(c)) {
+    if (v == null || CANDIDATE_DROP.has(k)) continue;
+    out[k] = k === 'description' ? String(v).slice(0, 240) : v;
+  }
+  return out;
 }
 
 function extractJson(rawText) {
@@ -422,11 +439,16 @@ async function generateGroundedIdeas({ prompt, filter, city = DEFAULT_CITY, cand
   const userMessage = JSON.stringify({
     request: prompt,
     active_filter: filter && filter !== 'all' ? filter : undefined,
-    candidates: candidates.slice(0, 60) // safety belt; caller pre-ranks and slims to 60
+    // Volatile context lives HERE, not in the system prompt — keeps the
+    // system prefix byte-stable per (city, mode) so xAI's prompt cache hits.
+    weather_context: weatherHint || undefined,
+    advisories_context: advisoriesHint || undefined,
+    date_context: dateHint || undefined,
+    candidates: candidates.slice(0, 60).map(slimCandidate) // safety belt; caller pre-ranks to 60
   });
 
   const messages = [
-    { role: 'system', content: buildGroundedSystemPrompt({ city, weatherHint, advisoriesHint, dateHint, mode }) },
+    { role: 'system', content: buildGroundedSystemPrompt({ city, mode }) },
     { role: 'user', content: userMessage }
   ];
 
@@ -482,18 +504,21 @@ async function replanPlan({ current, instruction, city = DEFAULT_CITY, weather, 
 
   const weatherHint = weather ? require('./weather').toPromptHint(weather) : '';
   const advisoriesHint = require('./advisories').toPromptHint(advisories);
-  const pool = Array.isArray(candidates) ? candidates.slice(0, 40) : [];
+  const pool = Array.isArray(candidates) ? candidates.slice(0, 40).map(slimCandidate) : [];
   const multiDay = Array.isArray(current.days) && current.days.length > 0;
 
   const messages = [
     {
       role: 'system',
-      content: buildReplanSystemPrompt({ city, weatherHint, advisoriesHint, dateHint, hasCandidates: pool.length > 0, multiDay, mode })
+      content: buildReplanSystemPrompt({ city, hasCandidates: pool.length > 0, multiDay, mode })
     },
     {
       role: 'user',
       content: JSON.stringify({
         request: String(instruction).slice(0, 300),
+        weather_context: weatherHint || undefined,
+        advisories_context: advisoriesHint || undefined,
+        date_context: dateHint || undefined,
         current_plan: current,
         candidates: pool.length ? pool : undefined
       })

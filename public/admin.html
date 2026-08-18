@@ -207,7 +207,7 @@
       <h2>Acquisition by campaign 📣</h2>
       <table>
         <thead>
-          <tr><th>Source</th><th>Campaign</th><th class="num">Subscribers</th><th class="num">Signups</th><th class="num">Checkouts</th></tr>
+          <tr><th>Source</th><th>Campaign</th><th class="num">Prompts</th><th class="num">Subscribers</th><th class="num">Signups</th><th class="num">Checkouts</th></tr>
         </thead>
         <tbody id="acquisition-rows"></tbody>
       </table>
@@ -534,9 +534,9 @@
   }
 
   async function boot() {
-    // Convenience: /admin.html?key=… loads straight away (internal tool).
-    const qk = new URLSearchParams(location.search).get('key');
-    if (qk && await load({ 'x-admin-key': qk })) return;
+    // (The old ?key=… URL convenience is gone on purpose: query strings land
+    // in browser history and access logs — no place for a standing secret.
+    // Sign in, or paste the key into the form; it travels as a header only.)
     // Preferred path: reuse the app's Supabase session — super admins are
     // recognized server-side from the verified JWT, no key handling at all.
     try {
@@ -980,10 +980,11 @@
     $('acquisition-rows').innerHTML = rows.length
       ? rows.map(r =>
           '<tr><td>' + esc(r.source) + '</td><td>' + esc(r.campaign || '—') + '</td>' +
+          '<td class="num">' + fmt(r.prompts || 0) + '</td>' +
           '<td class="num">' + fmt(r.subscribers || 0) + '</td>' +
           '<td class="num">' + fmt(r.signups || 0) + '</td>' +
           '<td class="num">' + fmt(r.checkouts || 0) + '</td></tr>').join('')
-      : '<tr><td colspan="5" style="color:var(--ink-soft)">No campaign-tagged traffic yet. Share links with ?utm_source=…&utm_campaign=… (or run ads) and conversions land here.</td></tr>';
+      : '<tr><td colspan="6" style="color:var(--ink-soft)">No campaign-tagged traffic yet. Share links with ?utm_source=…&utm_campaign=… (or run ads) and conversions land here.</td></tr>';
     $('acquisition-note').textContent = rows.length
       ? 'Counts events whose visitor first landed via a tagged URL (90-day first-touch). Checkouts also stamp the campaign into Stripe metadata.'
       : '';

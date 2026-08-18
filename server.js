@@ -255,7 +255,10 @@ app.get('/health', (req, res) => {
       email: require('./services/email').status(),
       meta_ads: require('./services/metaPixel').status(),
       admin_metrics: Boolean(process.env.ADMIN_KEY)
-    }
+    },
+    // Did everything fire? Last-run stamps for every scheduled job (resets
+    // on deploy — check process_uptime_hours before reading absence as death).
+    schedulers: require('./services/heartbeat').status()
   });
 });
 
@@ -362,6 +365,7 @@ if (process.env.GROK_API_KEY && process.env.DISCOVERY_AUTO !== 'off') {
   setInterval(() => {
     if (isSundayMidnightToronto() && Date.now() - lastDiscoveryRun > 12 * 60 * 60 * 1000) {
       lastDiscoveryRun = Date.now();
+      require('./services/heartbeat').record('discovery_scan');
       console.log('[discovery] Sunday-midnight Canada-wide scan starting');
       runDiscovery();
     }
@@ -389,6 +393,7 @@ if (process.env.RESEND_API_KEY && process.env.DIGEST_AUTO !== 'off') {
   setInterval(() => {
     if (isThursdayDigestHourToronto() && Date.now() - lastDigestRun > 12 * 60 * 60 * 1000) {
       lastDigestRun = Date.now();
+      require('./services/heartbeat').record('weekly_digest');
       console.log('[digest] Thursday send window — building the weekend brief');
       require('./services/digest').sendDigest()
         .catch(err => console.warn('[digest] weekly send failed:', err.message));
@@ -424,9 +429,11 @@ if (process.env.RESEND_API_KEY) {
   );
   setInterval(() => {
     const parts = torontoParts();
+    const heartbeat = require('./services/heartbeat');
     if (process.env.OUTREACH_AUTO !== 'off'
         && parts.hour === '08' && Date.now() - lastCadenceRun > 12 * 60 * 60 * 1000) {
       lastCadenceRun = Date.now();
+      heartbeat.record('outreach_cadence');
       require('./services/outreach').tick()
         .catch(err => console.warn('[outreach] cadence tick failed:', err.message));
     }
@@ -434,6 +441,7 @@ if (process.env.RESEND_API_KEY) {
         && parts.weekday === 'Mon' && parts.hour === '09'
         && Date.now() - lastReportRun > 12 * 60 * 60 * 1000) {
       lastReportRun = Date.now();
+      heartbeat.record('operator_report');
       require('./services/operatorReport').sendReport()
         .catch(err => console.warn('[report] Monday report failed:', err.message));
     }
@@ -442,6 +450,7 @@ if (process.env.RESEND_API_KEY) {
         && parts.weekday === 'Tue' && parts.hour === '09'
         && Date.now() - lastSocialRun > 12 * 60 * 60 * 1000) {
       lastSocialRun = Date.now();
+      heartbeat.record('social_batch');
       require('./services/socialBatch').sendBatch()
         .catch(err => console.warn('[social] Tuesday batch failed:', err.message));
     }

@@ -26,6 +26,8 @@ const CLIENT_EVENT_TYPES = new Set([
   'booking_return_prompt_shown', 'idea_auto_saved_on_booking', 'booking_return_continue',
   // Product-identity + zero-state engagement.
   'mode_switch', 'sample_plan_viewed',
+  // Campaign landing reached the product loop: /?plan=… prefilled and ran.
+  'prompt_prefill_landing',
   // Hero featured card: opened for detail / rewound to a previous pick.
   // (featured_event_open had drifted — fired since the split hero shipped
   // but never registered, so every open was rejected with 400.)
@@ -260,6 +262,35 @@ function aggregate(events) {
   };
   const since30d = Date.now() - 30 * 24 * 3600 * 1000;
   let affiliateClicks30d = 0;
+  // ---- bot classification (pre-pass) ----
+  // Crawler-shaped owners must not count as users (they sat inside the W4
+  // retention gate). Shape: every event is a passive server-recorded type
+  // AND 5+ events land inside one 15-minute window — the Aug 2026 pattern
+  // (Cloudflare-edge bursts at 3 AM, zero engagement). Real passive readers
+  // don't hammer 5 requests in 15 minutes; spam-clicky humans fire client
+  // events, which disqualifies them here. ip-* keys (requests that never
+  // ran our JS) are handled separately below. Event totals keep everything;
+  // only USER counts exclude.
+  const PASSIVE_TYPES = new Set(['browse_feed', 'surprise_feed', 'playbook_view']);
+  const ownerProfile = new Map(); // owner -> { passiveOnly, ts: [] }
+  for (const e of events) {
+    const k = e.owner_key;
+    if (!k || k === 'anon' || k === 'system' || k.startsWith('sub-') || k.startsWith('ip-')) continue;
+    if (!ownerProfile.has(k)) ownerProfile.set(k, { passiveOnly: true, ts: [] });
+    const p = ownerProfile.get(k);
+    if (!PASSIVE_TYPES.has(e.type)) p.passiveOnly = false;
+    const ts = Date.parse(e.created_at);
+    if (Number.isFinite(ts)) p.ts.push(ts);
+  }
+  const botOwners = new Set();
+  for (const [k, p] of ownerProfile) {
+    if (!p.passiveOnly || p.ts.length < 5) continue;
+    p.ts.sort((a, b) => a - b);
+    for (let i = 0; i + 4 < p.ts.length; i++) {
+      if (p.ts[i + 4] - p.ts[i] <= 15 * 60 * 1000) { botOwners.add(k); break; }
+    }
+  }
+  let botEvents = 0;
   for (const e of events) {
     totals[e.type] = (totals[e.type] || 0) + 1;
     const meta = e.meta && typeof e.meta === 'object' ? e.meta : {};
@@ -290,15 +321,19 @@ function aggregate(events) {
       (e.type === 'digest_opened' ? row.opens : row.clicks).add(e.owner_key);
     }
     if (meta.utm && meta.utm.utm_source &&
-        (e.type === 'signup' || e.type === 'newsletter_subscribe' || e.type === 'upgrade_started')) {
+        (e.type === 'signup' || e.type === 'newsletter_subscribe' || e.type === 'upgrade_started' ||
+         e.type === 'prompt_generated')) {
       const key = `${meta.utm.utm_source}|${meta.utm.utm_campaign || ''}`;
       if (!acquisition.has(key)) {
         acquisition.set(key, {
           source: meta.utm.utm_source, campaign: meta.utm.utm_campaign || null,
-          signups: 0, subscribers: 0, checkouts: 0
+          prompts: 0, signups: 0, subscribers: 0, checkouts: 0
         });
       }
       const a = acquisition.get(key);
+      // prompts = the campaign click actually reached the product loop —
+      // the number that decides whether ad spend is buying users or bounces.
+      if (e.type === 'prompt_generated') a.prompts = (a.prompts || 0) + 1;
       if (e.type === 'signup') a.signups++;
       if (e.type === 'newsletter_subscribe') a.subscribers++;
       if (e.type === 'upgrade_started') a.checkouts++;
@@ -327,18 +362,20 @@ function aggregate(events) {
     if (e.type === 'shortlist_add') d.shortlist_adds++;
     if (e.type === 'booking_click' || e.type === 'maps_click') d.booking_clicks++;
     if (e.type === 'plan_built') d.plans_built++;
-    // sub-* keys are email subscribers hitting digest tracking, not product
-    // users — keep them out of active/new-user counts entirely.
+    // sub-* keys are email subscribers hitting digest tracking; ip-* keys
+    // are JS-less requests (crawlers, curl — a product user always carries
+    // a guest/user id); burst-classified bots are crawlers with an id.
+    // None of them are product users — all stay out of active/new/retention.
+    if (e.owner_key && botOwners.has(e.owner_key)) botEvents++;
     if (e.owner_key && e.owner_key !== 'anon' && e.owner_key !== 'system' &&
-        !e.owner_key.startsWith('sub-')) {
+        !e.owner_key.startsWith('sub-') && !e.owner_key.startsWith('ip-') &&
+        !botOwners.has(e.owner_key)) {
       d.owners.add(e.owner_key);
       if (!firstSeen.has(e.owner_key)) firstSeen.set(e.owner_key, day);
-      if (!e.owner_key.startsWith('ip-')) {
-        const ts = Date.parse(e.created_at);
-        if (Number.isFinite(ts)) {
-          if (!ownerTs.has(e.owner_key)) ownerTs.set(e.owner_key, []);
-          ownerTs.get(e.owner_key).push(ts);
-        }
+      const ts = Date.parse(e.created_at);
+      if (Number.isFinite(ts)) {
+        if (!ownerTs.has(e.owner_key)) ownerTs.set(e.owner_key, []);
+        ownerTs.get(e.owner_key).push(ts);
       }
     }
   }
@@ -490,6 +527,12 @@ function aggregate(events) {
       guides_saved: totals.guide_created || 0,
       signups: totals.signup || 0,
       distinct_users: firstSeen.size
+    },
+    // What the bot classifier removed from user counts (events stay counted).
+    bots: {
+      owners_excluded: botOwners.size,
+      events: botEvents,
+      heuristic: 'passive-only owners with 5+ events in a 15-min window; plus all ip-* keys'
     },
     funnel: {
       prompts,

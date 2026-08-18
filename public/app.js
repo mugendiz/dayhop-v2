@@ -1231,7 +1231,11 @@
         // fast: two-phase — the server answers with the ranked real-place
         // pool in seconds (phase:'fast' + a job token) and keeps curating;
         // startCuratedPoll swaps the AI-curated set in when it lands.
-        { prompt, filter, fast: true, mode: state.mode, city: state.city, coords: state.coords || undefined, owner_id: getOwnerId() },
+        { prompt, filter, fast: true, mode: state.mode, city: state.city, coords: state.coords || undefined, owner_id: getOwnerId(),
+          // First-touch campaign attribution (pixel.js) — lets the server
+          // stamp prompt_generated with utm, closing the "did the ad click
+          // ever reach the product loop" measurement gap.
+          attrib: (window.dayhopAttrib && window.dayhopAttrib()) || undefined },
         getDatePayload()
       ))
     });
@@ -1744,6 +1748,22 @@
       img.addEventListener('error', () => { img.src = categoryImage(idea.category); }, { once: true });
     }
 
+    // The whole card opens details — users tap the photo/title, not the small
+    // Details button. (Shelf CTR read ~0% for weeks because only the button
+    // was wired; the taps were happening, unrecorded, on a dead surface.)
+    card.addEventListener('click', (e) => {
+      // Links (booking/maps chips) and buttons keep their own behavior —
+      // only a tap on the card surface itself opens details.
+      if (e.target.closest('a, button')) return;
+      track('card_open', idea);
+      openDetail(idea);
+    });
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target === card) {
+        track('card_open', idea);
+        openDetail(idea);
+      }
+    });
     card.querySelector('.btn-dismiss').addEventListener('click', (e) => {
       e.stopPropagation();
       dismissIdea(idea, card);
@@ -1854,7 +1874,10 @@
     img.addEventListener('error', () => { img.src = categoryImage(idea.category, 1200); }, { once: true });
 
     card.querySelector('.btn-dismiss').addEventListener('click', () => dismissIdea(idea, card));
-    card.querySelector('.btn-detail').addEventListener('click', () => openDetail(idea));
+    card.querySelector('.btn-detail').addEventListener('click', () => {
+      track('card_open', idea);
+      openDetail(idea);
+    });
     card.querySelector('.btn-add').addEventListener('click', () => addToShortlist(idea, card));
     return card;
   }
@@ -5213,6 +5236,28 @@
     const syncSurpriseVisibility = () => { surpriseBtn.hidden = promptArea.value.trim().length > 0; };
     promptArea.addEventListener('input', syncSurpriseVisibility);
     syncSurpriseVisibility();
+
+    // Campaign → product loop: /?plan=<text> arrives from the playbook and
+    // ad landings. Prefill the prompt and run it, so a campaign click
+    // reaches a generated feed in one tap instead of bouncing off a content
+    // page. The param is stripped after use so refresh/share can't re-fire;
+    // utm params stay for pixel.js first-touch attribution.
+    {
+      const params = new URLSearchParams(window.location.search);
+      const plan = (params.get('plan') || '').trim().slice(0, 300);
+      if (plan) {
+        promptArea.value = plan;
+        syncSurpriseVisibility();
+        track('prompt_prefill_landing');
+        params.delete('plan');
+        const qs = params.toString();
+        history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
+        setTimeout(() => {
+          promptArea.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          document.getElementById('prompt-form').requestSubmit();
+        }, 350);
+      }
+    }
 
     // Next: append more unrelated-but-awesome (and wider-out) picks below
     // whatever feed is showing.

@@ -145,10 +145,13 @@ router.post('/', async (req, res) => {
       near: userCoords ? resolvedCity || null : null,
       date_window: dateWindow || null
     };
+    // Campaign attribution rides along (sanitized) so the acquisition rollup
+    // can answer "did that ad click ever reach the product loop".
+    const utm = analytics.sanitizeAttrib(req.body && req.body.attrib);
     const recordGenerate = (degraded, count, phase) => analytics.recordEvent({
       type: 'prompt_generated',
       ownerKey,
-      meta: { grounded: usedGrounding, degraded, mode, city: cityForGrok, ideas: count, phase, guest_id: guestIdFor(req) }
+      meta: { grounded: usedGrounding, degraded, mode, city: cityForGrok, ideas: count, phase, guest_id: guestIdFor(req), utm: utm || undefined }
     });
     const cachePayload = (payload, degraded) => {
       if (usedGrounding && !degraded && payload.ideas.length) {

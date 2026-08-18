@@ -33,6 +33,14 @@ async function buildReport() {
   const lines = [];
   lines.push(`DayHop operator report — week of ${new Date().toISOString().slice(0, 10)}`);
   lines.push('');
+  // A dead daily cadence is otherwise invisible — nobody notices the email
+  // that didn't arrive. Only warns once the process has been up long enough
+  // that the cadence had a real chance to fire.
+  const heartbeat = require('./heartbeat');
+  if (heartbeat.isStale('outreach_cadence', 26)) {
+    lines.push('!! WARNING: the outreach cadence has not fired in over a day — check /health schedulers.');
+    lines.push('');
+  }
   lines.push('TRAFFIC (external only, last 7 days vs prior 7)');
   lines.push(`  Active users: ${activeCur} (${wow(activeCur, activePrev)})   New users: ${newCur}`);
   lines.push(`  Prompts: ${promptsCur} (${wow(promptsCur, promptsPrev)})   Browses: ${sum(last7, 'browses')}`);
@@ -49,7 +57,7 @@ async function buildReport() {
   lines.push('ACQUISITION BY CAMPAIGN (all time, from UTM attribution)');
   if (sources.length) {
     for (const s of sources) {
-      lines.push(`  ${s.source}/${s.campaign}: ${s.subscribers} subscribers, ${s.signups} signups, ${s.checkouts} checkouts`);
+      lines.push(`  ${s.source}/${s.campaign}: ${s.prompts || 0} prompts started, ${s.subscribers} subscribers, ${s.signups} signups, ${s.checkouts} checkouts`);
     }
   } else {
     lines.push('  No attributed conversions yet.');
