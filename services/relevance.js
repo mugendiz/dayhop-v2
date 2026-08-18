@@ -231,10 +231,14 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
  * that returned anything keeps at least a small voice (up to 2 entries),
  * so the pool Grok sees stays diverse. Output is relevance-ordered.
  */
-// Affiliate feeds don't get the guaranteed floor: with a small fixed product
-// catalog behind them, a guaranteed 2 slots meant the SAME products appeared
-// in every pool, every day. They still enter pass 2 on merit.
-const NO_FLOOR_SOURCES = new Set(['viator', 'getyourguide']);
+// Affiliate feeds originally lost the guaranteed floor because a small
+// fixed catalog meant the SAME products led every pool, every day. Viator
+// has since moved to a deep top-20 fetch with a daily-rotating window of 6
+// (candidates.js), which fixes the repetition at the source — so it gets
+// the standard floor back. Without it, generic tour copy never out-scored
+// local venues and Viator (the only commission-bearing source) appeared in
+// exactly zero feeds. getyourguide keeps the exclusion until it rotates too.
+const NO_FLOOR_SOURCES = new Set(['getyourguide']);
 
 function selectTop(scored, cap = 60) {
   const sorted = [...scored].sort((a, b) => b.score - a.score);

@@ -268,7 +268,21 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
       // destination, "Toronto").
       name: 'viator',
       run: () => viator.resolveDestinationId(toViatorDestination(localityText))
-        .then(destinationId => viator.searchActivities({ destinationId, topX: 20 }))
+        .then(destinationId => viator.searchActivities({ destinationId, topX: 40 }))
+        // Pre-filter to products that can actually reach the feed, BEFORE
+        // the daily rotation — otherwise the 6-slot window fills with
+        // products the downstream gates will kill and Viator contributes
+        // nothing (which is exactly what happened for months):
+        //  - airport transfers/tour-operator listings die at the
+        //    service-business filter;
+        //  - Viator sorts by rating, and Toronto's 5.0-rated tours are
+        //    long-tail (13-24 reviews) — below the 25-review quality
+        //    gate. Filter to gate-passing products; fetch deeper (40) so
+        //    rotation still has variety.
+        .then(activities => activities.filter(a =>
+          !/transfer|airport|shuttle|taxi|limo|chauffeur/i.test(a.title || '') &&
+          (a.rating ?? 0) >= QUALITY_MIN_RATING &&
+          (a.rating_count ?? 0) >= QUALITY_MIN_REVIEWS))
         .then(activities => rotateDaily(activities, 6)
           .map(a => Object.assign({}, a, { id: a.product_code })))
     },
