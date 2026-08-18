@@ -39,7 +39,17 @@ if (!process.env.GROK_MODEL) {
           console.log(`[grok] model "${GROK_MODEL}" verified against /models`);
         }
       })
-      .catch(err => console.warn('[grok] model check skipped (network):', err.message));
+      .catch(err => {
+        // A 4xx here isn't a network hiccup — it's the key/billing (the Aug
+        // 2026 credits outage answered 403 to this exact call). Mark health
+        // and alert so a fresh deploy of a dry account is visible instantly.
+        if (err.response && err.response.status >= 400 && err.response.status < 500) {
+          markFailure(err);
+          alertOperator(err);
+        } else {
+          console.warn('[grok] model check skipped (network):', err.message);
+        }
+      });
   }, 2000).unref?.();
 })();
 const DEFAULT_CITY = process.env.DEFAULT_CITY || 'Richmond Hill';
@@ -359,6 +369,27 @@ function extractJson(rawText) {
 // outage. Now a hard API failure emails the operator, at most once every
 // 12h, with the provider's own message (which names the fix, e.g. "purchase
 // more credits").
+// Health state for the admin dashboard: the panel shows a red banner while
+// this is not-ok (credits dry, key revoked, provider down). Per-instance and
+// in-memory — it reflects what THIS process has seen, which is exactly what
+// the operator needs to know.
+const _health = { ok: true, last_success_at: null, last_error: null, last_status: null, last_error_at: null };
+function markFailure(err) {
+  _health.ok = false;
+  _health.last_status = err.response ? err.response.status : 'network';
+  _health.last_error = String(
+    (err.response && err.response.data && (err.response.data.error || err.response.data.message)) || err.message
+  ).slice(0, 400);
+  _health.last_error_at = new Date().toISOString();
+}
+function markSuccess() {
+  _health.ok = true;
+  _health.last_success_at = new Date().toISOString();
+  _health.last_error = null;
+  _health.last_status = null;
+}
+function getHealth() { return Object.assign({}, _health); }
+
 let lastGrokAlertAt = 0;
 function alertOperator(err) {
   if (Date.now() - lastGrokAlertAt < 12 * 60 * 60 * 1000) return;
@@ -401,9 +432,11 @@ async function callGrok(messages, { temperature = 0.7 } = {}) {
       }
     );
   } catch (err) {
+    markFailure(err);
     alertOperator(err); // throttled inside — callers keep their own fallbacks
     throw err;
   }
+  markSuccess();
 
   const content = response && response.data && response.data.choices && response.data.choices[0]
     ? response.data.choices[0].message.content
@@ -630,5 +663,6 @@ module.exports = {
   buildDayPlan,
   replanPlan,
   placeFacts,
-  callGrok // generic JSON-mode completion (used by services/newOpenings.js)
+  callGrok, // generic JSON-mode completion (used by services/newOpenings.js)
+  getHealth // admin dashboard banner + /health operator view
 };

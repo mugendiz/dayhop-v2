@@ -108,6 +108,16 @@
   </div>
   <p id="error"></p>
 
+  <!-- AI planner outage banner: visible whenever the server reports Grok in
+       a failing state (credits dry, key revoked, provider down). -->
+  <div id="grok-banner" hidden
+       style="background:#B3301B;color:#fff;border-radius:12px;padding:14px 18px;margin:0 0 18px;font-size:14px;line-height:1.5">
+    <strong style="display:block;margin-bottom:2px">⚠️ AI planner is failing — feeds are serving the degraded pool</strong>
+    <span id="grok-banner-detail"></span>
+    <span style="display:block;margin-top:4px">If this mentions credits or a spending limit: top up at
+      <a href="https://console.x.ai" style="color:#FFD9CF;font-weight:600">console.x.ai</a>.</span>
+  </div>
+
   <div id="report" hidden>
     <label class="toggle-row" for="exclude-internal">
       <input type="checkbox" id="exclude-internal">
@@ -833,6 +843,7 @@
       ? 'Signed in as <strong>' + esc(email) + '</strong> (super admin)'
       : 'Authenticated with the admin key.';
 
+    renderGrokBanner(data.grok_health);
     renderTiles(data.totals || {}, data.billing || {});
     renderDailyChart(data.daily || []);
     renderFunnel(data.funnel || {});
@@ -975,6 +986,25 @@
   // Acquisition: funnel events that arrived carrying utm_* attribution
   // (pixel.js first-touch capture), rolled up per source + campaign. Empty
   // until traffic starts arriving through tagged links or ads.
+  // Red top-of-page banner while the AI planner is failing. The provider's
+  // own error text is the most actionable thing we can show (it names the
+  // fix, e.g. "purchase more credits").
+  function renderGrokBanner(h) {
+    const banner = $('grok-banner');
+    if (!banner) return;
+    if (h && h.ok === false) {
+      const when = h.last_error_at ? new Date(h.last_error_at).toLocaleString('en-CA', {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+      }) : '';
+      $('grok-banner-detail').textContent =
+        (h.last_error || 'Unknown error') + (h.last_status ? ' (HTTP ' + h.last_status + ')' : '') +
+        (when ? ' · last failure ' + when : '');
+      banner.hidden = false;
+    } else {
+      banner.hidden = true;
+    }
+  }
+
   function renderAcquisition(a) {
     const rows = a.sources || [];
     $('acquisition-rows').innerHTML = rows.length
