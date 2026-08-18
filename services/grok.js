@@ -354,27 +354,56 @@ function extractJson(rawText) {
   return JSON.parse(cleaned);
 }
 
+// The Aug 2026 lesson: xAI credits ran dry and the planner served the
+// degraded pool for THREE DAYS before anyone noticed — fail-soft hid the
+// outage. Now a hard API failure emails the operator, at most once every
+// 12h, with the provider's own message (which names the fix, e.g. "purchase
+// more credits").
+let lastGrokAlertAt = 0;
+function alertOperator(err) {
+  if (Date.now() - lastGrokAlertAt < 12 * 60 * 60 * 1000) return;
+  lastGrokAlertAt = Date.now();
+  const detail = (err.response && err.response.data && (err.response.data.error || err.response.data.message)) || err.message;
+  const status = err.response ? err.response.status : 'network';
+  require('./email').sendEmail({
+    to: process.env.OPERATOR_REPORT_TO || 'dayhopadmin@gmail.com',
+    subject: `DayHop: the AI planner is failing (Grok ${status})`,
+    text: `Grok API calls are failing, so every generate is serving the degraded ranked pool instead of AI-curated ideas.
+
+Provider says: ${String(detail).slice(0, 500)}
+
+If this mentions credits or spending limits: top up at https://console.x.ai (billing). Users see a working but noticeably dumber feed until then. This alert repeats at most every 12 hours while the failures continue.`
+  }).catch(() => {});
+  console.error(`[grok] API failing (${status}) — operator alerted:`, String(detail).slice(0, 200));
+}
+
 async function callGrok(messages, { temperature = 0.7 } = {}) {
   assertConfigured();
 
-  const response = await client.post(
-    GROK_API_URL,
-    {
-      model: GROK_MODEL,
-      messages,
-      temperature,
-      // ~18 ideas of JSON ≈ 2.5K tokens; leave real headroom so the
-      // response is never truncated mid-string (which breaks JSON.parse).
-      max_tokens: 8000,
-      response_format: { type: 'json_object' }
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.GROK_API_KEY}`,
-        'Content-Type': 'application/json'
+  let response;
+  try {
+    response = await client.post(
+      GROK_API_URL,
+      {
+        model: GROK_MODEL,
+        messages,
+        temperature,
+        // ~18 ideas of JSON ≈ 2.5K tokens; leave real headroom so the
+        // response is never truncated mid-string (which breaks JSON.parse).
+        max_tokens: 8000,
+        response_format: { type: 'json_object' }
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.GROK_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
       }
-    }
-  );
+    );
+  } catch (err) {
+    alertOperator(err); // throttled inside — callers keep their own fallbacks
+    throw err;
+  }
 
   const content = response && response.data && response.data.choices && response.data.choices[0]
     ? response.data.choices[0].message.content
