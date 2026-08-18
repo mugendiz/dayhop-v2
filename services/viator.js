@@ -133,8 +133,11 @@ function normalizeProduct(p) {
     warnedNoPid = true;
     console.warn('[viator] VIATOR_AFFILIATE_PID is not set — booking links earn no commission.');
   }
+  // When the API key is already affiliate-linked, productUrl arrives with
+  // pid/mcid baked in — appending again produced duplicate params. Only tag
+  // URLs that aren't tagged yet.
   const bookingUrl = p.productUrl
-    ? (pid
+    ? (pid && !p.productUrl.includes('pid=')
       ? `${p.productUrl}${p.productUrl.includes('?') ? '&' : '?'}pid=${pid}&mcid=42383`
       : p.productUrl)
     : null;
