@@ -302,6 +302,41 @@
         everything instantly; opt-out suppresses it forever.</p>
     </div>
 
+    <div class="card overflow" id="sponsors-card">
+      <h2>Sponsored placements 💰</h2>
+      <p class="rate" style="margin:0 0 10px">The revenue layer: active sponsors appear in feeds (max one per feed,
+        always labeled, relevance-gated). When a venue says yes and pays, add them here — this is the one-click
+        activation that used to require curl.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <button id="sponsor-add" class="mini-btn">Add placement</button>
+        <span class="rate" id="sponsors-msg"></span>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Venue</th><th>Tier</th><th>Status</th><th class="num">Impressions (30d)</th>
+              <th class="num">Engagements (30d)</th><th>Runs</th><th></th></tr>
+        </thead>
+        <tbody id="sponsors-rows"></tbody>
+      </table>
+    </div>
+
+    <div class="card" id="traction-card">
+      <h2>Traction snapshot 📈</h2>
+      <p class="rate" style="margin:0 0 10px">The numbers every application and investor email asks for, live from
+        real data (bots excluded). Built for the DMZ application — copy the block, paste into the form.</p>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <button id="traction-copy" class="mini-btn">Copy to clipboard</button>
+        <span class="rate" id="traction-msg"></span>
+      </div>
+      <pre id="traction-block" style="background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px;font-size:12.5px;line-height:1.55;overflow-x:auto;margin:0">Loading…</pre>
+    </div>
+
+    <div class="card" id="ops-card">
+      <h2>Ops — did everything fire? ⚙️</h2>
+      <div class="rate" id="ops-schedulers" style="margin:0 0 6px">Loading…</div>
+      <div class="rate" id="ops-bots"></div>
+    </div>
+
     <div class="card" id="team-card" hidden>
       <h2>Team 👥</h2>
       <p class="rate" style="margin:0 0 10px">Operators sign in with their DayHop account (regular app sign-in,
@@ -389,6 +424,7 @@
     lost: 'var(--muted)', optout: '#B3301B'
   };
   let crmRows = [];
+  let lastCrmSummary = null;
 
   function crmMsg(text, ok) {
     $('crm-msg').innerHTML = ok
@@ -413,10 +449,88 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || ('Error ' + res.status));
       crmRows = data.rows || [];
-      renderCrm(data.summary || {});
+      lastCrmSummary = data.summary || {};
+      renderCrm(lastCrmSummary);
     } catch (e) {
       $('crm-summary').textContent = 'Could not load the pipeline: ' + e.message;
     }
+  }
+
+  let crmOpenId = null; // prospect whose detail row is expanded
+
+  function crmDetailHtml(r) {
+    const draft = r.draft || {};
+    const canEditDraft = r.stage === 'drafted' && !r.suppressed;
+    const thread = (r.thread || []).map(t =>
+      '<div>' + esc(String(t.at || '').slice(0, 10)) + ' · <b>' + esc(t.type) + '</b> — ' + esc(t.subject || '') + '</div>').join('')
+      || '<div class="rate">No emails sent yet.</div>';
+    return '<tr class="crm-detail"><td colspan="6" style="background:var(--paper);padding:14px 16px">' +
+      '<div style="display:grid;gap:14px">' +
+
+      '<div><div style="font-weight:600;font-size:12.5px;margin-bottom:6px">Opener draft' +
+        (canEditDraft ? ' <span class="rate">(editable until approved)</span>' : '') + '</div>' +
+        (draft.subject || draft.text
+          ? '<input id="crm-d-subject" style="width:100%;font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px" value="' + esc(draft.subject || '') + '"' + (canEditDraft ? '' : ' readonly') + '>' +
+            '<textarea id="crm-d-text" rows="10" style="width:100%;font:inherit;font-size:13px;line-height:1.5;padding:9px 11px;border:1px solid var(--line);border-radius:8px;box-sizing:border-box"' + (canEditDraft ? '' : ' readonly') + '>' + esc(draft.text || '') + '</textarea>' +
+            (canEditDraft ? '<button class="mini-btn" id="crm-d-save-draft" style="margin-top:6px">Save draft</button>' : '')
+          : '<div class="rate">No draft on this row' + (r.notes && r.notes.indexOf('form') !== -1 ? ' — contact form only.' : '.') + '</div>') +
+      '</div>' +
+
+      '<div><div style="font-weight:600;font-size:12.5px;margin-bottom:6px">Contact</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<input id="crm-d-email" style="font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;min-width:240px" value="' + esc(r.email) + '">' +
+        '<select id="crm-d-tier" style="font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px">' +
+          ['featured', 'spotlight', 'anchor'].map(t => '<option' + (r.tier === t ? ' selected' : '') + '>' + t + '</option>').join('') +
+        '</select>' +
+        '<input id="crm-d-hook" placeholder="personalization hook" style="flex:1;min-width:220px;font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px" value="' + esc(r.hook || '') + '">' +
+        '<button class="mini-btn" id="crm-d-save-contact">Save</button></div></div>' +
+
+      '<div><div style="font-weight:600;font-size:12.5px;margin-bottom:6px">Thread</div>' +
+        '<div style="font-size:12.5px;color:var(--soft)">' + thread + '</div></div>' +
+
+      '<div><div style="font-weight:600;font-size:12.5px;margin-bottom:6px">Notes</div>' +
+        (r.notes ? '<pre style="font:inherit;font-size:12.5px;white-space:pre-wrap;margin:0 0 8px;color:var(--soft)">' + esc(r.notes) + '</pre>' : '') +
+        '<div style="display:flex;gap:8px"><input id="crm-d-note" placeholder="add a note…" style="flex:1;font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px">' +
+        '<button class="mini-btn" id="crm-d-add-note">Add</button></div></div>' +
+
+      '<div><div style="font-weight:600;font-size:12.5px;margin-bottom:6px">Activity (who did what)</div>' +
+        '<div id="crm-d-history" class="rate">Loading…</div></div>' +
+
+      '</div></td></tr>';
+  }
+
+  function wireCrmDetail(r) {
+    const saveRow = async (patch, okMsg) => {
+      try {
+        await crmPost('', Object.assign({
+          id: r.id, name: r.name, contact_name: r.contact_name, email: r.email, tier: r.tier,
+          stage: r.stage, hook: r.hook, draft: r.draft, thread: r.thread,
+          last_touch_at: r.last_touch_at, next_touch_due: r.next_touch_due,
+          suppressed: r.suppressed, notes: r.notes
+        }, patch));
+        crmMsg(okMsg, true);
+        loadCrm();
+      } catch (e) { crmMsg(e.message); }
+    };
+    const saveDraftBtn = $('crm-d-save-draft');
+    if (saveDraftBtn) saveDraftBtn.addEventListener('click', () =>
+      saveRow({ draft: { subject: $('crm-d-subject').value.trim(), text: $('crm-d-text').value } }, 'Draft saved.'));
+    $('crm-d-save-contact').addEventListener('click', () =>
+      saveRow({ email: $('crm-d-email').value.trim(), tier: $('crm-d-tier').value, hook: $('crm-d-hook').value.trim() }, 'Contact saved.'));
+    $('crm-d-add-note').addEventListener('click', async () => {
+      const note = $('crm-d-note').value.trim();
+      if (!note) return;
+      try { await crmPost('/' + r.id + '/note', { note }); crmMsg('Note added.', true); loadCrm(); }
+      catch (e) { crmMsg(e.message); }
+    });
+    fetch('/api/admin/crm/' + encodeURIComponent(r.id) + '/history', { headers: lastAuth.headers })
+      .then(res => res.json())
+      .then(d => {
+        $('crm-d-history').innerHTML = (d.events || []).slice(0, 15).map(ev =>
+          '<div>' + esc(String(ev.created_at || '').slice(0, 16).replace('T', ' ')) + ' · <b>' + esc(ev.type) + '</b>' +
+          (ev.actor ? ' · ' + esc(ev.actor) : '') + '</div>').join('') || 'No activity yet.';
+      })
+      .catch(() => { $('crm-d-history').textContent = 'Could not load activity.'; });
   }
 
   function renderCrm(sum) {
@@ -438,22 +552,31 @@
       '<td>' + day(r.last_touch_at) + '</td>' +
       '<td>' + day(r.next_touch_due) + '</td>' +
       '<td style="white-space:nowrap">' +
-        (r.stage === 'drafted' && adminRole === 'owner'
+        '<button class="mini-btn" data-act="view" data-i="' + i + '">' + (crmOpenId === r.id ? 'Close' : 'View') + '</button> ' +
+        (r.stage === 'drafted' && adminRole === 'owner' && r.draft
           ? '<button class="mini-btn" data-act="approve" data-i="' + i + '">Approve</button> ' : '') +
         '<button class="mini-btn" data-act="replied" data-i="' + i + '">Replied</button> ' +
         '<button class="mini-btn" data-act="code" data-i="' + i + '">Send code</button> ' +
         '<button class="mini-btn" data-act="won" data-i="' + i + '">Won</button> ' +
         '<button class="mini-btn' + (r.suppressed ? '' : ' danger') + '" data-act="pause" data-i="' + i + '">' +
           (r.suppressed ? 'Resume' : 'Pause') + '</button>' +
-      '</td></tr>').join('')
+      '</td></tr>' +
+      (crmOpenId === r.id ? crmDetailHtml(r) : '')).join('')
       : '<tr><td colspan="6" class="rate">No prospects yet — Add prospect, or run the seed script.</td></tr>';
     $('crm-rows').querySelectorAll('button[data-act]').forEach(btn => {
       btn.addEventListener('click', () => crmAction(btn.dataset.act, crmRows[Number(btn.dataset.i)]));
     });
+    const open = crmRows.find(r => r.id === crmOpenId);
+    if (open) wireCrmDetail(open);
   }
 
   async function crmAction(act, row) {
     if (!row) return;
+    if (act === 'view') {
+      crmOpenId = crmOpenId === row.id ? null : row.id;
+      renderCrm(lastCrmSummary || {});
+      return;
+    }
     try {
       if (act === 'approve') {
         if (!confirm('Approve the opener for ' + row.name + '? It sends on the next cadence run (daily, 8 AM Toronto — or "Run due sends now").')) return;
@@ -494,6 +617,13 @@
         loadCrm();
       } catch (e) { crmMsg(e.message); }
     });
+    $('sponsor-add').addEventListener('click', addSponsorFlow);
+    $('traction-copy').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(tractionText);
+        $('traction-msg').textContent = 'Copied.';
+      } catch (e) { $('traction-msg').textContent = 'Copy failed — select the block manually.'; }
+    });
     $('team-add').addEventListener('click', async () => {
       const email = $('team-email').value.trim();
       if (!email) return;
@@ -515,6 +645,133 @@
     document.addEventListener('DOMContentLoaded', wireCrmButtons);
   } else {
     wireCrmButtons();
+  }
+
+  // ---------- Sponsored placements ----------
+  async function loadSponsors() {
+    if (!lastAuth) return;
+    try {
+      const res = await fetch('/api/admin/sponsors', { headers: lastAuth.headers });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || res.status);
+      const day = iso => iso ? esc(String(iso).slice(0, 10)) : '—';
+      $('sponsors-rows').innerHTML = (data.sponsors || []).length
+        ? data.sponsors.map(s =>
+            '<tr><td>' + esc(s.title || s.id) + (s.location ? ' <span class="rate">' + esc(s.location) + '</span>' : '') + '</td>' +
+            '<td>' + esc(s.tier) + '</td>' +
+            '<td><span style="color:' + (s.status === 'active' ? '#12855C' : 'var(--muted)') + ';font-weight:600">' + esc(s.status) + '</span></td>' +
+            '<td class="num">' + fmt(s.impressions) + '</td>' +
+            '<td class="num">' + fmt(s.engagements) + '</td>' +
+            '<td>' + day(s.starts_at) + (s.ends_at ? ' → ' + day(s.ends_at) : '') + '</td>' +
+            '<td><button class="mini-btn' + (s.status === 'active' ? ' danger' : '') + '" data-sid="' + esc(s.id) +
+              '" data-next="' + (s.status === 'active' ? 'paused' : 'active') + '">' +
+              (s.status === 'active' ? 'Pause' : 'Activate') + '</button></td></tr>').join('')
+        : '<tr><td colspan="7" class="rate">No placements yet. The first "yes" from the outreach pipeline lands here.</td></tr>';
+      $('sponsors-rows').querySelectorAll('button[data-sid]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          try {
+            const r = await fetch('/api/admin/sponsors/status', {
+              method: 'POST',
+              headers: Object.assign({ 'Content-Type': 'application/json' }, lastAuth.headers),
+              body: JSON.stringify({ id: btn.dataset.sid, status: btn.dataset.next })
+            });
+            const d = await r.json();
+            if (!r.ok) throw new Error(d.message || r.status);
+            $('sponsors-msg').textContent = btn.dataset.sid + ' → ' + btn.dataset.next;
+            loadSponsors();
+          } catch (e) { $('sponsors-msg').textContent = e.message; }
+        });
+      });
+    } catch (e) {
+      $('sponsors-rows').innerHTML = '<tr><td colspan="7" class="rate">' + esc(e.message) + '</td></tr>';
+    }
+  }
+
+  async function addSponsorFlow() {
+    const title = prompt('Venue / placement title?'); if (!title) return;
+    const tier = prompt('Tier (featured / spotlight / anchor)?', 'featured'); if (!tier) return;
+    const category = prompt('Category (kids / patios / water / cruises / adventures / culture / food / general)?', 'general') || 'general';
+    const location = prompt('Location (e.g. "Milton" or "Danforth, Toronto")?') || '';
+    const description = prompt('One-line description (shows on the card)?') || '';
+    const booking_url = prompt('Booking / website URL (optional)?') || '';
+    try {
+      const r = await fetch('/api/admin/sponsors', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, lastAuth.headers),
+        body: JSON.stringify({ tier: tier.trim().toLowerCase(),
+          entry: { title, category, location, description, booking_url: booking_url || undefined } })
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.message || r.status);
+      $('sponsors-msg').textContent = title + ' added as ' + tier + ' (active).';
+      loadSponsors();
+    } catch (e) { $('sponsors-msg').textContent = e.message; }
+  }
+
+  // ---------- Traction snapshot ----------
+  let tractionText = '';
+  async function loadTraction() {
+    if (!lastAuth) return;
+    try {
+      const res = await fetch('/api/admin/traction', { headers: lastAuth.headers });
+      const t = await res.json();
+      if (!res.ok) throw new Error(t.message || res.status);
+      const acq = (t.acquisition || []).map(s =>
+        '  ' + s.source + '/' + (s.campaign || '') + ': ' + (s.prompts || 0) + ' prompts, ' +
+        s.subscribers + ' subscribers, ' + s.signups + ' signups, ' + s.checkouts + ' checkouts').join('\n');
+      tractionText = [
+        'DayHop traction — ' + t.as_of,
+        '',
+        'USERS',
+        '  Total distinct (bots excluded): ' + fmt(t.users.total_distinct),
+        '  Weekly active: ' + fmt(t.users.weekly_active) + '   New (7d): ' + fmt(t.users.new_last_7d),
+        '  Week-4 retention: ' + (t.users.week4_retention_pct != null ? t.users.week4_retention_pct + '%' : 'n/a'),
+        '',
+        'ENGAGEMENT (all time)',
+        '  AI plans generated: ' + fmt(t.engagement.prompts_total) + '   Day plans built: ' + fmt(t.engagement.plans_built),
+        '  Outbound booking clicks: ' + fmt(t.engagement.booking_clicks) + '   Account signups: ' + fmt(t.engagement.signups),
+        '',
+        'REVENUE',
+        '  MRR: $' + fmt(t.revenue.mrr) + ' ' + t.revenue.currency +
+          '   Paying: ' + fmt(t.revenue.paying_subscribers) + '   In trial: ' + fmt(t.revenue.in_trial),
+        '  Active sponsors: ' + fmt(t.revenue.active_sponsors) +
+          (t.revenue.sponsor_tiers.length ? ' (' + t.revenue.sponsor_tiers.join(', ') + ')' : ''),
+        '  Sales pipeline: ' + (t.sales_pipeline ? fmt(t.sales_pipeline.total) + ' venues, ' +
+          (t.sales_pipeline.replied || 0) + ' replied/won' : 'n/a'),
+        '',
+        'AUDIENCE',
+        '  Newsletter (confirmed): ' + fmt(t.audience.newsletter_subscribed),
+        '  Instagram ' + t.audience.instagram + ' · TikTok ' + t.audience.tiktok,
+        '',
+        'ACQUISITION BY CAMPAIGN' + (acq ? '\n' + acq : '\n  none attributed yet')
+      ].join('\n');
+      $('traction-block').textContent = tractionText;
+    } catch (e) {
+      $('traction-block').textContent = 'Could not build snapshot: ' + e.message;
+    }
+  }
+
+  // ---------- Ops (scheduler heartbeats + bot filter) ----------
+  async function loadOps(botsFromMetrics) {
+    if (!lastAuth) return;
+    try {
+      const res = await fetch('/health', { headers: lastAuth.headers });
+      const h = await res.json();
+      const s = h.schedulers || {};
+      const runs = s.last_runs || {};
+      const names = ['outreach_cadence', 'operator_report', 'social_batch', 'weekly_digest', 'discovery_scan'];
+      $('ops-schedulers').innerHTML =
+        'Process up ' + (s.process_uptime_hours != null ? s.process_uptime_hours + 'h' : '?') + ' · ' +
+        names.map(n => '<b>' + esc(n.replace(/_/g, ' ')) + '</b>: ' +
+          (runs[n] ? esc(String(runs[n]).slice(5, 16).replace('T', ' ')) : '<span style="color:var(--muted)">not yet this process</span>')
+        ).join(' · ');
+    } catch (e) {
+      $('ops-schedulers').textContent = 'Could not read /health.';
+    }
+    if (botsFromMetrics) {
+      $('ops-bots').innerHTML = 'Bot filter: <b>' + fmt(botsFromMetrics.owners_excluded) +
+        '</b> crawler-shaped owners (' + fmt(botsFromMetrics.events) + ' events) excluded from user counts, plus all ip-only keys.';
+    }
   }
 
   async function loadTeam() {
@@ -792,6 +1049,9 @@
       loadSubscriptions(headers);
       loadCrm();
       loadTeam();
+      loadSponsors();
+      loadTraction();
+      loadOps(data.bots);
       return true;
     } catch (e) {
       $('error').textContent = 'Could not reach the metrics endpoint.';
@@ -805,7 +1065,7 @@
   // just keeps the page honest about it).
   const OWNER_ONLY_CARDS = ['affiliate-card', 'premium-card', 'retention-card', 'digest-card',
     'acquisition-card', 'traffic-card', 'users-card', 'events-card', 'discovery-card',
-    'newsletter-card', 'team-card'];
+    'newsletter-card', 'team-card', 'sponsors-card', 'traction-card', 'ops-card'];
 
   async function loadOperator(headers, email) {
     try {
