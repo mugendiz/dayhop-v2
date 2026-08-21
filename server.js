@@ -402,6 +402,31 @@ if (process.env.RESEND_API_KEY && process.env.DIGEST_AUTO !== 'off') {
   console.log(`[digest] weekly schedule armed: Thursdays ${digestHour}:00-${digestHour}:59 Toronto`);
 }
 
+// Panel roles bootstrap: guarantee exactly one owner row exists in
+// admin_users (seeds from ADMIN_EMAILS / the founder). Fail-soft.
+require('./services/outreach').ensureOwnerSeed()
+  .catch(err => console.warn('[outreach] owner seed failed:', err.message));
+
+// Accounting: materialize this month's due recurring expenses at 2 AM
+// Toronto. Deliberately NOT inside the RESEND-gated block below — the books
+// must not depend on email config. Idempotent monthly keys mean a sleeping
+// free-tier instance simply catches up on its next wake.
+{
+  let lastAccountingRun = 0;
+  const torontoHour = () => new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Toronto', hour: '2-digit', hour12: false
+  }).format(new Date());
+  setInterval(() => {
+    if (torontoHour() === '02' && Date.now() - lastAccountingRun > 12 * 60 * 60 * 1000) {
+      lastAccountingRun = Date.now();
+      require('./services/heartbeat').record('accounting_recurring');
+      require('./services/accounting').materializeRecurring()
+        .catch(err => console.warn('[accounting] recurring materialize failed:', err.message));
+    }
+  }, 20 * 60 * 1000).unref();
+  console.log('[accounting] recurring-expense schedule armed: daily 02h (Toronto)');
+}
+
 // Outreach cadence: EVERY MORNING AT 8 (Toronto) send whatever follow-ups
 // are due (opener day 0 after approval, bump day 4, closing note day 10),
 // then on MONDAYS AT 9 send the operator report. Same DST-proof clock-check

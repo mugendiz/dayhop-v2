@@ -321,21 +321,25 @@ async function summary() {
 }
 
 // ---------- Panel roles ----------
-// Owners: ADMIN_EMAILS env (entitlements.isAdmin) OR admin_users role=owner.
-// Operators: admin_users role=operator — CRM + reduced metrics only.
-// Cached 60s so every admin request doesn't hit the table.
+// admin_users is the authority (owner | deputy | operator): the DB row wins
+// over ADMIN_EMAILS so an ownership transfer sticks even while the old owner
+// is still in the env var. Env owners are only a fallback for emails with no
+// row (bootstrap, or the DB is unreachable). Exactly one owner row exists
+// (partial unique index); it can't be deleted, only swapped by
+// transferOwnership. Cached 60s so every admin request doesn't hit the table.
 let _rolesCache = { at: 0, rows: [] };
 async function roleFor(email) {
   if (!email) return null;
   const lower = String(email).toLowerCase();
-  if (require('./entitlements').isAdmin({ email: lower })) return 'owner';
-  if (!hasServiceKey()) return null;
-  if (Date.now() - _rolesCache.at > 60 * 1000) {
-    const { data, error } = await db().from('admin_users').select('email, role');
-    if (!error) _rolesCache = { at: Date.now(), rows: data || [] };
+  if (hasServiceKey()) {
+    if (Date.now() - _rolesCache.at > 60 * 1000) {
+      const { data, error } = await db().from('admin_users').select('email, role');
+      if (!error) _rolesCache = { at: Date.now(), rows: data || [] };
+    }
+    const hit = _rolesCache.rows.find(r => String(r.email).toLowerCase() === lower);
+    if (hit) return hit.role;
   }
-  const hit = _rolesCache.rows.find(r => String(r.email).toLowerCase() === lower);
-  return hit ? hit.role : null;
+  return require('./entitlements').isAdmin({ email: lower }) ? 'owner' : null;
 }
 
 async function listTeam() {
@@ -347,9 +351,13 @@ async function listTeam() {
 
 async function addTeamMember(email, role, actor) {
   if (!email || !/.+@.+\..+/.test(email)) throw new Error('a valid email is required');
-  if (!['owner', 'operator'].includes(role)) throw new Error('role must be owner or operator');
+  // Owner is never added here — only the seed or transferOwnership creates one.
+  if (!['deputy', 'operator'].includes(role)) throw new Error('role must be deputy or operator');
+  const lower = String(email).toLowerCase();
+  const { data: existing } = await db().from('admin_users').select('role').eq('email', lower).maybeSingle();
+  if (existing && existing.role === 'owner') throw new Error('that email is the owner — transfer ownership instead');
   const { data, error } = await db().from('admin_users')
-    .upsert({ email: String(email).toLowerCase(), role, added_by: actor || null }, { onConflict: 'email' })
+    .upsert({ email: lower, role, added_by: actor || null }, { onConflict: 'email' })
     .select().single();
   if (error) throw error;
   _rolesCache.at = 0;
@@ -357,14 +365,56 @@ async function addTeamMember(email, role, actor) {
 }
 
 async function removeTeamMember(email) {
-  const { error } = await db().from('admin_users').delete().eq('email', String(email).toLowerCase());
+  const lower = String(email).toLowerCase();
+  const { data: existing } = await db().from('admin_users').select('role').eq('email', lower).maybeSingle();
+  if (existing && existing.role === 'owner') {
+    throw new Error('the owner cannot be removed — transfer ownership first');
+  }
+  const { error } = await db().from('admin_users').delete().eq('email', lower);
   if (error) throw error;
   _rolesCache.at = 0;
   return true;
 }
 
+// Atomic swap via the transfer_ownership SQL function: target must already
+// be a deputy; the old owner is demoted to deputy in the same transaction.
+async function transferOwnership(targetEmail) {
+  if (!hasServiceKey()) throw new Error('service key required');
+  const { error } = await db().rpc('transfer_ownership', {
+    new_owner_email: String(targetEmail || '').toLowerCase()
+  });
+  if (error) throw new Error(error.message || 'transfer failed');
+  _rolesCache.at = 0;
+  return true;
+}
+
+// Boot-time bootstrap: guarantee an owner row exists so the panel's Team
+// section always shows who the owner is. Seeds from ADMIN_EMAILS (first
+// entry) or the baked-in founder. Fail-soft — a missing service key or DB
+// hiccup must never block boot.
+async function ensureOwnerSeed() {
+  if (!hasServiceKey()) return false;
+  try {
+    const { data, error } = await db().from('admin_users').select('email').eq('role', 'owner').limit(1);
+    if (error) throw error;
+    if (data && data.length) return false;
+    const seed = String(process.env.ADMIN_EMAILS || '').split(',')
+      .map(e => e.trim().toLowerCase()).filter(Boolean)[0] || 'mugendiz@gmail.com';
+    const { error: upErr } = await db().from('admin_users')
+      .upsert({ email: seed, role: 'owner', added_by: 'seed' }, { onConflict: 'email' });
+    if (upErr) throw upErr;
+    _rolesCache.at = 0;
+    console.log(`[outreach] owner row seeded: ${seed}`);
+    return true;
+  } catch (err) {
+    console.warn('[outreach] owner seed skipped:', err.message);
+    return false;
+  }
+}
+
 module.exports = {
   list, get, history, upsert, approve, setStage, setSuppressed, addNote,
   tick, recordEmailEvent, summary, sendCoupon,
-  roleFor, listTeam, addTeamMember, removeTeamMember
+  roleFor, listTeam, addTeamMember, removeTeamMember,
+  transferOwnership, ensureOwnerSeed
 };

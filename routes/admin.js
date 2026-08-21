@@ -12,7 +12,6 @@ const router = express.Router();
 const analytics = require('../services/analytics');
 const billing = require('../services/billing');
 const moderation = require('../services/moderation');
-const { isAdmin } = require('../services/entitlements');
 
 // Lazy: newOpenings drags in the whole discovery stack (buzz, autoCatalog,
 // grok, curatedCatalog). Admin routes are hit rarely — keep that graph out
@@ -31,32 +30,20 @@ function keyMatches(provided) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-function requireAdmin(req, res, next) {
-  if (isAdmin(req.user)) return next();
+// ---------- Roles (2026-08-18, three tiers since 2026-08-20) ----------
+// owner    — exactly one (admin_users row; ADMIN_KEY is break-glass
+//            owner-equivalent): everything. Not deletable; ownership moves
+//            only via /team/transfer-ownership to an existing deputy.
+// deputy   — trusted co-admin: accounting + the whole staff surface, but no
+//            team management, moderation, full metrics, or backfill.
+// operator — the CRM tab and a reduced metrics payload ONLY.
+// Deny-by-default: every route names the roles it accepts via requireRole.
+// Role resolution lives in services/outreach.roleFor (DB row first,
+// ADMIN_EMAILS env fallback), so a transfer takes effect without a deploy.
+async function resolveRole(req) {
   // Header only — query strings land in access logs and browser history,
   // which is no place for a standing secret. (admin.html's ?key=
   // convenience already converts to this header client-side.)
-  const providedKey = req.headers['x-admin-key'];
-  if (!process.env.ADMIN_KEY && !providedKey) {
-    return res.status(503).json({
-      error: 'ADMIN_NOT_CONFIGURED',
-      message: 'Sign in with an admin account, or set ADMIN_KEY in .env to enable key access.'
-    });
-  }
-  if (!keyMatches(providedKey)) {
-    return res.status(401).json({ error: 'FORBIDDEN', message: 'Admin sign-in or a valid admin key required.' });
-  }
-  next();
-}
-
-// ---------- Roles (2026-08-18) ----------
-// Two tiers. Owners = ADMIN_EMAILS env or the admin key (everything —
-// requireAdmin above is unchanged and stays the default on every route).
-// Operators = rows in admin_users (role=operator): the CRM tab and a
-// reduced metrics payload ONLY. Deny-by-default: a route accepts operators
-// only by explicitly using requireStaff.
-async function resolveRole(req) {
-  if (isAdmin(req.user)) return { role: 'owner', actor: req.user.email };
   if (keyMatches(req.headers['x-admin-key'])) return { role: 'owner', actor: 'admin-key' };
   const email = req.user && req.user.email;
   if (!email) return null;
@@ -64,16 +51,30 @@ async function resolveRole(req) {
   return role ? { role, actor: String(email).toLowerCase() } : null;
 }
 
-function requireStaff(req, res, next) {
-  resolveRole(req)
-    .then(r => {
-      if (!r) return res.status(401).json({ error: 'FORBIDDEN', message: 'Admin or operator sign-in required.' });
-      req.adminRole = r.role;
-      req.adminActor = r.actor;
-      next();
-    })
-    .catch(next);
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!process.env.ADMIN_KEY && !req.headers['x-admin-key'] && !(req.user && req.user.email)) {
+      return res.status(503).json({
+        error: 'ADMIN_NOT_CONFIGURED',
+        message: 'Sign in with an admin account, or set ADMIN_KEY in .env to enable key access.'
+      });
+    }
+    resolveRole(req)
+      .then(r => {
+        if (!r || !roles.includes(r.role)) {
+          return res.status(401).json({ error: 'FORBIDDEN', message: 'Admin sign-in or a valid admin key required.' });
+        }
+        req.adminRole = r.role;
+        req.adminActor = r.actor;
+        next();
+      })
+      .catch(next);
+  };
 }
+const requireOwner = requireRole('owner');
+const requireFinance = requireRole('owner', 'deputy');           // accounting
+const requireStaff = requireRole('owner', 'deputy', 'operator'); // CRM + lite metrics
+const requireAdmin = requireOwner; // legacy alias — every pre-roles route is owner-only
 
 // Discovery inbox (Phase 1): RSS scan + Grok entity extraction → candidate
 // new openings with paste-ready catalog drafts. Cached 6h server-side; the
@@ -444,6 +445,10 @@ router.get('/traction', requireAdmin, async (req, res) => {
       require('../services/newsletter').stats().catch(() => null),
       outreachSvc.summary().catch(() => null)
     ]);
+    const net30 = await require('../services/accounting')
+      .summary({ from: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString() })
+      .catch(() => null);
+    const net30Cad = net30 && net30.by_currency && net30.by_currency.CAD;
     const sponsors = require('../services/sponsors').list().filter(s => s.status === 'active');
     const daily = m.daily || [];
     const last7 = daily.slice(-7);
@@ -470,7 +475,11 @@ router.get('/traction', requireAdmin, async (req, res) => {
         paying_subscribers: bs.active_paying || 0,
         in_trial: bs.in_trial || 0,
         active_sponsors: sponsors.length,
-        sponsor_tiers: sponsors.map(s => s.tier)
+        sponsor_tiers: sponsors.map(s => s.tier),
+        // From the accounting ledger: real charged dollars, net of refunds
+        // and expenses, last 30 days. Null until the ledger has rows.
+        net_30d: net30Cad ? Math.round(net30Cad.net_cents) / 100 : null,
+        income_30d: net30Cad ? Math.round(net30Cad.income_cents) / 100 : null
       },
       audience: {
         newsletter_subscribed: (nl && nl.counts && nl.counts.subscribed) || 0,
@@ -487,6 +496,135 @@ router.get('/traction', requireAdmin, async (req, res) => {
   }
 });
 
+// ---------- Accounting (owner + deputy) ----------
+// The books: P&L summary, ledger entries, manual expenses, recurring
+// templates. Backfill (a heavier Stripe sweep) stays owner-only.
+const accountingSvc = require('../services/accounting');
+
+function requireLedger(req, res) {
+  if (accountingSvc.isConfigured()) return true;
+  res.status(503).json({
+    error: 'NO_SERVICE_KEY',
+    message: 'Accounting requires SUPABASE_SERVICE_KEY on the server.'
+  });
+  return false;
+}
+
+router.get('/accounting/summary', requireFinance, async (req, res) => {
+  try {
+    if (!requireLedger(req, res)) return;
+    const from = req.query.from || `${new Date().getUTCFullYear()}-01-01`;
+    const to = req.query.to || undefined;
+    res.json(Object.assign(await accountingSvc.summary({ from, to }), {
+      income_categories: accountingSvc.INCOME_CATEGORIES,
+      expense_categories: accountingSvc.EXPENSE_CATEGORIES
+    }));
+  } catch (err) {
+    console.error('[admin] accounting summary failed:', err.message);
+    res.status(500).json({ error: 'ACCOUNTING_FAILED', message: 'Could not build the summary.' });
+  }
+});
+
+router.get('/accounting/entries', requireFinance, async (req, res) => {
+  try {
+    if (!requireLedger(req, res)) return;
+    res.json({ entries: await accountingSvc.listEntries({ from: req.query.from, to: req.query.to }) });
+  } catch (err) {
+    console.error('[admin] accounting entries failed:', err.message);
+    res.status(500).json({ error: 'ACCOUNTING_FAILED', message: 'Could not list entries.' });
+  }
+});
+
+router.post('/accounting/expense', requireFinance, async (req, res) => {
+  try {
+    if (!requireLedger(req, res)) return;
+    const b = req.body || {};
+    const entry = await accountingSvc.addManualExpense({
+      vendor: b.vendor,
+      category: b.category,
+      amount_cents: accountingSvc.parseAmountToCents(b.amount),
+      currency: b.currency,
+      occurred_on: b.occurred_on,
+      note: b.note
+    }, req.adminActor);
+    res.json({ entry });
+  } catch (err) {
+    res.status(400).json({ error: 'INVALID_ENTRY', message: err.message });
+  }
+});
+
+router.post('/accounting/entry/:id/category', requireFinance, async (req, res) => {
+  try {
+    if (!requireLedger(req, res)) return;
+    res.json({ entry: await accountingSvc.setCategory(req.params.id, (req.body || {}).category) });
+  } catch (err) {
+    res.status(400).json({ error: 'INVALID_ENTRY', message: err.message });
+  }
+});
+
+router.post('/accounting/entry/:id/delete', requireFinance, async (req, res) => {
+  try {
+    if (!requireLedger(req, res)) return;
+    await accountingSvc.deleteEntry(req.params.id);
+    res.json({ deleted: true });
+  } catch (err) {
+    res.status(400).json({ error: 'INVALID_ENTRY', message: err.message });
+  }
+});
+
+router.get('/accounting/recurring', requireFinance, async (req, res) => {
+  try {
+    if (!requireLedger(req, res)) return;
+    res.json({ templates: await accountingSvc.listRecurring() });
+  } catch (err) {
+    console.error('[admin] recurring list failed:', err.message);
+    res.status(500).json({ error: 'ACCOUNTING_FAILED', message: 'Could not list recurring expenses.' });
+  }
+});
+
+router.post('/accounting/recurring', requireFinance, async (req, res) => {
+  try {
+    if (!requireLedger(req, res)) return;
+    const b = req.body || {};
+    const template = await accountingSvc.upsertRecurring({
+      id: b.id,
+      vendor: b.vendor,
+      category: b.category,
+      amount_cents: accountingSvc.parseAmountToCents(b.amount),
+      currency: b.currency,
+      day_of_month: b.day_of_month,
+      note: b.note
+    }, req.adminActor);
+    // A template added mid-month posts this month's entry right away.
+    await accountingSvc.materializeRecurring().catch(() => {});
+    res.json({ template });
+  } catch (err) {
+    res.status(400).json({ error: 'INVALID_ENTRY', message: err.message });
+  }
+});
+
+router.post('/accounting/recurring/:id/toggle', requireFinance, async (req, res) => {
+  try {
+    if (!requireLedger(req, res)) return;
+    res.json({ template: await accountingSvc.setRecurringActive(req.params.id, (req.body || {}).active) });
+  } catch (err) {
+    res.status(400).json({ error: 'INVALID_ENTRY', message: err.message });
+  }
+});
+
+// Owner-only: sweep Stripe history into the ledger (webhook rows only exist
+// from deploy time). Idempotent — run it as often as you like.
+router.post('/accounting/backfill', requireOwner, async (req, res) => {
+  try {
+    if (!requireLedger(req, res)) return;
+    const since = (req.body || {}).since || '2026-01-01';
+    res.json(await accountingSvc.backfill({ since }));
+  } catch (err) {
+    console.error('[admin] backfill failed:', err.message);
+    res.status(500).json({ error: 'BACKFILL_FAILED', message: err.message });
+  }
+});
+
 // Team management (owner only): add/remove operator logins from the panel.
 router.get('/team', requireAdmin, async (req, res) => {
   try {
@@ -499,7 +637,7 @@ router.get('/team', requireAdmin, async (req, res) => {
 router.post('/team', requireAdmin, async (req, res) => {
   try {
     const { email, role } = req.body || {};
-    res.json({ member: await outreachSvc.addTeamMember(String(email || ''), String(role || 'operator'), 'owner') });
+    res.json({ member: await outreachSvc.addTeamMember(String(email || ''), String(role || 'operator'), req.adminActor) });
   } catch (err) {
     res.status(400).json({ error: 'INVALID_MEMBER', message: err.message });
   }
@@ -511,6 +649,24 @@ router.post('/team/remove', requireAdmin, async (req, res) => {
     res.json({ removed: true });
   } catch (err) {
     res.status(400).json({ error: 'TEAM_FAILED', message: err.message });
+  }
+});
+
+// Ownership swap: owner-only, target must already be a deputy, and the
+// email must be retyped (confirm) — this changes who controls everything.
+router.post('/team/transfer-ownership', requireOwner, async (req, res) => {
+  try {
+    const { email, confirm } = req.body || {};
+    const target = String(email || '').trim().toLowerCase();
+    if (!target) return res.status(400).json({ error: 'INVALID_MEMBER', message: 'an email is required' });
+    if (String(confirm || '').trim().toLowerCase() !== target) {
+      return res.status(400).json({ error: 'CONFIRM_MISMATCH', message: "Retype the new owner's email to confirm the transfer." });
+    }
+    await outreachSvc.transferOwnership(target);
+    console.log(`[admin] ownership transferred to ${target} by ${req.adminActor}`);
+    res.json({ transferred: true, new_owner: target });
+  } catch (err) {
+    res.status(400).json({ error: 'TRANSFER_FAILED', message: err.message });
   }
 });
 

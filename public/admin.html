@@ -91,6 +91,34 @@
   .toggle-row { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--soft);
                 margin:0 0 12px; user-select:none; }
   code { font-size:12px; background:var(--paper); padding:2px 5px; border-radius:5px; }
+  /* Tabs: sticky pill bar; only the active panel renders. */
+  #tab-bar { position:sticky; top:0; z-index:20; display:flex; gap:6px; flex-wrap:wrap;
+             background:var(--paper); padding:12px 0 10px; margin:0 0 18px;
+             border-bottom:1px solid var(--line); }
+  #tab-bar button { border:1px solid var(--line); background:var(--card); color:var(--soft);
+                    border-radius:999px; padding:7px 16px; font-size:13px; font-weight:600;
+                    cursor:pointer; }
+  #tab-bar button.active { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+  /* Modals: native <dialog>, backdrop click + ESC close. */
+  dialog.modal { border:1px solid var(--line); border-radius:14px; background:var(--card);
+                 color:var(--ink); padding:0; width:min(860px, calc(100vw - 32px));
+                 max-height:85vh; }
+  dialog.modal::backdrop { background:rgba(16,42,46,0.4); }
+  dialog.modal .overflow { padding:0 18px 18px; max-height:calc(85vh - 70px); overflow:auto; }
+  .modal-head { display:flex; justify-content:space-between; align-items:center;
+                padding:16px 18px 10px; position:sticky; top:0; background:var(--card); }
+  .modal-head h2 { margin:0; }
+  /* Long tables collapse to a few rows + a "Show all" expander. */
+  tr.clipped { display:none; }
+  .show-all-row td { text-align:center; padding:8px; border-top:1px solid var(--grid); }
+  /* Mini-analytics strip deltas. */
+  #summary-strip { margin-bottom:14px; }
+  #summary-strip .tile .v { font-size:20px; }
+  .delta { font-size:12px; font-weight:600; margin-left:6px; }
+  .delta.up { color:var(--s2); }
+  .delta.down { color:var(--s1); }
 </style>
 </head>
 <body>
@@ -124,9 +152,22 @@
       Exclude my traffic (this browser's guest id + this IP + INTERNAL_IPS) from every number below
     </label>
 
+    <!-- Mini-analytics: the at-a-glance strip. Filled progressively as the
+         three async sources (metrics, subscriptions, accounting) land. -->
+    <div class="tiles" id="summary-strip" hidden></div>
+
+    <nav id="tab-bar">
+      <button data-tab="overview" class="active">Overview</button>
+      <button data-tab="money">Money</button>
+      <button data-tab="growth">Growth</button>
+      <button data-tab="crm">CRM</button>
+      <button data-tab="ops">Ops</button>
+    </nav>
+
+    <section class="tab-panel active" id="tab-overview">
     <div class="tiles" id="tiles"></div>
 
-    <div class="card">
+    <div class="card" id="daily-card">
       <h2>Daily activity — last 30 days</h2>
       <div class="legend" id="daily-legend"></div>
       <div class="chart-wrap" id="daily-chart-wrap">
@@ -135,50 +176,38 @@
       </div>
     </div>
 
-    <div class="grid2">
-      <div class="card">
+    <div class="grid2" id="funnel-grid">
+      <div class="card" id="funnel-card">
         <h2>Engagement funnel</h2>
         <div class="hbars" id="funnel"></div>
         <p class="rate" id="funnel-rates"></p>
       </div>
-      <div class="card">
-        <h2>Upgrade funnel</h2>
-        <div class="hbars" id="upgrade-funnel"></div>
-        <p class="rate" id="upgrade-rates"></p>
+      <div class="card" id="upgrade-card">
+        <div id="upgrade-section">
+          <h2>Upgrade funnel</h2>
+          <div class="hbars" id="upgrade-funnel"></div>
+          <p class="rate" id="upgrade-rates"></p>
+        </div>
         <h2 style="margin-top:18px">Mode split (searches + feeds)</h2>
         <div class="split" id="mode-split"></div>
         <div class="legend" id="mode-legend" style="margin-top:8px"></div>
       </div>
     </div>
 
-    <div class="card" id="affiliate-card">
-      <h2>Affiliate revenue 💸</h2>
-      <p class="rate" id="affiliate-warning" style="margin:0 0 10px"></p>
-      <div class="tiles" id="affiliate-tiles"></div>
-      <div class="hbars" id="affiliate-sources" style="margin-top:12px"></div>
-      <p class="rate" id="affiliate-note"></p>
-    </div>
-
-    <div class="card overflow" id="premium-card">
-      <h2>Premium members 💳</h2>
-      <p class="rate" id="premium-headline" style="margin:0 0 10px"></p>
-      <div class="tiles" id="premium-tiles"></div>
-      <table style="margin-top:14px">
-        <thead>
-          <tr><th>Member</th><th>Status</th><th>Trial</th><th>Started</th><th>Renews / ends</th><th>Campaign</th></tr>
-        </thead>
-        <tbody id="premium-rows"></tbody>
-      </table>
-      <h2 style="margin-top:18px;font-size:15px">Launch cohorts</h2>
+    <div class="card overflow" id="daily-detail-card">
+      <h2>Daily detail</h2>
       <table>
         <thead>
-          <tr><th>Start week</th><th class="num">Started</th><th class="num">In trial</th><th class="num">Paying now</th><th class="num">Churned</th></tr>
+          <tr><th>Day</th><th class="num">Prompts</th><th class="num">Browse feeds</th>
+              <th class="num">Shortlist adds</th><th class="num">Outbound clicks</th>
+              <th class="num">Plans built</th><th class="num">Active users</th><th class="num">New users</th></tr>
         </thead>
-        <tbody id="premium-cohort-rows"></tbody>
+        <tbody id="daily-table"></tbody>
       </table>
-      <p class="rate" id="premium-note"></p>
     </div>
+    </section>
 
+    <section class="tab-panel" id="tab-growth">
     <div class="card overflow" id="retention-card">
       <h2>Retention cohorts 🔁</h2>
       <p class="rate" id="retention-headline" style="margin:0 0 10px"></p>
@@ -224,64 +253,156 @@
       <p class="rate" id="acquisition-note"></p>
     </div>
 
-    <div class="grid2">
-      <div class="card">
+    <div class="grid2" id="geo-grid">
+      <div class="card" id="cities-card">
         <h2>Top cities</h2>
         <div class="hbars" id="cities"></div>
       </div>
-      <div class="card">
+      <div class="card" id="sources-card">
         <h2>Booking clicks by source</h2>
         <div class="hbars" id="sources"></div>
       </div>
     </div>
 
-    <div class="card overflow" id="daily-detail-card">
-      <h2>Daily detail</h2>
-      <table>
-        <thead>
-          <tr><th>Day</th><th class="num">Prompts</th><th class="num">Browse feeds</th>
-              <th class="num">Shortlist adds</th><th class="num">Outbound clicks</th>
-              <th class="num">Plans built</th><th class="num">Active users</th><th class="num">New users</th></tr>
-        </thead>
-        <tbody id="daily-table"></tbody>
-      </table>
+    <div class="card" id="newsletter-card">
+      <h2>Newsletter — the weekend brief 📩</h2>
+      <p class="rate" style="margin:0 0 10px">
+        Weekly digest goes out automatically <strong>Thursdays 9 AM Toronto</strong>
+        (when Resend is configured). Double opt-in: pending = signed up but not
+        yet confirmed by email. Preview this week's issue before it ships.
+      </p>
+      <div id="newsletter-stats" class="rate" style="margin:0 0 12px">Loading…</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button id="nl-preview" type="button">Preview this week's issue</button>
+        <input id="nl-test-email" type="email" placeholder="test@you.com" style="font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line,#ddd);border-radius:8px">
+        <button id="nl-test" type="button">Send test</button>
+        <button id="nl-send" type="button">Send to all subscribers now</button>
+        <button class="mini-btn" data-open="newsletter-dialog">View subscribers</button>
+      </div>
+      <div id="newsletter-msg" class="rate" style="margin-top:10px"></div>
+      <dialog class="modal" id="newsletter-dialog">
+        <div class="modal-head"><h2>Newsletter subscribers</h2>
+          <button class="mini-btn" data-close>Close</button></div>
+        <div class="overflow">
+          <table>
+            <thead>
+              <tr><th>Email</th><th>Status</th><th>Source</th><th>Signed up</th><th>Confirmed</th><th>Last digest</th></tr>
+            </thead>
+            <tbody id="newsletter-table"></tbody>
+          </table>
+        </div>
+      </dialog>
     </div>
+    </section>
 
-    <div class="card overflow" id="traffic-card">
+    <section class="tab-panel" id="tab-ops">
+    <div class="card" id="traffic-card">
       <h2>Traffic by IP 🕵️</h2>
       <p class="rate" id="traffic-headline" style="margin:0 0 10px"></p>
-      <table>
-        <thead>
-          <tr><th>IP</th><th>Who</th><th class="num">Events</th><th class="num">Searches</th>
-              <th class="num">Owners</th><th>First seen</th><th>Last seen</th></tr>
-        </thead>
-        <tbody id="traffic-rows"></tbody>
-      </table>
+      <button class="mini-btn" data-open="traffic-dialog">View IP table</button>
       <p class="rate" id="traffic-note"></p>
+      <dialog class="modal" id="traffic-dialog">
+        <div class="modal-head"><h2>Traffic by IP</h2>
+          <button class="mini-btn" data-close>Close</button></div>
+        <div class="overflow">
+          <table>
+            <thead>
+              <tr><th>IP</th><th>Who</th><th class="num">Events</th><th class="num">Searches</th>
+                  <th class="num">Owners</th><th>First seen</th><th>Last seen</th></tr>
+            </thead>
+            <tbody id="traffic-rows"></tbody>
+          </table>
+        </div>
+      </dialog>
     </div>
 
-    <div class="card overflow" id="users-card">
+    <div class="card" id="users-card">
       <h2>Users &amp; moderation</h2>
       <p class="rate" style="margin:0 0 10px">Pseudonymous activity per signed-in user, guest, or IP key.
          Banning blocks all API access for that key; admin routes stay open so it's always reversible.</p>
-      <table>
-        <thead>
-          <tr><th>Owner key</th><th>Kind</th><th>Last seen</th><th class="num">Prompts</th>
-              <th class="num">Adds</th><th class="num">Clicks</th><th class="num">Plans</th>
-              <th>Top city</th><th>Status</th><th></th></tr>
-        </thead>
-        <tbody id="users-table"></tbody>
-      </table>
+      <div style="display:flex;gap:10px;align-items:center">
+        <span class="rate" id="users-count" style="margin:0">Loading…</span>
+        <button class="mini-btn" data-open="users-dialog">Manage users</button>
+      </div>
+      <dialog class="modal" id="users-dialog">
+        <div class="modal-head"><h2>Users &amp; moderation</h2>
+          <button class="mini-btn" data-close>Close</button></div>
+        <div class="overflow">
+          <table>
+            <thead>
+              <tr><th>Owner key</th><th>Kind</th><th>Last seen</th><th class="num">Prompts</th>
+                  <th class="num">Adds</th><th class="num">Clicks</th><th class="num">Plans</th>
+                  <th>Top city</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody id="users-table"></tbody>
+          </table>
+        </div>
+      </dialog>
     </div>
 
-    <div class="card overflow" id="events-card">
+    <div class="card" id="events-card">
       <h2>All events by type</h2>
-      <table>
-        <thead><tr><th>Event</th><th class="num">Count</th></tr></thead>
-        <tbody id="events-table"></tbody>
+      <div style="display:flex;gap:10px;align-items:center">
+        <span class="rate" id="events-count" style="margin:0">Loading…</span>
+        <button class="mini-btn" data-open="events-dialog">View all events</button>
+      </div>
+      <dialog class="modal" id="events-dialog">
+        <div class="modal-head"><h2>All events by type</h2>
+          <button class="mini-btn" data-close>Close</button></div>
+        <div class="overflow">
+          <table>
+            <thead><tr><th>Event</th><th class="num">Count</th></tr></thead>
+            <tbody id="events-table"></tbody>
+          </table>
+        </div>
+      </dialog>
+    </div>
+
+    <div class="card" id="ops-card">
+      <h2>Ops — did everything fire? ⚙️</h2>
+      <div class="rate" id="ops-schedulers" style="margin:0 0 6px">Loading…</div>
+      <div class="rate" id="ops-bots"></div>
+    </div>
+
+    <div class="card" id="team-card" hidden>
+      <h2>Team 👥</h2>
+      <p class="rate" style="margin:0 0 10px">Members sign in with their DayHop account (regular app sign-in,
+        then open this page). <strong>Operators</strong> see the CRM plus reach metrics only — no revenue, no
+        subscriber emails, no moderation. <strong>Deputies</strong> additionally see the accounting books and
+        can receive ownership. There is exactly one <strong>owner</strong> — not removable, only transferable
+        to a deputy. Every CRM action is logged with who did it.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="team-email" type="email" placeholder="teammate@email.com"
+               style="font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px">
+        <select id="team-role" style="font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px">
+          <option value="operator">operator</option>
+          <option value="deputy">deputy</option>
+        </select>
+        <button id="team-add" class="mini-btn">Add member</button>
+        <span class="rate" id="team-msg"></span>
+      </div>
+      <table style="margin-top:10px">
+        <thead><tr><th>Email</th><th>Role</th><th>Added</th><th></th></tr></thead>
+        <tbody id="team-rows"></tbody>
       </table>
     </div>
 
+    <div class="card" id="discovery-card">
+      <h2>Discovery inbox — new openings</h2>
+      <p class="rate" style="margin:0 0 10px">
+        Scans Canada-wide local media for newly-opened attractions, drafts catalog entries
+        with Grok, then runs the <strong>autopilot verification chain</strong>: a Google Places
+        closed-tag veto (only an explicit "closed" listing blocks) + the Grok editorial gate.
+        Finds that pass publish to the live catalog automatically (✓); the rest
+        wait here — verify facts yourself, then Copy catalog entry → <code>data/curatedCatalog.js</code>.
+        The scan also runs on its own every Sunday at midnight (Toronto time).
+      </p>
+      <button id="discovery-scan" type="button">Scan feeds</button>
+      <div id="discovery-list" style="margin-top:12px"></div>
+    </div>
+    </section>
+
+    <section class="tab-panel" id="tab-crm">
     <div class="card overflow" id="crm-card">
       <h2>Outreach CRM 🤝</h2>
       <p class="rate" id="crm-summary" style="margin:0 0 10px">Loading…</p>
@@ -300,6 +421,36 @@
         then it stops. Replies land at admin@dayhop.quest — mark the row <strong>Replied</strong>, then
         <strong>Send code</strong> fires the FOUNDING50 email on the same thread. Pausing a row stops
         everything instantly; opt-out suppresses it forever.</p>
+    </div>
+    </section>
+
+    <section class="tab-panel" id="tab-money">
+    <div class="card" id="affiliate-card">
+      <h2>Affiliate revenue 💸</h2>
+      <p class="rate" id="affiliate-warning" style="margin:0 0 10px"></p>
+      <div class="tiles" id="affiliate-tiles"></div>
+      <div class="hbars" id="affiliate-sources" style="margin-top:12px"></div>
+      <p class="rate" id="affiliate-note"></p>
+    </div>
+
+    <div class="card overflow" id="premium-card">
+      <h2>Premium members 💳</h2>
+      <p class="rate" id="premium-headline" style="margin:0 0 10px"></p>
+      <div class="tiles" id="premium-tiles"></div>
+      <table style="margin-top:14px">
+        <thead>
+          <tr><th>Member</th><th>Status</th><th>Trial</th><th>Started</th><th>Renews / ends</th><th>Campaign</th></tr>
+        </thead>
+        <tbody id="premium-rows"></tbody>
+      </table>
+      <h2 style="margin-top:18px;font-size:15px">Launch cohorts</h2>
+      <table>
+        <thead>
+          <tr><th>Start week</th><th class="num">Started</th><th class="num">In trial</th><th class="num">Paying now</th><th class="num">Churned</th></tr>
+        </thead>
+        <tbody id="premium-cohort-rows"></tbody>
+      </table>
+      <p class="rate" id="premium-note"></p>
     </div>
 
     <div class="card overflow" id="sponsors-card">
@@ -331,67 +482,60 @@
       <pre id="traction-block" style="background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px;font-size:12.5px;line-height:1.55;overflow-x:auto;margin:0">Loading…</pre>
     </div>
 
-    <div class="card" id="ops-card">
-      <h2>Ops — did everything fire? ⚙️</h2>
-      <div class="rate" id="ops-schedulers" style="margin:0 0 6px">Loading…</div>
-      <div class="rate" id="ops-bots"></div>
-    </div>
-
-    <div class="card" id="team-card" hidden>
-      <h2>Team 👥</h2>
-      <p class="rate" style="margin:0 0 10px">Operators sign in with their DayHop account (regular app sign-in,
-        then open this page) and see the CRM plus reach metrics only — no revenue, no subscriber emails, no
-        moderation. Owners come from <code>ADMIN_EMAILS</code>. Every CRM action is logged with who did it.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <input id="team-email" type="email" placeholder="operator@email.com"
-               style="font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px">
-        <button id="team-add" class="mini-btn">Add operator</button>
-        <span class="rate" id="team-msg"></span>
+    <div class="card" id="accounting-card">
+      <h2>Accounting 📒</h2>
+      <p class="rate" style="margin:0 0 10px">The books: every real dollar in and out. Stripe income
+        (memberships + sponsor payments) lands automatically; expenses are entered below or posted monthly
+        from recurring templates. Refunds subtract themselves.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <input id="acct-from" type="date" style="font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:8px">
+        <input id="acct-to" type="date" style="font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:8px">
+        <button id="acct-refresh" class="mini-btn">Refresh</button>
+        <button id="acct-backfill" class="mini-btn" hidden>Backfill from Stripe</button>
+        <span class="rate" id="acct-msg"></span>
       </div>
-      <table style="margin-top:10px">
-        <thead><tr><th>Email</th><th>Role</th><th>Added</th><th></th></tr></thead>
-        <tbody id="team-rows"></tbody>
-      </table>
-    </div>
-
-    <div class="card" id="discovery-card">
-      <h2>Discovery inbox — new openings</h2>
-      <p class="rate" style="margin:0 0 10px">
-        Scans Canada-wide local media for newly-opened attractions, drafts catalog entries
-        with Grok, then runs the <strong>autopilot verification chain</strong>: a Google Places
-        closed-tag veto (only an explicit "closed" listing blocks) + the Grok editorial gate.
-        Finds that pass publish to the live catalog automatically (✓); the rest
-        wait here — verify facts yourself, then Copy catalog entry → <code>data/curatedCatalog.js</code>.
-        The scan also runs on its own every Sunday at midnight (Toronto time).
-      </p>
-      <button id="discovery-scan" type="button">Scan feeds</button>
-      <div id="discovery-list" style="margin-top:12px"></div>
-    </div>
-
-    <div class="card" id="newsletter-card">
-      <h2>Newsletter — the weekend brief 📩</h2>
-      <p class="rate" style="margin:0 0 10px">
-        Weekly digest goes out automatically <strong>Thursdays 9 AM Toronto</strong>
-        (when Resend is configured). Double opt-in: pending = signed up but not
-        yet confirmed by email. Preview this week's issue before it ships.
-      </p>
-      <div id="newsletter-stats" class="rate" style="margin:0 0 12px">Loading…</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button id="nl-preview" type="button">Preview this week's issue</button>
-        <input id="nl-test-email" type="email" placeholder="test@you.com" style="font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line,#ddd);border-radius:8px">
-        <button id="nl-test" type="button">Send test</button>
-        <button id="nl-send" type="button">Send to all subscribers now</button>
-      </div>
-      <div id="newsletter-msg" class="rate" style="margin-top:10px"></div>
-      <div class="overflow" style="margin-top:14px">
+      <div id="acct-tiles" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+      <div class="overflow">
         <table>
-          <thead>
-            <tr><th>Email</th><th>Status</th><th>Source</th><th>Signed up</th><th>Confirmed</th><th>Last digest</th></tr>
-          </thead>
-          <tbody id="newsletter-table"></tbody>
+          <thead><tr><th>Month</th><th class="num">Income</th><th class="num">Expenses</th><th class="num">Net</th></tr></thead>
+          <tbody id="acct-months"></tbody>
+        </table>
+      </div>
+      <div id="acct-categories" style="display:flex;gap:24px;flex-wrap:wrap;margin:12px 0"></div>
+      <h3 style="margin:14px 0 6px;font-size:14px">Add an expense</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="acct-vendor" placeholder="Vendor (e.g. Render)" style="font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px">
+        <input id="acct-amount" placeholder="$ amount" inputmode="decimal" style="font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;width:90px">
+        <select id="acct-category" style="font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px"></select>
+        <input id="acct-date" type="date" style="font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:8px">
+        <input id="acct-note" placeholder="note (optional)" style="font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;min-width:160px">
+        <button id="acct-add" class="mini-btn">Add expense</button>
+      </div>
+      <h3 style="margin:16px 0 6px;font-size:14px">Recurring monthly expenses</h3>
+      <p class="rate" style="margin:0 0 8px">Posted automatically on their day each month (2 AM Toronto).
+        Adding one mid-month posts this month's entry immediately.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+        <input id="acct-rec-vendor" placeholder="Vendor" style="font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px">
+        <input id="acct-rec-amount" placeholder="$ / month" inputmode="decimal" style="font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;width:90px">
+        <select id="acct-rec-category" style="font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px"></select>
+        <input id="acct-rec-day" type="number" min="1" max="28" value="1" title="day of month" style="font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;width:64px">
+        <button id="acct-rec-add" class="mini-btn">Add recurring</button>
+      </div>
+      <div class="overflow">
+        <table>
+          <thead><tr><th>Vendor</th><th>Category</th><th class="num">Monthly</th><th class="num">Day</th><th>Status</th><th></th></tr></thead>
+          <tbody id="acct-recurring-rows"></tbody>
+        </table>
+      </div>
+      <h3 style="margin:16px 0 6px;font-size:14px">Recent entries</h3>
+      <div class="overflow">
+        <table>
+          <thead><tr><th>Date</th><th>What</th><th>Category</th><th>Source</th><th class="num">Amount</th><th></th></tr></thead>
+          <tbody id="acct-entries"></tbody>
         </table>
       </div>
     </div>
+    </section>
 
     <p class="note" id="source"></p>
   </div>
@@ -415,6 +559,150 @@
 
   let lastAuth = null;
   let adminRole = 'owner';
+
+  // ---------- Tabs ----------
+  const TAB_KEY = 'dayhop_admin_tab';
+  function switchTab(name) {
+    document.querySelectorAll('#tab-bar button').forEach(b =>
+      b.classList.toggle('active', b.dataset.tab === name));
+    document.querySelectorAll('.tab-panel').forEach(p =>
+      p.classList.toggle('active', p.id === 'tab-' + name));
+    try { localStorage.setItem(TAB_KEY, name); } catch (e) { /* private mode */ }
+  }
+  function wireTabs() {
+    document.querySelectorAll('#tab-bar button').forEach(b =>
+      b.addEventListener('click', () => switchTab(b.dataset.tab)));
+  }
+  // Hide tab buttons whose panel lost every card to the role-based removal.
+  // Must run AFTER the OWNER_ONLY_CARDS loop.
+  function updateTabVisibility() {
+    let firstVisible = null, activeStillVisible = false;
+    document.querySelectorAll('#tab-bar button').forEach(b => {
+      const panel = $('tab-' + b.dataset.tab);
+      const empty = !panel || !panel.querySelector('.card');
+      b.hidden = empty;
+      if (!empty && !firstVisible) firstVisible = b.dataset.tab;
+      if (!empty && b.classList.contains('active')) activeStillVisible = true;
+    });
+    if (!activeStillVisible && firstVisible) switchTab(firstVisible);
+  }
+  function restoreTab() {
+    let saved = null;
+    try { saved = localStorage.getItem(TAB_KEY); } catch (e) { /* ignore */ }
+    const btn = saved && document.querySelector('#tab-bar button[data-tab="' + saved + '"]');
+    if (btn && !btn.hidden) switchTab(saved);
+  }
+
+  // ---------- Modals (native <dialog>) ----------
+  function wireDialogs() {
+    document.querySelectorAll('[data-open]').forEach(btn => {
+      const dlg = $(btn.dataset.open);
+      if (dlg) btn.addEventListener('click', () => dlg.showModal());
+    });
+    document.querySelectorAll('dialog.modal').forEach(dlg => {
+      dlg.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => dlg.close()));
+      // padding:0 + inner wrapper means clicks on content never hit the
+      // dialog element itself — so this is a pure backdrop-click close.
+      dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+    });
+  }
+
+  // ---------- Long-table truncation ----------
+  // Hides rows past `limit` and appends a "Show all (N)" row. Re-renders
+  // replace tbody.innerHTML, so collapse state resets naturally.
+  function collapseRows(tbody, limit) {
+    if (!tbody) return;
+    const rows = [...tbody.children].filter(tr => !tr.classList.contains('show-all-row'));
+    if (rows.length <= limit + 1) return; // never hide a single row behind a button
+    rows.forEach((tr, i) => { if (i >= limit) tr.classList.add('clipped'); });
+    const cols = (rows[0] && rows[0].children.length) || 1;
+    const tr = document.createElement('tr');
+    tr.className = 'show-all-row';
+    tr.innerHTML = '<td colspan="' + cols + '"><button class="mini-btn">Show all (' +
+      fmt(rows.length) + ')</button></td>';
+    tr.querySelector('button').addEventListener('click', () => {
+      tbody.querySelectorAll('.clipped').forEach(el => el.classList.remove('clipped'));
+      tr.remove();
+    });
+    tbody.appendChild(tr);
+  }
+
+  // ---------- Mini-analytics summary strip ----------
+  // Reads only slices the role-gated loaders already fetched — never fetches
+  // itself, so it can't leak owner data to staff.
+  const summaryState = { metrics: null, subs: null, acct: null };
+  const sumBy = (arr, k) => arr.reduce((t, d) => t + (Number(d[k]) || 0), 0);
+  function deltaPct(now, prev) {
+    if (!prev) return null; // zero/absent baseline: no honest percentage
+    return Math.round(((now - prev) / prev) * 100);
+  }
+  function deltaHtml(pct, goodIsUp) {
+    if (pct == null || pct === 0) return '';
+    const up = pct > 0;
+    const good = (goodIsUp === undefined) ? up : (up === goodIsUp);
+    return '<span class="delta ' + (good ? 'up' : 'down') + '">' +
+      (up ? '↑' : '↓') + Math.abs(pct) + '%</span>';
+  }
+  // UTC Monday of (this week - offsetWeeks), matching billing cohort keys.
+  function mondayOf(offsetWeeks) {
+    const d = new Date(); d.setUTCHours(0, 0, 0, 0);
+    d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) - 7 * offsetWeeks);
+    return d.toISOString().slice(0, 10);
+  }
+  function renderSummaryStrip() {
+    const strip = $('summary-strip');
+    if (!strip) return;
+    const tiles = [];
+    const tile = (label, value, extra) =>
+      tiles.push('<div class="tile"><div class="v">' + value + (extra || '') +
+        '</div><div class="l">' + esc(label) + '</div></div>');
+
+    const s = summaryState.subs && summaryState.subs.summary;
+    if (s) {
+      // Cohorts are sparse and newest-first: look up by week key, never index.
+      const cohorts = summaryState.subs.cohorts || [];
+      const starts = wk => (cohorts.find(c => c.week === wk) || { started: 0 }).started;
+      tile('MRR (' + esc(s.currency || 'CAD') + ')', '$' + fmt(s.mrr),
+        deltaHtml(deltaPct(starts(mondayOf(0)), starts(mondayOf(1))), true));
+      tile('New subs (7d)', fmt(s.new_last_7d));
+      tile('Trial → paid', s.trial_conversion_pct != null ? esc(String(s.trial_conversion_pct)) + '%' : '—');
+    }
+
+    const acct = summaryState.acct && summaryState.acct.by_currency;
+    if (acct && Object.keys(acct).length) {
+      const cur = acct.CAD ? 'CAD' : Object.keys(acct)[0];
+      const b = acct[cur];
+      const monthKey = off => {
+        const d = new Date(); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - off);
+        return d.toISOString().slice(0, 7);
+      };
+      const m0 = (b.months || []).find(m => m.month === monthKey(0));
+      const m1 = (b.months || []).find(m => m.month === monthKey(1));
+      const netNow = m0 ? m0.net_cents : 0;
+      const netDelta = (m0 && m1 && m1.net_cents > 0) ? deltaPct(netNow, m1.net_cents) : null;
+      tile('Net this month', '<span style="color:' + (netNow >= 0 ? '#12855C' : '#B3301B') + '">' +
+        money(netNow, cur) + '</span>', deltaHtml(netDelta, true));
+      const topExp = Object.entries(b.expense_by_category || {}).sort((a, z) => z[1] - a[1])[0];
+      tile(topExp ? 'Expenses this month · top: ' + esc(topExp[0]) : 'Expenses this month',
+        money(m0 ? m0.expense_cents : 0, cur));
+    }
+
+    const m = summaryState.metrics;
+    const daily = (m && m.daily) || [];
+    if (daily.length) {
+      const now7 = sumBy(daily.slice(-7), 'prompts');
+      const prev7 = daily.length >= 14 ? sumBy(daily.slice(-14, -7), 'prompts') : null;
+      tile('Prompts (7d)', fmt(now7), prev7 != null ? deltaHtml(deltaPct(now7, prev7), true) : '');
+    }
+    if (m) {
+      const w4 = (m.retention && m.retention.week4_avg != null) ? m.retention.week4_avg
+        : (m.week4_retention_pct != null ? m.week4_retention_pct : null);
+      tile('W4 retention', w4 != null ? esc(String(w4)) + '%' : '—');
+    }
+
+    strip.innerHTML = tiles.join('');
+    strip.hidden = tiles.length === 0;
+  }
 
   // ---------- Outreach CRM ----------
   const CRM_STAGES = ['drafted', 'queued', 'sent', 'bumped', 'closed_out', 'replied', 'won', 'lost', 'optout'];
@@ -568,6 +856,9 @@
     });
     const open = crmRows.find(r => r.id === crmOpenId);
     if (open) wireCrmDetail(open);
+    // Collapse only when no detail row is expanded — never hide (or orphan)
+    // an open detail from its prospect row.
+    if (!crmOpenId) collapseRows($('crm-rows'), 12);
   }
 
   async function crmAction(act, row) {
@@ -628,14 +919,15 @@
       const email = $('team-email').value.trim();
       if (!email) return;
       try {
+        const role = $('team-role').value;
         const res = await fetch('/api/admin/team', {
           method: 'POST',
           headers: Object.assign({ 'Content-Type': 'application/json' }, lastAuth.headers),
-          body: JSON.stringify({ email, role: 'operator' })
+          body: JSON.stringify({ email, role })
         });
         const d = await res.json();
         if (!res.ok) throw new Error(d.message || res.status);
-        $('team-msg').textContent = email + ' added as operator.';
+        $('team-msg').textContent = email + ' added as ' + role + '.';
         $('team-email').value = '';
         loadTeam();
       } catch (e) { $('team-msg').textContent = e.message; }
@@ -759,7 +1051,7 @@
       const h = await res.json();
       const s = h.schedulers || {};
       const runs = s.last_runs || {};
-      const names = ['outreach_cadence', 'operator_report', 'social_batch', 'weekly_digest', 'discovery_scan'];
+      const names = ['outreach_cadence', 'operator_report', 'social_batch', 'weekly_digest', 'discovery_scan', 'accounting_recurring'];
       $('ops-schedulers').innerHTML =
         'Process up ' + (s.process_uptime_hours != null ? s.process_uptime_hours + 'h' : '?') + ' · ' +
         names.map(n => '<b>' + esc(n.replace(/_/g, ' ')) + '</b>: ' +
@@ -782,22 +1074,249 @@
       if (!res.ok) return;
       $('team-card').hidden = false;
       $('team-rows').innerHTML = (data.team || []).length ? data.team.map(m =>
-        '<tr><td>' + esc(m.email) + '</td><td>' + esc(m.role) + '</td>' +
+        '<tr><td>' + esc(m.email) + '</td>' +
+        '<td>' + (m.role === 'owner' ? '<span style="color:#12855C;font-weight:600">owner 👑</span>' : esc(m.role)) + '</td>' +
         '<td>' + esc(String(m.created_at || '').slice(0, 10)) + '</td>' +
-        '<td><button class="mini-btn danger" data-email="' + esc(m.email) + '">Remove</button></td></tr>').join('')
-        : '<tr><td colspan="4" class="rate">No operators yet. Owners come from ADMIN_EMAILS.</td></tr>';
+        '<td>' + (m.role === 'owner'
+          ? '<span class="rate">not removable</span>'
+          : (m.role === 'deputy'
+              ? '<button class="mini-btn" data-promote="' + esc(m.email) + '">Make owner</button> '
+              : '') +
+            '<button class="mini-btn danger" data-email="' + esc(m.email) + '">Remove</button>') +
+        '</td></tr>').join('')
+        : '<tr><td colspan="4" class="rate">No team yet — the owner row is seeded on the first server boot with a service key.</td></tr>';
       $('team-rows').querySelectorAll('button[data-email]').forEach(btn => {
         btn.addEventListener('click', async () => {
           if (!confirm('Remove ' + btn.dataset.email + '?')) return;
-          await fetch('/api/admin/team/remove', {
+          const r = await fetch('/api/admin/team/remove', {
             method: 'POST',
             headers: Object.assign({ 'Content-Type': 'application/json' }, lastAuth.headers),
             body: JSON.stringify({ email: btn.dataset.email })
           });
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok) $('team-msg').textContent = d.message || ('Error ' + r.status);
           loadTeam();
         });
       });
+      // Ownership transfer: deliberately heavy confirmation (retype the
+      // email) — this changes who controls everything, including the books.
+      $('team-rows').querySelectorAll('button[data-promote]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const email = btn.dataset.promote;
+          if (!confirm('Transfer ownership to ' + email + '? You become a deputy.')) return;
+          const typed = prompt("Type the new owner's email to confirm the transfer:");
+          if (!typed) return;
+          try {
+            const r = await fetch('/api/admin/team/transfer-ownership', {
+              method: 'POST',
+              headers: Object.assign({ 'Content-Type': 'application/json' }, lastAuth.headers),
+              body: JSON.stringify({ email, confirm: typed })
+            });
+            const d = await r.json();
+            if (!r.ok) throw new Error(d.message || r.status);
+            $('team-msg').textContent = 'Ownership transferred to ' + email + '.';
+            loadTeam();
+          } catch (e) { $('team-msg').textContent = e.message; }
+        });
+      });
     } catch (e) { /* team card stays hidden */ }
+  }
+
+  // ---------- Accounting (owner + deputy) ----------
+  const money = (cents, cur) => (Number(cents || 0) / 100).toLocaleString('en-CA',
+    { style: 'currency', currency: String(cur || 'CAD').toUpperCase() });
+
+  function acctMsg(text, ok) {
+    $('acct-msg').innerHTML = ok
+      ? '<span style="color:#12855C;font-weight:600">' + esc(text) + '</span>' : esc(text);
+  }
+
+  async function acctPost(path, body) {
+    const res = await fetch('/api/admin/accounting' + path, {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, lastAuth.headers),
+      body: JSON.stringify(body || {})
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || ('Error ' + res.status));
+    return data;
+  }
+
+  function acctFillCategories(income, expense) {
+    const opts = list => list.map(c => '<option value="' + esc(c) + '">' + esc(c) + '</option>').join('');
+    $('acct-category').innerHTML = opts(expense);
+    $('acct-rec-category').innerHTML = opts(expense);
+    // The re-categorize selects on entry rows get income + expense combined.
+    acctAllCats = [...new Set([...income, ...expense])];
+  }
+  let acctAllCats = [];
+
+  async function loadAccounting() {
+    if (!lastAuth || !$('accounting-card')) return;
+    const qs = [];
+    if ($('acct-from').value) qs.push('from=' + $('acct-from').value);
+    if ($('acct-to').value) qs.push('to=' + $('acct-to').value + 'T23:59:59Z');
+    const q = qs.length ? '?' + qs.join('&') : '';
+    try {
+      const [s, e, r] = await Promise.all([
+        fetch('/api/admin/accounting/summary' + q, { headers: lastAuth.headers }).then(x => x.json()),
+        fetch('/api/admin/accounting/entries' + q, { headers: lastAuth.headers }).then(x => x.json()),
+        fetch('/api/admin/accounting/recurring', { headers: lastAuth.headers }).then(x => x.json())
+      ]);
+      if (s.error) throw new Error(s.message || s.error);
+      acctFillCategories(s.income_categories || [], s.expense_categories || []);
+      renderAccounting(s, e.entries || [], r.templates || []);
+      summaryState.acct = s;
+      renderSummaryStrip();
+    } catch (err) {
+      acctMsg('Could not load the books: ' + err.message);
+    }
+  }
+
+  function renderAccounting(summary, entries, templates) {
+    const currencies = Object.keys(summary.by_currency || {});
+    const tile = (label, val, color) =>
+      '<div style="border:1px solid var(--line);border-radius:10px;padding:10px 14px;min-width:110px">' +
+      '<div class="rate">' + esc(label) + '</div>' +
+      '<div style="font-size:19px;font-weight:700' + (color ? ';color:' + color : '') + '">' + esc(val) + '</div></div>';
+    $('acct-tiles').innerHTML = currencies.length
+      ? currencies.map(cur => {
+          const b = summary.by_currency[cur];
+          const suffix = currencies.length > 1 ? ' (' + cur + ')' : '';
+          return tile('Income' + suffix, money(b.income_cents, cur), '#12855C') +
+            tile('Expenses' + suffix, money(b.expense_cents, cur), '#B3301B') +
+            tile('Net' + suffix, money(b.net_cents, cur), b.net_cents >= 0 ? '#12855C' : '#B3301B') +
+            tile('Stripe fees' + suffix, money(b.fee_cents, cur));
+        }).join('')
+      : '<span class="rate">No ledger rows in this range yet. Income appears with the first paid Stripe invoice (or run Backfill); expenses when you add them.</span>';
+
+    const months = currencies.flatMap(cur => (summary.by_currency[cur].months || [])
+      .map(m => Object.assign({ cur }, m)));
+    $('acct-months').innerHTML = months.length ? months.map(m =>
+      '<tr><td>' + esc(m.month) + (currencies.length > 1 ? ' <span class="rate">' + esc(m.cur) + '</span>' : '') + '</td>' +
+      '<td class="num">' + money(m.income_cents, m.cur) + '</td>' +
+      '<td class="num">' + money(m.expense_cents, m.cur) + '</td>' +
+      '<td class="num" style="font-weight:600;color:' + (m.net_cents >= 0 ? '#12855C' : '#B3301B') + '">' +
+        money(m.net_cents, m.cur) + '</td></tr>').join('')
+      : '<tr><td colspan="4" class="rate">Nothing yet.</td></tr>';
+
+    const catList = (title, obj, cur) => {
+      const rows = Object.entries(obj || {}).sort((a, z) => z[1] - a[1]);
+      if (!rows.length) return '';
+      return '<div><div class="rate" style="font-weight:600;margin-bottom:4px">' + esc(title) + '</div>' +
+        rows.map(([c, v]) => '<div style="font-size:13px">' + esc(c) + ': <b>' + money(v, cur) + '</b></div>').join('') + '</div>';
+    };
+    $('acct-categories').innerHTML = currencies.map(cur => {
+      const b = summary.by_currency[cur];
+      const suffix = currencies.length > 1 ? ' (' + cur + ')' : '';
+      return catList('Income by category' + suffix, b.income_by_category, cur) +
+        catList('Expenses by category' + suffix, b.expense_by_category, cur);
+    }).join('');
+
+    $('acct-recurring-rows').innerHTML = templates.length ? templates.map(t =>
+      '<tr' + (t.active ? '' : ' style="opacity:.55"') + '><td>' + esc(t.vendor) + '</td>' +
+      '<td>' + esc(t.category) + '</td>' +
+      '<td class="num">' + money(t.amount_cents, t.currency) + '</td>' +
+      '<td class="num">' + esc(String(t.day_of_month)) + '</td>' +
+      '<td>' + (t.active ? '<span style="color:#12855C;font-weight:600">active</span>' : 'paused') + '</td>' +
+      '<td><button class="mini-btn' + (t.active ? ' danger' : '') + '" data-rec="' + esc(t.id) +
+        '" data-next="' + (t.active ? '' : '1') + '">' + (t.active ? 'Pause' : 'Resume') + '</button></td></tr>').join('')
+      : '<tr><td colspan="6" class="rate">None yet — add Render, Resend, the domain… anything billed monthly.</td></tr>';
+    $('acct-recurring-rows').querySelectorAll('button[data-rec]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try {
+          await acctPost('/recurring/' + encodeURIComponent(btn.dataset.rec) + '/toggle',
+            { active: Boolean(btn.dataset.next) });
+          loadAccounting();
+        } catch (e) { acctMsg(e.message); }
+      });
+    });
+
+    const catSelect = row => '<select data-cat="' + esc(String(row.id)) + '" style="font:inherit;font-size:12px">' +
+      '<option value="">recategorize…</option>' +
+      acctAllCats.map(c => '<option value="' + esc(c) + '"' + (c === row.category ? ' selected' : '') + '>' + esc(c) + '</option>').join('') +
+      '</select>';
+    $('acct-entries').innerHTML = entries.length ? entries.map(row =>
+      '<tr><td>' + esc(String(row.occurred_at || '').slice(0, 10)) + '</td>' +
+      '<td>' + esc(row.counterparty || row.description || '—') +
+        (row.counterparty && row.description ? ' <span class="rate">' + esc(row.description) + '</span>' : '') + '</td>' +
+      '<td>' + (row.category === 'uncategorized' ? catSelect(row) : esc(row.category)) + '</td>' +
+      '<td class="rate">' + esc(row.source.replace('stripe_', '')) + '</td>' +
+      '<td class="num" style="font-weight:600;color:' +
+        (row.direction === 'expense' || row.amount_cents < 0 ? '#B3301B' : '#12855C') + '">' +
+        (row.direction === 'expense' ? '−' + money(row.amount_cents, row.currency) : money(row.amount_cents, row.currency)) + '</td>' +
+      '<td>' + (row.source === 'manual' || row.source === 'recurring'
+        ? '<button class="mini-btn danger" data-del="' + esc(String(row.id)) + '">✕</button>' : '') + '</td></tr>').join('')
+      : '<tr><td colspan="6" class="rate">No entries in this range.</td></tr>';
+    $('acct-entries').querySelectorAll('select[data-cat]').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        if (!sel.value) return;
+        try { await acctPost('/entry/' + sel.dataset.cat + '/category', { category: sel.value }); loadAccounting(); }
+        catch (e) { acctMsg(e.message); }
+      });
+    });
+    $('acct-entries').querySelectorAll('button[data-del]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Delete this entry?')) return;
+        try { await acctPost('/entry/' + btn.dataset.del + '/delete'); loadAccounting(); }
+        catch (e) { acctMsg(e.message); }
+      });
+    });
+    collapseRows($('acct-entries'), 15);
+  }
+
+  function wireAccountingButtons() {
+    if (!$('accounting-card')) return;
+    $('acct-refresh').addEventListener('click', loadAccounting);
+    $('acct-add').addEventListener('click', async () => {
+      try {
+        await acctPost('/expense', {
+          vendor: $('acct-vendor').value.trim(),
+          amount: $('acct-amount').value.trim(),
+          category: $('acct-category').value,
+          occurred_on: $('acct-date').value || undefined,
+          note: $('acct-note').value.trim() || undefined
+        });
+        acctMsg('Expense recorded.', true);
+        $('acct-vendor').value = ''; $('acct-amount').value = ''; $('acct-note').value = '';
+        loadAccounting();
+      } catch (e) { acctMsg(e.message); }
+    });
+    $('acct-rec-add').addEventListener('click', async () => {
+      try {
+        await acctPost('/recurring', {
+          vendor: $('acct-rec-vendor').value.trim(),
+          amount: $('acct-rec-amount').value.trim(),
+          category: $('acct-rec-category').value,
+          day_of_month: Number($('acct-rec-day').value || 1)
+        });
+        acctMsg('Recurring expense added (this month posted).', true);
+        $('acct-rec-vendor').value = ''; $('acct-rec-amount').value = '';
+        loadAccounting();
+      } catch (e) { acctMsg(e.message); }
+    });
+    $('acct-backfill').addEventListener('click', async () => {
+      if (!confirm('Sweep Stripe history into the ledger? Safe to re-run — duplicates are skipped.')) return;
+      const since = prompt('Backfill since date (YYYY-MM-DD):', '2026-01-01');
+      if (!since) return;
+      try {
+        acctMsg('Backfilling…', true);
+        const r = await acctPost('/backfill', { since });
+        acctMsg('Backfill: ' + r.invoices_seen + ' invoices, ' + r.refunds_seen +
+          ' refunds seen, ' + r.inserted + ' new rows.', true);
+        loadAccounting();
+      } catch (e) { acctMsg(e.message); }
+    });
+  }
+  function wireChrome() {
+    wireAccountingButtons();
+    wireTabs();
+    wireDialogs();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wireChrome);
+  } else {
+    wireChrome();
   }
 
   async function boot() {
@@ -1044,6 +1563,10 @@
       lastAuth = { headers, email };
       adminRole = 'owner';
       render(data, email);
+      summaryState.metrics = data;
+      renderSummaryStrip();
+      updateTabVisibility();
+      restoreTab();
       peekDiscovery();
       loadNewsletter();
       loadSubscriptions(headers);
@@ -1051,6 +1574,8 @@
       loadTeam();
       loadSponsors();
       loadTraction();
+      $('acct-backfill').hidden = false; // owner-only control
+      loadAccounting();
       loadOps(data.bots);
       return true;
     } catch (e) {
@@ -1059,29 +1584,39 @@
     }
   }
 
-  // ---------- Operator mode (limited role) ----------
-  // Operators get the CRM plus reach metrics; every owner-only card is
+  // ---------- Staff mode (operator / deputy) ----------
+  // Non-owners get the CRM plus reach metrics; every owner-only card is
   // removed outright (the server refuses those endpoints anyway — this
-  // just keeps the page honest about it).
+  // just keeps the page honest about it). Deputies additionally keep the
+  // accounting card — it is deliberately NOT in this list.
   const OWNER_ONLY_CARDS = ['affiliate-card', 'premium-card', 'retention-card', 'digest-card',
     'acquisition-card', 'traffic-card', 'users-card', 'events-card', 'discovery-card',
-    'newsletter-card', 'team-card', 'sponsors-card', 'traction-card', 'ops-card'];
+    'newsletter-card', 'team-card', 'sponsors-card', 'traction-card', 'ops-card', 'sources-card'];
 
   async function loadOperator(headers, email) {
     try {
       const who = await fetch('/api/admin/whoami', { headers }).then(r => r.ok ? r.json() : null);
-      if (!who || who.role !== 'operator') return false;
+      if (!who || (who.role !== 'operator' && who.role !== 'deputy')) return false;
       const res = await fetch('/api/admin/metrics-lite', { headers });
       const data = await res.json();
       if (!res.ok) return false;
       lastAuth = { headers, email };
-      adminRole = 'operator';
+      adminRole = who.role;
       $('gate').hidden = true;
       $('report').hidden = false;
       $('refresh').hidden = false;
-      $('who').innerHTML = 'Signed in as <strong>' + esc(email || who.actor) + '</strong> (operator — CRM + reach metrics)';
-      document.querySelector('.toggle-row').hidden = true; // always external-only for operators
+      $('who').innerHTML = 'Signed in as <strong>' + esc(email || who.actor) + '</strong> (' + esc(who.role) +
+        (who.role === 'deputy' ? ' — CRM + accounting' : ' — CRM + reach metrics') + ')';
+      document.querySelector('.toggle-row').hidden = true; // always external-only for staff
+      const upgrade = $('upgrade-section'); if (upgrade) upgrade.hidden = true; // lite payload has no upgrade funnel
       for (const id of OWNER_ONLY_CARDS) { const el = $(id); if (el) el.remove(); }
+      if (who.role === 'deputy') {
+        loadAccounting();
+      } else {
+        const acct = $('accounting-card'); if (acct) acct.remove();
+      }
+      updateTabVisibility();
+      restoreTab();
       renderTiles(data.totals || {}, {});
       renderDailyChart(data.daily || []);
       renderFunnel(data.funnel || {});
@@ -1089,7 +1624,10 @@
       renderShelfCtr(data.shelf_ctr || []);
       renderHBars($('cities'), data.top_cities || [], 'var(--s4)');
       renderDailyTable(data.daily || []);
-      $('source').textContent = 'Reduced operator view · generated ' + data.generated_at;
+      collapseRows($('daily-table'), 7);
+      summaryState.metrics = data;
+      renderSummaryStrip();
+      $('source').textContent = 'Reduced ' + who.role + ' view · generated ' + data.generated_at;
       loadCrm();
       return true;
     } catch (e) { return false; }
@@ -1117,6 +1655,8 @@
     renderHBars($('cities'), data.top_cities || [], 'var(--s4)');
     renderHBars($('sources'), data.booking_sources || [], 'var(--s3)');
     renderDailyTable(data.daily || []);
+    collapseRows($('daily-table'), 7);
+    collapseRows($('acquisition-rows'), 10);
     renderEventsTable(data.events_by_type || {});
     renderTraffic(data.traffic || null);
     loadUsers();
@@ -1177,6 +1717,9 @@
         '<td class="num">' + fmt(c.churned) + '</td></tr>').join('');
       $('premium-note').textContent =
         'Live from Stripe (60s cache). "Pending cancel" members keep access until their period ends. Campaign comes from checkout UTM metadata.';
+      collapseRows($('premium-rows'), 10);
+      summaryState.subs = d;
+      renderSummaryStrip();
     } catch (e) {
       $('premium-headline').textContent = 'Could not load subscriptions: ' + e.message;
     }
@@ -1513,6 +2056,8 @@
     $('traffic-note').textContent = t.no_ip_events
       ? fmt(t.no_ip_events) + ' older events predate IP stamping and are classified by owner id only (your browser’s history is still caught via its guest id).'
       : '';
+    const trafficBtn = document.querySelector('[data-open="traffic-dialog"]');
+    if (trafficBtn) trafficBtn.textContent = 'View IP table (' + fmt(rows.length) + ')';
   }
 
   // ----- Users & moderation -----
@@ -1526,6 +2071,11 @@
 
   function renderUsers(users) {
     const body = $('users-table');
+    const countEl = $('users-count');
+    if (countEl) {
+      const banned = users.filter(u => u.banned).length;
+      countEl.textContent = fmt(users.length) + ' owner keys tracked · ' + fmt(banned) + ' banned';
+    }
     if (!users.length) { body.innerHTML = '<tr><td colspan="10">No user activity yet.</td></tr>'; return; }
     const me = myOwnerId();
     body.innerHTML = users.map((u, i) =>
@@ -1577,7 +2127,13 @@
   }
 
   function renderEventsTable(byType) {
-    $('events-table').innerHTML = Object.entries(byType)
+    const entries = Object.entries(byType);
+    const countEl = $('events-count');
+    if (countEl) {
+      const total = entries.reduce((t, [, c]) => t + (Number(c) || 0), 0);
+      countEl.textContent = fmt(entries.length) + ' event types · ' + fmt(total) + ' total events';
+    }
+    $('events-table').innerHTML = entries
       .sort((a, b) => b[1] - a[1])
       .map(([type, count]) => '<tr><td>' + esc(type) + '</td><td class="num">' + fmt(count) + '</td></tr>')
       .join('') || '<tr><td colspan="2">No events yet.</td></tr>';

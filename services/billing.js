@@ -406,6 +406,52 @@ async function handleWebhook(rawBody, signature) {
       });
       return `subscription ${sub.id} → ${sub.status}${sub.cancel_at_period_end ? ' (cancels at period end)' : ''}`;
     }
+    // ---- accounting ledger (2026-08-20) ----
+    // Real money movements land in ledger_entries. Fail-soft throughout:
+    // recordStripeEntries never throws (a DB hiccup must not make Stripe
+    // retry forever), and the backfill endpoint re-syncs any gap. These
+    // event types must also be ENABLED on the webhook endpoint in the
+    // Stripe dashboard, or nothing arrives here.
+    case 'invoice.paid': {
+      const invoice = event.data.object;
+      const accounting = require('./accounting');
+      const customerId = typeof invoice.customer === 'string'
+        ? invoice.customer
+        : (invoice.customer && invoice.customer.id) || null;
+      const category = await accounting.categorizeCustomer(customerId).catch(() => 'uncategorized');
+      const row = accounting.ledgerEntryFromInvoice(invoice, category, 'stripe_webhook');
+      if (!row) return `invoice ${invoice.id} zero-amount (ignored)`;
+      // Stripe's processing fee: best-effort, one extra API call, never blocks.
+      if (invoice.charge) {
+        try {
+          const charge = await getStripe().charges.retrieve(
+            typeof invoice.charge === 'string' ? invoice.charge : invoice.charge.id,
+            { expand: ['balance_transaction'] }
+          );
+          if (charge.balance_transaction && typeof charge.balance_transaction === 'object') {
+            row.fee_cents = charge.balance_transaction.fee;
+          }
+        } catch (err) {
+          console.warn('[billing] fee lookup failed (ledger row kept):', err.message);
+        }
+      }
+      await accounting.recordStripeEntries([row]);
+      return `ledger: invoice ${invoice.id} +${row.amount_cents}¢ (${category})`;
+    }
+    case 'charge.refunded': {
+      const charge = event.data.object;
+      const accounting = require('./accounting');
+      const customerId = typeof charge.customer === 'string' ? charge.customer : null;
+      const category = await accounting.categorizeCustomer(customerId).catch(() => 'uncategorized');
+      const rows = accounting.ledgerEntriesFromRefundedCharge(charge, category, 'stripe_webhook');
+      if (!rows.length) return `charge ${charge.id} refunded with no refund rows (ignored)`;
+      await accounting.recordStripeEntries(rows);
+      return `ledger: ${rows.length} refund entr${rows.length === 1 ? 'y' : 'ies'} for ${charge.id}`;
+    }
+    case 'invoice.payment_failed': {
+      const invoice = event.data.object;
+      return `invoice payment failed for ${invoice.customer_email || invoice.customer} (logged only)`;
+    }
     default:
       return `ignored ${event.type}`;
   }
