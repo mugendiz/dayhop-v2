@@ -46,7 +46,10 @@ const CLIENT_EVENT_TYPES = new Set([
   // Impression half of per-shelf CTR: batched viewport counts of cards
   // actually seen (≥ half visible). Replaced the server-side cards-served
   // counts, which included everything below the fold and drowned CTR to ~0%.
-  'shelf_seen'
+  'shelf_seen',
+  // City-guide sales funnel: the feed promo card was tapped (checkout start
+  // and purchase are server-recorded by their own routes).
+  'guide_promo_click'
 ]);
 
 // Server-truth events, recorded by their own routes.

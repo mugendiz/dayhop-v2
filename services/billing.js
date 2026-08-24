@@ -364,6 +364,12 @@ async function handleWebhook(rawBody, signature) {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object;
+      // One-time purchases (city guide PDFs) share this event with Pro
+      // signups — branch BEFORE the subscription path, or a $20 guide would
+      // activate a Pro membership. The ledger entry rides invoice.paid.
+      if (session.mode === 'payment' && session.metadata && session.metadata.guide) {
+        return require('./cityGuides').fulfillPurchase(session);
+      }
       const ownerId = session.client_reference_id;
       if (!ownerId) return 'checkout completed with no client_reference_id (ignored)';
       await upsertSubscription({
@@ -418,7 +424,12 @@ async function handleWebhook(rawBody, signature) {
       const customerId = typeof invoice.customer === 'string'
         ? invoice.customer
         : (invoice.customer && invoice.customer.id) || null;
-      const category = await accounting.categorizeCustomer(customerId).catch(() => 'uncategorized');
+      // Guide-sale invoices carry metadata.guide (set at checkout) — book
+      // them as other_income; customer-set categorization is for recurring
+      // sponsor/member relationships, which one-time buyers aren't.
+      const category = invoice.metadata && invoice.metadata.guide
+        ? 'other_income'
+        : await accounting.categorizeCustomer(customerId).catch(() => 'uncategorized');
       const row = accounting.ledgerEntryFromInvoice(invoice, category, 'stripe_webhook');
       if (!row) return `invoice ${invoice.id} zero-amount (ignored)`;
       // Stripe's processing fee: best-effort, one extra API call, never blocks.

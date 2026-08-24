@@ -3502,6 +3502,43 @@
     'The Niagara Escarpment is a UNESCO World Biosphere Reserve, 725 km long.'
   ];
 
+  // ---------- City-guide promo (paid PDFs) ----------
+  // The registry loads once, fire-and-forget; until it arrives the feed
+  // simply shows no guide card. Matching mirrors the server's city_keys.
+  let cityGuidesList = null;
+  fetch('/api/cityguides').then(r => r.json())
+    .then(d => { cityGuidesList = (d && d.guides) || null; })
+    .catch(() => {});
+
+  function matchGuideForCity() {
+    if (!Array.isArray(cityGuidesList)) return null;
+    const s = String(state.city || '').toLowerCase();
+    if (!s) return null;
+    for (const g of cityGuidesList) {
+      if (g.status === 'live' && Array.isArray(g.city_keys) && g.city_keys.some(k => s.includes(k))) return g;
+    }
+    return null;
+  }
+
+  function buildGuidePromoCard(guide) {
+    const el = document.createElement('div');
+    el.className = 'capture-card capture-card--guide';
+    el.innerHTML = `
+      <p class="capture-heading"></p>
+      <p class="capture-sub"></p>
+      <button type="button" class="capture-btn guide-promo-go"></button>
+      <p class="capture-fineprint">Instant PDF · every spot links to live directions · free updated editions</p>`;
+    el.querySelector('.capture-heading').textContent = `${guide.title} 🌲`;
+    el.querySelector('.capture-sub').textContent =
+      `${guide.subtitle} ${guide.spot_count ? guide.spot_count + ' hand-checked places, ' : ''}ready-made day plans, and a season-by-season calendar — the local knowledge this feed runs on, in one keepable PDF.`;
+    el.querySelector('.guide-promo-go').textContent = `Get the guide — $${guide.price}`;
+    el.querySelector('.guide-promo-go').addEventListener('click', () => {
+      track('guide_promo_click', { id: guide.slug });
+      window.location.href = `/guides#${guide.slug}`;
+    });
+    return el;
+  }
+
   function buildFunFactCard(fact) {
     const el = document.createElement('div');
     el.className = 'capture-card capture-card--fact';
@@ -3560,6 +3597,7 @@
     if (cards.length < 6) return;
     const dayOffset = new Date().getDate();
     let breakIndex = 0;
+    let guidePromoUsed = false;
     // Slots at card 15, 30, 45… — a feed too short for a full block still
     // gets one break anchored at its last card.
     const slots = [];
@@ -3575,11 +3613,17 @@
         anchor = anchor.previousElementSibling;
       }
       let card;
+      // One paid-guide card per feed, matched to the browsed city — it takes
+      // the first slot after the newsletter capture (or the first slot
+      // outright when capture is snoozed/done).
       if (breakIndex === 0 && captureEligible()) {
         card = buildCaptureCard('feed_card',
           'Get the free GTA Weekend Playbook 📖',
           '70+ family outings actually worth your Saturday — plus five fresh picks every Thursday morning, weather-checked and closure-checked.',
           'Send my Playbook');
+      } else if (!guidePromoUsed && matchGuideForCity()) {
+        card = buildGuidePromoCard(matchGuideForCity());
+        guidePromoUsed = true;
       } else if ((breakIndex + dayOffset) % 2 === 0) {
         card = buildAdCard();
       } else {

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>City Guides — PDF | DayHop</title>
+  <meta name="description" content="Hand-checked nature guides for GTA cities and beyond — trails, waterfalls, beaches, ready-made day plans, and a season-by-season calendar. $20 PDF, delivered instantly.">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <style>
+    :root {
+      --ink: #102A2E; --ink-soft: #41585C; --coral: #E1502F; --coral-dark: #C43F22;
+      --moss: #3F6F5C; --paper: #FBF7EE; --paper-dim: #F2ECDC; --line: #E3DCC9;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--paper); color: var(--ink); line-height: 1.55; }
+    a { color: var(--coral); }
+    .top { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+    .logo { font-weight: 800; font-size: 1.25rem; color: var(--ink); text-decoration: none; }
+    .back { font-size: .9rem; color: var(--ink-soft); text-decoration: none; }
+    main { max-width: 880px; margin: 0 auto; padding: 32px 20px 64px; }
+    h1 { font-size: 2rem; letter-spacing: -0.01em; }
+    .lede { color: var(--ink-soft); margin: 10px 0 6px; max-width: 60ch; }
+    .promise { color: var(--moss); font-weight: 600; font-size: .95rem; margin-bottom: 26px; }
+    .banner { border-radius: 12px; padding: 14px 16px; margin: 0 0 22px; font-weight: 600; display: none; }
+    .banner--ok { display: block; background: #E7F1EA; color: var(--moss); border: 1px solid var(--moss); }
+    .banner--sad { display: block; background: #FBEAE4; color: var(--coral-dark); border: 1px solid var(--coral); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
+    .card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+    .card h2 { font-size: 1.12rem; }
+    .card .sub { color: var(--ink-soft); font-size: .92rem; flex: 1; }
+    .meta { color: var(--moss); font-weight: 600; font-size: .85rem; }
+    .buy { background: var(--coral); color: #fff; border: 0; border-radius: 10px; padding: 12px 16px; font-size: 1rem; font-weight: 700; cursor: pointer; }
+    .buy:hover { background: var(--coral-dark); }
+    .buy:disabled { opacity: .6; cursor: default; }
+    .soon { background: var(--paper-dim); color: var(--ink-soft); border: 0; border-radius: 10px; padding: 12px 16px; font-weight: 700; cursor: default; }
+    .price { font-weight: 800; font-size: 1.15rem; }
+    .fine { color: var(--ink-soft); font-size: .8rem; }
+    .faq { margin-top: 44px; border-top: 1px solid var(--line); padding-top: 26px; }
+    .faq h3 { font-size: 1.05rem; margin: 16px 0 4px; }
+    .faq p { color: var(--ink-soft); font-size: .93rem; max-width: 70ch; }
+    footer { text-align: center; color: var(--ink-soft); font-size: .82rem; padding: 24px; border-top: 1px solid var(--line); }
+    .card.flash { outline: 3px solid var(--coral); }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <a class="logo" href="/">DayHop</a>
+    <a class="back" href="/">← Back to the planner</a>
+  </div>
+  <main>
+    <h1>City Guides — PDF 🌲</h1>
+    <p class="lede">The local nature knowledge our planner runs on, distilled into keepable guides: hand-checked trails, waterfalls, beaches and quiet corners, ready-made day plans, and a season-by-season calendar for each city.</p>
+    <p class="promise">Every place name links to live directions and hours · delivered instantly by email · free updated editions included</p>
+    <div class="banner" id="banner" role="status"></div>
+    <div class="grid" id="grid"><p style="color:var(--ink-soft)">Loading guides…</p></div>
+
+    <div class="faq">
+      <h3>How does delivery work?</h3>
+      <p>Checkout takes a minute (card, Apple&nbsp;Pay or Google&nbsp;Pay via Stripe). Your PDF downloads immediately on the confirmation page and lands in your inbox with a re-download link that also serves any refreshed edition.</p>
+      <h3>Are these AI-generated lists?</h3>
+      <p>No. Each guide is authored and hand-checked around stable, verifiable places, and every entry links to Google Maps as the live source for hours and closures. If something changed on the ground, tell us — admin@dayhop.quest — and the next edition fixes it.</p>
+      <h3>What if a guide disappoints?</h3>
+      <p>Write us within 14 days and we'll make it right. We'd rather refund a purchase than keep an unhappy reader.</p>
+    </div>
+  </main>
+  <footer>DayHop · Richmond Hill, Ontario, Canada · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · admin@dayhop.quest</footer>
+
+  <script>
+    const grid = document.getElementById('grid');
+    const banner = document.getElementById('banner');
+
+    function ownerId() {
+      try { return localStorage.getItem('dayhop_owner_id') || undefined; } catch (e) { return undefined; }
+    }
+
+    async function buy(slug, btn) {
+      btn.disabled = true; btn.textContent = 'Opening checkout…';
+      try {
+        const res = await fetch('/api/cityguides/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug, owner_id: ownerId() })
+        });
+        const data = await res.json();
+        if (data && data.url) { window.location.href = data.url; return; }
+        throw new Error((data && data.message) || 'checkout failed');
+      } catch (err) {
+        btn.disabled = false; btn.textContent = 'Get the guide';
+        banner.className = 'banner banner--sad';
+        banner.textContent = 'Could not start checkout — please try again in a moment.';
+      }
+    }
+
+    async function render() {
+      let data;
+      try { data = await (await fetch('/api/cityguides')).json(); }
+      catch (e) { grid.innerHTML = '<p>Could not load the guides — refresh to try again.</p>'; return; }
+      grid.innerHTML = '';
+      for (const g of data.guides) {
+        const card = document.createElement('div');
+        card.className = 'card'; card.id = g.slug;
+        const live = g.status === 'live';
+        card.innerHTML =
+          '<h2></h2><p class="sub"></p>' +
+          (live ? '<p class="meta">' + (g.spot_count ? g.spot_count + ' hand-checked places · ' : '') + 'day plans · seasonal calendar</p>' : '') +
+          (live
+            ? '<div><span class="price">$' + g.price + ' ' + data.currency + '</span></div><button class="buy" type="button">Get the guide</button><p class="fine">Instant PDF by email · free updated editions</p>'
+            : '<button class="soon" type="button" disabled>Coming soon</button><p class="fine">Being verified on the ground — not for sale until it is.</p>');
+        card.querySelector('h2').textContent = g.title;
+        card.querySelector('.sub').textContent = g.subtitle;
+        if (live) card.querySelector('.buy').addEventListener('click', e => buy(g.slug, e.target));
+        grid.appendChild(card);
+      }
+      // Deep link from the feed promo card: flash the matching guide.
+      const target = (location.hash || '').replace('#', '');
+      if (target && document.getElementById(target)) {
+        document.getElementById(target).classList.add('flash');
+        document.getElementById(target).scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    async function handleReturn() {
+      const q = new URLSearchParams(location.search);
+      if (q.get('purchase') === 'cancelled') {
+        banner.className = 'banner banner--sad';
+        banner.textContent = 'Checkout cancelled — your card was not charged.';
+      }
+      if (q.get('purchase') === 'success' && q.get('session_id')) {
+        banner.className = 'banner banner--ok';
+        banner.textContent = 'Payment received — preparing your download… (a copy is on its way to your inbox too)';
+        try {
+          const res = await fetch('/api/cityguides/claim?session_id=' + encodeURIComponent(q.get('session_id')));
+          const data = await res.json();
+          if (data && data.token) {
+            banner.innerHTML = 'Thank you! Your download is starting — and a copy with a re-download link is in your inbox. ' +
+              '<a href="/api/cityguides/download?t=' + encodeURIComponent(data.token) + '">Download again</a>';
+            window.location.href = '/api/cityguides/download?t=' + encodeURIComponent(data.token);
+          } else {
+            banner.textContent = 'Payment received! Your guide is on its way to your inbox (give it a minute or two).';
+          }
+        } catch (e) {
+          banner.textContent = 'Payment received! Your guide is on its way to your inbox (give it a minute or two).';
+        }
+        history.replaceState(null, '', '/guides');
+      }
+    }
+
+    render().then(handleReturn);
+  </script>
+</body>
+</html>

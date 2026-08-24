@@ -157,6 +157,9 @@ app.use('/api/adventures', require('./routes/adventures'));
 app.use('/api/community', require('./routes/community'));
 app.use('/api/shortlist', require('./routes/shortlist'));
 app.use('/api/billing', require('./routes/billing'));
+// Paid city nature guides ($20 PDFs) — one-time Stripe checkout, guests
+// welcome. Fulfillment rides the existing billing webhook.
+app.use('/api/cityguides', require('./routes/cityGuides'));
 
 // A plan-less POST /api/guides triggers a Grok call server-side — the save
 // path must not be a free unmetered AI endpoint just because /generate is.
@@ -272,6 +275,12 @@ app.use('/api', (req, res) => {
 // guide JSON from /api/guides/shared/<share_id>.
 app.get('/g/:shareId', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'guide.html'));
+});
+
+// City Guides sales page ("City Guides — PDF"). Above the SPA fallback so
+// /guides serves its own page, not the shell.
+app.get('/guides', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'guides.html'));
 });
 
 // Server-rendered blog (SEO surface) + sitemap. Must sit above the SPA

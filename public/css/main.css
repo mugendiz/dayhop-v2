@@ -3830,6 +3830,8 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
   border-color: var(--moss);
 }
 .capture-card--fact .capture-heading { color: var(--moss); }
+.capture-card--guide { border: 2px solid var(--moss); }
+.capture-card--guide .capture-heading { color: var(--moss); }
 .capture-card--ad { border: 2px dashed var(--line-strong); }
 .capture-card--ad .capture-fineprint a { color: var(--ink-soft); }
 
