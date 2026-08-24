@@ -127,7 +127,8 @@ router.post('/', async (req, res) => {
     const ownerKey = (req.user && req.user.id) ||
       (typeof body.owner_id === 'string' && body.owner_id.trim().slice(0, 80)) ||
       `ip-${req.ip}`;
-    // Per-shelf impression counts for the admin shelf-CTR rollup.
+    // Per-shelf serve mix (raw data only — CTR impressions now come from
+    // the client's viewport-truth shelf_seen batches, not cards served).
     const shelves = {};
     for (const idea of ideas) {
       if (idea.section) shelves[idea.section] = (shelves[idea.section] || 0) + 1;

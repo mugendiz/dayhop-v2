@@ -45,6 +45,24 @@ router.post('/', (req, res) => {
       typeof section === 'string' && section.trim()) {
     meta = Object.assign(meta || {}, { section: section.trim().slice(0, 60) });
   }
+  // Viewport-truth shelf impressions: the client batches "cards actually
+  // seen" per shelf into one event. Sanitized hard — bounded shelf count,
+  // capped label length and per-shelf count — so meta can't balloon.
+  if (type === 'shelf_seen') {
+    const raw = (req.body && req.body.shelves) || null;
+    const shelves = {};
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      for (const [label, n] of Object.entries(raw).slice(0, 30)) {
+        const count = Math.floor(Number(n));
+        if (label.trim() && Number.isFinite(count) && count > 0) {
+          shelves[label.trim().slice(0, 60)] = Math.min(count, 500);
+        }
+      }
+    }
+    // Nothing usable survived sanitizing — don't record an empty event.
+    if (!Object.keys(shelves).length) return res.status(204).end();
+    meta = Object.assign(meta || {}, { shelves });
+  }
   analytics.recordEvent({
     type,
     ownerKey: (req.user && req.user.id) || owner_id || 'anon',

@@ -224,7 +224,7 @@
       <h2>Shelf CTR 🧲</h2>
       <table>
         <thead>
-          <tr><th>Shelf</th><th class="num">Impressions</th><th class="num">Engagements</th><th class="num">CTR</th></tr>
+          <tr><th>Shelf</th><th class="num">Cards seen</th><th class="num">Engagements</th><th class="num">CTR</th></tr>
         </thead>
         <tbody id="shelf-ctr-rows"></tbody>
       </table>
@@ -1752,18 +1752,20 @@
           : (rows.length ? 'Computed from the recent event window; run the retention_cohorts() migration for full-history accuracy.' : ''));
   }
 
-  // Per-shelf CTR: impressions = cards served per shelf (server-counted on
-  // every browse/surprise feed); engagements = booking/maps clicks,
-  // shortlist adds, and Details opens attributed to the shelf.
+  // Per-shelf CTR: impressions = cards the user actually saw (viewport-
+  // counted client-side, ≥ half visible; prompt shelves included);
+  // engagements = booking/maps clicks, shortlist adds, and Details opens
+  // attributed to the shelf. Cards-served counts before 2026-08-24 no
+  // longer feed this table, so counts restart from that deploy.
   function renderShelfCtr(rows) {
     $('shelf-ctr-rows').innerHTML = rows.length
       ? rows.map(s =>
           '<tr><td>' + esc(s.shelf) + '</td><td class="num">' + fmt(s.impressions) + '</td>' +
           '<td class="num">' + fmt(s.clicks) + '</td>' +
           '<td class="num">' + (s.ctr_pct == null ? '—' : s.ctr_pct + '%') + '</td></tr>').join('')
-      : '<tr><td colspan="4" style="color:var(--ink-soft)">No shelf data yet — counts start with the first feed served after this shipped.</td></tr>';
+      : '<tr><td colspan="4" style="color:var(--ink-soft)">No shelf data yet — counts start with the first cards actually scrolled into view after this shipped.</td></tr>';
     $('shelf-ctr-note').textContent = rows.length
-      ? 'Engagement = outbound clicks + shortlist adds + Details opens. A shelf with high impressions and near-zero CTR is stealing attention from shelves that convert.'
+      ? 'Cards seen = viewport-counted on the client (≥ half visible). Engagement = outbound clicks + shortlist adds + Details opens. A shelf people see a lot but never touch is stealing attention from shelves that convert.'
       : '';
   }
 

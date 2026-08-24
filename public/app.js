@@ -1210,8 +1210,9 @@
           price: idea && idea.price != null ? idea.price : undefined,
           currency: idea && idea.currency ? idea.currency : undefined,
           // Which feed shelf the card sat in — the click half of the admin
-          // dashboard's per-shelf CTR.
-          section: idea && idea.section ? String(idea.section) : undefined,
+          // dashboard's per-shelf CTR. shelf_label is the client-side
+          // grouping for prompt feeds (renderFeed stamps it).
+          section: idea && (idea.section || idea.shelf_label) ? String(idea.section || idea.shelf_label) : undefined,
           owner_id: getOwnerId(),
           // Ad-campaign attribution (pixel.js first-touch capture); the
           // server only keeps it on funnel events.
@@ -1221,6 +1222,48 @@
       }).catch(() => {});
     } catch (e) { /* never let analytics break the app */ }
   }
+
+  // ---------- Shelf impressions (viewport truth) ----------
+  // The denominator of the admin dashboard's per-shelf CTR. The server used
+  // to count every card in the feed payload as an impression — including
+  // everything below the fold nobody scrolled to — which drowned real
+  // engagement to a ~0% CTR. A card counts only once it's actually been
+  // half-seen, and counts batch into one shelf_seen event per flush instead
+  // of a POST per card.
+  const pendingShelfViews = Object.create(null);
+  let shelfViewsDirty = false;
+  const shelfSeenObserver = 'IntersectionObserver' in window
+    ? new IntersectionObserver((entries) => {
+        for (const en of entries) {
+          if (!en.isIntersecting) continue;
+          shelfSeenObserver.unobserve(en.target);
+          const label = en.target.dataset.section;
+          if (label) {
+            pendingShelfViews[label] = (pendingShelfViews[label] || 0) + 1;
+            shelfViewsDirty = true;
+          }
+        }
+      }, { threshold: 0.5 })
+    : null;
+
+  function flushShelfViews() {
+    if (!shelfViewsDirty) return;
+    shelfViewsDirty = false;
+    const shelves = Object.assign({}, pendingShelfViews);
+    for (const k in pendingShelfViews) delete pendingShelfViews[k];
+    try {
+      fetch('/api/track', {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ type: 'shelf_seen', shelves, owner_id: getOwnerId() }),
+        keepalive: true // the tab-close flush must survive the page going away
+      }).catch(() => {});
+    } catch (e) { /* never let analytics break the app */ }
+  }
+  setInterval(flushShelfViews, 20000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushShelfViews();
+  });
 
   // ---------- API ----------
   async function apiGenerateIdeas(prompt, filter) {
@@ -1496,6 +1539,9 @@
 
   function renderFeed(animate = false) {
     const feed = document.getElementById('discovery-feed');
+    // Full rebuild: stop watching the cards that are about to leave the DOM
+    // so the impression observer never accumulates dead targets.
+    if (shelfSeenObserver) shelfSeenObserver.disconnect();
     feed.innerHTML = '';
     const ideas = visibleIdeas();
 
@@ -1509,6 +1555,9 @@
         feed.appendChild(header);
       }
       group.forEach(idea => {
+        // Remember which shelf this render put the card on — engagement
+        // events attribute to it (a server section, when present, wins).
+        idea.shelf_label = label;
         feed.appendChild(createIdeaCard(idea, stopIndex++, animate, Boolean(bestIds && bestIds.has(idea.id))));
       });
     };
@@ -1656,6 +1705,7 @@
         frag.appendChild(header);
       }
       groups.get(label).forEach(idea => {
+        idea.shelf_label = label;
         frag.appendChild(createIdeaCard(idea, stopIndex++, false, false));
       });
     });
@@ -1692,8 +1742,11 @@
     card.className = 'idea-card';
     card.dataset.id = idea.id;
     // Shelf label rides into the DOM so the delegated outbound-link listener
-    // can attribute booking/maps clicks to the shelf they came from.
-    if (idea.section) card.dataset.section = idea.section;
+    // can attribute booking/maps clicks to the shelf they came from, and so
+    // the impression observer knows which shelf a half-seen card belongs to.
+    const shelf = idea.section || idea.shelf_label;
+    if (shelf) card.dataset.section = shelf;
+    if (shelfSeenObserver) shelfSeenObserver.observe(card);
     card.style.setProperty('--stop-index', index);
     card.tabIndex = 0;
     card.setAttribute('role', 'group');

@@ -230,8 +230,8 @@ function recordBrowse(req, payload, cached, mode) {
   const ownerKey = (req.user && req.user.id) ||
     (typeof (req.body && req.body.owner_id) === 'string' && req.body.owner_id.trim().slice(0, 80)) ||
     `ip-${req.ip}`;
-  // Per-shelf impression counts — the denominator of the admin dashboard's
-  // shelf CTR (clicks arrive from the client with meta.section).
+  // Per-shelf serve mix (raw data only — CTR impressions now come from the
+  // client's viewport-truth shelf_seen batches, not cards served).
   const shelves = {};
   for (const idea of payload.ideas) {
     if (idea.section) shelves[idea.section] = (shelves[idea.section] || 0) + 1;

@@ -41,9 +41,12 @@ const CLIENT_EVENT_TYPES = new Set([
   // admin funnel compares surfaces without a separate table.
   'newsletter_prompt_shown', 'newsletter_prompt_dismissed', 'newsletter_prompt_subscribed',
   // Card engagement: the Details panel opened from a feed card. With
-  // meta.section it's the click half of per-shelf CTR (impressions come
-  // from browse_feed/surprise_feed meta.shelves).
-  'card_open'
+  // meta.section it's the click half of per-shelf CTR.
+  'card_open',
+  // Impression half of per-shelf CTR: batched viewport counts of cards
+  // actually seen (≥ half visible). Replaced the server-side cards-served
+  // counts, which included everything below the fold and drowned CTR to ~0%.
+  'shelf_seen'
 ]);
 
 // Server-truth events, recorded by their own routes.
@@ -246,8 +249,10 @@ function aggregate(events) {
   // only — 'anon' is nobody and ip-* keys churn with DHCP/NAT, so both would
   // poison week-over-week return rates.
   const ownerTs = new Map(); // owner -> number[] (event timestamps, ms)
-  // Per-shelf CTR: impressions from feed events' meta.shelves, clicks from
-  // engagement events' meta.section (routes/track.js sanitizes it in).
+  // Per-shelf CTR: impressions from shelf_seen viewport batches (cards the
+  // user actually saw — routes/track.js sanitizes them in), clicks from
+  // engagement events' meta.section. browse_feed/surprise_feed meta.shelves
+  // still records the serve mix but no longer counts as impressions.
   const shelves = new Map(); // shelf key -> { shelf, impressions, clicks }
   const shelfRow = key => {
     if (!shelves.has(key)) shelves.set(key, { shelf: key, impressions: 0, clicks: 0 });
@@ -298,7 +303,7 @@ function aggregate(events) {
       if (meta.city) cities.set(meta.city, (cities.get(meta.city) || 0) + 1);
       if (meta.mode) modeSplit.set(meta.mode, (modeSplit.get(meta.mode) || 0) + 1);
     }
-    if ((e.type === 'browse_feed' || e.type === 'surprise_feed') &&
+    if (e.type === 'shelf_seen' &&
         meta.shelves && typeof meta.shelves === 'object') {
       for (const [label, n] of Object.entries(meta.shelves)) {
         const key = normalizeShelf(label);
