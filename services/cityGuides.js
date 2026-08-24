@@ -312,10 +312,12 @@ function creditLine(credit) {
 }
 
 // pdfkit's `cover` scales but does NOT clip — the spill must be fenced.
-function photoBand(doc, buffer, x, y, w, h) {
+// `focal` ('top'|'center', from credits.json) keeps the subject in frame
+// when the crop is tight.
+function photoBand(doc, buffer, x, y, w, h, focal) {
   doc.save();
   doc.rect(x, y, w, h).clip();
-  doc.image(buffer, x, y, { cover: [w, h], align: 'center', valign: 'center' });
+  doc.image(buffer, x, y, { cover: [w, h], align: 'center', valign: focal === 'top' ? 'top' : 'center' });
   doc.restore();
 }
 
@@ -358,6 +360,20 @@ function parseCoords(str) {
   return m ? { lat: Number(m[1]), lon: -Number(m[2]) } : null;
 }
 
+// Smooth closed curve through projected points (quadratics via midpoints) —
+// turns the surveyed polygon into a shoreline.
+function smoothClosedPath(doc, pts) {
+  const n = pts.length;
+  const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  let m = mid(pts[n - 1], pts[0]);
+  doc.moveTo(m[0], m[1]);
+  for (let i = 0; i < n; i++) {
+    const m2 = mid(pts[i], pts[(i + 1) % n]);
+    doc.quadraticCurveTo(pts[i][0], pts[i][1], m2[0], m2[1]);
+  }
+  doc.closePath();
+}
+
 function drawLocatorMap(doc, guide, F, x, y, w, h) {
   const B = MAP_BOUNDS;
   const px = (lon) => x + ((lon - B.lonW) / (B.lonE - B.lonW)) * w;
@@ -365,8 +381,16 @@ function drawLocatorMap(doc, guide, F, x, y, w, h) {
   const here = parseCoords(guide.coords);
   if (!here || here.lon < B.lonW || here.lon > B.lonE || here.lat < B.latS || here.lat > B.latN) return false;
 
-  // Frame
+  // Frame + graticule ticks at every half degree — the survey's fingerprints.
   doc.rect(x, y, w, h).lineWidth(0.8).stroke(MOSS);
+  for (let lon = Math.ceil(B.lonW * 2) / 2; lon <= B.lonE; lon += 0.5) {
+    doc.moveTo(px(lon), y).lineTo(px(lon), y + 4).lineWidth(0.5).stroke(MOSS);
+    doc.moveTo(px(lon), y + h).lineTo(px(lon), y + h - 4).lineWidth(0.5).stroke(MOSS);
+  }
+  for (let lat = Math.ceil(B.latS * 2) / 2; lat <= B.latN; lat += 0.5) {
+    doc.moveTo(x, py(lat)).lineTo(x + 4, py(lat)).lineWidth(0.5).stroke(MOSS);
+    doc.moveTo(x + w, py(lat)).lineTo(x + w - 4, py(lat)).lineWidth(0.5).stroke(MOSS);
+  }
 
   // Lake Ontario: shoreline + ruled water below it.
   doc.save();
@@ -384,15 +408,13 @@ function drawLocatorMap(doc, guide, F, x, y, w, h) {
   }
   doc.restore();
 
-  // Lake Simcoe: closed blob, same ruled water.
+  // Lake Simcoe: smoothed shoreline, same ruled water.
+  const simcoePts = SIMCOE_SHORE.map(([lat, lon]) => [px(lon), py(lat)]);
   doc.save();
-  doc.moveTo(px(SIMCOE_SHORE[0][1]), py(SIMCOE_SHORE[0][0]));
-  for (const [lat, lon] of SIMCOE_SHORE.slice(1)) doc.lineTo(px(lon), py(lat));
-  doc.closePath();
+  smoothClosedPath(doc, simcoePts);
   doc.lineWidth(1.1).stroke(INK);
-  doc.moveTo(px(SIMCOE_SHORE[0][1]), py(SIMCOE_SHORE[0][0]));
-  for (const [lat, lon] of SIMCOE_SHORE.slice(1)) doc.lineTo(px(lon), py(lat));
-  doc.closePath().clip();
+  smoothClosedPath(doc, simcoePts);
+  doc.clip();
   for (let ly = y; ly < y + h; ly += 7) {
     doc.moveTo(x, ly).lineTo(x + w, ly).lineWidth(0.45).stroke(MOSS);
   }
@@ -497,7 +519,7 @@ function buildGuidePdf(guide) {
     doc.addPage();
     if (hero) {
       usedPhotos.push(hero.credit);
-      photoBand(doc, hero.buffer, 0, 0, doc.page.width, 316);
+      photoBand(doc, hero.buffer, 0, 0, doc.page.width, 316, hero.credit && hero.credit.focal);
       doc.font(F.displayLight).fontSize(6.5).fillColor(INK_SOFT)
         .text(creditLine(hero.credit), 64, 326, { width: W, characterSpacing: 1.4, lineBreak: false });
     }
@@ -511,11 +533,23 @@ function buildGuidePdf(guide) {
           64, mapTop + 30 + 280 + 10, { width: W, characterSpacing: 1.4, lineBreak: false });
     }
 
+    // ---------- contents (filled in after rendering, when pages are known) ----------
+    const sections = []; // { label, pageIndex }
+    doc.addPage();
+    const tocPageIndex = doc.bufferedPageRange().count - 1;
+    const markSection = (label) => {
+      const dest = 'sec-' + sections.length;
+      sections.push({ label, pageIndex: doc.bufferedPageRange().count - 1, dest });
+      doc.addNamedDestination(dest);
+      try { doc.outline.addItem(label); } catch (e) { /* outline is nice-to-have */ }
+    };
+
     // ---------- "If you only have…" ----------
     // Travellers buy guides with a checkout time looming — serve the
     // time-budgeted reader before the completionist.
     if (Array.isArray(c.quick) && c.quick.length) {
       doc.addPage();
+      markSection('If you only have…');
       doc.font(F.display).fontSize(20).fillColor(INK)
         .text('IF YOU ONLY HAVE…', 64, 72, { characterSpacing: 1.6 });
       rule(64, doc.y + 8, 118);
@@ -536,13 +570,14 @@ function buildGuidePdf(guide) {
     // notebook voice, and — where assigned — the guide's second photograph.
     const opener = (label, blurb) => {
       doc.addPage();
+      markSection(label);
       let top = 72;
       const photoKey = SECTION_PHOTO_KEYS[label];
       if (photoKey) {
         const ph = loadPhoto(`${guide.slug}-${photoKey}`);
         if (ph) {
           usedPhotos.push(ph.credit);
-          photoBand(doc, ph.buffer, 0, 0, doc.page.width, 190);
+          photoBand(doc, ph.buffer, 0, 0, doc.page.width, 190, ph.credit && ph.credit.focal);
           doc.font(F.displayLight).fontSize(6.5).fillColor(INK_SOFT)
             .text(creditLine(ph.credit), 64, 198, { width: W, characterSpacing: 1.4, lineBreak: false });
           top = 224;
@@ -584,6 +619,35 @@ function buildGuidePdf(guide) {
     doc.font(F.display).fontSize(14).fillColor(INK).text('THE YEAR AT A GLANCE', { characterSpacing: 1.8 });
     rule(64, doc.y + 6, 118);
     doc.y += 16;
+    // The year as a picture: a month band with season spans and coral dots
+    // on the headline moments (blossom, beach, colour, ice).
+    {
+      const bandY = doc.y + 14;
+      const bandW = W;
+      const mx = (m) => 64 + (m / 12) * bandW; // m: 0..12 month fractions
+      doc.moveTo(64, bandY).lineTo(64 + bandW, bandY).lineWidth(0.7).stroke(MOSS);
+      const MONTHS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+      for (let m = 0; m < 12; m++) {
+        doc.moveTo(mx(m), bandY - 3).lineTo(mx(m), bandY + 3).lineWidth(0.7).stroke(MOSS);
+        doc.font(F.displayLight).fontSize(6).fillColor(INK_SOFT)
+          .text(MONTHS[m], mx(m) + 1.5, bandY + 7, { characterSpacing: 0, lineBreak: false });
+      }
+      // Season spans (thicker moss) + labels above. Winter wraps the year.
+      const spans = [
+        { from: 3, to: 5, label: 'SPRING' }, { from: 5, to: 8, label: 'SUMMER' },
+        { from: 8, to: 10, label: 'FALL' }, { from: 10, to: 12, label: 'WINTER' }, { from: 0, to: 2 }
+      ];
+      for (const s of spans) {
+        doc.moveTo(mx(s.from) + 2, bandY).lineTo(mx(s.to) - 2, bandY).lineWidth(2.4).stroke(MOSS);
+        if (s.label) {
+          doc.font(F.display).fontSize(6.5).fillColor(MOSS)
+            .text(s.label, mx(s.from) + 2, bandY - 14, { characterSpacing: 1.6, lineBreak: false });
+        }
+      }
+      // The coral moments of the year.
+      for (const m of [4.5, 6.8, 9.5, 0.5]) doc.circle(mx(m), bandY, 2.6).fill(CORAL);
+      doc.y = bandY + 24;
+    }
     for (const s of c.seasons) {
       doc.font(F.display).fontSize(10).fillColor(MOSS).text(s.label.toUpperCase(), 64, doc.y, { characterSpacing: 1.5 });
       doc.moveDown(0.15);
@@ -637,7 +701,7 @@ function buildGuidePdf(guide) {
           doc.moveDown(0.08);
           doc.font(F.displayLight).fontSize(7.5).fillColor(MOSS).text(sp.access.toUpperCase(), { characterSpacing: 1.1 });
         }
-        doc.moveDown(0.85);
+        doc.moveDown(0.78);
       }
     };
     renderSpots('The places', `${c.spots.length} spots, roughly north to south — each one worth a morning on its own.`, c.spots);
@@ -669,12 +733,24 @@ function buildGuidePdf(guide) {
         doc.moveDown(0.1);
         doc.font(F.bodyItalic).fontSize(10.5).fillColor(MOSS).text(it.blurb, { width: W });
       }
-      doc.moveDown(0.35);
-      for (const step of it.steps) {
-        doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT).text(`—  ${step}`, { width: W - 18, lineGap: 1.8 });
-        doc.moveDown(0.18);
-      }
-      doc.moveDown(0.7);
+      doc.moveDown(0.4);
+      // Steps as a timeline: numbered coral stops on a moss route line.
+      let prevDotY = null;
+      it.steps.forEach((step, si) => {
+        const stepY = doc.y;
+        const dotY = stepY + 6;
+        if (prevDotY != null) {
+          doc.moveTo(71, prevDotY + 7).lineTo(71, dotY - 7).lineWidth(1).stroke(MOSS);
+        }
+        doc.circle(71, dotY, 6.5).fill(CORAL);
+        doc.font(F.display).fontSize(6.5).fillColor('#FFFFFF')
+          .text(String(si + 1), 66, dotY - 3.2, { width: 10, align: 'center', lineBreak: false });
+        doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT)
+          .text(step, 88, stepY, { width: W - 26, lineGap: 1.8 });
+        prevDotY = dotY;
+        doc.moveDown(0.3);
+      });
+      doc.moveDown(0.6);
     }
 
     // ---------- etiquette + back page ----------
@@ -711,6 +787,32 @@ function buildGuidePdf(guide) {
           { width: W, lineGap: 1.2, link: cr.source || undefined });
       }
     }
+
+    // ---------- fill the contents page (pages are known now) ----------
+    doc.switchToPage(tocPageIndex);
+    doc.font(F.display).fontSize(20).fillColor(INK)
+      .text('CONTENTS', 64, 72, { characterSpacing: 2 });
+    rule(64, 100, 118);
+    let tocY = 128;
+    for (const s of sections) {
+      const num = String(s.pageIndex + 1);
+      doc.font(F.display).fontSize(11.5).fillColor(INK)
+        .text(s.label.toUpperCase(), 64, tocY, { characterSpacing: 1.4, lineBreak: false });
+      const labelW = doc.widthOfString(s.label.toUpperCase(), { characterSpacing: 1.4 });
+      doc.font(F.displayLight).fontSize(9).fillColor(INK_SOFT)
+        .text(num, 64, tocY + 1.5, { width: W, align: 'right', lineBreak: false });
+      const dotsStart = 64 + labelW + 10;
+      const dotsEnd = 64 + W - doc.widthOfString(num) - 12;
+      for (let dx = dotsStart; dx < dotsEnd; dx += 7) {
+        doc.circle(dx, tocY + 8, 0.6).fill(MOSS);
+      }
+      // Whole row is one tap target (explicit rect — the goTo text option
+      // emits NaN coords under lineBreak:false).
+      doc.goTo(64, tocY - 3, W, 20, s.dest);
+      tocY += 26;
+    }
+    doc.font(F.bodyItalic).fontSize(10).fillColor(MOSS)
+      .text('Every line is tappable — and so is every place name in the book.', 64, tocY + 12, { width: W });
 
     // Page furniture (skip cover): a centred hairline over the folio.
     const range = doc.bufferedPageRange();

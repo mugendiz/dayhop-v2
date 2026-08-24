@@ -123,7 +123,8 @@
     "term": "Cherry Beach Toronto",
     "license": "CC BY-SA 3.0",
     "author": "rrafson",
-    "source": "https://commons.wikimedia.org/w/index.php?curid=34123993"
+    "source": "https://commons.wikimedia.org/w/index.php?curid=34123993",
+    "focal": "top"
   },
   "toronto-fishing": {
     "key": "toronto-fishing",
