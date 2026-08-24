@@ -3531,7 +3531,8 @@
     el.querySelector('.capture-heading').textContent = `${guide.title} 🌲`;
     el.querySelector('.capture-sub').textContent =
       `${guide.subtitle} ${guide.spot_count ? guide.spot_count + ' hand-checked places, ' : ''}ready-made day plans, and a season-by-season calendar — the local knowledge this feed runs on, in one keepable PDF.`;
-    el.querySelector('.guide-promo-go').textContent = `Get the guide — $${guide.price}`;
+    // Price deliberately not shown here — it's revealed at Stripe checkout.
+    el.querySelector('.guide-promo-go').textContent = 'Get the guide';
     el.querySelector('.guide-promo-go').addEventListener('click', () => {
       track('guide_promo_click', { id: guide.slug });
       window.location.href = `/guides#${guide.slug}`;

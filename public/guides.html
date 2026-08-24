@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>City Guides — PDF | DayHop</title>
-  <meta name="description" content="Hand-checked nature guides for GTA cities and beyond — trails, waterfalls, beaches, ready-made day plans, and a season-by-season calendar. $20 PDF, delivered instantly.">
+  <meta name="description" content="Hand-checked nature guides for GTA cities and beyond — trails, waterfalls, beaches, ready-made day plans, and a season-by-season calendar. PDF, delivered instantly.">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <style>
     :root {
@@ -104,7 +104,7 @@
           '<h2></h2><p class="sub"></p>' +
           (live ? '<p class="meta">' + (g.spot_count ? g.spot_count + ' hand-checked places · ' : '') + 'day plans · seasonal calendar</p>' : '') +
           (live
-            ? '<div><span class="price">$' + g.price + ' ' + data.currency + '</span></div><button class="buy" type="button">Get the guide</button><p class="fine">Instant PDF by email · free updated editions</p>'
+            ? '<button class="buy" type="button">Get the guide</button><p class="fine">Instant PDF by email · free updated editions</p>'
             : '<button class="soon" type="button" disabled>Coming soon</button><p class="fine">Being verified on the ground — not for sale until it is.</p>');
         card.querySelector('h2').textContent = g.title;
         card.querySelector('.sub').textContent = g.subtitle;
