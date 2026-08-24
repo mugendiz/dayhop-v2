@@ -192,7 +192,12 @@ async function fetchPlaces({ query, lat, lng, radiusMeters, maxResults }) {
         'places.websiteUri',
         'places.photos',
         'places.businessStatus',
-        'places.regularOpeningHours.weekdayDescriptions'
+        'places.regularOpeningHours.weekdayDescriptions',
+        // Patio truth for the bar/restaurant outdoor-space gate
+        // (candidates.js). NOTE: this field bills Text Search at the
+        // Enterprise + Atmosphere SKU — dropping it is the first lever if
+        // the Maps bill ever needs trimming.
+        'places.outdoorSeating'
       ].join(',')
     }
   });
@@ -272,6 +277,9 @@ function normalizePlace(p) {
     // OPERATIONAL | CLOSED_TEMPORARILY | CLOSED_PERMANENTLY — the candidate
     // pipeline drops non-operational places so we never recommend one.
     business_status: p.businessStatus || null,
+    // true/false when Google knows, null when it doesn't — the candidate
+    // pipeline's outdoor-space gate treats null as "no patio evidence".
+    outdoor_seating: p.outdoorSeating ?? null,
     open_hours: p.regularOpeningHours?.weekdayDescriptions || null
   };
 }

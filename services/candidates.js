@@ -404,6 +404,17 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
       return !closed;
     });
 
+  // Product decision (2026-08-24): bars and restaurants must offer patio or
+  // rooftop space, or they don't make the feed. Google's outdoorSeating flag
+  // is the primary truth for Places results; text evidence (patio/terrace/
+  // rooftop/beer garden) rescues curated and partner sources that don't
+  // carry the flag. Everything not bar/restaurant-shaped passes untouched.
+  pool = pool.filter(c => {
+    const indoor = isIndoorOnlyBarOrRestaurant(c);
+    if (indoor) console.log(`[candidates] dropping indoor-only bar/restaurant: ${c.title}`);
+    return !indoor;
+  });
+
   // "Next" pages: everything already on the user's screen is excluded
   // BEFORE scoring, so the pool cap fills entirely with fresh material.
   // Titles are matched normalized — the same venue often returns under a
@@ -500,6 +511,31 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
 // Shared normalization for title-based exclusion (same shape as dedupKey's).
 function normTitle(s) {
   return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+// ---------- outdoor-space gate for bars & restaurants ----------
+// Drinking-first Google place types; restaurants match on the type substring
+// ('restaurant', 'brunch_restaurant', …). Cafés, bakeries, dessert shops,
+// and markets deliberately stay outside the gate — "bars and restaurants"
+// is the product rule, not "anywhere food exists".
+const BAR_TYPES = new Set(['bar', 'pub', 'night_club', 'wine_bar', 'bar_and_grill', 'brewery', 'winery']);
+// Textual read for sources without Google types (curated catalog, partners).
+const BAR_RESTO_TEXT_RE = /\b(bars?|pub|brewery|taproom|gastropub|restaurants?|bistro|eatery|steakhouse|izakaya|brasserie|cantina)\b/i;
+// Outdoor evidence in the copy rescues an entry the flag doesn't cover.
+const OUTDOOR_RE = /\b(patios?|terrace|terrasse|rooftop|roof\s?top|beer\s?garden|biergarten|al\s?fresco|outdoor\s(seating|dining|bar|tables?|patio))\b/i;
+
+function isIndoorOnlyBarOrRestaurant(c) {
+  // Dated events are experiences that happen AT venues (comedy night,
+  // tasting) — the rule is about the venues themselves.
+  if (c.date) return false;
+  const types = Array.isArray(c.types) ? c.types : [];
+  const typed = types.some(t => BAR_TYPES.has(t) || String(t).includes('restaurant'));
+  const text = [c.title, c.description, Array.isArray(c.tags) ? c.tags.join(' ') : '']
+    .filter(Boolean).join(' ');
+  if (!typed && !BAR_RESTO_TEXT_RE.test(text)) return false; // not a bar/restaurant
+  if (c.outdoor_seating === true) return false;              // Google vouches for the patio
+  if (OUTDOOR_RE.test(text)) return false;                   // the copy promises outdoor space
+  return true;                                               // indoor-only → out of the feed
 }
 
 // Coordinates from the browser (already rounded client-side). Anything
@@ -819,6 +855,7 @@ module.exports = {
   shortAddress,
   fallbackIdea,
   parseDateWindow,
+  isIndoorOnlyBarOrRestaurant,
   DEFAULT_CITY,
   CANDIDATE_POOL_CAP,
   GTA_TOWNS
