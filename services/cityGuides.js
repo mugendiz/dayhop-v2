@@ -319,14 +319,15 @@ function photoBand(doc, buffer, x, y, w, h) {
   doc.restore();
 }
 
-// Which section opener carries the guide's second photograph.
-const SECTION_PHOTO = {
-  markham: 'The places',
-  'richmond-hill': 'On the trail',
-  newmarket: 'On the water',
-  toronto: 'The places',
-  hamilton: 'On the water',
-  'lake-simcoe': 'Worth the climb'
+// Section label → photo-key suffix. Each opener looks for
+// assets/photos/<slug>-<suffix>.jpg and renders without a band when the
+// curation didn't find a worthy image (quality over completeness).
+const SECTION_PHOTO_KEYS = {
+  'The places': 'places',
+  'On the trail': 'trails',
+  'Worth the climb': 'views',
+  'On the water': 'waters',
+  'Casting lines': 'fishing'
 };
 
 // ---------- locator mini map ----------
@@ -440,6 +441,10 @@ function buildGuidePdf(guide) {
     const total = SECTION_KEYS.reduce((n, k) => n + (Array.isArray(c[k]) ? c[k].length : 0), 0);
     const rng = makeRng(guide.slug);
     const usedPhotos = [];
+    // Real AcroForm checkboxes — clickable and saveable in any PDF reader,
+    // printed as an empty square on paper. One per entry: the been-there
+    // ledger that turns a reading product into a using product.
+    doc.initForm();
 
     // Every page stands on brand paper, never printer-white.
     doc.on('pageAdded', () => {
@@ -532,8 +537,9 @@ function buildGuidePdf(guide) {
     const opener = (label, blurb) => {
       doc.addPage();
       let top = 72;
-      if (SECTION_PHOTO[guide.slug] === label) {
-        const ph = loadPhoto(`${guide.slug}-a`);
+      const photoKey = SECTION_PHOTO_KEYS[label];
+      if (photoKey) {
+        const ph = loadPhoto(`${guide.slug}-${photoKey}`);
         if (ph) {
           usedPhotos.push(ph.credit);
           photoBand(doc, ph.buffer, 0, 0, doc.page.width, 190);
@@ -561,6 +567,7 @@ function buildGuidePdf(guide) {
       'Every entry tells you why it earns a spot, the season or time it shines, who it suits, what it costs, and one tip locals know. ' +
       'Names are tappable — each links to the place in Google Maps for live directions, hours, and closures. ' +
       'Cost markers: FREE, $ (under ~$10/person), $$ (~$10–25), $$$ (day-trip money). ' +
+      'The small square beside each name is a real checkbox — tick places off as you go and save the PDF; it remembers. ' +
       'Details like fees and gate hours drift over the seasons; the link is always the source of truth.';
     doc.font(F.body).fontSize(10.5);
     const howH = doc.heightOfString(HOW, { width: W - 36, lineGap: 2 });
@@ -604,7 +611,17 @@ function buildGuidePdf(guide) {
           .fillColor(INK_SOFT)
           .text('  ·  ' + sp.area.toUpperCase(), { characterSpacing: 1.5 });
         doc.moveDown(0.12);
-        doc.font(F.display).fontSize(13.5).fillColor(INK).text(sp.name, { width: W, link });
+        // Been-there checkbox in the left margin, riding the name line. A
+        // static square is drawn first so viewers that skip widget
+        // appearances (and paper) still show the box; the interactive
+        // field sits exactly on top of it.
+        doc.rect(44, doc.y + 2, 11, 11).lineWidth(0.9).stroke(MOSS);
+        try {
+          doc.formCheckbox(`been-${guide.slug}-${spotNo}`, 44, doc.y + 2, 11, 11, {
+            borderColor: MOSS, backgroundColor: PAPER
+          });
+        } catch (e) { /* a reader without form support still sees the square */ }
+        doc.font(F.display).fontSize(13.5).fillColor(INK).text(sp.name, 64, doc.y, { width: W, link });
         doc.moveDown(0.16);
         doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT).text(sp.why, { width: W, lineGap: 1.8 });
         if (sp.tip) {

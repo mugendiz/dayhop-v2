@@ -6,26 +6,12 @@
     "author": "Gisling",
     "source": "https://commons.wikimedia.org/w/index.php?curid=2071526"
   },
-  "markham-a": {
-    "key": "markham-a",
-    "term": "Rouge National Urban Park",
-    "license": "CC BY-SA 2.5 ca",
-    "author": "The Cosmonaut",
-    "source": "https://commons.wikimedia.org/w/index.php?curid=88864395"
-  },
   "richmond-hill-hero": {
     "key": "richmond-hill-hero",
     "term": "Lake Wilcox Richmond Hill",
     "license": "CC BY-SA 4.0",
     "author": "Aldakang",
     "source": "https://commons.wikimedia.org/w/index.php?curid=70147870"
-  },
-  "richmond-hill-a": {
-    "key": "richmond-hill-a",
-    "term": "Oak Ridges Corridor Park",
-    "license": "CC BY-SA 4.0",
-    "author": "Mhsheikholeslami",
-    "source": "https://commons.wikimedia.org/w/index.php?curid=168111487"
   },
   "newmarket-hero": {
     "key": "newmarket-hero",
@@ -34,26 +20,12 @@
     "author": "Reg Natarajan from Vancouver, Bogotá",
     "source": "https://commons.wikimedia.org/w/index.php?curid=75418333"
   },
-  "newmarket-a": {
-    "key": "newmarket-a",
-    "term": "Holland River Ontario",
-    "license": "CC BY-SA 4.0",
-    "author": "Mhsheikholeslami",
-    "source": "https://commons.wikimedia.org/w/index.php?curid=92652475"
-  },
   "toronto-hero": {
     "key": "toronto-hero",
     "term": "Scarborough Bluffs",
     "license": "CC BY-SA 2.5 ca",
     "author": "Óðinn",
     "source": "https://commons.wikimedia.org/w/index.php?curid=12433045"
-  },
-  "toronto-a": {
-    "key": "toronto-a",
-    "term": "High Park cherry blossom Toronto",
-    "license": "CC BY-SA 4.0",
-    "author": "Fabian Roudra Baroi",
-    "source": "https://commons.wikimedia.org/w/index.php?curid=132089788"
   },
   "hamilton-hero": {
     "key": "hamilton-hero",
@@ -62,13 +34,6 @@
     "author": "paul (dex) bica from toronto, canada",
     "source": "https://commons.wikimedia.org/w/index.php?curid=22419201"
   },
-  "hamilton-a": {
-    "key": "hamilton-a",
-    "term": "Cootes Paradise",
-    "license": "CC BY 4.0",
-    "author": "Lucastphotography",
-    "source": "https://commons.wikimedia.org/w/index.php?curid=147666874"
-  },
   "lake-simcoe-hero": {
     "key": "lake-simcoe-hero",
     "term": "Sibbald Point Provincial Park",
@@ -76,11 +41,123 @@
     "author": "OwenX",
     "source": "https://commons.wikimedia.org/w/index.php?curid=69723532"
   },
-  "lake-simcoe-a": {
-    "key": "lake-simcoe-a",
+  "markham-places": {
+    "key": "markham-places",
+    "term": "Rouge National Urban Park",
+    "license": "CC BY-SA 2.5 ca",
+    "author": "The Cosmonaut",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=88864395"
+  },
+  "richmond-hill-trails": {
+    "key": "richmond-hill-trails",
+    "term": "Oak Ridges Corridor Park",
+    "license": "CC BY-SA 4.0",
+    "author": "Mhsheikholeslami",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=168111487"
+  },
+  "newmarket-waters": {
+    "key": "newmarket-waters",
+    "term": "Holland River Ontario",
+    "license": "CC BY-SA 4.0",
+    "author": "Mhsheikholeslami",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=92652475"
+  },
+  "toronto-places": {
+    "key": "toronto-places",
+    "term": "High Park cherry blossom Toronto",
+    "license": "CC BY-SA 4.0",
+    "author": "Fabian Roudra Baroi",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=132089788"
+  },
+  "hamilton-waters": {
+    "key": "hamilton-waters",
+    "term": "Cootes Paradise",
+    "license": "CC BY 4.0",
+    "author": "Lucastphotography",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=147666874"
+  },
+  "lake-simcoe-views": {
+    "key": "lake-simcoe-views",
     "term": "Barrie Ontario waterfront",
     "license": "CC BY-SA 2.0",
     "author": "Chris McBrien from Barrie, ON, Canada",
     "source": "https://commons.wikimedia.org/w/index.php?curid=40360032"
+  },
+  "markham-trails": {
+    "key": "markham-trails",
+    "term": "Rouge National Urban Park trail",
+    "license": "CC BY-SA 2.5 ca",
+    "author": "The Cosmonaut",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=82969847"
+  },
+  "richmond-hill-waters": {
+    "key": "richmond-hill-waters",
+    "term": "Lake Wilcox",
+    "license": "CC BY 4.0",
+    "author": "Canmenwalker",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=160687279"
+  },
+  "newmarket-places": {
+    "key": "newmarket-places",
+    "term": "Fairy Lake Newmarket",
+    "license": "CC BY-SA 3.0",
+    "author": "Adefranza",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=28100889"
+  },
+  "toronto-trails": {
+    "key": "toronto-trails",
+    "term": "Don Valley Toronto trail",
+    "license": "CC BY-SA 4.0",
+    "author": "Sikander Iqbal",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=90556457"
+  },
+  "toronto-views": {
+    "key": "toronto-views",
+    "term": "Riverdale Park Toronto skyline",
+    "license": "CC BY-SA 4.0",
+    "author": "Dillan Payne",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=188986694"
+  },
+  "toronto-waters": {
+    "key": "toronto-waters",
+    "term": "Cherry Beach Toronto",
+    "license": "CC BY-SA 3.0",
+    "author": "rrafson",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=34123993"
+  },
+  "toronto-fishing": {
+    "key": "toronto-fishing",
+    "term": "Grenadier Pond",
+    "license": "CC BY-SA 3.0",
+    "author": "Lucastphotography",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=147567503"
+  },
+  "hamilton-places": {
+    "key": "hamilton-places",
+    "term": "Albion Falls Hamilton",
+    "license": "CC BY-SA 4.0",
+    "author": "Laslovarga",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=85551946"
+  },
+  "hamilton-views": {
+    "key": "hamilton-views",
+    "term": "Dundas Peak",
+    "license": "CC BY 2.0",
+    "author": "Vlad Litvinov from Toronto",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=81877330"
+  },
+  "lake-simcoe-waters": {
+    "key": "lake-simcoe-waters",
+    "term": "Kempenfelt Bay",
+    "license": "CC BY-SA 4.0",
+    "author": "Whpq",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=81249553"
+  },
+  "hamilton-trails": {
+    "key": "hamilton-trails",
+    "term": "Hermitage ruins Dundas Valley",
+    "license": "CC BY-SA 2.5 ca",
+    "author": "Óðinn",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=4271973"
   }
 }
