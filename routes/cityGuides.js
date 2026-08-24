@@ -179,15 +179,29 @@ router.post('/promo', async (req, res) => {
     const existing = await stripe.promotionCodes.list({ code, active: true, limit: 1 });
     if (existing.data.length) {
       const p = existing.data[0];
-      return res.json({ existed: true, promotion_code_id: p.id, code: p.code, coupon_id: p.coupon.id, percent_off: p.coupon.percent_off, max_redemptions: p.max_redemptions, expires_at: p.expires_at });
+      const couponId = (p.coupon && p.coupon.id) || (p.promotion && p.promotion.coupon) || null;
+      return res.json({ existed: true, promotion_code_id: p.id, code: p.code, coupon_id: couponId, max_redemptions: p.max_redemptions, expires_at: p.expires_at });
     }
     const coupon = await stripe.coupons.create({ percent_off: percentOff, duration: 'once', name: code });
-    const promo = await stripe.promotionCodes.create({
-      coupon: coupon.id,
-      code,
-      max_redemptions: maxRedemptions,
-      expires_at: expiresAt
-    });
+    // Current API shape (promotion object); falls back to the legacy
+    // `coupon` parameter for accounts pinned to an older version.
+    let promo;
+    try {
+      promo = await stripe.promotionCodes.create({
+        promotion: { type: 'coupon', coupon: coupon.id },
+        code,
+        max_redemptions: maxRedemptions,
+        expires_at: expiresAt
+      });
+    } catch (err) {
+      if (!/unknown parameter/i.test(err.message || '')) throw err;
+      promo = await stripe.promotionCodes.create({
+        coupon: coupon.id,
+        code,
+        max_redemptions: maxRedemptions,
+        expires_at: expiresAt
+      });
+    }
     res.json({ existed: false, promotion_code_id: promo.id, code: promo.code, coupon_id: coupon.id, percent_off: percentOff, max_redemptions: promo.max_redemptions, expires_at: promo.expires_at });
   } catch (err) {
     console.error('[city-guides] promo create failed:', err.message);
