@@ -154,9 +154,15 @@ router.get('/download', async (req, res) => {
 // Admin: mint a promotion code for the guides (launch promos, partner codes).
 // The server holds the live Stripe key, so the operator never has to handle
 // it — POST with the x-admin-key header (or a signed-in admin session):
-//   { code, percent_off, max_redemptions?, expires_at? (unix seconds) }
+//   { code, percent_off, max_redemptions?, expires_at? (unix seconds), replace? }
 // Idempotent on the code: if an active promotion code already exists under
 // that code, it is returned instead of duplicated.
+//
+// Stripe makes expires_at immutable after creation (only active/metadata/
+// restrictions are editable), so extending or shortening a live promo means
+// retiring the old code and minting a fresh one. `replace: true` does exactly
+// that, and reports how many times the retired code had already been redeemed
+// so the operator knows whether anyone is mid-flight on it.
 router.post('/promo', async (req, res) => {
   if (!isAdminReq(req)) return res.status(403).json({ error: 'FORBIDDEN' });
   const stripe = getStripe();
@@ -176,11 +182,19 @@ router.post('/promo', async (req, res) => {
     return res.status(400).json({ error: 'BAD_PERCENT', message: 'percent_off must be 1-100.' });
   }
   try {
+    const replace = body.replace === true;
+    let retired = null;
     const existing = await stripe.promotionCodes.list({ code, active: true, limit: 1 });
     if (existing.data.length) {
       const p = existing.data[0];
       const couponId = (p.coupon && p.coupon.id) || (p.promotion && p.promotion.coupon) || null;
-      return res.json({ existed: true, promotion_code_id: p.id, code: p.code, coupon_id: couponId, max_redemptions: p.max_redemptions, expires_at: p.expires_at });
+      if (!replace) {
+        return res.json({ existed: true, promotion_code_id: p.id, code: p.code, coupon_id: couponId, max_redemptions: p.max_redemptions, expires_at: p.expires_at });
+      }
+      // Retire the old code so the same customer-facing string is free again
+      // (codes must be unique across ACTIVE promotion codes).
+      await stripe.promotionCodes.update(p.id, { active: false });
+      retired = { promotion_code_id: p.id, coupon_id: couponId, times_redeemed: p.times_redeemed, expires_at: p.expires_at };
     }
     const coupon = await stripe.coupons.create({ percent_off: percentOff, duration: 'once', name: code });
     // Current API shape (promotion object); falls back to the legacy
@@ -202,7 +216,7 @@ router.post('/promo', async (req, res) => {
         expires_at: expiresAt
       });
     }
-    res.json({ existed: false, promotion_code_id: promo.id, code: promo.code, coupon_id: coupon.id, percent_off: percentOff, max_redemptions: promo.max_redemptions, expires_at: promo.expires_at });
+    res.json({ existed: false, replaced: Boolean(retired), retired, promotion_code_id: promo.id, code: promo.code, coupon_id: coupon.id, percent_off: percentOff, max_redemptions: promo.max_redemptions, expires_at: promo.expires_at });
   } catch (err) {
     console.error('[city-guides] promo create failed:', err.message);
     res.status(502).json({ error: 'PROMO_FAILED', message: err.message });
