@@ -119,6 +119,130 @@ module.exports = {
     }
   ],
 
+  trails: [
+    {
+      name: 'Oak Ridges Corridor trail network',
+      area: 'Bathurst to Yonge, Oak Ridges',
+      why: 'The town\'s serious trail mileage: a marked network rolling over moraine hills between Bond Lake and the Bathurst forests — enough branching loops to make every visit a different hike.',
+      tip: 'Trailhead maps are posted; photograph one and wander confidently.',
+      route: '10+ km network · dirt', best: 'Fall', ages: '6+', cost: 'FREE', maps: 'Oak Ridges Corridor Conservation Reserve trails'
+    },
+    {
+      name: 'Lake to Lake Route, Richmond Hill leg',
+      area: 'North–south through town',
+      why: 'York Region\'s signature cycling route runs Lake Wilcox to Lake Ontario, and the Richmond Hill leg strings the town\'s green spaces into one rideable line — the commuter\'s secret and the weekend rider\'s spine.',
+      tip: 'Signed both directions; start at Wilcox and ride south with gravity\'s blessing.',
+      route: 'signed route · paved & trail', best: 'Any green month', ages: '10+', cost: 'FREE', maps: 'Lake to Lake Cycling Route Richmond Hill'
+    },
+    {
+      name: 'Jefferson Forest loops',
+      area: 'Bayview north of Stouffville Rd',
+      why: 'Pine-ridge singletrack and wide forest lanes braided together — the local trail runners\' home turf, honest little climbs included.',
+      tip: 'Snowy-day hiking here is the town at its best.',
+      route: '~5 km of braided loops · dirt', best: 'Winter snow, fall colour', ages: '6+', cost: 'FREE', maps: 'Jefferson Forest Richmond Hill'
+    },
+    {
+      name: 'Saigeon Trail boardwalk run',
+      area: 'East Richmond Hill',
+      why: 'Flat, wet, and full of life — boardwalk stretches over cattail wetland make this the most interesting easy walk in town, and a favourite first "real trail" for small legs.',
+      tip: 'One-way it: exit near Leslie for lunch.',
+      route: '~4 km one-way · boardwalk & gravel', best: 'Spring bird season', ages: 'all ages', cost: 'FREE', maps: 'Saigeon Trail Richmond Hill'
+    },
+    {
+      name: 'Oak Ridges Trail, moraine crest',
+      area: 'Crossing town east–west',
+      why: 'The long-distance Oak Ridges Trail threads the moraine\'s spine right through Richmond Hill — hike a section and you\'re walking a path that runs, in pieces, from Caledon to Northumberland.',
+      tip: 'The ORTA\'s online maps mark every access point.',
+      route: 'section hikes · dirt', best: 'Fall', ages: '8+', cost: 'FREE', maps: 'Oak Ridges Trail Richmond Hill'
+    }
+  ],
+
+  views: [
+    {
+      name: 'Lake Wilcox west boardwalk',
+      area: 'Oak Ridges',
+      why: 'Open water to the far shore with nothing interrupting the sunset — the town\'s definitive evening view, and the promenade means you can hold your coffee while you take it in.',
+      tip: 'Twenty minutes before sundown, west side. That\'s the whole recipe.',
+      best: 'Clear evenings', ages: 'all ages', cost: 'FREE', maps: 'Lake Wilcox Park Richmond Hill'
+    },
+    {
+      name: 'Bond Lake through the pines',
+      area: 'Yonge St, Oak Ridges',
+      why: 'The corridor trail keeps offering framed glimpses of the dark kettle lake through old conifers — moodier and wilder than Wilcox, especially under mist.',
+      tip: 'Fog mornings after a warm day are the photograph.',
+      best: 'Misty fall mornings', ages: 'all ages', cost: 'FREE', maps: 'Bond Lake Oak Ridges'
+    },
+    {
+      name: 'Jefferson ridgelines',
+      area: 'Jefferson Forest',
+      why: 'Modest elevation, big effect: pine-framed sightlines down forested moraine slopes that read like Ontario cottage country smuggled inside town limits.',
+      tip: 'After fresh snow the ridges are the region\'s prettiest walking, full stop.',
+      best: 'Winter, fall', ages: '6+', cost: 'FREE', maps: 'Jefferson Forest Richmond Hill'
+    },
+    {
+      name: 'Phyllis Rawlinson meadow rise',
+      area: 'Leslie St north of 19th',
+      why: 'The old farm\'s high meadow gives a soft, golden panorama over creek hollow and treed fence lines — hawk-hunting ground at dusk, and it photographs like a memory.',
+      tip: 'Late August goldenrod turns the whole rise amber.',
+      best: 'Late-summer golden hour', ages: 'all ages', cost: 'FREE', maps: 'Phyllis Rawlinson Park Richmond Hill'
+    }
+  ],
+
+  waters: [
+    {
+      name: 'Lake Wilcox by paddle',
+      area: 'Oak Ridges',
+      why: 'The moraine\'s biggest kettle lake is quiet, non-motorized-friendly water — a calm hour by canoe, kayak, or board with forested shoreline and loon sightings if you\'re early.',
+      tip: 'Launch logistics are posted at the park; mornings beat the afternoon breeze.',
+      best: 'Summer mornings', ages: 'all ages', cost: 'FREE', maps: 'Lake Wilcox Park launch'
+    },
+    {
+      name: 'Rouge headwater creeks',
+      area: 'Pioneer Park & eastward',
+      why: 'Cold, clear trickles you can step across — the literal beginning of a national-park river. Boot-and-net territory for kids, contemplative creek-listening for everyone else.',
+      tip: 'After rain the little riffles actually murmur.',
+      best: 'Late spring', ages: 'all ages', cost: 'FREE', maps: 'Pioneer Park Richmond Hill'
+    },
+    {
+      name: 'Mill Pond in every season',
+      area: 'Central Richmond Hill',
+      why: 'The old millpond is the town\'s domestic waterscape — swans in summer, mirror ice in deep winter, and the willow-ringed loop that makes ten minutes by the water effortless.',
+      tip: 'Freeze-up and first-green are the two postcard weeks.',
+      best: 'All four seasons', ages: 'all ages', cost: 'FREE', maps: 'Mill Pond Park Richmond Hill'
+    },
+    {
+      name: 'Wilcox–Bond wetland corridor',
+      area: 'Between the lakes, Oak Ridges',
+      why: 'The wet lowland stitching the two kettle lakes together hums with frogs and red-wings in spring — walk the corridor trail and you\'re walking the moraine\'s plumbing.',
+      tip: 'Dusk in May is peak amphibian chorus.',
+      best: 'May evenings', ages: 'all ages', cost: 'FREE', maps: 'Oak Ridges Corridor Conservation Reserve'
+    }
+  ],
+
+  fishing: [
+    {
+      name: 'Lake Wilcox',
+      area: 'Oak Ridges',
+      why: 'A genuine bass lake inside town limits — the moraine\'s deepest kettle holds a known warm-water fishery, worked from shore points and quiet paddling craft alike.',
+      tip: 'Early season along the drop-offs; the park\'s shore nodes give real casting room.',
+      best: 'Jun–Sep', ages: 'all ages', cost: 'FREE', maps: 'Lake Wilcox fishing Richmond Hill'
+    },
+    {
+      name: 'Mill Pond',
+      area: 'Central Richmond Hill',
+      why: 'The beginner\'s pond: panfish-friendly water, easy banks, and a coffee shop within walking distance for the moment attention spans expire.',
+      tip: 'Light tackle, small hooks, low expectations, high delight.',
+      best: 'Summer mornings', ages: 'all ages', cost: 'FREE', maps: 'Mill Pond Park Richmond Hill'
+    },
+    {
+      name: 'Musselman\'s Lake',
+      area: 'Whitchurch-Stouffville (15 min)',
+      why: 'The nearest classic drop-a-line lake outside town — a kettle lake with a long local fishing tradition and public access points on the north side.',
+      tip: 'Evening calm is the productive window.',
+      best: 'Summer evenings', ages: 'all ages', cost: 'FREE–$', maps: 'Musselman\'s Lake Stouffville'
+    }
+  ],
+
   itineraries: [
     {
       title: 'Moraine sampler (full day)',
@@ -146,6 +270,16 @@ module.exports = {
         'Morning — Pioneer Park creek prowl (rubber boots non-negotiable).',
         'Midday — Saigeon Trail boardwalks for red-winged blackbird spotting.',
         'Bonus, in season — 20 minutes to Kortright or Bruce\'s Mill for pancakes and syrup done properly.'
+      ]
+    },
+    {
+      title: 'Trail and water day (full day)',
+      blurb: 'Moraine miles, then a line in the lake.',
+      steps: [
+        'Morning — Oak Ridges Corridor network from the Bond Lake side: two hours of proper forest trail.',
+        'Midday — lunch in Oak Ridges, then launch a paddle on Lake Wilcox while the water\'s calm.',
+        'Afternoon — rod out along the Wilcox shore nodes (licence in pocket); bass water, honest odds.',
+        'Golden hour — the west boardwalk sunset, earned twice over.'
       ]
     }
   ],

@@ -149,6 +149,144 @@ module.exports = {
     }
   ],
 
+  trails: [
+    {
+      name: 'Bruce Trail, Iroquoia highlights',
+      area: 'Dundas Valley to Stoney Creek',
+      why: 'Canada\'s oldest long-distance footpath runs the escarpment straight through Hamilton — white blazes connect half the waterfalls in this guide, and any section makes a real hike.',
+      tip: 'The Dundas Valley and Tiffany-to-Sherman stretches are the classic day sections.',
+      route: 'section hikes · dirt', best: 'Fall', ages: '8+', cost: 'FREE', maps: 'Bruce Trail Hamilton'
+    },
+    {
+      name: 'Chedoke Radial Trail',
+      area: 'West Mountain',
+      why: 'The old radial-railway grade climbs the escarpment face at a train\'s patient gradient — waterfalls beside you, city below you, and the best effort-to-reward climb in town.',
+      tip: 'Top-to-bottom with a return via the Chedoke stairs makes an honest workout loop.',
+      route: '~3 km climb · crushed stone', best: 'Spring flow', ages: 'all ages', cost: 'FREE', maps: 'Chedoke Radial Trail'
+    },
+    {
+      name: 'Hamilton–Brantford Rail Trail',
+      area: 'From Dundas Valley westward',
+      why: 'Thirty-two car-free kilometres of crushed-stone rail grade through farm and forest — the region\'s flagship long ride, flat enough for any rider with patience.',
+      tip: 'Ride out from the Dundas Valley Trail Centre as far as your legs vote, then coast home.',
+      route: '32 km one-way · crushed stone', best: 'Any green month', ages: '8+ riding', cost: 'FREE', maps: 'Hamilton Brantford Rail Trail'
+    },
+    {
+      name: 'Dundas Valley Main Loop',
+      area: 'Trail Centre, Governors Rd',
+      why: 'The conservation area\'s signature circuit: Carolinian forest, the Hermitage ruins, and orchard clearings on a well-marked loop that samples everything the valley does.',
+      tip: 'Add the Hermitage side trail — the ruined mansion is worth the extra kilometre.',
+      route: '3.4 km loop · dirt', best: 'Fall is outrageous', ages: 'all ages', cost: '$ (vehicle)', maps: 'Dundas Valley Trail Centre'
+    },
+    {
+      name: 'Waterfront Trail, harbour west',
+      area: 'Bayfront to Princess Point',
+      why: 'The paved harbourside line linking downtown\'s waterfront to the Cootes marshes — skyline one way, wetland the other, and flat enough for every wheel and stroller.',
+      tip: 'Sunset westbound: the bay does the lighting.',
+      route: '~4 km one-way · paved', best: 'Summer evenings', ages: 'all ages', cost: 'FREE', maps: 'Bayfront Park waterfront trail Hamilton'
+    },
+    {
+      name: 'Escarpment Rail Trail & the stairs',
+      area: 'East of downtown, Wentworth St',
+      why: 'Another railway grade up the mountain, paired with Hamilton\'s famous escarpment staircases — locals treat the stairs as a free gym with a view.',
+      tip: 'Rail trail up, stairs down saves the knees and keeps the view ahead of you.',
+      route: '~3 km climb · paved', best: 'All seasons', ages: '6+', cost: 'FREE', maps: 'Escarpment Rail Trail Hamilton'
+    }
+  ],
+
+  views: [
+    {
+      name: 'Sydenham Lookout',
+      area: 'Sydenham Rd, Dundas',
+      why: 'The drive-up view of Dundas town, the valley, and Cootes beyond — the low-effort sibling of Dundas Peak, no reservation required, ever.',
+      tip: 'Ten minutes at dusk as the town lights come on is the move.',
+      best: 'Dusk', ages: 'all ages', cost: 'FREE', maps: 'Sydenham Lookout Dundas'
+    },
+    {
+      name: 'Mountain Brow path',
+      area: 'East Mountain, along the brow',
+      why: 'A walkable rim path along the escarpment edge with the lower city, harbour, and — on clear days — Toronto\'s skyline forty kilometres across the lake.',
+      tip: 'Clear winter days give the longest sightlines of the year.',
+      best: 'Clear evenings', ages: 'all ages', cost: 'FREE', maps: 'Mountain Brow Boulevard Hamilton'
+    },
+    {
+      name: 'High Level Bridge vantage',
+      area: 'York Blvd between Hamilton & Burlington',
+      why: 'From the bridge\'s walkway the geography explains itself: harbour on one side, Cootes Paradise marsh on the other, herons commuting between the two below your feet.',
+      tip: 'Pair with the RBG\'s adjacent trails for the full water-crossing walk.',
+      best: 'Golden hour', ages: 'all ages', cost: 'FREE', maps: 'York Boulevard High Level Bridge Hamilton'
+    },
+    {
+      name: 'Rock Chapel escarpment edge',
+      area: 'Rock Chapel Rd, Dundas',
+      why: 'The RBG\'s clifftop sanctuary trail walks the escarpment lip past Borer\'s Falls — valley below, turkey vultures riding the updraft at eye level.',
+      tip: 'The vultures kettle on warm afternoons; bring binoculars.',
+      best: 'Warm afternoons', ages: '6+', cost: 'FREE', maps: 'Rock Chapel Royal Botanical Gardens'
+    }
+  ],
+
+  waters: [
+    {
+      name: 'Cootes Paradise by canoe',
+      area: 'Launch at Princess Point',
+      why: 'Paddle from Princess Point into the great marsh and the city evaporates — channels through wild rice and lotus beds, turtles on every log, the RBG\'s restoration work visible everywhere.',
+      tip: 'Wind funnels down the valley by afternoon; mornings are the glass.',
+      best: 'Summer mornings', ages: '8+', cost: 'FREE (own boat)', maps: 'Princess Point canoe launch'
+    },
+    {
+      name: 'Bayfront beach & pier loop',
+      area: 'Hamilton harbour',
+      why: 'The reclaimed harbour\'s pebble cove and pier make an easy water hour — swans, sailboats, and the north-facing light that photographers quietly prize.',
+      tip: 'The Pier 4 boardwalk extension completes the loop.',
+      best: 'Sunset', ages: 'all ages', cost: 'FREE', maps: 'Bayfront Park Hamilton'
+    },
+    {
+      name: 'Grindstone Creek estuary',
+      area: 'Valley Inn Rd, RBG lands',
+      why: 'A boardwalked river-mouth wetland where Grindstone Creek fans into the harbour — fish shoals in the shallows, herons working them, and one of the area\'s best family wildlife walks.',
+      tip: 'Late spring: the water boils with spawning fish under the boardwalk.',
+      best: 'May–Jun', ages: 'all ages', cost: 'FREE', maps: 'Grindstone Creek Valley Inn RBG'
+    },
+    {
+      name: 'Fifty Point lakefront',
+      area: 'Winona (20 min)',
+      why: 'Open Lake Ontario at its friendliest: a Blue-Flag beach, a marina to wander, and a stocked pond behind the shore — the conservation area built for full water days.',
+      tip: 'Entry fee per vehicle; the beach\'s east end stays quietest.',
+      best: 'Jul–Aug', ages: 'all ages', cost: '$$', maps: 'Fifty Point Conservation Area'
+    }
+  ],
+
+  fishing: [
+    {
+      name: 'Fifty Point',
+      area: 'Winona lakefront',
+      why: 'The area\'s marquee fishery: salmon and trout off the shore structure in spring and fall, plus a stocked pond that guarantees younger anglers an eventful hour.',
+      tip: 'The pond for the kids, the point for the serious rods — same parking lot.',
+      best: 'Spring & fall (lake), summer (pond)', ages: 'all ages', cost: '$$', maps: 'Fifty Point Conservation Area fishing'
+    },
+    {
+      name: 'Bayfront & Pier 4 shore',
+      area: 'Hamilton harbour',
+      why: 'The rehabilitated harbour has become genuine pike water, with panfish along the sheltered edges — urban fishing with a skyline, minutes from downtown.',
+      tip: 'Early season pike prowl the warming shallows off the park points.',
+      best: 'May–Jun', ages: 'all ages', cost: 'FREE', maps: 'Bayfront Park Hamilton fishing'
+    },
+    {
+      name: 'Princess Point banks',
+      area: 'Cootes Paradise outlet',
+      why: 'Where the marsh drains toward the harbour, carp and pike patrol the channel edges — easy banks, big fish, and the occasional spectacle of a carp the size of a corgi.',
+      tip: 'Respect the sanctuary boundaries posted around the marsh proper.',
+      best: 'Summer', ages: 'all ages', cost: 'FREE', maps: 'Princess Point Hamilton'
+    },
+    {
+      name: 'Grindstone mouth at Valley Inn',
+      area: 'RBG lands, Burlington line',
+      why: 'The estuary\'s deeper cuts hold warm-water fish all season, and the spring spawning runs bring fish traffic you can watch from the boardwalk between casts.',
+      tip: 'Check the RBG\'s posted rules — parts of the estuary are protected habitat.',
+      best: 'Late spring', ages: '8+', cost: 'FREE', maps: 'Valley Inn Road Burlington'
+    }
+  ],
+
   itineraries: [
     {
       title: 'Three-falls east morning (half day)',
@@ -177,6 +315,16 @@ module.exports = {
         'Midday — Borer\'s Falls from the Rock Chapel side — garden ticket not required.',
         'Afternoon — Eramosa Karst\'s vanishing streams up on the mountain.',
         'Optional extension — Tiffany Falls\' boardwalk on the drive home.'
+      ]
+    },
+    {
+      title: 'Trail and water day (full day)',
+      blurb: 'Climb the mountain, paddle the marsh.',
+      steps: [
+        'Morning — Chedoke Radial Trail up the escarpment face, waterfalls en route; return by the stairs.',
+        'Midday — lunch at Bayfront, then launch the canoe at Princess Point while Cootes is still glassy.',
+        'Afternoon — paddle the marsh channels; back on land, a few casts off the Bayfront points (licence in pocket).',
+        'Golden hour — the Waterfront Trail west as the bay goes pink.'
       ]
     }
   ],

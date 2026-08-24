@@ -23,8 +23,15 @@ test('registry: slugs unique, statuses valid, live guides have full content', ()
     assert.ok(c.spots.length >= 10, `${g.slug} has only ${c.spots.length} spots`);
     assert.ok(c.itineraries.length >= 3, `${g.slug} needs 3+ itineraries`);
     assert.strictEqual(c.seasons.length, 4, `${g.slug} needs all four seasons`);
-    for (const sp of c.spots.concat(c.drives || [])) {
-      assert.ok(sp.name && sp.area && sp.why, `${g.slug}: spot missing name/area/why`);
+    // The activity sections (added 2026-08-24): every live guide covers
+    // trails, views, waterways, and fishing with real depth.
+    for (const key of ['trails', 'views', 'waters', 'fishing']) {
+      assert.ok(Array.isArray(c[key]) && c[key].length >= 3, `${g.slug} needs 3+ ${key}`);
+    }
+    const allEntries = ['spots', 'drives', 'trails', 'views', 'waters', 'fishing']
+      .flatMap(k => c[k] || []);
+    for (const sp of allEntries) {
+      assert.ok(sp.name && sp.area && sp.why, `${g.slug}: entry missing name/area/why`);
       assert.ok(sp.why.length > 60, `${g.slug}: "${sp.name}" why too thin to charge for`);
     }
   }

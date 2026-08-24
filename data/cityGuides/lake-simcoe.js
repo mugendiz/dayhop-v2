@@ -127,6 +127,137 @@ module.exports = {
     }
   ],
 
+  trails: [
+    {
+      name: 'North Shore Trail, Kempenfelt Bay',
+      area: 'Barrie waterfront eastward',
+      why: 'The bay\'s prettiest miles: a paved shoreline path from downtown Barrie toward Johnson\'s Beach under bluffs, with deep blue water the whole way.',
+      tip: 'Out to Johnson\'s Beach and back is the classic; extend along the waterfront for more.',
+      route: '~9 km return · paved', best: 'All seasons', ages: 'all ages', cost: 'FREE', maps: 'North Shore Trail Barrie'
+    },
+    {
+      name: 'Oro-Medonte Rail Trail',
+      area: 'Barrie toward Orillia',
+      why: 'The old rail line runs the lake\'s northwest shore for a flat, quiet, tree-lined ride — lake glimpses, farm crossings, and barely a car the entire way.',
+      tip: 'Ride out from the Barrie end and turn around at your halfway snack.',
+      route: 'up to ~35 km one-way · gravel', best: 'Summer & fall', ages: '8+ riding', cost: 'FREE', maps: 'Oro-Medonte Rail Trail'
+    },
+    {
+      name: 'Ardagh Bluffs loops',
+      area: 'Southwest Barrie',
+      why: 'Eight kilometres of forest trail winding through wooded ravines and upland bluffs inside Barrie\'s city limits — the area\'s best plain-woods hiking surprise.',
+      tip: 'Well-marked junctions; the outer loop gives the full tour.',
+      route: '~8 km network · dirt', best: 'Fall', ages: '6+', cost: 'FREE', maps: 'Ardagh Bluffs Barrie'
+    },
+    {
+      name: 'Georgina rail trail',
+      area: 'Sutton & the south shore hinterland',
+      why: 'The south shore\'s long flat line: an old rail corridor through farm and forest that cyclists use to link the beach towns without touching highway.',
+      tip: 'Pair a morning ride with an afternoon swim at Sibbald or De La Salle.',
+      route: 'long flat sections · gravel', best: 'Summer', ages: '8+ riding', cost: 'FREE', maps: 'Sutton rail trail Georgina'
+    },
+    {
+      name: 'Beaver River Wetland Trail',
+      area: 'Beaverton inland',
+      why: 'A rail-trail across genuine wetland east of the lake — flat, remote-feeling, and thick with herons and turtles where the old line crosses the river.',
+      tip: 'The Beaverton trailhead makes an easy out-and-back before a harbour dinner.',
+      route: 'out & back · crushed stone', best: 'Spring & summer', ages: 'all ages', cost: 'FREE', maps: 'Beaver River Wetland Trail Beaverton'
+    }
+  ],
+
+  views: [
+    {
+      name: 'Johnson\'s Beach point',
+      area: 'East Barrie, Kempenfelt Bay',
+      why: 'Where the North Shore Trail meets the water, the whole deep-blue bay opens back toward the city — Kempenfelt\'s moody, big-water look at its best.',
+      tip: 'Storm-light afternoons are spectacular here.',
+      best: 'Dramatic-sky days', ages: 'all ages', cost: 'FREE', maps: 'Johnsons Beach Barrie'
+    },
+    {
+      name: 'De La Salle pier end',
+      area: 'Jackson\'s Point',
+      why: 'Walk the long pier and the south shore\'s classic sunset arranges itself — open water west, cottage lights behind, the lake doing its nightly performance.',
+      tip: 'The chip truck before, the pier after: the Georgina evening liturgy.',
+      best: 'Sunset', ages: 'all ages', cost: 'FREE–$ (parking)', maps: 'De La Salle Park pier Georgina'
+    },
+    {
+      name: 'McRae Point west shore',
+      area: 'East shore, near Orillia',
+      why: 'The point faces the open lake dead-west — sunset over water with nothing between you and the horizon but sail traffic heading home.',
+      tip: 'Park day-use rules apply; golden hour is worth planning the day around.',
+      best: 'Golden hour', ages: 'all ages', cost: '$$', maps: 'McRae Point Provincial Park'
+    },
+    {
+      name: 'Beaverton lighthouse pier',
+      area: 'Beaverton harbour',
+      why: 'The east shore\'s honest little panorama: harbour, lighthouse, and the lake\'s longest fetch stretching west — unhurried in a way the south shore forgot.',
+      tip: 'Evening light lands on the lighthouse face.',
+      best: 'Summer evenings', ages: 'all ages', cost: 'FREE', maps: 'Beaverton Harbour Park'
+    }
+  ],
+
+  waters: [
+    {
+      name: 'Cook\'s Bay by paddle',
+      area: 'Innisfil & Keswick shores',
+      why: 'The lake\'s warm, sheltered arm: launch from the public parks and work the weedy shoreline by canoe, kayak, or board — calm water, cottages, and osprey overhead.',
+      tip: 'Mornings before the boat traffic wakes are the good hours.',
+      best: 'Summer mornings', ages: '8+', cost: 'FREE–$ (launch/parking)', maps: 'Innisfil Beach Park boat launch'
+    },
+    {
+      name: 'Holland River mouth marshes',
+      area: 'South end of Cook\'s Bay',
+      why: 'Where the marsh\'s river fans into the bay: reed channels, teeming birdlife, and slow paddling that feels a century removed from the highway ten minutes away.',
+      tip: 'Bring the binoculars — this is the bay\'s birdiest corner.',
+      best: 'Spring & early summer', ages: '8+', cost: 'FREE', maps: 'Holland River mouth Cook\'s Bay'
+    },
+    {
+      name: 'Kempenfelt deep-water swims',
+      area: 'Barrie waterfront beaches',
+      why: 'The bay\'s depth keeps its water clear and bracing — Centennial and Johnson\'s give proper refreshing swims when the shallow south-shore beaches turn bath-warm.',
+      tip: 'The drop-off comes quick; strong swimmers\' water past the buoys.',
+      best: 'Jul–Aug', ages: 'all ages', cost: 'FREE (paid lots)', maps: 'Centennial Beach Barrie'
+    },
+    {
+      name: 'Trent-Severn at Gamebridge',
+      area: 'Talbot River, northeast corner',
+      why: 'The historic waterway enters the lake through the Talbot River locks — watch boats stair-step through, walk the lock lawns, and picnic on canal-era infrastructure.',
+      tip: 'Lock operating season runs roughly May through October.',
+      best: 'Summer', ages: 'all ages', cost: 'FREE', maps: 'Lock 41 Gamebridge Trent Severn'
+    }
+  ],
+
+  fishing: [
+    {
+      name: 'Innisfil Beach Park pier',
+      area: 'Cook\'s Bay',
+      why: 'Lake Simcoe is one of Canada\'s great perch lakes, and this pier is its most accessible perch water — family fishing with facilities a sand-toss away.',
+      tip: 'Small jigs tipped simple; the perch schools do the rest.',
+      best: 'Summer; famous hard-water Jan–Feb', ages: 'all ages', cost: '$–$$ (parking)', maps: 'Innisfil Beach Park pier'
+    },
+    {
+      name: 'Beaverton harbour & pier',
+      area: 'East shore',
+      why: 'The working harbour\'s pier and river mouth hold perch, bass, and pike in rotation — the east shore\'s dependable line-wetting venue with the lighthouse as scenery.',
+      tip: 'The river-mouth side wakes up in spring.',
+      best: 'Spring through fall', ages: 'all ages', cost: 'FREE', maps: 'Beaverton pier fishing'
+    },
+    {
+      name: 'Cook\'s Bay weedlines',
+      area: 'Keswick shore access points',
+      why: 'The bay\'s shallow weed flats are storied pike and perch habitat — worked from shore points in the open season and from Ontario\'s most famous ice-hut villages in deep winter.',
+      tip: 'Hard-water season: go with licensed hut operators only — never freelance on lake ice.',
+      best: 'Summer & Jan–Feb', ages: '8+', cost: 'FREE–$$', maps: 'Cook\'s Bay Keswick fishing'
+    },
+    {
+      name: 'Sibbald Point shore',
+      area: 'Georgina',
+      why: 'Between swims, the park\'s rockier margins give honest bass-and-panfish casting — and provincial-park infrastructure means the whole family day works around the rod.',
+      tip: 'Dawn, before the beach crowd, is the fishing window.',
+      best: 'Jun–Sep', ages: 'all ages', cost: '$$ (park entry)', maps: 'Sibbald Point Provincial Park'
+    }
+  ],
+
   itineraries: [
     {
       title: 'South shore Saturday (full day)',
@@ -155,6 +286,16 @@ module.exports = {
         'Morning — Scanlon Creek\'s reservoir loops in colour or first green.',
         'Midday — Holland Marsh canal-road drive with farm-stand stops (fall) or big-sky birding (spring).',
         'Afternoon — Barrie\'s North Shore Trail: Kempenfelt\'s deep blue is at its moodiest off-season.'
+      ]
+    },
+    {
+      title: 'Trail and water day (full day)',
+      blurb: 'Rail trail, paddle, perch — the lake\'s full menu.',
+      steps: [
+        'Morning — Oro-Medonte Rail Trail out of Barrie: an hour up the shore and back on gravel.',
+        'Midday — drive to Innisfil Beach Park; launch a paddle along Cook\'s Bay\'s calm edge.',
+        'Afternoon — perch jigs off the pier (licence in pocket) while the swimmers do their thing.',
+        'Golden hour — Jackson\'s Point: chip truck, then the De La Salle pier sunset.'
       ]
     }
   ],

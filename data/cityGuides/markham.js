@@ -126,6 +126,137 @@ module.exports = {
     }
   ],
 
+  trails: [
+    {
+      name: 'Rouge Valley Trail from Milne',
+      area: 'Milne Dam south into the valley',
+      why: 'The town\'s best sustained hike: riverside dirt trail following the Rouge downstream from the dam, valley walls rising as you go. Proper forest walking that keeps going as long as your morning does.',
+      tip: 'Out-and-back — turn around at your halfway energy, not your halfway time.',
+      route: '~7 km out & back · dirt', best: 'Fall colour', ages: '6+', cost: 'FREE', maps: 'Milne Dam Conservation Park trail Markham'
+    },
+    {
+      name: 'Unionville Bridle Trail end-to-end',
+      area: 'Toogood Pond north along Bruce Creek',
+      why: 'Walk or ride the whole creek corridor in one line — ponds, footbridges, and mature willows the entire way, with Main Street Unionville waiting at the finish for the reward stop.',
+      tip: 'Quiet enough for young riders learning to hold a line.',
+      route: '~5 km one-way · gravel & paved', best: 'Any green month', ages: 'all ages', cost: 'FREE', maps: 'Bridle Trail Unionville'
+    },
+    {
+      name: 'German Mills Creek trail',
+      area: 'Thornhill, John St south',
+      why: 'A paved creekside ride under closed canopy — one of the shadiest cycling corridors in the region, connecting south toward the East Don system for riders who want a long one-way.',
+      tip: 'Link it to the Don trails and exit by transit for a big-mileage day.',
+      route: '~6 km one-way · paved', best: 'Hot days (real shade)', ages: 'all ages', cost: 'FREE', maps: 'German Mills Settlers Park trail'
+    },
+    {
+      name: 'Bob Hunter meadow loops',
+      area: 'Rouge NUP, Reesor Rd at 14th Ave',
+      why: 'Wide mown paths looping restored meadow and young forest — flat, open-sky walking where you can talk side by side, with deer prints in every soft patch.',
+      tip: 'The national park keeps trail notices online — worth a glance after storms.',
+      route: '3–5 km loops · mown grass', best: 'Golden hour', ages: 'all ages', cost: 'FREE', maps: 'Bob Hunter Memorial Park trails'
+    },
+    {
+      name: 'Milliken Mills lake loop',
+      area: 'Kennedy Rd at Denison',
+      why: 'The flattest, easiest circuit in this guide — a paved lakeside loop that works for strollers, new skaters on inline wheels, and anyone rebuilding a walking habit.',
+      tip: 'Two laps plus the playground equals one satisfied small child.',
+      route: '1.5 km loop · paved', best: 'Summer evenings', ages: 'all ages', cost: 'FREE', maps: 'Milliken Mills Park Markham'
+    }
+  ],
+
+  views: [
+    {
+      name: 'Milne Dam overlook',
+      area: 'Milne Dam Conservation Park',
+      why: 'The reservoir spread below the historic dam, herons stalking the shallows, and in October a full amphitheatre of colour — Markham\'s single best stand-and-stare spot.',
+      tip: 'Morning mist over the water beats any filter.',
+      best: 'October mornings', ages: 'all ages', cost: 'FREE', maps: 'Milne Dam Markham'
+    },
+    {
+      name: 'Bob Hunter big-sky sunset',
+      area: 'Rouge NUP meadows',
+      why: 'The rare GTA landscape with an uninterrupted horizon — restored meadow to the tree line and nothing taller. Sunset here feels prairie-sized.',
+      tip: 'West-facing benches near the trailhead do the work for you.',
+      best: 'Clear evenings', ages: 'all ages', cost: 'FREE', maps: 'Bob Hunter Memorial Park'
+    },
+    {
+      name: 'Toogood Pond willow bank',
+      area: 'Unionville',
+      why: 'The classic composition — willows over still water, the boardwalk\'s reflection, heritage rooftops behind — that has launched a thousand Markham wedding shoots.',
+      tip: 'Golden hour from the southwest corner is the shot.',
+      best: 'Golden hour, all seasons', ages: 'all ages', cost: 'FREE', maps: 'Toogood Pond Unionville'
+    },
+    {
+      name: 'Rouge rim at Box Grove',
+      area: 'Southeast Markham',
+      why: 'Stand on the valley shoulder and watch the Rouge\'s main branch swing below — the closest thing Markham has to a canyon view, minutes from Highway 407.',
+      tip: 'Best leafless: early spring and late fall open the sightlines.',
+      best: 'Nov & Apr (bare trees)', ages: '8+', cost: 'FREE', maps: 'Box Grove Rouge valley Markham'
+    }
+  ],
+
+  waters: [
+    {
+      name: 'Rouge reservoir shoreline',
+      area: 'Milne Dam Conservation Park',
+      why: 'The widest water in Markham: a dammed reach of the Rouge with a walkable shoreline, basking turtles, and waterfowl traffic all season — the place to teach a kid what a river system does.',
+      tip: 'Scan the dead trees mid-water: cormorants and kingfishers use them as perches.',
+      best: 'Spring through fall', ages: 'all ages', cost: 'FREE', maps: 'Milne Dam Conservation Park'
+    },
+    {
+      name: 'Bruce Creek ponds chain',
+      area: 'Unionville, along the Bridle Trail',
+      why: 'A string of small ponds and creek pools north of Toogood — quieter water than the main pond, where the herons actually hunt and the minnow schools are visible from the footbridges.',
+      tip: 'Polarized sunglasses turn the creek transparent.',
+      best: 'Late spring', ages: 'all ages', cost: 'FREE', maps: 'Bruce Creek Unionville'
+    },
+    {
+      name: 'Swan Lake still water',
+      area: 'Sixteenth Ave east of Kennedy',
+      why: 'A kettle lake with no inflow drama — mirror-still on calm mornings, which makes it the best reflection water in town and a dependable waterfowl roost.',
+      tip: 'Arrive before the wind does; by 10am the mirror is gone.',
+      best: 'Calm mornings', ages: 'all ages', cost: 'FREE', maps: 'Swan Lake Park Markham'
+    },
+    {
+      name: 'Rouge Marsh at the lake',
+      area: 'Rouge Beach, Scarborough edge (20 min)',
+      why: 'Where Markham\'s river finishes: a big coastal marsh with a boardwalk across it and Lake Ontario beyond — paddlers put in here to work the lower river\'s slow water.',
+      tip: 'Rentals appear in high summer some years; bring your own boat to be sure.',
+      best: 'Summer paddling, fall birds', ages: 'all ages', cost: 'FREE', maps: 'Rouge Beach marsh Toronto'
+    }
+  ],
+
+  fishing: [
+    {
+      name: 'Milliken Mills Park platforms',
+      area: 'Kennedy Rd at Denison',
+      why: 'Purpose-built fishing platforms over a stormwater lake with a healthy warm-water population — the easiest first-cast venue in Markham, minutes from anywhere.',
+      tip: 'Small hooks and patience: panfish first, surprises occasionally.',
+      best: 'Summer evenings', ages: 'all ages', cost: 'FREE', maps: 'Milliken Mills Park Markham'
+    },
+    {
+      name: 'Toogood Pond',
+      area: 'Unionville',
+      why: 'The village pond doubles as a beginner fishery — locals work the deeper west side for warm-water species while the swans supervise. As scenic as urban fishing gets.',
+      tip: 'Respect the posted areas near the boardwalk; the quiet corners fish better anyway.',
+      best: 'Early morning', ages: 'all ages', cost: 'FREE', maps: 'Toogood Pond Unionville'
+    },
+    {
+      name: 'Milne reservoir',
+      area: 'Milne Dam Conservation Park',
+      why: 'The biggest water in town holds the biggest fish in town — a known warm-water fishery where the river slows behind the dam, with plenty of walkable bank.',
+      tip: 'Work the weed edges and the inflow end.',
+      best: 'Jun–Sep', ages: 'all ages', cost: 'FREE (seasonal gate)', maps: 'Milne Dam Conservation Park'
+    },
+    {
+      name: 'Lower Rouge runs',
+      area: 'Rouge NUP toward the lake (20 min)',
+      why: 'In fall, migratory salmon and trout push up the Rouge from Lake Ontario — the region\'s wild-fishery spectacle, with anglers spaced along the lower pools.',
+      tip: 'Check the zone rules carefully: parts of the river carry special regulations and sanctuaries.',
+      best: 'Sep–Oct runs', ages: '10+', cost: 'FREE', maps: 'Rouge River lower Toronto fishing'
+    }
+  ],
+
   itineraries: [
     {
       title: 'The Unionville classic (half day)',
@@ -154,6 +285,16 @@ module.exports = {
         'Late morning — German Mills Settlers Park: the canopy shrugs off drizzle better than any open park.',
         'Lunch — First Markham Place or downtown Unionville, depending on your noodle-vs-scone mood.',
         'Afternoon — Swan Lake\'s short loop between showers, then Pomona Mills if legs still want more.'
+      ]
+    },
+    {
+      title: 'Trail and water day (full day)',
+      blurb: 'Legs in the morning, lines in the afternoon.',
+      steps: [
+        'Morning — Rouge Valley Trail from Milne: hike the river downstream while it\'s cool.',
+        'Midday — picnic at the Milne Dam overlook, then an unhurried hour on the reservoir bank with a rod (licence in pocket).',
+        'Afternoon — drive to Milliken Mills: easy platform casting for the kids, paved loop for whoever\'s done fishing.',
+        'Golden hour — Bob Hunter\'s meadows for the big-sky sunset finish.'
       ]
     }
   ],

@@ -53,9 +53,11 @@ function bySlug(slug) {
   return GUIDES.find(g => g.slug === slug) || null;
 }
 
+const SECTION_KEYS = ['spots', 'drives', 'trails', 'views', 'waters', 'fishing'];
+
 function countSpots(g) {
   const c = g.content();
-  return c.spots.length + (c.drives ? c.drives.length : 0);
+  return SECTION_KEYS.reduce((n, k) => n + (Array.isArray(c[k]) ? c[k].length : 0), 0);
 }
 
 // Which live guide matches a browsed city string (feed promo card).
@@ -387,7 +389,7 @@ function buildGuidePdf(guide) {
           doc.font(F.bodyItalic).fontSize(10).fillColor(MOSS).text(`Local tip: ${sp.tip}`, { width: W, lineGap: 1.4 });
         }
         doc.moveDown(0.18);
-        const chips = [sp.cost, sp.ages, sp.best].filter(Boolean).join('  ·  ');
+        const chips = [sp.route, sp.cost, sp.ages, sp.best].filter(Boolean).join('  ·  ');
         if (chips) doc.font(F.display).fontSize(7.5).fillColor(CORAL).text(chips.toUpperCase(), { characterSpacing: 1.2 });
         doc.moveDown(0.85);
       }
@@ -395,6 +397,19 @@ function buildGuidePdf(guide) {
     renderSpots('The places', `${c.spots.length} spots, roughly north to south — each one worth a morning on its own.`, c.spots);
     if (c.drives && c.drives.length) {
       renderSpots('Worth the short drive', 'Just past the city line, and worth the extra minutes on the road.', c.drives);
+    }
+    if (c.trails && c.trails.length) {
+      renderSpots('On the trail', 'Hiking and biking routes — distances and surfaces in the markers, so you can match the route to the day.', c.trails);
+    }
+    if (c.views && c.views.length) {
+      renderSpots('Worth the climb', 'The lookouts and long sightlines — where this landscape shows you what it is.', c.views);
+    }
+    if (c.waters && c.waters.length) {
+      renderSpots('On the water', 'Paddle routes, river walks, and shorelines — the slow-moving side of the map.', c.waters);
+    }
+    if (c.fishing && c.fishing.length) {
+      renderSpots('Casting lines',
+        'Shore-accessible public fishing. An Ontario fishing licence (Outdoors Card) is required for most anglers, and seasons, limits, and sanctuaries are set per provincial zone — check ontario.ca before you cast.', c.fishing);
     }
 
     // ---------- itineraries ----------
