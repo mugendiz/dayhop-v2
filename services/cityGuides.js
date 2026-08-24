@@ -29,6 +29,7 @@ const INK_SOFT = '#41585C';
 const CORAL = '#E1502F';
 const MOSS = '#3F6F5C';
 const PAPER = '#FBF7EE';
+const PAPER_DIM = '#F2ECDC';
 
 function signingSecret() {
   const s = process.env.GUIDE_DOWNLOAD_SECRET || process.env.ADMIN_KEY;
@@ -264,6 +265,141 @@ const ETIQUETTE = [
   'Paid or reservation-gated sites change their rules seasonally — check the official page before a long drive.'
 ];
 
+// ---------- photography (Wikimedia Commons, openly licensed) ----------
+// Fetched + hand-curated by scripts/fetch-guide-photos.js; credits.json is
+// the attribution ledger and every used credit prints on the back page.
+const fs = require('fs');
+const PHOTO_DIR = path.join(__dirname, '..', 'assets', 'photos');
+let _photoCredits = null;
+function photoCredits() {
+  if (_photoCredits) return _photoCredits;
+  try {
+    _photoCredits = JSON.parse(fs.readFileSync(path.join(PHOTO_DIR, 'credits.json'), 'utf8'));
+  } catch (e) { _photoCredits = {}; }
+  return _photoCredits;
+}
+function loadPhoto(key) {
+  try {
+    const buffer = fs.readFileSync(path.join(PHOTO_DIR, `${key}.jpg`));
+    return { buffer, credit: photoCredits()[key] || null };
+  } catch (e) { return null; }
+}
+function creditLine(credit) {
+  if (!credit) return 'WIKIMEDIA COMMONS';
+  const lic = String(credit.license || '').toUpperCase();
+  return `PHOTO: ${String(credit.author || 'UNKNOWN').toUpperCase()} · ${lic} · WIKIMEDIA COMMONS`;
+}
+
+// pdfkit's `cover` scales but does NOT clip — the spill must be fenced.
+function photoBand(doc, buffer, x, y, w, h) {
+  doc.save();
+  doc.rect(x, y, w, h).clip();
+  doc.image(buffer, x, y, { cover: [w, h], align: 'center', valign: 'center' });
+  doc.restore();
+}
+
+// Which section opener carries the guide's second photograph.
+const SECTION_PHOTO = {
+  markham: 'The places',
+  'richmond-hill': 'On the trail',
+  newmarket: 'On the water',
+  toronto: 'The places',
+  hamilton: 'On the water',
+  'lake-simcoe': 'Worth the climb'
+};
+
+// ---------- locator mini map ----------
+// A stylized-but-true Southern Ontario locator drawn in the Quiet
+// Cartography language: ink shoreline, ruled moss water, one coral stake
+// on the guide's city. Real coordinates, simplified shorelines.
+const MAP_BOUNDS = { lonW: -80.35, lonE: -78.55, latS: 43.05, latN: 44.75 };
+// North shore of Lake Ontario, west to east (lat, lon) — runs frame edge
+// to frame edge so the ruled water reads as one continuous lake.
+const ONTARIO_SHORE = [
+  [43.10, -80.35], [43.14, -80.15], [43.20, -79.95], [43.26, -79.87],
+  [43.30, -79.79], [43.39, -79.67], [43.47, -79.62], [43.55, -79.57],
+  [43.60, -79.50], [43.63, -79.45], [43.64, -79.36], [43.70, -79.23],
+  [43.76, -79.13], [43.81, -79.02], [43.85, -78.92], [43.87, -78.80],
+  [43.90, -78.65], [43.92, -78.55]
+];
+// Lake Simcoe outline, clockwise from the north (lat, lon): the main body
+// with Cook's Bay reaching south and Kempenfelt Bay poking west at Barrie.
+const SIMCOE_SHORE = [
+  [44.60, -79.42], [44.56, -79.30], [44.46, -79.22], [44.34, -79.24],
+  [44.27, -79.36], [44.19, -79.48], [44.16, -79.53], [44.23, -79.54],
+  [44.31, -79.51], [44.36, -79.55], [44.38, -79.68], [44.43, -79.61],
+  [44.50, -79.55], [44.56, -79.50]
+];
+
+function parseCoords(str) {
+  const m = /([\d.]+)°\s*N\s*·\s*([\d.]+)°\s*W/.exec(String(str || ''));
+  return m ? { lat: Number(m[1]), lon: -Number(m[2]) } : null;
+}
+
+function drawLocatorMap(doc, guide, F, x, y, w, h) {
+  const B = MAP_BOUNDS;
+  const px = (lon) => x + ((lon - B.lonW) / (B.lonE - B.lonW)) * w;
+  const py = (lat) => y + ((B.latN - lat) / (B.latN - B.latS)) * h;
+  const here = parseCoords(guide.coords);
+  if (!here || here.lon < B.lonW || here.lon > B.lonE || here.lat < B.latS || here.lat > B.latN) return false;
+
+  // Frame
+  doc.rect(x, y, w, h).lineWidth(0.8).stroke(MOSS);
+
+  // Lake Ontario: shoreline + ruled water below it.
+  doc.save();
+  doc.rect(x, y, w, h).clip();
+  doc.moveTo(px(ONTARIO_SHORE[0][1]), py(ONTARIO_SHORE[0][0]));
+  for (const [lat, lon] of ONTARIO_SHORE.slice(1)) doc.lineTo(px(lon), py(lat));
+  doc.lineWidth(1.2).stroke(INK);
+  doc.save();
+  // Water polygon: shoreline down to the frame bottom.
+  doc.moveTo(px(ONTARIO_SHORE[0][1]), py(ONTARIO_SHORE[0][0]));
+  for (const [lat, lon] of ONTARIO_SHORE.slice(1)) doc.lineTo(px(lon), py(lat));
+  doc.lineTo(x + w, y + h).lineTo(x, y + h).closePath().clip();
+  for (let ly = y + 8; ly < y + h; ly += 7) {
+    doc.moveTo(x, ly).lineTo(x + w, ly).lineWidth(0.45).stroke(MOSS);
+  }
+  doc.restore();
+
+  // Lake Simcoe: closed blob, same ruled water.
+  doc.save();
+  doc.moveTo(px(SIMCOE_SHORE[0][1]), py(SIMCOE_SHORE[0][0]));
+  for (const [lat, lon] of SIMCOE_SHORE.slice(1)) doc.lineTo(px(lon), py(lat));
+  doc.closePath();
+  doc.lineWidth(1.1).stroke(INK);
+  doc.moveTo(px(SIMCOE_SHORE[0][1]), py(SIMCOE_SHORE[0][0]));
+  for (const [lat, lon] of SIMCOE_SHORE.slice(1)) doc.lineTo(px(lon), py(lat));
+  doc.closePath().clip();
+  for (let ly = y; ly < y + h; ly += 7) {
+    doc.moveTo(x, ly).lineTo(x + w, ly).lineWidth(0.45).stroke(MOSS);
+  }
+  doc.restore();
+
+  // Sister cities as quiet moss dots; the guide's city as the coral stake.
+  for (const g of GUIDES) {
+    if (g.status !== 'live' || g.slug === guide.slug) continue;
+    const p = parseCoords(g.coords);
+    if (!p) continue;
+    doc.circle(px(p.lon), py(p.lat), 1.7).fill(MOSS);
+  }
+  doc.circle(px(here.lon), py(here.lat), 3.2).fill(CORAL);
+  doc.circle(px(here.lon), py(here.lat), 6.2).lineWidth(1).stroke(CORAL);
+  doc.restore();
+
+  // Labels: the city (display), the lakes (whisper), the caption.
+  const cx = px(here.lon), cy = py(here.lat);
+  const labelLeft = cx > x + w - 110;
+  doc.font(F.display).fontSize(8.5).fillColor(INK)
+    .text(guide.title.replace(/ (Nature Guide|City Nature Spots)$/, '').toUpperCase(),
+      labelLeft ? cx - 130 : cx + 11, cy - 4,
+      { width: 120, align: labelLeft ? 'right' : 'left', characterSpacing: 1.2, lineBreak: false });
+  doc.font(F.displayLight).fontSize(6.5).fillColor(INK_SOFT)
+    .text('LAKE ONTARIO', x + w * 0.42, y + h - 24, { characterSpacing: 2, lineBreak: false })
+    .text('LAKE SIMCOE', px(-79.44) - 24, py(44.42) - 3, { characterSpacing: 1.6, lineBreak: false });
+  return true;
+}
+
 function buildGuidePdf(guide) {
   return new Promise((resolve, reject) => {
     const c = guide.content();
@@ -280,8 +416,14 @@ function buildGuidePdf(guide) {
 
     const F = registerFonts(doc);
     const W = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-    const total = c.spots.length + (c.drives ? c.drives.length : 0);
+    const total = SECTION_KEYS.reduce((n, k) => n + (Array.isArray(c[k]) ? c[k].length : 0), 0);
     const rng = makeRng(guide.slug);
+    const usedPhotos = [];
+
+    // Every page stands on brand paper, never printer-white.
+    doc.on('pageAdded', () => {
+      doc.rect(0, 0, doc.page.width, doc.page.height).fill(PAPER);
+    });
 
     // A short moss rule — the system's recurring gesture.
     const rule = (x, y, w, color = MOSS) =>
@@ -324,12 +466,42 @@ function buildGuidePdf(guide) {
         { width: W, align: 'center', characterSpacing: 1.6, lineBreak: false });
     doc.page.margins.bottom = mb;
 
+    // ---------- frontispiece: the place itself, then the map ----------
+    const hero = loadPhoto(`${guide.slug}-hero`);
+    doc.addPage();
+    if (hero) {
+      usedPhotos.push(hero.credit);
+      photoBand(doc, hero.buffer, 0, 0, doc.page.width, 316);
+      doc.font(F.displayLight).fontSize(6.5).fillColor(INK_SOFT)
+        .text(creditLine(hero.credit), 64, 326, { width: W, characterSpacing: 1.4, lineBreak: false });
+    }
+    const mapTop = hero ? 372 : 96;
+    doc.font(F.display).fontSize(13).fillColor(INK)
+      .text('WHERE THIS GUIDE LIVES', 64, mapTop, { characterSpacing: 1.8 });
+    rule(64, doc.y + 6, 118);
+    if (drawLocatorMap(doc, guide, F, 64, mapTop + 30, W, 280)) {
+      doc.font(F.displayLight).fontSize(7.5).fillColor(INK_SOFT)
+        .text(`SOUTHERN ONTARIO · ${(guide.coords || '').toUpperCase()} · MOSS DOTS MARK THE OTHER DAYHOP GUIDES`,
+          64, mapTop + 30 + 280 + 10, { width: W, characterSpacing: 1.4, lineBreak: false });
+    }
+
     // Section opener: letterspaced display over a short rule, blurb in the
-    // notebook voice.
+    // notebook voice, and — where assigned — the guide's second photograph.
     const opener = (label, blurb) => {
       doc.addPage();
+      let top = 72;
+      if (SECTION_PHOTO[guide.slug] === label) {
+        const ph = loadPhoto(`${guide.slug}-a`);
+        if (ph) {
+          usedPhotos.push(ph.credit);
+          photoBand(doc, ph.buffer, 0, 0, doc.page.width, 190);
+          doc.font(F.displayLight).fontSize(6.5).fillColor(INK_SOFT)
+            .text(creditLine(ph.credit), 64, 198, { width: W, characterSpacing: 1.4, lineBreak: false });
+          top = 224;
+        }
+      }
       doc.font(F.display).fontSize(20).fillColor(INK)
-        .text(label.toUpperCase(), 64, 72, { width: W, characterSpacing: 1.6 });
+        .text(label.toUpperCase(), 64, top, { width: W, characterSpacing: 1.6 });
       rule(64, doc.y + 8, 118);
       doc.y += 20;
       if (blurb) {
@@ -342,13 +514,21 @@ function buildGuidePdf(guide) {
     opener('Before you head out');
     doc.font(F.body).fontSize(11.5).fillColor(INK_SOFT).text(c.intro, 64, doc.y, { width: W, lineGap: 2.5 });
     doc.moveDown(1);
-    doc.font(F.display).fontSize(10).fillColor(MOSS).text('HOW THIS GUIDE WORKS', { characterSpacing: 2 });
-    doc.moveDown(0.35);
-    doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT).text(
+    // "How it works" sits in a dim-paper panel — the page's one solid block.
+    const HOW =
       'Every entry tells you why it earns a spot, the season or time it shines, who it suits, what it costs, and one tip locals know. ' +
       'Names are tappable — each links to the place in Google Maps for live directions, hours, and closures. ' +
       'Cost markers: FREE, $ (under ~$10/person), $$ (~$10–25), $$$ (day-trip money). ' +
-      'Details like fees and gate hours drift over the seasons; the link is always the source of truth.', { width: W, lineGap: 2 });
+      'Details like fees and gate hours drift over the seasons; the link is always the source of truth.';
+    doc.font(F.body).fontSize(10.5);
+    const howH = doc.heightOfString(HOW, { width: W - 36, lineGap: 2 });
+    const panelY = doc.y;
+    doc.roundedRect(64, panelY, W, howH + 54, 8).fill(PAPER_DIM);
+    doc.font(F.display).fontSize(10).fillColor(MOSS)
+      .text('HOW THIS GUIDE WORKS', 82, panelY + 15, { characterSpacing: 2 });
+    doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT)
+      .text(HOW, 82, doc.y + 6, { width: W - 36, lineGap: 2 });
+    doc.y = panelY + howH + 62;
 
     // ---------- seasonal calendar ----------
     doc.moveDown(1.1);
@@ -451,6 +631,20 @@ function buildGuidePdf(guide) {
     doc.font(F.body).fontSize(8.5).fillColor(INK_SOFT).text(
       `© ${new Date().getFullYear()} DayHop. Licensed for personal use — please don't redistribute; it's how a very small team keeps making these. ` +
       'Purchased guides include free updated editions: re-download from your receipt link any time. Questions or a spot that changed? admin@dayhop.quest', { width: W, lineGap: 1.5 });
+
+    // Photo attribution — the licenses require it, and the photographers
+    // earned it.
+    const credits = usedPhotos.filter(Boolean);
+    if (credits.length) {
+      doc.moveDown(0.9);
+      doc.font(F.display).fontSize(8.5).fillColor(MOSS).text('PHOTOGRAPHY', { characterSpacing: 2 });
+      doc.moveDown(0.25);
+      for (const cr of credits) {
+        doc.font(F.body).fontSize(8.5).fillColor(INK_SOFT).text(
+          `${cr.author} — ${cr.license}, via Wikimedia Commons`,
+          { width: W, lineGap: 1.2, link: cr.source || undefined });
+      }
+    }
 
     // Page furniture (skip cover): a centred hairline over the folio.
     const range = doc.bufferedPageRange();

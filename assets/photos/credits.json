@@ -1,0 +1,86 @@
+{
+  "markham-hero": {
+    "key": "markham-hero",
+    "term": "Toogood Pond Unionville",
+    "license": "CC BY-SA 3.0",
+    "author": "Gisling",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=2071526"
+  },
+  "markham-a": {
+    "key": "markham-a",
+    "term": "Rouge National Urban Park",
+    "license": "CC BY-SA 2.5 ca",
+    "author": "The Cosmonaut",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=88864395"
+  },
+  "richmond-hill-hero": {
+    "key": "richmond-hill-hero",
+    "term": "Lake Wilcox Richmond Hill",
+    "license": "CC BY-SA 4.0",
+    "author": "Aldakang",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=70147870"
+  },
+  "richmond-hill-a": {
+    "key": "richmond-hill-a",
+    "term": "Oak Ridges Corridor Park",
+    "license": "CC BY-SA 4.0",
+    "author": "Mhsheikholeslami",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=168111487"
+  },
+  "newmarket-hero": {
+    "key": "newmarket-hero",
+    "term": "Fairy Lake Newmarket",
+    "license": "CC BY 2.0",
+    "author": "Reg Natarajan from Vancouver, Bogotá",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=75418333"
+  },
+  "newmarket-a": {
+    "key": "newmarket-a",
+    "term": "Holland River Ontario",
+    "license": "CC BY-SA 4.0",
+    "author": "Mhsheikholeslami",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=92652475"
+  },
+  "toronto-hero": {
+    "key": "toronto-hero",
+    "term": "Scarborough Bluffs",
+    "license": "CC BY-SA 2.5 ca",
+    "author": "Óðinn",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=12433045"
+  },
+  "toronto-a": {
+    "key": "toronto-a",
+    "term": "High Park cherry blossom Toronto",
+    "license": "CC BY-SA 4.0",
+    "author": "Fabian Roudra Baroi",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=132089788"
+  },
+  "hamilton-hero": {
+    "key": "hamilton-hero",
+    "term": "Webster Falls",
+    "license": "CC BY 2.0",
+    "author": "paul (dex) bica from toronto, canada",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=22419201"
+  },
+  "hamilton-a": {
+    "key": "hamilton-a",
+    "term": "Cootes Paradise",
+    "license": "CC BY 4.0",
+    "author": "Lucastphotography",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=147666874"
+  },
+  "lake-simcoe-hero": {
+    "key": "lake-simcoe-hero",
+    "term": "Sibbald Point Provincial Park",
+    "license": "CC BY-SA 4.0",
+    "author": "OwenX",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=69723532"
+  },
+  "lake-simcoe-a": {
+    "key": "lake-simcoe-a",
+    "term": "Barrie Ontario waterfront",
+    "license": "CC BY-SA 2.0",
+    "author": "Chris McBrien from Barrie, ON, Canada",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=40360032"
+  }
+}
