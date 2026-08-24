@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>City Guides — PDF | DayHop</title>
-  <meta name="description" content="Hand-checked nature guides for GTA cities and beyond — trails, waterfalls, beaches, ready-made day plans, and a season-by-season calendar. PDF, delivered instantly.">
+  <meta name="description" content="Field-checked nature guides for Ontario cities — trails with distances, lookouts, waterways, legal fishing spots, parking and washroom notes on every entry, ready-made day plans. PDF, delivered instantly.">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <style>
     :root {
@@ -17,15 +17,24 @@
     .top { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--line); }
     .logo { font-weight: 800; font-size: 1.25rem; color: var(--ink); text-decoration: none; }
     .back { font-size: .9rem; color: var(--ink-soft); text-decoration: none; }
-    main { max-width: 880px; margin: 0 auto; padding: 32px 20px 64px; }
-    h1 { font-size: 2rem; letter-spacing: -0.01em; }
-    .lede { color: var(--ink-soft); margin: 10px 0 6px; max-width: 60ch; }
-    .promise { color: var(--moss); font-weight: 600; font-size: .95rem; margin-bottom: 26px; }
-    .banner { border-radius: 12px; padding: 14px 16px; margin: 0 0 22px; font-weight: 600; display: none; }
+    main { max-width: 940px; margin: 0 auto; padding: 32px 20px 64px; }
+    h1 { font-size: 2.1rem; letter-spacing: -0.01em; }
+    .lede { color: var(--ink-soft); margin: 10px 0 8px; max-width: 62ch; font-size: 1.05rem; }
+    .stamps { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 4px; }
+    .stamp { background: #fff; border: 1px solid var(--moss); color: var(--moss); font-weight: 700; font-size: .78rem; letter-spacing: .06em; padding: 5px 11px; border-radius: 999px; text-transform: uppercase; }
+    .spreads { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 24px 0 8px; }
+    .spreads figure { margin: 0; }
+    .spreads img { width: 100%; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 26px rgba(16,42,46,.10); display: block; }
+    .spreads figcaption { font-size: .78rem; color: var(--ink-soft); text-align: center; margin-top: 7px; }
+    @media (max-width: 640px) { .spreads { grid-template-columns: 1fr; } }
+    .banner { border-radius: 12px; padding: 14px 16px; margin: 18px 0; font-weight: 600; display: none; }
     .banner--ok { display: block; background: #E7F1EA; color: var(--moss); border: 1px solid var(--moss); }
     .banner--sad { display: block; background: #FBEAE4; color: var(--coral-dark); border: 1px solid var(--coral); }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; margin-top: 22px; }
     .card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+    .card--bundle { grid-column: 1 / -1; border: 2px solid var(--coral); background: linear-gradient(180deg, #fff, var(--paper)); }
+    .card--bundle h2 { font-size: 1.35rem; }
+    .card--bundle .deal { color: var(--coral); font-weight: 800; letter-spacing: .04em; text-transform: uppercase; font-size: .82rem; }
     .card h2 { font-size: 1.12rem; }
     .card .sub { color: var(--ink-soft); font-size: .92rem; flex: 1; }
     .meta { color: var(--moss); font-weight: 600; font-size: .85rem; }
@@ -33,16 +42,20 @@
     .buy:hover { background: var(--coral-dark); }
     .buy:disabled { opacity: .6; cursor: default; }
     .soon { background: var(--paper-dim); color: var(--ink-soft); border: 0; border-radius: 10px; padding: 12px 16px; font-weight: 700; cursor: default; }
-    .price { font-weight: 800; font-size: 1.15rem; }
     .fine { color: var(--ink-soft); font-size: .8rem; }
+    .promise { background: var(--paper-dim); border-radius: 12px; padding: 16px 18px; margin: 26px 0 0; color: var(--ink-soft); font-size: .95rem; }
+    .promise strong { color: var(--moss); }
+    .sampler { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-top: 26px; }
+    .sampler h3 { font-size: 1.05rem; margin-bottom: 4px; }
+    .sampler p { color: var(--ink-soft); font-size: .92rem; }
+    .sampler form { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+    .sampler input { flex: 1; min-width: 220px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 1rem; background: var(--paper); }
     .faq { margin-top: 44px; border-top: 1px solid var(--line); padding-top: 26px; }
     .faq h3 { font-size: 1.05rem; margin: 16px 0 4px; }
     .faq p { color: var(--ink-soft); font-size: .93rem; max-width: 70ch; }
     footer { text-align: center; color: var(--ink-soft); font-size: .82rem; padding: 24px; border-top: 1px solid var(--line); }
     .card.flash { outline: 3px solid var(--coral); }
-    /* Preview modal IS the guide's first page: the rendered page fills the
-       dialog edge to edge, with only a floating close button and the
-       checkout bar beneath it. */
+    /* Preview modal IS the guide's first page */
     .modal-backdrop { position: fixed; inset: 0; background: rgba(16, 42, 46, .62); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
     .modal-backdrop.open { display: flex; }
     .modal { background: #fff; border-radius: 14px; max-width: 430px; width: 100%; max-height: 94vh; overflow: hidden; padding: 0; position: relative; display: flex; flex-direction: column; box-shadow: 0 18px 60px rgba(16, 42, 46, .35); }
@@ -61,10 +74,36 @@
   </div>
   <main>
     <h1>City Guides — PDF 🌲</h1>
-    <p class="lede">The local nature knowledge our planner runs on, distilled into keepable guides: hand-checked trails, waterfalls, beaches and quiet corners, ready-made day plans, and a season-by-season calendar for each city.</p>
-    <p class="promise">Every place name links to live directions and hours · delivered instantly by email · free updated editions included</p>
+    <p class="lede">Field-checked nature guides for Ontario cities: trails with distances and surfaces, the lookouts, waterways, legal fishing spots — and the parking, washroom, and footing notes on <em>every single entry</em> that decide whether a day actually works.</p>
+    <div class="stamps" id="stamps">
+      <span class="stamp">Field-checked editions</span>
+      <span class="stamp">31–37 places per guide</span>
+      <span class="stamp">Every entry → live directions</span>
+      <span class="stamp">Free updated editions</span>
+    </div>
+
+    <div class="spreads">
+      <figure><img src="/img/guides-page/spread-frontispiece.jpg" alt="Guide frontispiece: photograph and Southern Ontario locator map" loading="lazy"><figcaption>Every guide opens with the place itself — and a map of where it lives.</figcaption></figure>
+      <figure><img src="/img/guides-page/spread-quick.jpg" alt="'If you only have…' page with plans for 3 hours, half a day, a full day, and a rainy day" loading="lazy"><figcaption>Four ready answers for four sizes of day.</figcaption></figure>
+      <figure><img src="/img/guides-page/spread-places.jpg" alt="Trail entries with distance, surface, parking and washroom notes" loading="lazy"><figcaption>Distances, surfaces, parking, washrooms — on every entry.</figcaption></figure>
+    </div>
+
     <div class="banner" id="banner" role="status"></div>
     <div class="grid" id="grid"><p style="color:var(--ink-soft)">Loading guides…</p></div>
+
+    <div class="promise">
+      <strong>The field-check promise:</strong> every place in these guides is real, stable, and linked to live directions and hours. A spot changed on the ground? Tell us — admin@dayhop.quest — and every reader gets the corrected edition free through their download link.
+    </div>
+
+    <div class="sampler">
+      <h3>Try before you buy — the free Ontario Sampler 📖</h3>
+      <p>One favourite from each guide, at full quality, free to share. It arrives with the Thursday weekend brief (one email a week, one-click unsubscribe).</p>
+      <form id="sampler-form" novalidate>
+        <input type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email address">
+        <button type="submit" class="buy">Send my free sampler</button>
+      </form>
+      <p class="fine" id="sampler-msg" role="status" aria-live="polite"></p>
+    </div>
 
     <div class="faq">
       <h3>How does delivery work?</h3>
@@ -126,8 +165,6 @@
       previewImg.alt = 'First page of ' + g.title;
       previewImg.src = '/img/guide-previews/' + g.slug + '.png';
       previewImg.hidden = false;
-      // No screenshot for this guide? Fail soft: modal still works as a
-      // confirm step, just without the picture.
       previewImg.onerror = () => { previewImg.hidden = true; };
       continueBtn.disabled = false;
       continueBtn.textContent = 'Continue to checkout';
@@ -169,36 +206,71 @@
       grid.innerHTML = '';
       for (const g of data.guides) {
         const card = document.createElement('div');
-        card.className = 'card'; card.id = g.slug;
+        const isBundle = g.type === 'bundle';
+        card.className = 'card' + (isBundle ? ' card--bundle' : '');
+        card.id = g.slug;
         const live = g.status === 'live';
-        card.innerHTML =
-          '<h2></h2><p class="sub"></p>' +
-          (live ? '<p class="meta">' + (g.spot_count ? g.spot_count + ' hand-checked places · ' : '') + 'day plans · seasonal calendar</p>' : '') +
-          (live && g.admin_token
-            ? '<button class="buy" type="button">Open PDF — admin</button><p class="fine">Unlocked for your admin account</p>'
-            : live
-              ? '<button class="buy" type="button">Get the guide</button><p class="fine">Instant PDF by email · free updated editions</p>'
-              : '<button class="soon" type="button" disabled>Coming soon</button><p class="fine">Being verified on the ground — not for sale until it is.</p>');
+        if (isBundle) {
+          card.innerHTML =
+            '<span class="deal">Best value · six guides for less than the price of three</span>' +
+            '<h2></h2><p class="sub"></p>' +
+            '<p class="meta">' + (g.includes || 6) + ' complete guides · 190+ field-checked places · every future edition free</p>' +
+            (data.admin
+              ? '<p class="fine">Your admin account already has every guide unlocked below.</p>'
+              : '<button class="buy" type="button">Get the collection</button><p class="fine">Instant PDFs by email · free updated editions</p>');
+        } else {
+          card.innerHTML =
+            '<h2></h2><p class="sub"></p>' +
+            (live ? '<p class="meta">' + (g.spot_count ? g.spot_count + ' field-checked places · ' : '') + 'trails · views · water · fishing · day plans</p>' : '') +
+            (live && g.admin_token
+              ? '<button class="buy" type="button">Open PDF — admin</button><p class="fine">Unlocked for your admin account</p>'
+              : live
+                ? '<button class="buy" type="button">Get the guide</button><p class="fine">Instant PDF by email · free updated editions</p>'
+                : '<button class="soon" type="button" disabled>Coming soon</button><p class="fine">Being verified on the ground — not for sale until it is.</p>');
+        }
         card.querySelector('h2').textContent = g.title;
         card.querySelector('.sub').textContent = g.subtitle;
-        if (live && g.admin_token) {
-          // Admins skip the preview modal entirely — the PDF opens right in
-          // a browser tab (inline), no download dialog.
+        if (isBundle && !data.admin) {
+          card.querySelector('.buy').addEventListener('click', e => buy(g.slug, e.target));
+        } else if (!isBundle && live && g.admin_token) {
           card.querySelector('.buy').addEventListener('click', () => {
             window.open('/api/cityguides/download?t=' + encodeURIComponent(g.admin_token) + '&inline=1', '_blank');
           });
-        } else if (live) {
+        } else if (!isBundle && live) {
           card.querySelector('.buy').addEventListener('click', () => openPreview(g));
         }
         grid.appendChild(card);
       }
-      // Deep link from the feed promo card: flash the matching guide.
       const target = (location.hash || '').replace('#', '');
       if (target && document.getElementById(target)) {
         document.getElementById(target).classList.add('flash');
         document.getElementById(target).scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }
+
+    // Free sampler: rides the existing newsletter double opt-in.
+    document.getElementById('sampler-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = e.target.querySelector('input');
+      const btn = e.target.querySelector('button');
+      const msg = document.getElementById('sampler-msg');
+      const email = (input.value || '').trim();
+      if (!email) return;
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/newsletter/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, source: 'guides_sampler', owner_id: ownerId() })
+        });
+        const data = await res.json();
+        msg.textContent = (data && data.message) || 'Check your inbox to confirm — the sampler arrives with your welcome email.';
+        if (res.ok) input.value = '';
+      } catch (err) {
+        msg.textContent = 'Could not subscribe just now — please try again.';
+      }
+      btn.disabled = false;
+    });
 
     async function handleReturn() {
       const q = new URLSearchParams(location.search);
@@ -212,7 +284,12 @@
         try {
           const res = await fetch('/api/cityguides/claim?session_id=' + encodeURIComponent(q.get('session_id')));
           const data = await res.json();
-          if (data && data.token) {
+          if (data && data.bundle && Array.isArray(data.tokens)) {
+            banner.innerHTML = 'Thank you! Your collection is ready — all six are also in your inbox with re-download links.<br>' +
+              data.tokens.map(t =>
+                '<a href="/api/cityguides/download?t=' + encodeURIComponent(t.token) + '">' + t.title + '</a>'
+              ).join(' · ');
+          } else if (data && data.token) {
             banner.innerHTML = 'Thank you! Your download is starting — and a copy with a re-download link is in your inbox. ' +
               '<a href="/api/cityguides/download?t=' + encodeURIComponent(data.token) + '">Download again</a>';
             window.location.href = '/api/cityguides/download?t=' + encodeURIComponent(data.token);

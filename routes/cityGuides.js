@@ -59,8 +59,9 @@ router.post('/checkout', checkoutLimiter, async (req, res) => {
   const stripe = getStripe();
   if (!stripe) return res.status(503).json({ error: 'NOT_CONFIGURED', message: 'Purchases are not available right now.' });
   const slug = typeof (req.body && req.body.slug) === 'string' ? req.body.slug.trim() : '';
-  const guide = cityGuides.bySlug(slug);
-  if (!guide || guide.status !== 'live') {
+  const isBundle = slug === cityGuides.BUNDLE.slug;
+  const guide = isBundle ? cityGuides.BUNDLE : cityGuides.bySlug(slug);
+  if (!guide || (!isBundle && guide.status !== 'live')) {
     return res.status(404).json({ error: 'UNKNOWN_GUIDE', message: 'That guide is not available yet.' });
   }
   try {
@@ -76,10 +77,12 @@ router.post('/checkout', checkoutLimiter, async (req, res) => {
         quantity: 1,
         price_data: {
           currency: cityGuides.CURRENCY,
-          unit_amount: cityGuides.PRICE_CENTS,
+          unit_amount: isBundle ? cityGuides.BUNDLE.price_cents : cityGuides.PRICE_CENTS,
           product_data: {
             name: guide.title,
-            description: `${guide.subtitle} PDF, delivered by email — free updated editions included.`
+            description: isBundle
+              ? 'All six DayHop city guides as PDFs, delivered by email — free updated editions included.'
+              : `${guide.subtitle} PDF, delivered by email — free updated editions included.`
           }
         }
       }],
@@ -112,8 +115,14 @@ router.get('/claim', async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.retrieve(sid);
     const slug = session.metadata && session.metadata.guide;
-    if (session.payment_status !== 'paid' || !slug || !cityGuides.bySlug(slug)) {
+    const isBundle = slug === cityGuides.BUNDLE.slug;
+    if (session.payment_status !== 'paid' || !slug || (!isBundle && !cityGuides.bySlug(slug))) {
       return res.status(402).json({ error: 'NOT_PAID', message: 'This purchase has not completed.' });
+    }
+    if (isBundle) {
+      const tokens = cityGuides.GUIDES.filter(g => g.status === 'live')
+        .map(g => ({ slug: g.slug, title: g.title, token: cityGuides.signToken(g.slug) }));
+      return res.json({ slug, bundle: true, tokens });
     }
     res.json({ slug, token: cityGuides.signToken(slug) });
   } catch (err) {

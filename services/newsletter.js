@@ -258,13 +258,19 @@ async function confirm(token) {
     // means the email goes out with the link only).
     (async () => {
       const pdf = await require('./playbookPdf').getPlaybookPdf();
+      // The city-guides sampler rides along too — one favourite from each
+      // paid guide, explicitly shareable. Fail-soft like the Playbook.
+      const sampler = await require('./cityGuides').getSamplerPdf().catch(() => null);
+      const attachments = [];
+      if (pdf) attachments.push({ filename: 'DayHop-GTA-Family-Weekend-Playbook.pdf', content: pdf.buffer });
+      if (sampler) attachments.push({ filename: 'DayHop-Ontario-Sampler.pdf', content: sampler });
       await sendEmail({
         to: row.email,
         subject: 'Welcome to DayHop — your Weekend Playbook is inside',
         html: welcomeEmailHtml(row.token, Boolean(pdf)),
         text: welcomeEmailText(row.token, Boolean(pdf)),
         unsubscribeUrl: unsubscribeUrl(row.token),
-        attachments: pdf ? [{ filename: 'DayHop-GTA-Family-Weekend-Playbook.pdf', content: pdf.buffer }] : undefined
+        attachments: attachments.length ? attachments : undefined
       });
     })().catch(() => {});
   }

@@ -23,6 +23,16 @@ const PRICE_CENTS = 2000;
 const CURRENCY = 'cad';
 const TOKEN_DAYS = 30;
 
+// The anchor product: every live guide in one purchase, priced so a single
+// $20 guide reads as the sampler. Sold through the same checkout/fulfill
+// path under this pseudo-slug.
+const BUNDLE = {
+  slug: 'ontario-collection',
+  title: 'The Complete Ontario Collection',
+  subtitle: 'All six guides — every trail, lookout, waterway, and fishing spot we\'ve field-checked, in one library.',
+  price_cents: 5900
+};
+
 // Brand palette (mirrors playbookPdf.js / the web shell).
 const INK = '#102A2E';
 const INK_SOFT = '#41585C';
@@ -38,7 +48,18 @@ function signingSecret() {
 }
 
 function list() {
-  return GUIDES.map(g => ({
+  const liveCount = GUIDES.filter(g => g.status === 'live').length;
+  const bundleEntry = {
+    slug: BUNDLE.slug,
+    title: BUNDLE.title,
+    subtitle: BUNDLE.subtitle,
+    status: 'live',
+    type: 'bundle',
+    includes: liveCount,
+    price: BUNDLE.price_cents / 100,
+    currency: CURRENCY.toUpperCase()
+  };
+  return [bundleEntry].concat(GUIDES.map(g => ({
     slug: g.slug,
     title: g.title,
     subtitle: g.subtitle,
@@ -47,7 +68,7 @@ function list() {
     price: PRICE_CENTS / 100,
     currency: CURRENCY.toUpperCase(),
     spot_count: g.status === 'live' ? countSpots(g) : null
-  }));
+  })));
 }
 
 function bySlug(slug) {
@@ -447,7 +468,7 @@ function buildGuidePdf(guide) {
       .text(`${total} PLACES · ${c.itineraries.length} DAY PLANS · FOUR SEASONS`, { characterSpacing: 2.2 });
     doc.moveDown(0.55);
     doc.font(F.displayLight).fontSize(8).fillColor(INK_SOFT)
-      .text(`${guide.coords || ''}   ·   EDITION ${new Date().toLocaleDateString('en-CA', { month: 'long', year: 'numeric', timeZone: 'America/Toronto' }).toUpperCase()}`,
+      .text(`${guide.coords || ''}   ·   FIELD-CHECKED EDITION · ${new Date().toLocaleDateString('en-CA', { month: 'long', year: 'numeric', timeZone: 'America/Toronto' }).toUpperCase()}`,
         { characterSpacing: 1.8 });
 
     // The city's geography, abstracted — clipped to its field so nothing
@@ -483,6 +504,27 @@ function buildGuidePdf(guide) {
       doc.font(F.displayLight).fontSize(7.5).fillColor(INK_SOFT)
         .text(`SOUTHERN ONTARIO · ${(guide.coords || '').toUpperCase()} · MOSS DOTS MARK THE OTHER DAYHOP GUIDES`,
           64, mapTop + 30 + 280 + 10, { width: W, characterSpacing: 1.4, lineBreak: false });
+    }
+
+    // ---------- "If you only have…" ----------
+    // Travellers buy guides with a checkout time looming — serve the
+    // time-budgeted reader before the completionist.
+    if (Array.isArray(c.quick) && c.quick.length) {
+      doc.addPage();
+      doc.font(F.display).fontSize(20).fillColor(INK)
+        .text('IF YOU ONLY HAVE…', 64, 72, { characterSpacing: 1.6 });
+      rule(64, doc.y + 8, 118);
+      doc.y += 20;
+      doc.font(F.bodyItalic).fontSize(11.5).fillColor(MOSS)
+        .text('Four ready answers for four sizes of day — every stop is covered in depth later in the guide.', 64, doc.y, { width: W - 40, lineGap: 2 });
+      doc.moveDown(1.1);
+      for (const q of c.quick) {
+        doc.font(F.display).fontSize(13).fillColor(CORAL)
+          .text(q.have.toUpperCase(), 64, doc.y, { characterSpacing: 1.4 });
+        doc.moveDown(0.2);
+        doc.font(F.body).fontSize(11).fillColor(INK_SOFT).text(q.plan, { width: W, lineGap: 2.2 });
+        doc.moveDown(0.95);
+      }
     }
 
     // Section opener: letterspaced display over a short rule, blurb in the
@@ -551,7 +593,8 @@ function buildGuidePdf(guide) {
         doc.font(F.body).fontSize(10.5);
         const bodyH =
           doc.heightOfString(sp.why, { width: W }) +
-          (sp.tip ? doc.heightOfString(sp.tip, { width: W }) : 0) + 78;
+          (sp.tip ? doc.heightOfString(sp.tip, { width: W }) : 0) + 78 +
+          (sp.access ? 14 : 0);
         if (doc.y + bodyH > doc.page.height - doc.page.margins.bottom) doc.addPage();
 
         const link = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(sp.maps || sp.name)}`;
@@ -571,6 +614,12 @@ function buildGuidePdf(guide) {
         doc.moveDown(0.18);
         const chips = [sp.route, sp.cost, sp.ages, sp.best].filter(Boolean).join('  ·  ');
         if (chips) doc.font(F.display).fontSize(7.5).fillColor(CORAL).text(chips.toUpperCase(), { characterSpacing: 1.2 });
+        // The logistics line — parking, transit, facilities, footing — in
+        // quiet moss under the coral chips.
+        if (sp.access) {
+          doc.moveDown(0.08);
+          doc.font(F.displayLight).fontSize(7.5).fillColor(MOSS).text(sp.access.toUpperCase(), { characterSpacing: 1.1 });
+        }
         doc.moveDown(0.85);
       }
     };
@@ -674,6 +723,93 @@ async function getPdf(slug) {
   return buffer;
 }
 
+// ---------- free sampler ----------
+// One favourite from each live guide, full design quality — the test
+// drive. Gated behind the newsletter double opt-in (rides the welcome
+// email beside the Playbook) and explicitly licensed to share.
+
+let samplerCache = null; // { buffer, at }
+
+function buildSamplerPdf() {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({
+      size: 'LETTER',
+      margins: { top: 64, bottom: 64, left: 64, right: 64 },
+      bufferPages: true,
+      info: { Title: 'The DayHop Ontario Sampler', Author: 'DayHop' }
+    });
+    const chunks = [];
+    doc.on('data', ch => chunks.push(ch));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+    doc.on('pageAdded', () => doc.rect(0, 0, doc.page.width, doc.page.height).fill(PAPER));
+
+    const F = registerFonts(doc);
+    const W = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    doc.rect(0, 0, doc.page.width, doc.page.height).fill(PAPER);
+    doc.lineCap('round');
+
+    doc.font(F.displayLight).fontSize(9.5).fillColor(INK_SOFT)
+      .text('DAYHOP · FREE SAMPLER · SHARE THIS ONE FREELY', 64, 76, { characterSpacing: 3 });
+    doc.moveTo(64, 96).lineTo(182, 96).lineWidth(0.8).stroke(MOSS);
+    doc.font(F.display).fontSize(30).fillColor(INK)
+      .text('ONE FAVOURITE FROM\nEACH CITY GUIDE', 64, 122, { width: W, characterSpacing: 0.6, lineGap: 4 });
+    doc.moveDown(0.5);
+    doc.font(F.bodyItalic).fontSize(12.5).fillColor(INK_SOFT)
+      .text('Six field-checked places, exactly as they appear in the full guides — same depth, same honesty, same links to live directions.', { width: W - 60, lineGap: 2 });
+    doc.moveDown(1.2);
+
+    for (const g of GUIDES.filter(g => g.status === 'live')) {
+      const sp = g.content().spots[0];
+      doc.font(F.body).fontSize(10.5);
+      const need = doc.heightOfString(sp.why, { width: W }) + 92;
+      if (doc.y + need > doc.page.height - doc.page.margins.bottom) doc.addPage();
+      doc.font(F.displayLight).fontSize(7.5).fillColor(CORAL)
+        .text(`FROM THE ${g.title.toUpperCase()} · ${countSpots(g)} PLACES IN THE FULL GUIDE`, 64, doc.y, { characterSpacing: 1.4 });
+      doc.moveDown(0.12);
+      const link = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(sp.maps || sp.name)}`;
+      doc.font(F.display).fontSize(14).fillColor(INK).text(sp.name, { width: W, link });
+      doc.moveDown(0.15);
+      doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT).text(sp.why, { width: W, lineGap: 1.8 });
+      if (sp.tip) {
+        doc.moveDown(0.12);
+        doc.font(F.bodyItalic).fontSize(10).fillColor(MOSS).text(`Local tip: ${sp.tip}`, { width: W, lineGap: 1.4 });
+      }
+      doc.moveDown(0.9);
+    }
+
+    doc.moveDown(0.6);
+    doc.font(F.display).fontSize(13).fillColor(INK)
+      .text('THE FULL GUIDES', { characterSpacing: 1.8 });
+    doc.moveTo(64, doc.y + 6).lineTo(182, doc.y + 6).lineWidth(0.8).stroke(MOSS);
+    doc.y += 14;
+    doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT).text(
+      'Each city guide carries 31–37 field-checked places — trails with distances and surfaces, lookouts, waterways, ' +
+      'legal fishing spots, parking-and-washroom notes on every entry, ready-made day plans, and a season-by-season calendar. ' +
+      'Free updated editions with every purchase.', { width: W, lineGap: 2 });
+    doc.moveDown(0.4);
+    doc.font(F.display).fontSize(11).fillColor(CORAL)
+      .text('DAYHOP.QUEST/GUIDES', { link: 'https://dayhop-v2.onrender.com/guides', characterSpacing: 2 });
+    doc.moveDown(1);
+    doc.font(F.body).fontSize(8.5).fillColor(INK_SOFT).text(
+      'This sampler is free to share — send it to anyone who\'d use it. The full guides are how a very small team keeps making them. · DayHop, Richmond Hill, Ontario', { width: W, lineGap: 1.4 });
+    doc.end();
+  });
+}
+
+async function getSamplerPdf() {
+  if (samplerCache && Date.now() - samplerCache.at < CACHE_TTL_MS) return samplerCache.buffer;
+  try {
+    const buffer = await buildSamplerPdf();
+    samplerCache = { buffer, at: Date.now() };
+    console.log(`[city-guides] sampler built: ${(buffer.length / 1024).toFixed(0)} KB`);
+    return buffer;
+  } catch (err) {
+    console.warn('[city-guides] sampler build failed:', err.message);
+    return null;
+  }
+}
+
 // ---------- fulfillment ----------
 // Called from the Stripe webhook on checkout.session.completed (mode:
 // 'payment' + metadata.guide). Never throws — Stripe must get its 2xx; a
@@ -681,20 +817,51 @@ async function getPdf(slug) {
 
 async function fulfillPurchase(session) {
   const slug = session.metadata && session.metadata.guide;
-  const guide = bySlug(slug);
-  if (!guide) return `guide purchase with unknown slug "${slug}" (ignored)`;
+  const isBundle = slug === BUNDLE.slug;
+  const guide = isBundle ? null : bySlug(slug);
+  if (!isBundle && !guide) return `guide purchase with unknown slug "${slug}" (ignored)`;
   const to = (session.customer_details && session.customer_details.email) || session.customer_email || null;
 
   analytics.recordEvent({
     type: 'guide_purchase',
     ownerKey: session.client_reference_id || 'anon',
-    meta: { guide: slug, amount_cents: session.amount_total || PRICE_CENTS }
+    meta: { guide: slug, amount_cents: session.amount_total || (isBundle ? BUNDLE.price_cents : PRICE_CENTS) }
   });
 
   if (!to) return `guide ${slug} purchased but session has no email (claim link still works)`;
+  const origin = process.env.PUBLIC_ORIGIN || 'https://dayhop-v2.onrender.com';
   try {
+    if (isBundle) {
+      const live = GUIDES.filter(g => g.status === 'live');
+      const rows = live.map(g => {
+        const link = `${origin}/api/cityguides/download?t=${signToken(g.slug)}`;
+        return { g, link };
+      });
+      const attachments = [];
+      for (const { g } of rows) {
+        const pdf = await getPdf(g.slug).catch(() => null);
+        if (pdf) attachments.push({ filename: `DayHop-${g.slug}-nature-guide.pdf`, content: pdf });
+      }
+      const result = await email.sendEmail({
+        to,
+        subject: 'Your Complete Ontario Collection is here 🌲',
+        html:
+          '<p>Thank you! All six DayHop guides are attached, and each is yours to re-download for the next ' +
+          `${TOKEN_DAYS} days (fresh editions included):</p><ul>` +
+          rows.map(({ g, link }) => `<li><a href="${link}">${g.title}</a></li>`).join('') +
+          '</ul><p>Every place name links straight to live directions and hours. ' +
+          'A spot changed on the ground? Tell us — admin@dayhop.quest — and the next edition fixes it.</p>' +
+          '<p>— DayHop, Richmond Hill, Ontario</p>',
+        text:
+          `Thank you! All six DayHop guides are attached. Re-download links (valid ${TOKEN_DAYS} days):\n\n` +
+          rows.map(({ g, link }) => `${g.title}: ${link}`).join('\n') +
+          '\n\nA spot changed? Tell us: admin@dayhop.quest\n— DayHop',
+        attachments: attachments.length ? attachments : undefined
+      });
+      return `bundle fulfilled → ${to} (${attachments.length} PDFs, email ${result.sent ? 'sent' : `FAILED: ${result.reason}`})`;
+    }
+
     const token = signToken(slug);
-    const origin = process.env.PUBLIC_ORIGIN || 'https://dayhop-v2.onrender.com';
     const link = `${origin}/api/cityguides/download?t=${token}`;
     const pdf = await getPdf(slug).catch(() => null);
     const result = await email.sendEmail({
@@ -721,8 +888,8 @@ async function fulfillPurchase(session) {
 }
 
 module.exports = {
-  GUIDES, PRICE_CENTS, CURRENCY,
+  GUIDES, BUNDLE, PRICE_CENTS, CURRENCY,
   list, bySlug, matchCity,
   signToken, verifyToken,
-  getPdf, fulfillPurchase
+  getPdf, getSamplerPdf, fulfillPurchase
 };

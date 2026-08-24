@@ -15,70 +15,70 @@ module.exports = {
       area: 'Water St at Main, downtown Newmarket',
       why: 'The town\'s living room: a mill pond on the Holland River ringed by a flat treed loop, footbridges, and resident waterfowl, with historic Main Street a two-minute walk up the hill. Festivals land here; on quiet mornings it\'s herons and coffee walkers.',
       tip: 'Loop the lake, then take Main Street up for the café row — the canonical Newmarket morning.',
-      best: 'All four seasons', ages: 'all ages', cost: 'FREE', maps: 'Fairy Lake Newmarket'
+      best: 'All four seasons', ages: 'all ages', cost: 'FREE', access: 'Free lots — busy on festival days · washrooms in park · stroller-friendly loop', maps: 'Fairy Lake Newmarket'
     },
     {
       name: 'Nokiidaa Trail',
       area: 'Aurora to Holland Landing, along the East Holland River',
       why: 'The spine of this whole guide: a paved-and-boardwalk riverside trail running the full length of town and beyond in both directions. Wetland boardwalks, swing bridges, and the option to walk twenty minutes or twenty kilometres.',
       tip: 'The stretch north from Fairy Lake toward Green Lane has the best boardwalk-and-marsh scenery.',
-      best: 'Any green month; magical at first snow', ages: 'all ages', cost: 'FREE', maps: 'Nokiidaa Trail Newmarket'
+      best: 'Any green month; magical at first snow', ages: 'all ages', cost: 'FREE', access: 'Many trailhead lots · washrooms at major parks · paved & boardwalk', maps: 'Nokiidaa Trail Newmarket'
     },
     {
       name: 'Mabel Davis Conservation Area',
       area: 'Bayview Ave side, northeast Newmarket',
       why: 'A pocket conservation area on the river\'s east bank: forest paths, a skate park at the trailhead for the mixed-interests family, and quick access onto the Nokiidaa. Underrated and rarely busy.',
       tip: 'Use it as your Nokiidaa on-ramp when Fairy Lake parking is full.',
-      best: 'Fall', ages: 'all ages', cost: 'FREE', maps: 'Mabel Davis Conservation Area Newmarket'
+      best: 'Fall', ages: 'all ages', cost: 'FREE', access: 'Free lot · no facilities · easy paths', maps: 'Mabel Davis Conservation Area Newmarket'
     },
     {
       name: 'George Richardson Park',
       area: 'Leslie St at Green Lane fringe',
       why: 'Wide riverside meadowland where the Holland floodplain opens up — kite skies, gazebo picnics, and the town\'s best long-sightline walking. The Nokiidaa runs right through it.',
       tip: 'Prime toboggan and kite terrain, season depending.',
-      best: 'Summer evenings, winter sledding', ages: 'all ages', cost: 'FREE', maps: 'George Richardson Park Newmarket'
+      best: 'Summer evenings, winter sledding', ages: 'all ages', cost: 'FREE', access: 'Free lots · washrooms in season · flat open paths', maps: 'George Richardson Park Newmarket'
     },
     {
       name: 'Bailey Ecological Park',
       area: 'South Newmarket, off Bayview',
       why: 'A naturalized pocket of forest and wetland run as an outdoor classroom — boardwalk, pond-dipping platform, and interpretive signage that actually teaches. Small on the map, big for the under-ten crowd.',
       tip: 'Pair with Rogers Reservoir up the trail for a longer nature day.',
-      best: 'Late spring', ages: 'all ages', cost: 'FREE', maps: 'Bailey Ecological Park Newmarket'
+      best: 'Late spring', ages: 'all ages', cost: 'FREE', access: 'Street parking · no facilities · boardwalk — stroller ok', maps: 'Bailey Ecological Park Newmarket'
     },
     {
       name: 'Rogers Reservoir Conservation Area',
       area: 'Green Lane at 2nd Concession, East Gwillimbury',
       why: 'Just over the town line and worth crossing it: old canal locks from the abandoned Newmarket Canal, wetland flats full of herons and turtles, and flat gravel trails on the Nokiidaa\'s northern reach.',
       tip: 'The century-old lock ruins are the photo stop; interpretive signs tell the doomed canal\'s story.',
-      best: 'Spring and early summer wildlife', ages: 'all ages', cost: 'FREE', maps: 'Rogers Reservoir East Gwillimbury'
+      best: 'Spring and early summer wildlife', ages: 'all ages', cost: 'FREE', access: 'Free trailhead lots · outhouse at lot · flat gravel loops', maps: 'Rogers Reservoir East Gwillimbury'
     },
     {
       name: 'Sheppard\'s Bush Conservation Area',
       area: 'Industrial Pkwy S, Aurora (10 min)',
       why: 'Aurora\'s beloved maple bush: tapped sugar maples in early spring, mossy boardwalk loops the rest of the year, and a trail connection onto the Nokiidaa heading north to Newmarket.',
       tip: 'Early-spring syrup demonstrations are a York Region tradition — check dates before going.',
-      best: 'Maple season (Mar–Apr), fall colour', ages: 'all ages', cost: 'FREE', maps: 'Sheppard\'s Bush Conservation Area Aurora'
+      best: 'Maple season (Mar–Apr), fall colour', ages: 'all ages', cost: 'FREE', access: 'Free lot off Industrial Pkwy · washrooms in season · boardwalk & dirt', maps: 'Sheppard\'s Bush Conservation Area Aurora'
     },
     {
       name: 'Aurora Arboretum & McKenzie Marsh',
       area: 'Industrial Pkwy N at St. John\'s Sideroad, Aurora',
       why: 'A volunteer-built arboretum beside a genuine marsh with a viewing boardwalk — swans nest here, muskrats commute, and the young trees are labelled for the curious.',
       tip: 'The marsh boardwalk at dusk is the wildlife hour.',
-      best: 'Spring nesting season', ages: 'all ages', cost: 'FREE', maps: 'Aurora Community Arboretum'
+      best: 'Spring nesting season', ages: 'all ages', cost: 'FREE', access: 'Lot at Lambert Willson Park · washrooms at arena · flat paths', maps: 'Aurora Community Arboretum'
     },
     {
       name: 'Case Woodlot',
       area: 'St. John\'s Sideroad, Aurora',
       why: 'Old-growth-feeling hardwood forest with a spring trillium display that draws photographers from across the region — ten quiet minutes from Yonge Street.',
       tip: 'Mid-May, mornings, after rain: peak trillium.',
-      best: 'May', ages: 'all ages', cost: 'FREE', maps: 'Case Woodlot Aurora'
+      best: 'May', ages: 'all ages', cost: 'FREE', access: 'Roadside parking · no facilities · soft forest floor', maps: 'Case Woodlot Aurora'
     },
     {
       name: 'Ken Sturgeon / Gorman Pool valley trails',
       area: 'East side of downtown Newmarket',
       why: 'The wooded ravine paths threading Newmarket\'s older east-side neighbourhoods down to the river — everyday nature the subdivisions kept, connecting to the Tom Taylor/Nokiidaa spine.',
       tip: 'A good rainy-hour walk: short, treed, close to downtown.',
-      best: 'Any season', ages: 'all ages', cost: 'FREE', maps: 'Tom Taylor Trail Newmarket'
+      best: 'Any season', ages: 'all ages', cost: 'FREE', access: 'Street + pool lots · paved connectors · some slopes', maps: 'Tom Taylor Trail Newmarket'
     }
   ],
 
@@ -88,29 +88,36 @@ module.exports = {
       area: 'King, off Mulock Dr extension (15 min)',
       why: 'The moraine at its steepest: a wooden staircase drops into a fern-and-moss ravine that feels imported from Muskoka. The region\'s favourite short-but-real hike.',
       tip: 'Pair with neighbouring Marsh Trail routes for a longer loop; footing is rooty — real shoes.',
-      best: 'Fall colour', ages: '6+', cost: 'FREE', maps: 'Thornton Bales Conservation Area King'
+      best: 'Fall colour', ages: '6+', cost: 'FREE', access: 'Small roadside lot · no facilities · steep stairs — real shoes', maps: 'Thornton Bales Conservation Area King'
     },
     {
       name: 'Scanlon Creek Conservation Area',
       area: 'Bradford West Gwillimbury (15–20 min)',
       why: 'A full-size conservation area on the Holland Marsh rim: reservoir, forest loops, boardwalks, and a nature centre — the "proper day out" upgrade from the in-town spots.',
       tip: 'Entry fees may apply in peak season — check the conservation authority\'s page.',
-      best: 'Summer, early fall', ages: 'all ages', cost: 'FREE–$', maps: 'Scanlon Creek Conservation Area Bradford'
+      best: 'Summer, early fall', ages: 'all ages', cost: 'FREE–$', access: 'Lot at gate (seasonal fee) · washrooms at centre · easy loops', maps: 'Scanlon Creek Conservation Area Bradford'
     },
     {
       name: 'Holland Marsh & canal roads',
       area: 'Bradford / Ansnorveldt (20 min)',
       why: 'Canada\'s salad bowl: black-earth vegetable fields, dead-straight canals, and enormous skies. Best toured by bike or slow car with stops at the farm stands in season.',
       tip: 'Late-summer harvest is peak — carrots and onions straight from the source.',
-      best: 'Aug–Sep harvest', ages: 'all ages', cost: 'FREE–$', maps: 'Holland Marsh Bradford'
+      best: 'Aug–Sep harvest', ages: 'all ages', cost: 'FREE–$', access: 'Farm-stand pull-offs · car or bike only · dead-flat roads', maps: 'Holland Marsh Bradford'
     },
     {
       name: 'York Regional Forest — Bendor & Graves Tract',
       area: 'Vivian Rd area, Whitchurch-Stouffville (20 min)',
       why: 'Deep, quiet reforestation pines with wide sandy trails — the meditative forest walk when the river trails feel too social.',
       tip: 'Nearly flat throughout: a good winter-boot or first-snowshoe venue.',
-      best: 'Winter, high summer', ages: 'all ages', cost: 'FREE', maps: 'Bendor and Graves Tract York Regional Forest'
+      best: 'Winter, high summer', ages: 'all ages', cost: 'FREE', access: 'Free trailhead lot · no facilities · wide sandy trails', maps: 'Bendor and Graves Tract York Regional Forest'
     }
+  ],
+
+  quick: [
+    { have: '3 perfect hours', plan: 'Fairy Lake loop, the boardwalk stretch of the Nokiidaa north, and Main Street\'s café row up the hill. Newmarket\'s whole pitch in one morning.' },
+    { have: 'Half a day', plan: 'Bike or walk the Nokiidaa from Fairy Lake to Rogers Reservoir: marsh boardwalks, canal locks, herons — then back for ice cream.' },
+    { have: 'A full day', plan: 'The river spine end to end, a picnic at the locks, then Sheppard\'s Bush and Case Woodlot in Aurora for the forest finish.' },
+    { have: 'A rainy day', plan: 'The Ken Sturgeon valley trails (short, treed, close to downtown), the Old Town Hall district, and Fairy Lake\'s ducks — who consider rain excellent weather.' }
   ],
 
   trails: [
@@ -119,35 +126,35 @@ module.exports = {
       area: 'Aurora → Newmarket → Holland Landing',
       why: 'The river spine ridden whole: paved path and boardwalk from Aurora\'s trailheads through Fairy Lake and the marshes to Holland Landing — a genuinely beautiful ride you can scale to any fitness level.',
       tip: 'The swing bridge and marsh boardwalks demand a slow-roll — savour, don\'t sprint.',
-      route: '~20 km one-way · paved & boardwalk', best: 'Any green month', ages: '8+ riding', cost: 'FREE', maps: 'Nokiidaa Trail'
+      route: '~20 km one-way · paved & boardwalk', best: 'Any green month', ages: '8+ riding', cost: 'FREE', access: 'Start at any trailhead lot · paved & boardwalk · all bikes', maps: 'Nokiidaa Trail'
     },
     {
       name: 'Tom Taylor Trail town loop',
       area: 'Central Newmarket',
       why: 'The in-town walking circuit along the river and old canal works — flat, connected, and the reason half of Newmarket has a daily-walk habit.',
       tip: 'Fairy Lake to the canal locks and back is the classic hour.',
-      route: '~7 km · paved', best: 'All seasons', ages: 'all ages', cost: 'FREE', maps: 'Tom Taylor Trail Newmarket'
+      route: '~7 km · paved', best: 'All seasons', ages: 'all ages', cost: 'FREE', access: 'Downtown lots · paved throughout · every wheel', maps: 'Tom Taylor Trail Newmarket'
     },
     {
       name: 'Thornton Bales stair loops',
       area: 'King (15 min)',
       why: 'The 99 steps down into the mossy ravine, then looping trails through fern-floored forest — the area\'s best short-steep hike, over in ninety satisfying minutes.',
       tip: 'Rooty footing: real shoes, and take the stairs seriously in wet weather.',
-      route: '2–4 km loops · dirt & stairs', best: 'Fall colour', ages: '6+', cost: 'FREE', maps: 'Thornton Bales Conservation Area'
+      route: '2–4 km loops · dirt & stairs', best: 'Fall colour', ages: '6+', cost: 'FREE', access: 'Small roadside lot · no facilities · stairs and roots', maps: 'Thornton Bales Conservation Area'
     },
     {
       name: 'Sheppard\'s Bush & Case Woodlot circuit',
       area: 'Aurora (10 min)',
       why: 'Two conservation woods a sideroad apart: sugar-bush boardwalks at Sheppard\'s, cathedral hardwoods and May trilliums at Case — together a perfect unhurried forest morning.',
       tip: 'Do Case first in trillium season; the light is better before noon.',
-      route: '~5 km combined · dirt & boardwalk', best: 'Spring', ages: 'all ages', cost: 'FREE', maps: 'Sheppard\'s Bush Aurora'
+      route: '~5 km combined · dirt & boardwalk', best: 'Spring', ages: 'all ages', cost: 'FREE', access: 'Free lot at Sheppard\'s · roadside at Case · dirt & boardwalk', maps: 'Sheppard\'s Bush Aurora'
     },
     {
       name: 'Rogers Reservoir flats',
       area: 'East Gwillimbury',
       why: 'Flat gravel loops around the old canal reservoir — pram-friendly, bike-friendly, and full of herons, with the lock ruins as the turnaround landmark.',
       tip: 'Connects straight onto the Nokiidaa for extending north or south.',
-      route: '~4 km loops · gravel', best: 'Spring & summer', ages: 'all ages', cost: 'FREE', maps: 'Rogers Reservoir East Gwillimbury'
+      route: '~4 km loops · gravel', best: 'Spring & summer', ages: 'all ages', cost: 'FREE', access: 'Free lots · outhouse at trailhead · pram-friendly gravel', maps: 'Rogers Reservoir East Gwillimbury'
     }
   ],
 
@@ -157,28 +164,28 @@ module.exports = {
       area: 'Downtown Newmarket',
       why: 'From the main footbridge the lake, willows, and old mill town arrange themselves into Newmarket\'s postcard — the view that sells the town to visiting relatives.',
       tip: 'Festival evenings add lanterns and music; quiet mornings add mist.',
-      best: 'Golden hour', ages: 'all ages', cost: 'FREE', maps: 'Fairy Lake Newmarket'
+      best: 'Golden hour', ages: 'all ages', cost: 'FREE', access: 'Steps from the lots · paved · level', maps: 'Fairy Lake Newmarket'
     },
     {
       name: 'Top of the 99 steps',
       area: 'Thornton Bales, King',
       why: 'Before you descend, the staircase frames the ravine below like a green well — the region\'s most dramatic single trailhead moment.',
       tip: 'October turns the frame amber; go mid-month.',
-      best: 'Mid-October', ages: '6+', cost: 'FREE', maps: 'Thornton Bales 99 steps'
+      best: 'Mid-October', ages: '6+', cost: 'FREE', access: 'Roadside lot · the stairs are the terrain', maps: 'Thornton Bales 99 steps'
     },
     {
       name: 'Holland Marsh big sky',
       area: 'Canal roads, Bradford fringe',
       why: 'Dead-flat black earth to the horizon under enormous sky — the closest thing Ontario has to prairie light, twenty minutes from Main Street.',
       tip: 'Storm fronts crossing the marsh are the dramatic version; harvest dust at sunset is the gentle one.',
-      best: 'Sunset, Aug–Sep', ages: 'all ages', cost: 'FREE', maps: 'Holland Marsh'
+      best: 'Sunset, Aug–Sep', ages: 'all ages', cost: 'FREE', access: 'Roadside pull-offs · car country · flat', maps: 'Holland Marsh'
     },
     {
       name: 'George Richardson floodplain',
       area: 'North Newmarket',
       why: 'The river valley opens wide enough here for real sightlines — kite sky in summer, toboggan amphitheatre in winter, and the town\'s best cloud-watching lawn year-round.',
       tip: 'The gazebo rise is the vantage.',
-      best: 'Summer evenings', ages: 'all ages', cost: 'FREE', maps: 'George Richardson Park Newmarket'
+      best: 'Summer evenings', ages: 'all ages', cost: 'FREE', access: 'Free lots · flat lawns · easy grades', maps: 'George Richardson Park Newmarket'
     }
   ],
 
@@ -188,28 +195,28 @@ module.exports = {
       area: 'Downtown Newmarket',
       why: 'The mill pond\'s treed banks, duck flotillas, and footbridges make it the town\'s default water fix — ten minutes or two hours, it absorbs whatever time you give it.',
       tip: 'The quieter south bank gets the herons.',
-      best: 'All seasons', ages: 'all ages', cost: 'FREE', maps: 'Fairy Lake Newmarket'
+      best: 'All seasons', ages: 'all ages', cost: 'FREE', access: 'Free lots · paved bank paths · stroller ok', maps: 'Fairy Lake Newmarket'
     },
     {
       name: 'Holland River canal reach',
       area: 'Rogers Reservoir, East Gwillimbury',
       why: 'The abandoned canal\'s slack water between century-old locks — slow, reedy, turtle-rich, and haunted in the best way by the ghost of a canal that never opened.',
       tip: 'The interpretive signs make the doomed-canal story worth the stop alone.',
-      best: 'Late spring', ages: 'all ages', cost: 'FREE', maps: 'Rogers Reservoir locks'
+      best: 'Late spring', ages: 'all ages', cost: 'FREE', access: 'Rogers Reservoir lots · flat gravel banks', maps: 'Rogers Reservoir locks'
     },
     {
       name: 'Wesley Brooks wetlands',
       area: 'Around Fairy Lake',
       why: 'The conservation lands wrap the lake in cattail and silver-maple swamp, boardwalked where it\'s wettest — spring peepers, painted turtles, and red-wings at arm\'s length.',
       tip: 'Dusk in early May for the frog chorus at full volume.',
-      best: 'May', ages: 'all ages', cost: 'FREE', maps: 'Wesley Brooks Conservation Area'
+      best: 'May', ages: 'all ages', cost: 'FREE', access: 'Fairy Lake lots · boardwalk over the wet bits', maps: 'Wesley Brooks Conservation Area'
     },
     {
       name: 'Scanlon Creek reservoir',
       area: 'Bradford (15 min)',
       why: 'A proper conservation-area reservoir with treed banks and boardwalk wetland at its head — the upgrade water when the in-town ponds feel small.',
       tip: 'Combine with a Holland Marsh stand run in harvest season.',
-      best: 'Summer, early fall', ages: 'all ages', cost: 'FREE–$', maps: 'Scanlon Creek Conservation Area'
+      best: 'Summer, early fall', ages: 'all ages', cost: 'FREE–$', access: 'Lot at gate · easy bank trails · washrooms at centre', maps: 'Scanlon Creek Conservation Area'
     }
   ],
 
@@ -219,28 +226,28 @@ module.exports = {
       area: 'Downtown Newmarket',
       why: 'Panfish water in the heart of town with easy grassy banks — and a beloved local tradition of spring trout stocking that gives kids a real shot at a real fish.',
       tip: 'The dam end fishes best; check the town\'s notices for family fishing events.',
-      best: 'Spring & summer', ages: 'all ages', cost: 'FREE', maps: 'Fairy Lake Newmarket fishing'
+      best: 'Spring & summer', ages: 'all ages', cost: 'FREE', access: 'Free lots · grassy banks · easy family footing', maps: 'Fairy Lake Newmarket fishing'
     },
     {
       name: 'Holland River, lower reaches',
       area: 'Holland Landing northward',
       why: 'As the river deepens toward Cook\'s Bay it becomes genuine warm-water fish habitat — pike and bass country worked from bank access points along the valley.',
       tip: 'The confluence areas near Holland Landing are the local starting point.',
-      best: 'Jun–Sep', ages: '8+', cost: 'FREE', maps: 'Holland River Holland Landing'
+      best: 'Jun–Sep', ages: '8+', cost: 'FREE', access: 'Roadside access points · natural banks · rubber boots help', maps: 'Holland River Holland Landing'
     },
     {
       name: 'Rogers Reservoir',
       area: 'East Gwillimbury',
       why: 'Slack canal water with easy flat banks — a quiet panfish venue where the fishing is half the point and the herons doing it better are the other half.',
       tip: 'Light line, small presentations, evening calm.',
-      best: 'Summer evenings', ages: 'all ages', cost: 'FREE', maps: 'Rogers Reservoir East Gwillimbury'
+      best: 'Summer evenings', ages: 'all ages', cost: 'FREE', access: 'Free lots · flat banks · short walk from car', maps: 'Rogers Reservoir East Gwillimbury'
     },
     {
       name: 'Cook\'s Bay access',
       area: 'Keswick south shore (20 min)',
       why: 'The nearest big-lake fishing: Cook\'s Bay\'s weedy shallows are famous perch and pike water, with public shore access points along the Keswick side — and a legendary ice-hut scene in deep winter.',
       tip: 'Winter ice fishing only with licensed hut operators — never freelance on lake ice.',
-      best: 'Summer & hard-water season', ages: '8+', cost: 'FREE–$$', maps: 'Cook\'s Bay Keswick fishing'
+      best: 'Summer & hard-water season', ages: '8+', cost: 'FREE–$$', access: 'Public shore points off Keswick roads · roadside parking', maps: 'Cook\'s Bay Keswick fishing'
     }
   ],
 

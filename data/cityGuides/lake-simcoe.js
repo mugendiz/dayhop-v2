@@ -15,91 +15,91 @@ module.exports = {
       area: 'Jackson\'s Point, Georgina',
       why: 'The lake\'s classic provincial park: a long sand beach under old hardwoods, a historic manor museum, and campgrounds that book out for a reason. The swimming is the south shore\'s best.',
       tip: 'Day-use fills on summer weekends — arrive early or reserve day-use ahead through Ontario Parks.',
-      best: 'Jun–Sep', ages: 'all ages', cost: '$$ (park entry)', maps: 'Sibbald Point Provincial Park'
+      best: 'Jun–Sep', ages: 'all ages', cost: '$$ (park entry)', access: 'Park entry per vehicle · washrooms & showers · sandy paths', maps: 'Sibbald Point Provincial Park'
     },
     {
       name: 'Willow Beach Conservation Area',
       area: 'Georgina, west of Jackson\'s Point',
       why: 'A quieter, treed swimming beach run by the conservation authority — the local-knowledge alternative when Sibbald\'s lots are full.',
       tip: 'Seasonal entry fees; shade arrives with the mature willows the name promises.',
-      best: 'Summer', ages: 'all ages', cost: '$', maps: 'Willow Beach Conservation Area Georgina'
+      best: 'Summer', ages: 'all ages', cost: '$', access: 'Seasonal entry fee · washrooms in season · level beach access', maps: 'Willow Beach Conservation Area Georgina'
     },
     {
       name: 'De La Salle Park & beach',
       area: 'Jackson\'s Point, Georgina',
       why: 'A gentle public beach with a long pier, picnic lawns, and the unhurried Jackson\'s Point cottage-town feel — ice cream within walking distance, sunsets over open water.',
       tip: 'The pier at dusk is the Georgina photo.',
-      best: 'Summer evenings', ages: 'all ages', cost: 'FREE–$ (parking)', maps: 'De La Salle Park Georgina'
+      best: 'Summer evenings', ages: 'all ages', cost: 'FREE–$ (parking)', access: 'Free-to-modest parking · washrooms in season · flat lawns and pier', maps: 'De La Salle Park Georgina'
     },
     {
       name: 'ROC Georgina trails',
       area: 'Civic Centre Rd, Keswick',
       why: 'Georgina\'s recreation hill wrapped in forest trails — tubing and skating in winter, treetop trekking and quiet woods walking in the green months. The utility infielder of this guide.',
       tip: 'Activity pricing varies by season; the trails themselves are a free wander.',
-      best: 'Winter tubing, fall walks', ages: 'all ages', cost: 'FREE–$$', maps: 'The ROC Georgina'
+      best: 'Winter tubing, fall walks', ages: 'all ages', cost: 'FREE–$$', access: 'Big free lot · washrooms at chalet · groomed trails', maps: 'The ROC Georgina'
     },
     {
       name: 'Innisfil Beach Park',
       area: 'Innisfil, Cook\'s Bay east shore',
       why: 'A kilometre of groomed public lakefront on Cook\'s Bay\'s warm shallows: swim areas, picnic groves, a fishing pier, and winter ice-fishing villages offshore. The most facilities-rich free-spirited beach day on the lake.',
       tip: 'Non-resident parking is paid and enforced — book/pay via the town system before you drive.',
-      best: 'Summer; ice-hut season Jan–Feb', ages: 'all ages', cost: '$–$$ (parking)', maps: 'Innisfil Beach Park'
+      best: 'Summer; ice-hut season Jan–Feb', ages: 'all ages', cost: '$–$$ (parking)', access: 'Paid non-resident parking — book ahead · washrooms on site · paved paths', maps: 'Innisfil Beach Park'
     },
     {
       name: 'Barrie waterfront — Centennial Beach & North Shore Trail',
       area: 'Kempenfelt Bay, Barrie',
       why: 'A city-sized waterfront done well: sandy Centennial Beach, a bayside promenade, and the North Shore Trail curling toward Johnson\'s Beach under bluffs. Deep, clear Kempenfelt water — brisker and bluer than the south shore.',
       tip: 'Walk the full arc from Spirit Catcher to Johnson\'s Beach for the best of the bay.',
-      best: 'Summer swims, four-season walking', ages: 'all ages', cost: 'FREE (paid lots)', maps: 'Centennial Beach Barrie'
+      best: 'Summer swims, four-season walking', ages: 'all ages', cost: 'FREE (paid lots)', access: 'Paid city lots · washrooms along the bay · fully paved promenade', maps: 'Centennial Beach Barrie'
     },
     {
       name: 'Tiffin Centre / Minesing edge boardwalks',
       area: 'West of Barrie (20 min from the bay)',
       why: 'The Nottawasaga authority\'s conservation campus at the rim of Minesing Wetlands — one of Ontario\'s great swamps. Boardwalks, forest loops, and serious spring birding without the expedition logistics.',
       tip: 'Check event/fee details with the conservation authority; spring flood season is the spectacle.',
-      best: 'Spring', ages: 'all ages', cost: '$', maps: 'Tiffin Centre for Conservation'
+      best: 'Spring', ages: 'all ages', cost: '$', access: 'Lot on site · washrooms at centre · boardwalk & forest loops', maps: 'Tiffin Centre for Conservation'
     },
     {
       name: 'Scanlon Creek Conservation Area',
       area: 'Bradford, Holland Marsh rim',
       why: 'Reservoir, hardwood loops, and boardwalk wetland at the lake watershed\'s southern gate — the closest "real conservation area" to the Hwy 400 corridor communities.',
       tip: 'A reliable shoulder-season pick when the beaches are out of season.',
-      best: 'Fall colour, early summer', ages: 'all ages', cost: 'FREE–$', maps: 'Scanlon Creek Conservation Area'
+      best: 'Fall colour, early summer', ages: 'all ages', cost: 'FREE–$', access: 'Lot at gate (seasonal fee) · washrooms at centre · easy loops', maps: 'Scanlon Creek Conservation Area'
     },
     {
       name: 'Holland Marsh canal roads',
       area: 'Bradford / Ansnorveldt',
       why: 'The lake\'s farm country: black-earth fields to the horizon, arrow-straight canals, and harvest stands from July on. Big-sky cycling and slow-drive territory feeding into Cook\'s Bay.',
       tip: 'August–September is stand season — bring a cooler and small bills.',
-      best: 'Harvest (Aug–Sep)', ages: 'all ages', cost: 'FREE–$', maps: 'Holland Marsh'
+      best: 'Harvest (Aug–Sep)', ages: 'all ages', cost: 'FREE–$', access: 'Farm-stand pull-offs · car or bike only · flat gravel roads', maps: 'Holland Marsh'
     },
     {
       name: 'Mara Provincial Park',
       area: 'East shore, south of Orillia',
       why: 'A day-tripper\'s park: shallow, warm, sandy-bottomed swimming with picnic forest right behind the beach. Gentle grades everywhere make it the easiest all-ages park on the lake.',
       tip: 'Pairs with McRae Point ten minutes on; Ontario Parks day-use rules apply to both.',
-      best: 'Jul–Aug', ages: 'all ages', cost: '$$', maps: 'Mara Provincial Park'
+      best: 'Jul–Aug', ages: 'all ages', cost: '$$', access: 'Park entry per vehicle · washrooms at beach · gentle grades everywhere', maps: 'Mara Provincial Park'
     },
     {
       name: 'McRae Point Provincial Park',
       area: 'East shore, south of Orillia',
       why: 'Mara\'s quieter sibling on its own point: long shoreline, big picnic meadows, and sightlines down the open lake that make an afternoon feel like a holiday.',
       tip: 'The point\'s west-facing shore takes the sunset.',
-      best: 'Summer, golden hour', ages: 'all ages', cost: '$$', maps: 'McRae Point Provincial Park'
+      best: 'Summer, golden hour', ages: 'all ages', cost: '$$', access: 'Park entry per vehicle · washrooms on site · level shore paths', maps: 'McRae Point Provincial Park'
     },
     {
       name: 'Beaverton harbour & Harbour Park',
       area: 'Beaverton, east shore',
       why: 'A working small-town harbour with a lighthouse-tipped pier walk, swimming area, and the east shore\'s unhurried pace — the antidote to managed-beach logistics.',
       tip: 'Walk the pier at dusk; chip trucks in season complete the ritual.',
-      best: 'Summer evenings', ages: 'all ages', cost: 'FREE', maps: 'Beaverton Harbour Park'
+      best: 'Summer evenings', ages: 'all ages', cost: 'FREE', access: 'Free harbour lots · washrooms in season · flat pier walk', maps: 'Beaverton Harbour Park'
     },
     {
       name: 'Pefferlaw & Uxbridge Brook mouth wanders',
       area: 'Pefferlaw, Georgina east',
       why: 'The in-between shore: river-mouth marsh, quiet road-end water views, and the cottage-lane cycling that the busy south beaches make you forget the lake still has.',
       tip: 'Respect road-end parking signage; this is neighbourly territory.',
-      best: 'Any green month', ages: 'all ages', cost: 'FREE', maps: 'Pefferlaw Ontario'
+      best: 'Any green month', ages: 'all ages', cost: 'FREE', access: 'Respect road-end signage · roadside only · natural banks', maps: 'Pefferlaw Ontario'
     }
   ],
 
@@ -109,22 +109,29 @@ module.exports = {
       area: 'King, south of the marsh (25 min from Bradford)',
       why: 'The moraine staircase ravine ("the 99 steps") — the region\'s best short-steep forest hit on the way to or from the lake.',
       tip: 'Cool, mossy, and shaded: a smart heat-day detour.',
-      best: 'Fall', ages: '6+', cost: 'FREE', maps: 'Thornton Bales Conservation Area King'
+      best: 'Fall', ages: '6+', cost: 'FREE', access: 'Small roadside lot · no facilities · steep stairs', maps: 'Thornton Bales Conservation Area King'
     },
     {
       name: 'Springwater & the Barrie-area forest tracts',
       area: 'Midhurst, north of Barrie (15 min)',
       why: 'Tall-pine forest walking with interpretive wildlife enclosures at Springwater\'s day-use heart — the lake day\'s forest counterweight.',
       tip: 'Check current operating status/fees before relying on facilities.',
-      best: 'Winter and shoulder seasons', ages: 'all ages', cost: 'FREE–$', maps: 'Springwater Provincial Park'
+      best: 'Winter and shoulder seasons', ages: 'all ages', cost: 'FREE–$', access: 'Day-use lots · check facilities status · flat pine trails', maps: 'Springwater Provincial Park'
     },
     {
       name: 'Orillia\'s Couchiching waterfront',
       area: 'Orillia (10 min past Mara)',
       why: 'Where Simcoe hands off to Couchiching: a boardwalk-and-parks waterfront with the Island Princess cruise dock and a proper downtown for post-beach dinner.',
       tip: 'Combine Mara/McRae swimming with an Orillia evening for the full east-shore day.',
-      best: 'Summer', ages: 'all ages', cost: 'FREE', maps: 'Couchiching Beach Park Orillia'
+      best: 'Summer', ages: 'all ages', cost: 'FREE', access: 'City lots downtown · washrooms in parks · paved boardwalk', maps: 'Couchiching Beach Park Orillia'
     }
+  ],
+
+  quick: [
+    { have: '3 perfect hours', plan: 'Barrie\'s North Shore Trail to Johnson\'s Beach and back — Kempenfelt\'s blue the whole way — with a waterfront patio finish.' },
+    { have: 'Half a day', plan: 'Sibbald Point: swim, hardwood shade, and the manor grounds — then Jackson\'s Point pier and ice cream in town.' },
+    { have: 'A full day', plan: 'The south shore Saturday: Sibbald in the morning, De La Salle\'s pier at midday, Willow Beach or the ROC\'s trails after, sunset back on the pier.' },
+    { have: 'A rainy day', plan: 'Scanlon Creek\'s treed loops handle drizzle, the Holland Marsh canal roads are a fine slow drive, and Barrie\'s waterfront cafés watch the weather cross the bay.' }
   ],
 
   trails: [
@@ -133,35 +140,35 @@ module.exports = {
       area: 'Barrie waterfront eastward',
       why: 'The bay\'s prettiest miles: a paved shoreline path from downtown Barrie toward Johnson\'s Beach under bluffs, with deep blue water the whole way.',
       tip: 'Out to Johnson\'s Beach and back is the classic; extend along the waterfront for more.',
-      route: '~9 km return · paved', best: 'All seasons', ages: 'all ages', cost: 'FREE', maps: 'North Shore Trail Barrie'
+      route: '~9 km return · paved', best: 'All seasons', ages: 'all ages', cost: 'FREE', access: 'City lots at both ends · fully paved · every wheel', maps: 'North Shore Trail Barrie'
     },
     {
       name: 'Oro-Medonte Rail Trail',
       area: 'Barrie toward Orillia',
       why: 'The old rail line runs the lake\'s northwest shore for a flat, quiet, tree-lined ride — lake glimpses, farm crossings, and barely a car the entire way.',
       tip: 'Ride out from the Barrie end and turn around at your halfway snack.',
-      route: 'up to ~35 km one-way · gravel', best: 'Summer & fall', ages: '8+ riding', cost: 'FREE', maps: 'Oro-Medonte Rail Trail'
+      route: 'up to ~35 km one-way · gravel', best: 'Summer & fall', ages: '8+ riding', cost: 'FREE', access: 'Trailhead lots along the line · outhouses at some access points · gravel', maps: 'Oro-Medonte Rail Trail'
     },
     {
       name: 'Ardagh Bluffs loops',
       area: 'Southwest Barrie',
       why: 'Eight kilometres of forest trail winding through wooded ravines and upland bluffs inside Barrie\'s city limits — the area\'s best plain-woods hiking surprise.',
       tip: 'Well-marked junctions; the outer loop gives the full tour.',
-      route: '~8 km network · dirt', best: 'Fall', ages: '6+', cost: 'FREE', maps: 'Ardagh Bluffs Barrie'
+      route: '~8 km network · dirt', best: 'Fall', ages: '6+', cost: 'FREE', access: 'Neighbourhood trailhead parking · no facilities · dirt network', maps: 'Ardagh Bluffs Barrie'
     },
     {
       name: 'Georgina rail trail',
       area: 'Sutton & the south shore hinterland',
       why: 'The south shore\'s long flat line: an old rail corridor through farm and forest that cyclists use to link the beach towns without touching highway.',
       tip: 'Pair a morning ride with an afternoon swim at Sibbald or De La Salle.',
-      route: 'long flat sections · gravel', best: 'Summer', ages: '8+ riding', cost: 'FREE', maps: 'Sutton rail trail Georgina'
+      route: 'long flat sections · gravel', best: 'Summer', ages: '8+ riding', cost: 'FREE', access: 'Trailhead parking in Sutton · flat gravel · all bikes', maps: 'Sutton rail trail Georgina'
     },
     {
       name: 'Beaver River Wetland Trail',
       area: 'Beaverton inland',
       why: 'A rail-trail across genuine wetland east of the lake — flat, remote-feeling, and thick with herons and turtles where the old line crosses the river.',
       tip: 'The Beaverton trailhead makes an easy out-and-back before a harbour dinner.',
-      route: 'out & back · crushed stone', best: 'Spring & summer', ages: 'all ages', cost: 'FREE', maps: 'Beaver River Wetland Trail Beaverton'
+      route: 'out & back · crushed stone', best: 'Spring & summer', ages: 'all ages', cost: 'FREE', access: 'Beaverton trailhead lot · crushed stone · level', maps: 'Beaver River Wetland Trail Beaverton'
     }
   ],
 
@@ -171,28 +178,28 @@ module.exports = {
       area: 'East Barrie, Kempenfelt Bay',
       why: 'Where the North Shore Trail meets the water, the whole deep-blue bay opens back toward the city — Kempenfelt\'s moody, big-water look at its best.',
       tip: 'Storm-light afternoons are spectacular here.',
-      best: 'Dramatic-sky days', ages: 'all ages', cost: 'FREE', maps: 'Johnsons Beach Barrie'
+      best: 'Dramatic-sky days', ages: 'all ages', cost: 'FREE', access: 'Free lot at beach · paved to the point', maps: 'Johnsons Beach Barrie'
     },
     {
       name: 'De La Salle pier end',
       area: 'Jackson\'s Point',
       why: 'Walk the long pier and the south shore\'s classic sunset arranges itself — open water west, cottage lights behind, the lake doing its nightly performance.',
       tip: 'The chip truck before, the pier after: the Georgina evening liturgy.',
-      best: 'Sunset', ages: 'all ages', cost: 'FREE–$ (parking)', maps: 'De La Salle Park pier Georgina'
+      best: 'Sunset', ages: 'all ages', cost: 'FREE–$ (parking)', access: 'Park lots · flat pier · benches en route', maps: 'De La Salle Park pier Georgina'
     },
     {
       name: 'McRae Point west shore',
       area: 'East shore, near Orillia',
       why: 'The point faces the open lake dead-west — sunset over water with nothing between you and the horizon but sail traffic heading home.',
       tip: 'Park day-use rules apply; golden hour is worth planning the day around.',
-      best: 'Golden hour', ages: 'all ages', cost: '$$', maps: 'McRae Point Provincial Park'
+      best: 'Golden hour', ages: 'all ages', cost: '$$', access: 'Park entry · short level walk from lots', maps: 'McRae Point Provincial Park'
     },
     {
       name: 'Beaverton lighthouse pier',
       area: 'Beaverton harbour',
       why: 'The east shore\'s honest little panorama: harbour, lighthouse, and the lake\'s longest fetch stretching west — unhurried in a way the south shore forgot.',
       tip: 'Evening light lands on the lighthouse face.',
-      best: 'Summer evenings', ages: 'all ages', cost: 'FREE', maps: 'Beaverton Harbour Park'
+      best: 'Summer evenings', ages: 'all ages', cost: 'FREE', access: 'Free harbour lots · flat walk · benches', maps: 'Beaverton Harbour Park'
     }
   ],
 
@@ -202,28 +209,28 @@ module.exports = {
       area: 'Innisfil & Keswick shores',
       why: 'The lake\'s warm, sheltered arm: launch from the public parks and work the weedy shoreline by canoe, kayak, or board — calm water, cottages, and osprey overhead.',
       tip: 'Mornings before the boat traffic wakes are the good hours.',
-      best: 'Summer mornings', ages: '8+', cost: 'FREE–$ (launch/parking)', maps: 'Innisfil Beach Park boat launch'
+      best: 'Summer mornings', ages: '8+', cost: 'FREE–$ (launch/parking)', access: 'Launches at Innisfil & Keswick parks · fees vary · carry-in ok', maps: 'Innisfil Beach Park boat launch'
     },
     {
       name: 'Holland River mouth marshes',
       area: 'South end of Cook\'s Bay',
       why: 'Where the marsh\'s river fans into the bay: reed channels, teeming birdlife, and slow paddling that feels a century removed from the highway ten minutes away.',
       tip: 'Bring the binoculars — this is the bay\'s birdiest corner.',
-      best: 'Spring & early summer', ages: '8+', cost: 'FREE', maps: 'Holland River mouth Cook\'s Bay'
+      best: 'Spring & early summer', ages: '8+', cost: 'FREE', access: 'Launch from Cook\'s Bay parks · reedy shallows · own boat', maps: 'Holland River mouth Cook\'s Bay'
     },
     {
       name: 'Kempenfelt deep-water swims',
       area: 'Barrie waterfront beaches',
       why: 'The bay\'s depth keeps its water clear and bracing — Centennial and Johnson\'s give proper refreshing swims when the shallow south-shore beaches turn bath-warm.',
       tip: 'The drop-off comes quick; strong swimmers\' water past the buoys.',
-      best: 'Jul–Aug', ages: 'all ages', cost: 'FREE (paid lots)', maps: 'Centennial Beach Barrie'
+      best: 'Jul–Aug', ages: 'all ages', cost: 'FREE (paid lots)', access: 'Paid city lots · lifeguard zones in season · sandy entries', maps: 'Centennial Beach Barrie'
     },
     {
       name: 'Trent-Severn at Gamebridge',
       area: 'Talbot River, northeast corner',
       why: 'The historic waterway enters the lake through the Talbot River locks — watch boats stair-step through, walk the lock lawns, and picnic on canal-era infrastructure.',
       tip: 'Lock operating season runs roughly May through October.',
-      best: 'Summer', ages: 'all ages', cost: 'FREE', maps: 'Lock 41 Gamebridge Trent Severn'
+      best: 'Summer', ages: 'all ages', cost: 'FREE', access: 'Free lock-station lot · washrooms in season · flat lawns', maps: 'Lock 41 Gamebridge Trent Severn'
     }
   ],
 
@@ -233,28 +240,28 @@ module.exports = {
       area: 'Cook\'s Bay',
       why: 'Lake Simcoe is one of Canada\'s great perch lakes, and this pier is its most accessible perch water — family fishing with facilities a sand-toss away.',
       tip: 'Small jigs tipped simple; the perch schools do the rest.',
-      best: 'Summer; famous hard-water Jan–Feb', ages: 'all ages', cost: '$–$$ (parking)', maps: 'Innisfil Beach Park pier'
+      best: 'Summer; famous hard-water Jan–Feb', ages: 'all ages', cost: '$–$$ (parking)', access: 'Paid parking — book ahead · pier is level · washrooms on site', maps: 'Innisfil Beach Park pier'
     },
     {
       name: 'Beaverton harbour & pier',
       area: 'East shore',
       why: 'The working harbour\'s pier and river mouth hold perch, bass, and pike in rotation — the east shore\'s dependable line-wetting venue with the lighthouse as scenery.',
       tip: 'The river-mouth side wakes up in spring.',
-      best: 'Spring through fall', ages: 'all ages', cost: 'FREE', maps: 'Beaverton pier fishing'
+      best: 'Spring through fall', ages: 'all ages', cost: 'FREE', access: 'Free lots · easy pier casting', maps: 'Beaverton pier fishing'
     },
     {
       name: 'Cook\'s Bay weedlines',
       area: 'Keswick shore access points',
       why: 'The bay\'s shallow weed flats are storied pike and perch habitat — worked from shore points in the open season and from Ontario\'s most famous ice-hut villages in deep winter.',
       tip: 'Hard-water season: go with licensed hut operators only — never freelance on lake ice.',
-      best: 'Summer & Jan–Feb', ages: '8+', cost: 'FREE–$$', maps: 'Cook\'s Bay Keswick fishing'
+      best: 'Summer & Jan–Feb', ages: '8+', cost: 'FREE–$$', access: 'Shore points off Keswick roads · roadside parking', maps: 'Cook\'s Bay Keswick fishing'
     },
     {
       name: 'Sibbald Point shore',
       area: 'Georgina',
       why: 'Between swims, the park\'s rockier margins give honest bass-and-panfish casting — and provincial-park infrastructure means the whole family day works around the rod.',
       tip: 'Dawn, before the beach crowd, is the fishing window.',
-      best: 'Jun–Sep', ages: 'all ages', cost: '$$ (park entry)', maps: 'Sibbald Point Provincial Park'
+      best: 'Jun–Sep', ages: 'all ages', cost: '$$ (park entry)', access: 'Park entry per vehicle · rocky margins — sure feet', maps: 'Sibbald Point Provincial Park'
     }
   ],
 
