@@ -151,4 +151,48 @@ router.get('/download', async (req, res) => {
   }
 });
 
+// Admin: mint a promotion code for the guides (launch promos, partner codes).
+// The server holds the live Stripe key, so the operator never has to handle
+// it — POST with the x-admin-key header (or a signed-in admin session):
+//   { code, percent_off, max_redemptions?, expires_at? (unix seconds) }
+// Idempotent on the code: if an active promotion code already exists under
+// that code, it is returned instead of duplicated.
+router.post('/promo', async (req, res) => {
+  if (!isAdminReq(req)) return res.status(403).json({ error: 'FORBIDDEN' });
+  const stripe = getStripe();
+  if (!stripe) return res.status(503).json({ error: 'NOT_CONFIGURED' });
+
+  const body = req.body || {};
+  const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
+  const percentOff = Number(body.percent_off);
+  const maxRedemptions = Number.isInteger(body.max_redemptions) && body.max_redemptions > 0
+    ? body.max_redemptions : undefined;
+  const expiresAt = Number.isInteger(body.expires_at) && body.expires_at > Date.now() / 1000
+    ? body.expires_at : undefined;
+  if (!/^[A-Z0-9]{3,20}$/.test(code)) {
+    return res.status(400).json({ error: 'BAD_CODE', message: 'Code must be 3-20 letters/digits.' });
+  }
+  if (!(percentOff > 0 && percentOff <= 100)) {
+    return res.status(400).json({ error: 'BAD_PERCENT', message: 'percent_off must be 1-100.' });
+  }
+  try {
+    const existing = await stripe.promotionCodes.list({ code, active: true, limit: 1 });
+    if (existing.data.length) {
+      const p = existing.data[0];
+      return res.json({ existed: true, promotion_code_id: p.id, code: p.code, coupon_id: p.coupon.id, percent_off: p.coupon.percent_off, max_redemptions: p.max_redemptions, expires_at: p.expires_at });
+    }
+    const coupon = await stripe.coupons.create({ percent_off: percentOff, duration: 'once', name: code });
+    const promo = await stripe.promotionCodes.create({
+      coupon: coupon.id,
+      code,
+      max_redemptions: maxRedemptions,
+      expires_at: expiresAt
+    });
+    res.json({ existed: false, promotion_code_id: promo.id, code: promo.code, coupon_id: coupon.id, percent_off: percentOff, max_redemptions: promo.max_redemptions, expires_at: promo.expires_at });
+  } catch (err) {
+    console.error('[city-guides] promo create failed:', err.message);
+    res.status(502).json({ error: 'PROMO_FAILED', message: err.message });
+  }
+});
+
 module.exports = router;
