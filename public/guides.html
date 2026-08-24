@@ -40,15 +40,18 @@
     .faq p { color: var(--ink-soft); font-size: .93rem; max-width: 70ch; }
     footer { text-align: center; color: var(--ink-soft); font-size: .82rem; padding: 24px; border-top: 1px solid var(--line); }
     .card.flash { outline: 3px solid var(--coral); }
-    /* Preview modal: first-page screenshot before checkout */
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(16, 42, 46, .55); display: none; align-items: center; justify-content: center; padding: 18px; z-index: 50; }
+    /* Preview modal IS the guide's first page: the rendered page fills the
+       dialog edge to edge, with only a floating close button and the
+       checkout bar beneath it. */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(16, 42, 46, .62); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
     .modal-backdrop.open { display: flex; }
-    .modal { background: #fff; border-radius: 16px; max-width: 420px; width: 100%; max-height: 92vh; overflow: auto; padding: 18px; position: relative; }
-    .modal h2 { font-size: 1.1rem; margin: 0 34px 10px 0; }
-    .modal img { width: 100%; border: 1px solid var(--line); border-radius: 8px; display: block; }
-    .modal .fine { margin-top: 8px; }
-    .modal .buy { width: 100%; margin-top: 12px; }
-    .modal-close { position: absolute; top: 10px; right: 10px; border: 0; background: var(--paper-dim); color: var(--ink); width: 32px; height: 32px; border-radius: 50%; font-size: 1rem; cursor: pointer; }
+    .modal { background: #fff; border-radius: 14px; max-width: 430px; width: 100%; max-height: 94vh; overflow: hidden; padding: 0; position: relative; display: flex; flex-direction: column; box-shadow: 0 18px 60px rgba(16, 42, 46, .35); }
+    .modal-page { flex: 1; min-height: 0; overflow: auto; }
+    .modal-page img { width: 100%; display: block; }
+    .modal-foot { padding: 12px 16px 14px; border-top: 1px solid var(--line); background: #fff; }
+    .modal-foot .buy { width: 100%; }
+    .modal-foot .fine { margin-top: 8px; text-align: center; }
+    .modal-close { position: absolute; top: 10px; right: 10px; z-index: 1; border: 0; background: rgba(255, 255, 255, .92); color: var(--ink); width: 34px; height: 34px; border-radius: 50%; font-size: 1rem; cursor: pointer; box-shadow: 0 2px 8px rgba(16, 42, 46, .25); }
   </style>
 </head>
 <body>
@@ -75,12 +78,13 @@
   <footer>DayHop · Richmond Hill, Ontario, Canada · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · admin@dayhop.quest</footer>
 
   <div class="modal-backdrop" id="preview-backdrop">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="preview-title">
+    <div class="modal" role="dialog" aria-modal="true" id="preview-dialog">
       <button class="modal-close" id="preview-close" type="button" aria-label="Close preview">✕</button>
-      <h2 id="preview-title"></h2>
-      <img id="preview-img" alt="First page of the guide" loading="lazy">
-      <button class="buy" id="preview-continue" type="button">Continue to checkout</button>
-      <p class="fine">Secure checkout by Stripe · instant PDF by email · free updated editions</p>
+      <div class="modal-page"><img id="preview-img" alt="First page of the guide" loading="lazy"></div>
+      <div class="modal-foot">
+        <button class="buy" id="preview-continue" type="button">Continue to checkout</button>
+        <p class="fine">Secure checkout by Stripe · instant PDF by email · free updated editions</p>
+      </div>
     </div>
   </div>
 
@@ -111,14 +115,15 @@
     // Preview modal: a first-page screenshot builds confidence before the
     // Stripe redirect (where the price is revealed).
     const backdrop = document.getElementById('preview-backdrop');
+    const previewDialog = document.getElementById('preview-dialog');
     const previewImg = document.getElementById('preview-img');
-    const previewTitle = document.getElementById('preview-title');
     const continueBtn = document.getElementById('preview-continue');
     let previewSlug = null;
 
     function openPreview(g) {
       previewSlug = g.slug;
-      previewTitle.textContent = g.title;
+      previewDialog.setAttribute('aria-label', g.title + ' — first page preview');
+      previewImg.alt = 'First page of ' + g.title;
       previewImg.src = '/img/guide-previews/' + g.slug + '.png';
       previewImg.hidden = false;
       // No screenshot for this guide? Fail soft: modal still works as a
