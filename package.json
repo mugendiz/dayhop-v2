@@ -25,7 +25,8 @@
     "stripe": "^22.3.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4"
+    "nodemon": "^3.1.4",
+    "pdf-to-img": "^6.2.0"
   },
   "engines": {
     "node": ">=18.0.0"

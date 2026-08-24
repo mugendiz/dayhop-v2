@@ -40,6 +40,15 @@
     .faq p { color: var(--ink-soft); font-size: .93rem; max-width: 70ch; }
     footer { text-align: center; color: var(--ink-soft); font-size: .82rem; padding: 24px; border-top: 1px solid var(--line); }
     .card.flash { outline: 3px solid var(--coral); }
+    /* Preview modal: first-page screenshot before checkout */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(16, 42, 46, .55); display: none; align-items: center; justify-content: center; padding: 18px; z-index: 50; }
+    .modal-backdrop.open { display: flex; }
+    .modal { background: #fff; border-radius: 16px; max-width: 420px; width: 100%; max-height: 92vh; overflow: auto; padding: 18px; position: relative; }
+    .modal h2 { font-size: 1.1rem; margin: 0 34px 10px 0; }
+    .modal img { width: 100%; border: 1px solid var(--line); border-radius: 8px; display: block; }
+    .modal .fine { margin-top: 8px; }
+    .modal .buy { width: 100%; margin-top: 12px; }
+    .modal-close { position: absolute; top: 10px; right: 10px; border: 0; background: var(--paper-dim); color: var(--ink); width: 32px; height: 32px; border-radius: 50%; font-size: 1rem; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -65,6 +74,16 @@
   </main>
   <footer>DayHop · Richmond Hill, Ontario, Canada · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · admin@dayhop.quest</footer>
 
+  <div class="modal-backdrop" id="preview-backdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="preview-title">
+      <button class="modal-close" id="preview-close" type="button" aria-label="Close preview">✕</button>
+      <h2 id="preview-title"></h2>
+      <img id="preview-img" alt="First page of the guide" loading="lazy">
+      <button class="buy" id="preview-continue" type="button">Continue to checkout</button>
+      <p class="fine">Secure checkout by Stripe · instant PDF by email · free updated editions</p>
+    </div>
+  </div>
+
   <script>
     const grid = document.getElementById('grid');
     const banner = document.getElementById('banner');
@@ -89,7 +108,35 @@
       return null;
     }
 
+    // Preview modal: a first-page screenshot builds confidence before the
+    // Stripe redirect (where the price is revealed).
+    const backdrop = document.getElementById('preview-backdrop');
+    const previewImg = document.getElementById('preview-img');
+    const previewTitle = document.getElementById('preview-title');
+    const continueBtn = document.getElementById('preview-continue');
+    let previewSlug = null;
+
+    function openPreview(g) {
+      previewSlug = g.slug;
+      previewTitle.textContent = g.title;
+      previewImg.src = '/img/guide-previews/' + g.slug + '.png';
+      previewImg.hidden = false;
+      // No screenshot for this guide? Fail soft: modal still works as a
+      // confirm step, just without the picture.
+      previewImg.onerror = () => { previewImg.hidden = true; };
+      continueBtn.disabled = false;
+      continueBtn.textContent = 'Continue to checkout';
+      backdrop.classList.add('open');
+      continueBtn.focus();
+    }
+    function closePreview() { backdrop.classList.remove('open'); previewSlug = null; }
+    document.getElementById('preview-close').addEventListener('click', closePreview);
+    backdrop.addEventListener('click', e => { if (e.target === backdrop) closePreview(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closePreview(); });
+    continueBtn.addEventListener('click', () => { if (previewSlug) buy(previewSlug, continueBtn); });
+
     async function buy(slug, btn) {
+      const label = btn.textContent;
       btn.disabled = true; btn.textContent = 'Opening checkout…';
       try {
         const res = await fetch('/api/cityguides/checkout', {
@@ -101,7 +148,7 @@
         if (data && data.url) { window.location.href = data.url; return; }
         throw new Error((data && data.message) || 'checkout failed');
       } catch (err) {
-        btn.disabled = false; btn.textContent = 'Get the guide';
+        btn.disabled = false; btn.textContent = label;
         banner.className = 'banner banner--sad';
         banner.textContent = 'Could not start checkout — please try again in a moment.';
       }
@@ -134,7 +181,7 @@
             window.location.href = '/api/cityguides/download?t=' + encodeURIComponent(g.admin_token);
           });
         } else if (live) {
-          card.querySelector('.buy').addEventListener('click', e => buy(g.slug, e.target));
+          card.querySelector('.buy').addEventListener('click', () => openPreview(g));
         }
         grid.appendChild(card);
       }
