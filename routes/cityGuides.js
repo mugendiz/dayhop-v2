@@ -131,7 +131,10 @@ router.get('/download', async (req, res) => {
     const pdf = await cityGuides.getPdf(slug);
     if (!pdf) return res.status(404).send('Guide not found.');
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="DayHop-${slug}-nature-guide.pdf"`);
+    // ?inline=1 renders the PDF in the browser tab (admin quick-look);
+    // default stays a download for buyers.
+    const disposition = req.query.inline === '1' ? 'inline' : 'attachment';
+    res.setHeader('Content-Disposition', `${disposition}; filename="DayHop-${slug}-nature-guide.pdf"`);
     res.send(pdf);
   } catch (err) {
     console.error('[city-guides] download failed:', err.message);

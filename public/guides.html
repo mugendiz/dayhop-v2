@@ -175,15 +175,17 @@
           '<h2></h2><p class="sub"></p>' +
           (live ? '<p class="meta">' + (g.spot_count ? g.spot_count + ' hand-checked places · ' : '') + 'day plans · seasonal calendar</p>' : '') +
           (live && g.admin_token
-            ? '<button class="buy" type="button">Download — admin</button><p class="fine">Unlocked for your admin account</p>'
+            ? '<button class="buy" type="button">Open PDF — admin</button><p class="fine">Unlocked for your admin account</p>'
             : live
               ? '<button class="buy" type="button">Get the guide</button><p class="fine">Instant PDF by email · free updated editions</p>'
               : '<button class="soon" type="button" disabled>Coming soon</button><p class="fine">Being verified on the ground — not for sale until it is.</p>');
         card.querySelector('h2').textContent = g.title;
         card.querySelector('.sub').textContent = g.subtitle;
         if (live && g.admin_token) {
+          // Admins skip the preview modal entirely — the PDF opens right in
+          // a browser tab (inline), no download dialog.
           card.querySelector('.buy').addEventListener('click', () => {
-            window.location.href = '/api/cityguides/download?t=' + encodeURIComponent(g.admin_token);
+            window.open('/api/cityguides/download?t=' + encodeURIComponent(g.admin_token) + '&inline=1', '_blank');
           });
         } else if (live) {
           card.querySelector('.buy').addEventListener('click', () => openPreview(g));

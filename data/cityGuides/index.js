@@ -16,6 +16,7 @@
 const GUIDES = [
   {
     slug: 'markham',
+    coords: '43.87° N · 79.26° W',
     title: 'Markham Nature Guide',
     subtitle: 'Rouge Valley trails, mill ponds, and quiet forest corners of Markham & Unionville.',
     city_keys: ['markham', 'unionville', 'milliken', 'thornhill'],
@@ -24,6 +25,7 @@ const GUIDES = [
   },
   {
     slug: 'richmond-hill',
+    coords: '43.88° N · 79.44° W',
     title: 'Richmond Hill Nature Guide',
     subtitle: 'Kettle lakes, the Oak Ridges Moraine, and the green seams of Richmond Hill.',
     city_keys: ['richmond hill', 'oak ridges', 'l4c', 'l4e', 'l4s'],
@@ -32,6 +34,7 @@ const GUIDES = [
   },
   {
     slug: 'newmarket',
+    coords: '44.06° N · 79.46° W',
     title: 'Newmarket Nature Guide',
     subtitle: 'Fairy Lake, the Nokiidaa Trail, and the conservation lands of Newmarket & Aurora.',
     city_keys: ['newmarket', 'aurora', 'east gwillimbury', 'holland landing'],
@@ -40,6 +43,7 @@ const GUIDES = [
   },
   {
     slug: 'toronto',
+    coords: '43.65° N · 79.38° W',
     title: 'Toronto City Nature Spots',
     subtitle: 'Ravines, bluffs, islands, and urban wilderness inside Canada\'s biggest city.',
     city_keys: ['toronto', 'north york', 'scarborough', 'etobicoke', 'east york', 'downtown', 'gta'],
@@ -48,6 +52,7 @@ const GUIDES = [
   },
   {
     slug: 'hamilton',
+    coords: '43.26° N · 79.87° W',
     title: 'Hamilton Nature Guide',
     subtitle: 'The waterfall capital: Niagara Escarpment gorges, Cootes Paradise, and 100+ falls.',
     city_keys: ['hamilton', 'dundas', 'ancaster', 'waterdown', 'stoney creek', 'burlington'],
@@ -56,6 +61,7 @@ const GUIDES = [
   },
   {
     slug: 'lake-simcoe',
+    coords: '44.43° N · 79.33° W',
     title: 'Lake Simcoe Nature Guide',
     subtitle: 'Beaches, provincial parks, and shoreline trails around Ontario\'s great near-north lake.',
     city_keys: ['simcoe', 'barrie', 'innisfil', 'georgina', 'keswick', 'jackson', 'bradford', 'orillia', 'beaverton'],
@@ -64,6 +70,7 @@ const GUIDES = [
   },
   {
     slug: 'staten-island',
+    coords: '40.58° N · 74.15° W',
     title: 'Staten Island Nature Guide',
     subtitle: 'The greenest borough: forests, wetlands, and shoreline beyond the ferry.',
     city_keys: ['staten island'],
@@ -72,6 +79,7 @@ const GUIDES = [
   },
   {
     slug: 'silicon-valley',
+    coords: '37.39° N · 122.06° W',
     title: 'Silicon Valley Nature Guide',
     subtitle: 'Redwood canyons, baylands, and summit trails between San Jose and the sea.',
     city_keys: ['san jose', 'palo alto', 'mountain view', 'cupertino', 'sunnyvale'],

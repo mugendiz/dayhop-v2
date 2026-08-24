@@ -101,10 +101,158 @@ function verifyToken(token) {
   }
 }
 
-// ---------- PDF build ----------
+// ---------- PDF build: "Quiet Cartography" ----------
+// The design system lives in docs/design/guide-pdf-philosophy.md. Short
+// version: topographic-map and park-signage language — a per-city contour
+// motif built from repeated thin moss lines, exactly one coral gesture per
+// composition, National Park lettering for display, Crimson for reading
+// text, coordinates and tiny reference markers as page furniture.
 
+const path = require('path');
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const pdfCache = new Map(); // slug -> { buffer, at }
+
+const FONT_DIR = path.join(__dirname, '..', 'assets', 'fonts');
+
+// Logical font names → registered TTFs, with built-in fallbacks so a
+// missing asset degrades the typography, never the sale.
+function registerFonts(doc) {
+  try {
+    doc.registerFont('Display', path.join(FONT_DIR, 'NationalPark-Bold.ttf'));
+    doc.registerFont('DisplayLight', path.join(FONT_DIR, 'NationalPark-Regular.ttf'));
+    doc.registerFont('Body', path.join(FONT_DIR, 'CrimsonPro-Regular.ttf'));
+    doc.registerFont('BodyItalic', path.join(FONT_DIR, 'CrimsonPro-Italic.ttf'));
+    doc.registerFont('BodyBold', path.join(FONT_DIR, 'CrimsonPro-Bold.ttf'));
+    return { display: 'Display', displayLight: 'DisplayLight', body: 'Body', bodyItalic: 'BodyItalic', bodyBold: 'BodyBold' };
+  } catch (err) {
+    console.warn('[city-guides] fonts unavailable, falling back to Helvetica:', err.message);
+    return { display: 'Helvetica-Bold', displayLight: 'Helvetica', body: 'Helvetica', bodyItalic: 'Helvetica-Oblique', bodyBold: 'Helvetica-Bold' };
+  }
+}
+
+// Deterministic per-slug randomness — same guide, same art, every build.
+function makeRng(slug) {
+  let s = 2166136261;
+  for (const ch of slug) s = Math.imul(s ^ ch.charCodeAt(0), 16777619);
+  s = s >>> 0;
+  return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
+}
+
+// Each motif is the city's geography abstracted — never labeled, just felt.
+// All draw inside the clipped field (y 395–745) with moss lines and one
+// coral gesture.
+const MOTIFS = {
+  // The Rouge's meander terraces: stacked flowing bands.
+  markham(doc, r) {
+    for (let i = 0; i < 13; i++) {
+      const y = 415 + i * 25;
+      const amp = 8 + r() * 12;
+      const coral = i === 7;
+      let px = -12, py = y + (r() - 0.5) * 6;
+      doc.moveTo(px, py);
+      for (let x = 56; x <= 680; x += 68) {
+        const ny = y + (r() - 0.5) * amp;
+        doc.bezierCurveTo(px + 22, py - amp, x - 22, ny + amp, x, ny);
+        px = x; py = ny;
+      }
+      doc.lineWidth(coral ? 1.4 : 0.7).stroke(coral ? CORAL : MOSS);
+    }
+  },
+  // Kettle-lake contours on the moraine: drifting nested rings.
+  'richmond-hill'(doc, r) {
+    const clusters = [
+      { cx: 235, cy: 565, n: 15, base: 13 },
+      { cx: 455, cy: 468, n: 8, base: 10 },
+      { cx: 468, cy: 668, n: 6, base: 9 }
+    ];
+    for (const cl of clusters) {
+      let rw = cl.base, cx = cl.cx, cy = cl.cy;
+      for (let i = 0; i < cl.n; i++) {
+        doc.ellipse(cx, cy, rw, rw * (0.55 + r() * 0.12)).lineWidth(0.7).stroke(MOSS);
+        rw += 9 + r() * 5;
+        cx += (r() - 0.5) * 8;
+        cy += (r() - 0.5) * 6;
+      }
+    }
+    doc.circle(235, 565, 3.4).lineWidth(1.5).stroke(CORAL);
+  },
+  // The Nokiidaa: one river spine, boardwalk ticks crossing it.
+  newmarket(doc, r) {
+    let x = 268, y = 402;
+    const pts = [];
+    doc.moveTo(x, y);
+    while (y < 738) {
+      const ny = y + 30;
+      const nx = 268 + Math.sin((ny - 402) / 52) * 52 + (r() - 0.5) * 10;
+      doc.bezierCurveTo(x + (r() - 0.5) * 14, y + 15, nx + (r() - 0.5) * 14, ny - 15, nx, ny);
+      pts.push([nx, ny]);
+      x = nx; y = ny;
+    }
+    doc.lineWidth(1.7).stroke(MOSS);
+    pts.forEach((p, i) => {
+      doc.moveTo(p[0] - 15, p[1]).lineTo(p[0] + 15, p[1])
+        .lineWidth(i === 4 ? 1.4 : 0.7).stroke(i === 4 ? CORAL : MOSS);
+    });
+  },
+  // Ravines cutting down to the lake; one low sun.
+  toronto(doc, r) {
+    for (const bx of [88, 198, 330, 452, 546]) {
+      let x = bx, y = 402;
+      doc.moveTo(x, y);
+      while (y < 638) {
+        const ny = y + 38 + r() * 22;
+        x += (306 - x) * 0.16 + (r() - 0.5) * 26;
+        doc.lineTo(x, ny);
+        y = ny;
+      }
+      doc.lineWidth(0.8).stroke(MOSS);
+    }
+    for (let i = 0; i < 7; i++) {
+      const y = 658 + i * 12;
+      doc.moveTo(44, y).lineTo(568, y).lineWidth(0.7).stroke(MOSS);
+    }
+    doc.circle(497, 452, 15).lineWidth(1.5).stroke(CORAL);
+  },
+  // The escarpment brow and its hundred falls, pooling below.
+  hamilton(doc, r) {
+    doc.moveTo(56, 468).lineTo(556, 468).lineWidth(1.5).stroke(MOSS);
+    for (let i = 0; i < 18; i++) {
+      const x = 88 + i * 25 + (r() - 0.5) * 8;
+      const len = 55 + r() * 135;
+      const coral = i === 9;
+      doc.moveTo(x, 471)
+        .bezierCurveTo(x - 2.5, 471 + len * 0.4, x + 2.5, 471 + len * 0.75, x, 471 + len)
+        .lineWidth(coral ? 1.4 : 0.7).stroke(coral ? CORAL : MOSS);
+    }
+    for (let i = 0; i < 3; i++) {
+      const y = 688 + i * 11;
+      doc.moveTo(120, y).lineTo(492, y).lineWidth(0.7).stroke(MOSS);
+    }
+  },
+  // The lake as a disc of ruled water; one coral bay on the rim.
+  'lake-simcoe'(doc, r) {
+    const cx = 306, cy = 568, R = 150;
+    doc.circle(cx, cy, R).lineWidth(1.5).stroke(MOSS);
+    doc.save();
+    doc.circle(cx, cy, R - 7).clip();
+    for (let y = cy - R; y <= cy + R; y += 13) {
+      let px = cx - R - 10, py = y + (r() - 0.5) * 2;
+      doc.moveTo(px, py);
+      for (let x = px + 40; x <= cx + R + 20; x += 40) {
+        const ny = y + (r() - 0.5) * 3;
+        doc.bezierCurveTo(px + 13, py - 2.5, x - 13, ny + 2.5, x, ny);
+        px = x; py = ny;
+      }
+      doc.lineWidth(0.6).stroke(MOSS);
+    }
+    doc.restore();
+    const a1 = -Math.PI / 3, a2 = -Math.PI / 6;
+    doc.path(
+      `M ${cx + R * Math.cos(a1)} ${cy + R * Math.sin(a1)} ` +
+      `A ${R} ${R} 0 0 1 ${cx + R * Math.cos(a2)} ${cy + R * Math.sin(a2)}`
+    ).lineWidth(1.8).stroke(CORAL);
+  }
+};
 
 const ETIQUETTE = [
   'Stay on marked trails — shortcuts erode banks and trample the understory that makes these places worth visiting.',
@@ -128,75 +276,120 @@ function buildGuidePdf(guide) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
+    const F = registerFonts(doc);
     const W = doc.page.width - doc.page.margins.left - doc.page.margins.right;
     const total = c.spots.length + (c.drives ? c.drives.length : 0);
+    const rng = makeRng(guide.slug);
+
+    // A short moss rule — the system's recurring gesture.
+    const rule = (x, y, w, color = MOSS) =>
+      doc.moveTo(x, y).lineTo(x + w, y).lineWidth(0.8).stroke(color);
 
     // ---------- cover ----------
     doc.rect(0, 0, doc.page.width, doc.page.height).fill(PAPER);
-    doc.fill(INK).font('Helvetica-Bold').fontSize(30).text('DayHop', 64, 140);
-    doc.moveDown(1.1);
-    doc.fontSize(34).text(guide.title, { width: W });
-    doc.moveDown(0.5);
-    doc.font('Helvetica').fontSize(14).fill(INK_SOFT).text(guide.subtitle, { width: W });
-    doc.moveDown(0.8);
-    doc.font('Helvetica-Bold').fontSize(12).fill(MOSS)
-      .text(`${total} places · ${c.itineraries.length} ready-made day plans · season-by-season calendar`);
-    doc.font('Helvetica').fontSize(10).fill(INK_SOFT)
-      .text(`Edition: ${new Date().toLocaleDateString('en-CA', { month: 'long', year: 'numeric', timeZone: 'America/Toronto' })}. Every place link opens live directions and current hours in Google Maps.`,
-        64, doc.page.height - 150, { width: W });
-    doc.fontSize(9.5)
-      .text('DayHop · Richmond Hill, Ontario, Canada · dayhop.quest · admin@dayhop.quest', 64, doc.page.height - 100, { width: W });
+    doc.lineCap('round');
+
+    doc.font(F.displayLight).fontSize(9.5).fillColor(INK_SOFT)
+      .text('DAYHOP · FIELD GUIDE', 64, 76, { characterSpacing: 3.2 });
+    rule(64, 96, 118);
+
+    doc.font(F.display).fontSize(37).fillColor(INK)
+      .text(guide.title.toUpperCase(), 64, 122, { width: W, characterSpacing: 0.6, lineGap: 4 });
+    doc.moveDown(0.45);
+    doc.font(F.bodyItalic).fontSize(13.5).fillColor(INK_SOFT)
+      .text(guide.subtitle, { width: W - 60, lineGap: 2 });
+    doc.moveDown(0.9);
+    doc.font(F.display).fontSize(9.5).fillColor(MOSS)
+      .text(`${total} PLACES · ${c.itineraries.length} DAY PLANS · FOUR SEASONS`, { characterSpacing: 2.2 });
+    doc.moveDown(0.55);
+    doc.font(F.displayLight).fontSize(8).fillColor(INK_SOFT)
+      .text(`${guide.coords || ''}   ·   EDITION ${new Date().toLocaleDateString('en-CA', { month: 'long', year: 'numeric', timeZone: 'America/Toronto' }).toUpperCase()}`,
+        { characterSpacing: 1.8 });
+
+    // The city's geography, abstracted — clipped to its field so nothing
+    // ever touches the footer.
+    doc.save();
+    doc.rect(0, 395, doc.page.width, 350).clip();
+    (MOTIFS[guide.slug] || MOTIFS.markham)(doc, rng);
+    doc.restore();
+
+    // Text below the bottom margin makes pdfkit spawn a page — suspend the
+    // margin while placing the cover footer.
+    const mb = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
+    doc.font(F.displayLight).fontSize(7).fillColor(INK_SOFT)
+      .text('DAYHOP · RICHMOND HILL, ONTARIO · DAYHOP.QUEST · ADMIN@DAYHOP.QUEST', 64, 758,
+        { width: W, align: 'center', characterSpacing: 1.6, lineBreak: false });
+    doc.page.margins.bottom = mb;
+
+    // Section opener: letterspaced display over a short rule, blurb in the
+    // notebook voice.
+    const opener = (label, blurb) => {
+      doc.addPage();
+      doc.font(F.display).fontSize(20).fillColor(INK)
+        .text(label.toUpperCase(), 64, 72, { width: W, characterSpacing: 1.6 });
+      rule(64, doc.y + 8, 118);
+      doc.y += 20;
+      if (blurb) {
+        doc.font(F.bodyItalic).fontSize(11.5).fillColor(MOSS).text(blurb, 64, doc.y, { width: W - 40, lineGap: 2 });
+        doc.moveDown(0.9);
+      }
+    };
 
     // ---------- intro / how to use ----------
-    doc.addPage();
-    doc.font('Helvetica-Bold').fontSize(22).fill(INK).text('Before you head out', { width: W });
-    doc.moveDown(0.5);
-    doc.font('Helvetica').fontSize(11.5).fill(INK_SOFT).text(c.intro, { width: W, lineGap: 2 });
-    doc.moveDown(0.8);
-    doc.font('Helvetica-Bold').fontSize(12).fill(INK).text('How this guide works', { width: W });
-    doc.moveDown(0.3);
-    doc.font('Helvetica').fontSize(10.5).fill(INK_SOFT).text(
+    opener('Before you head out');
+    doc.font(F.body).fontSize(11.5).fillColor(INK_SOFT).text(c.intro, 64, doc.y, { width: W, lineGap: 2.5 });
+    doc.moveDown(1);
+    doc.font(F.display).fontSize(10).fillColor(MOSS).text('HOW THIS GUIDE WORKS', { characterSpacing: 2 });
+    doc.moveDown(0.35);
+    doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT).text(
       'Every entry tells you why it earns a spot, the season or time it shines, who it suits, what it costs, and one tip locals know. ' +
       'Names are tappable — each links to the place in Google Maps for live directions, hours, and closures. ' +
       'Cost markers: FREE, $ (under ~$10/person), $$ (~$10–25), $$$ (day-trip money). ' +
       'Details like fees and gate hours drift over the seasons; the link is always the source of truth.', { width: W, lineGap: 2 });
 
     // ---------- seasonal calendar ----------
-    doc.moveDown(1);
-    doc.font('Helvetica-Bold').fontSize(16).fill(INK).text('The year at a glance', { width: W });
-    doc.moveDown(0.4);
+    doc.moveDown(1.1);
+    doc.font(F.display).fontSize(14).fillColor(INK).text('THE YEAR AT A GLANCE', { characterSpacing: 1.8 });
+    rule(64, doc.y + 6, 118);
+    doc.y += 16;
     for (const s of c.seasons) {
-      doc.font('Helvetica-Bold').fontSize(11.5).fill(MOSS).text(s.label, { width: W });
-      doc.font('Helvetica').fontSize(10.5).fill(INK_SOFT).text(s.text, { width: W, lineGap: 1.5 });
-      doc.moveDown(0.45);
+      doc.font(F.display).fontSize(10).fillColor(MOSS).text(s.label.toUpperCase(), 64, doc.y, { characterSpacing: 1.5 });
+      doc.moveDown(0.15);
+      doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT).text(s.text, { width: W, lineGap: 1.8 });
+      doc.moveDown(0.5);
     }
 
     // ---------- spots ----------
+    let spotNo = 0;
     const renderSpots = (label, blurb, spots) => {
-      doc.addPage();
-      doc.font('Helvetica-Bold').fontSize(22).fill(INK).text(label, { width: W });
-      doc.font('Helvetica').fontSize(11).fill(MOSS).text(blurb, { width: W });
-      doc.moveDown(0.8);
+      opener(label, blurb);
       for (const sp of spots) {
+        spotNo++;
+        doc.font(F.body).fontSize(10.5);
         const bodyH =
-          doc.heightOfString(sp.name, { width: W }) +
           doc.heightOfString(sp.why, { width: W }) +
-          (sp.tip ? doc.heightOfString(sp.tip, { width: W }) : 0) + 64;
+          (sp.tip ? doc.heightOfString(sp.tip, { width: W }) : 0) + 78;
         if (doc.y + bodyH > doc.page.height - doc.page.margins.bottom) doc.addPage();
 
         const link = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(sp.maps || sp.name)}`;
-        doc.font('Helvetica-Bold').fontSize(13.5).fill(INK).text(sp.name, { width: W, link });
-        doc.font('Helvetica').fontSize(9).fill(INK_SOFT).text(sp.area, { width: W });
-        doc.moveDown(0.18);
-        doc.font('Helvetica').fontSize(10.5).fill(INK_SOFT).text(sp.why, { width: W, lineGap: 1.5 });
+        // Reference marker line: coral number, then the surveyed location.
+        doc.font(F.displayLight).fontSize(7.5).fillColor(CORAL)
+          .text(String(spotNo).padStart(2, '0'), 64, doc.y, { characterSpacing: 1.5, continued: true })
+          .fillColor(INK_SOFT)
+          .text('  ·  ' + sp.area.toUpperCase(), { characterSpacing: 1.5 });
+        doc.moveDown(0.12);
+        doc.font(F.display).fontSize(13.5).fillColor(INK).text(sp.name, { width: W, link });
+        doc.moveDown(0.16);
+        doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT).text(sp.why, { width: W, lineGap: 1.8 });
         if (sp.tip) {
           doc.moveDown(0.15);
-          doc.font('Helvetica-Oblique').fontSize(10).fill(MOSS).text(`Local tip: ${sp.tip}`, { width: W, lineGap: 1 });
+          doc.font(F.bodyItalic).fontSize(10).fillColor(MOSS).text(`Local tip: ${sp.tip}`, { width: W, lineGap: 1.4 });
         }
-        doc.moveDown(0.15);
-        const chips = [sp.cost, sp.ages, sp.best].filter(Boolean).join('   ·   ');
-        if (chips) doc.font('Helvetica-Bold').fontSize(8.5).fill(CORAL).text(chips, { width: W });
-        doc.moveDown(0.7);
+        doc.moveDown(0.18);
+        const chips = [sp.cost, sp.ages, sp.best].filter(Boolean).join('  ·  ');
+        if (chips) doc.font(F.display).fontSize(7.5).fillColor(CORAL).text(chips.toUpperCase(), { characterSpacing: 1.2 });
+        doc.moveDown(0.85);
       }
     };
     renderSpots('The places', `${c.spots.length} spots, roughly north to south — each one worth a morning on its own.`, c.spots);
@@ -205,50 +398,57 @@ function buildGuidePdf(guide) {
     }
 
     // ---------- itineraries ----------
-    doc.addPage();
-    doc.font('Helvetica-Bold').fontSize(22).fill(INK).text('Ready-made days', { width: W });
-    doc.font('Helvetica').fontSize(11).fill(MOSS).text('Proven combinations — follow them as written or swap any stop.', { width: W });
-    doc.moveDown(0.8);
+    opener('Ready-made days', 'Proven combinations — follow them as written or swap any stop.');
     for (const it of c.itineraries) {
-      const itH = doc.heightOfString(it.title, { width: W }) +
-        it.steps.reduce((h, s) => h + doc.heightOfString(s, { width: W - 16 }) + 8, 0) + 60;
+      doc.font(F.body).fontSize(10.5);
+      const itH = it.steps.reduce((h, s) => h + doc.heightOfString(s, { width: W - 18 }) + 8, 0) + 70;
       if (doc.y + itH > doc.page.height - doc.page.margins.bottom) doc.addPage();
-      doc.font('Helvetica-Bold').fontSize(14).fill(INK).text(it.title, { width: W });
-      if (it.blurb) doc.font('Helvetica').fontSize(10).fill(INK_SOFT).text(it.blurb, { width: W });
-      doc.moveDown(0.3);
-      for (const step of it.steps) {
-        doc.font('Helvetica').fontSize(10.5).fill(INK_SOFT).text(`—  ${step}`, { width: W - 16, indent: 0, lineGap: 1.5 });
-        doc.moveDown(0.15);
+      doc.font(F.display).fontSize(13).fillColor(INK).text(it.title.toUpperCase(), 64, doc.y, { width: W, characterSpacing: 0.8 });
+      if (it.blurb) {
+        doc.moveDown(0.1);
+        doc.font(F.bodyItalic).fontSize(10.5).fillColor(MOSS).text(it.blurb, { width: W });
       }
-      doc.moveDown(0.6);
+      doc.moveDown(0.35);
+      for (const step of it.steps) {
+        doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT).text(`—  ${step}`, { width: W - 18, lineGap: 1.8 });
+        doc.moveDown(0.18);
+      }
+      doc.moveDown(0.7);
     }
 
     // ---------- etiquette + back page ----------
-    doc.addPage();
-    doc.font('Helvetica-Bold').fontSize(18).fill(INK).text('Trail sense', { width: W });
-    doc.moveDown(0.4);
+    opener('Trail sense');
     for (const line of ETIQUETTE) {
-      doc.font('Helvetica').fontSize(10.5).fill(INK_SOFT).text(`—  ${line}`, { width: W, lineGap: 1.5 });
-      doc.moveDown(0.25);
+      doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT).text(`—  ${line}`, { width: W, lineGap: 1.8 });
+      doc.moveDown(0.3);
     }
-    doc.moveDown(1.2);
-    doc.font('Helvetica-Bold').fontSize(16).fill(INK).text('Turn any page of this guide into a planned day', { width: W });
-    doc.moveDown(0.3);
-    doc.font('Helvetica').fontSize(11).fill(INK_SOFT).text(
-      'Tell the DayHop planner what kind of day you want, in one sentence — it builds the itinerary with real venues, timing, and live weather. Government weather and safety advisories included, never faked.', { width: W, lineGap: 2 });
-    doc.moveDown(0.4);
-    doc.font('Helvetica-Bold').fontSize(12.5).fill(CORAL).text('dayhop.quest', { link: 'https://dayhop-v2.onrender.com/', width: W });
-    doc.moveDown(1.6);
-    doc.font('Helvetica').fontSize(8.5).fill(INK_SOFT).text(
+    doc.moveDown(1.4);
+    doc.font(F.display).fontSize(14).fillColor(INK)
+      .text('TURN ANY PAGE INTO A PLANNED DAY', { characterSpacing: 1.6 });
+    rule(64, doc.y + 6, 118);
+    doc.y += 16;
+    doc.font(F.body).fontSize(11).fillColor(INK_SOFT).text(
+      'Tell the DayHop planner what kind of day you want, in one sentence — it builds the itinerary with real venues, timing, and live weather. Government weather and safety advisories included, never faked.', 64, doc.y, { width: W, lineGap: 2 });
+    doc.moveDown(0.5);
+    doc.font(F.display).fontSize(11).fillColor(CORAL)
+      .text('DAYHOP.QUEST', { link: 'https://dayhop-v2.onrender.com/', characterSpacing: 2 });
+    doc.moveDown(1.8);
+    doc.font(F.body).fontSize(8.5).fillColor(INK_SOFT).text(
       `© ${new Date().getFullYear()} DayHop. Licensed for personal use — please don't redistribute; it's how a very small team keeps making these. ` +
       'Purchased guides include free updated editions: re-download from your receipt link any time. Questions or a spot that changed? admin@dayhop.quest', { width: W, lineGap: 1.5 });
 
-    // Page numbers (skip cover).
+    // Page furniture (skip cover): a centred hairline over the folio.
     const range = doc.bufferedPageRange();
     for (let i = 1; i < range.count; i++) {
       doc.switchToPage(i);
-      doc.font('Helvetica').fontSize(8.5).fill(INK_SOFT)
-        .text(`${guide.title} — ${i + 1}`, 64, doc.page.height - 42, { width: W, align: 'center', lineBreak: false });
+      const bm = doc.page.margins.bottom;
+      doc.page.margins.bottom = 0;
+      const cx = doc.page.width / 2;
+      doc.moveTo(cx - 20, doc.page.height - 50).lineTo(cx + 20, doc.page.height - 50).lineWidth(0.6).stroke(MOSS);
+      doc.font(F.displayLight).fontSize(7).fillColor(INK_SOFT)
+        .text(`${guide.title.toUpperCase()} — ${i + 1}`, 64, doc.page.height - 42,
+          { width: W, align: 'center', characterSpacing: 1.6, lineBreak: false });
+      doc.page.margins.bottom = bm;
     }
     doc.end();
   });
