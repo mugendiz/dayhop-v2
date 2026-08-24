@@ -73,6 +73,22 @@
       try { return localStorage.getItem('dayhop_owner_id') || undefined; } catch (e) { return undefined; }
     }
 
+    // Best-effort bearer token from the main app's Supabase session
+    // (localStorage "sb-<ref>-auth-token") — lets the server recognize the
+    // signed-in admin and unlock every guide. Guests simply send nothing.
+    function authToken() {
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.indexOf('sb-') === 0 && k.indexOf('-auth-token') !== -1) {
+            const s = JSON.parse(localStorage.getItem(k));
+            return (s && s.access_token) || (s && s.currentSession && s.currentSession.access_token) || null;
+          }
+        }
+      } catch (e) { /* private mode / malformed */ }
+      return null;
+    }
+
     async function buy(slug, btn) {
       btn.disabled = true; btn.textContent = 'Opening checkout…';
       try {
@@ -93,7 +109,10 @@
 
     async function render() {
       let data;
-      try { data = await (await fetch('/api/cityguides')).json(); }
+      const tok = authToken();
+      try {
+        data = await (await fetch('/api/cityguides', tok ? { headers: { Authorization: 'Bearer ' + tok } } : undefined)).json();
+      }
       catch (e) { grid.innerHTML = '<p>Could not load the guides — refresh to try again.</p>'; return; }
       grid.innerHTML = '';
       for (const g of data.guides) {
@@ -103,12 +122,20 @@
         card.innerHTML =
           '<h2></h2><p class="sub"></p>' +
           (live ? '<p class="meta">' + (g.spot_count ? g.spot_count + ' hand-checked places · ' : '') + 'day plans · seasonal calendar</p>' : '') +
-          (live
-            ? '<button class="buy" type="button">Get the guide</button><p class="fine">Instant PDF by email · free updated editions</p>'
-            : '<button class="soon" type="button" disabled>Coming soon</button><p class="fine">Being verified on the ground — not for sale until it is.</p>');
+          (live && g.admin_token
+            ? '<button class="buy" type="button">Download — admin</button><p class="fine">Unlocked for your admin account</p>'
+            : live
+              ? '<button class="buy" type="button">Get the guide</button><p class="fine">Instant PDF by email · free updated editions</p>'
+              : '<button class="soon" type="button" disabled>Coming soon</button><p class="fine">Being verified on the ground — not for sale until it is.</p>');
         card.querySelector('h2').textContent = g.title;
         card.querySelector('.sub').textContent = g.subtitle;
-        if (live) card.querySelector('.buy').addEventListener('click', e => buy(g.slug, e.target));
+        if (live && g.admin_token) {
+          card.querySelector('.buy').addEventListener('click', () => {
+            window.location.href = '/api/cityguides/download?t=' + encodeURIComponent(g.admin_token);
+          });
+        } else if (live) {
+          card.querySelector('.buy').addEventListener('click', e => buy(g.slug, e.target));
+        }
         grid.appendChild(card);
       }
       // Deep link from the feed promo card: flash the matching guide.

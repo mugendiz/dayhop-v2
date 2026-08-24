@@ -11,11 +11,28 @@
 // Fulfillment (email + ledger) rides the Stripe webhook — see
 // services/cityGuides.fulfillPurchase and services/billing.handleWebhook.
 
+const crypto = require('crypto');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const cityGuides = require('../services/cityGuides');
 const analytics = require('../services/analytics');
+const { isAdmin } = require('../services/entitlements');
+
+// Admins get every guide unlocked: the signed-in admin account (attachUser
+// runs globally, so req.user is here when the page sends its bearer token)
+// or the x-admin-key header both count.
+function adminKeyOk(req) {
+  const expected = process.env.ADMIN_KEY;
+  const provided = req.headers['x-admin-key'];
+  if (!expected || !provided) return false;
+  const a = Buffer.from(String(provided));
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+function isAdminReq(req) {
+  return isAdmin(req.user) || adminKeyOk(req);
+}
 
 let _stripe = null;
 function getStripe() {
@@ -26,7 +43,12 @@ function getStripe() {
 }
 
 router.get('/', (req, res) => {
-  res.json({ guides: cityGuides.list(), currency: cityGuides.CURRENCY.toUpperCase() });
+  const admin = isAdminReq(req);
+  const guides = cityGuides.list().map(g =>
+    admin && g.status === 'live'
+      ? Object.assign({}, g, { admin_token: cityGuides.signToken(g.slug) })
+      : g);
+  res.json({ guides, currency: cityGuides.CURRENCY.toUpperCase(), admin });
 });
 
 // Checkout sessions cost a Stripe API call each — keep drive-by scripts from
