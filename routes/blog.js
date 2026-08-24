@@ -229,6 +229,7 @@ async function sitemap(req, res) {
   const all = await articles.listPublished();
   const urls = [
     { loc: `${base}/`, priority: '1.0' },
+    { loc: `${base}/guides`, priority: '0.9' },
     { loc: `${base}/blog`, priority: '0.8' },
     ...all.map(a => ({
       loc: `${base}/blog/${a.slug}`,
