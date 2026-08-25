@@ -66,6 +66,11 @@ const SERVER_EVENT_TYPES = new Set([
   'surprise_feed',
   // Hassle-free cancel/resume (billing routes).
   'membership_cancelled', 'membership_resumed',
+  // Paid city guides (routes/cityGuides.js + webhook fulfillment): the
+  // checkout-intent and sale events the launch dashboard watches. Were
+  // missing from this registry, so recordEvent silently dropped both —
+  // the same drift that once ate surprise_feed.
+  'guide_checkout_started', 'guide_purchase',
   // Email marketing (services/newsletter.js + digest.js): consent funnel
   // subscribe → confirmed (double opt-in) → weekly digest_sent; unsubscribes
   // tracked so list-health (churn) shows up on the admin dashboard.
