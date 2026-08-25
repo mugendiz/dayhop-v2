@@ -444,9 +444,66 @@ function drawLocatorMap(doc, guide, F, x, y, w, h) {
   return true;
 }
 
-function buildGuidePdf(guide) {
+// ---------- computed instruments: the sun clock ----------
+// NOAA-simplified sunrise/sunset for the guide's own coordinates — computed,
+// never looked up, like everything else on a surveyed page. Returns minutes
+// UTC; formatting happens on the Toronto clock (DST-correct via Intl).
+function sunMinutesUTC(lat, lon, y, m, d) {
+  const rad = Math.PI / 180;
+  const N = Math.floor((Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 0)) / 86400000);
+  const g = (2 * Math.PI / 365) * (N - 1 + 0.5);
+  const eqtime = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g)
+    - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+  const decl = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g)
+    - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g)
+    - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+  const cosHA = Math.cos(90.833 * rad) / (Math.cos(lat * rad) * Math.cos(decl))
+    - Math.tan(lat * rad) * Math.tan(decl);
+  if (cosHA < -1 || cosHA > 1) return null; // polar edge cases — not Ontario
+  const ha = Math.acos(cosHA) / rad;
+  return {
+    rise: 720 - 4 * (lon + ha) - eqtime,
+    set: 720 - 4 * (lon - ha) - eqtime
+  };
+}
+
+function torontoClock(y, m, d, minutesUTC) {
+  const t = new Date(Date.UTC(y, m - 1, d, 0, Math.round(minutesUTC)));
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Toronto', hour: 'numeric', minute: '2-digit', hour12: true
+  }).format(t).replace(/\s?([ap])\.?m\.?/i, ' $1m');
+}
+
+// ---------- computed instruments: QR squares ----------
+// One small QR per entry — the printed page's version of the tappable name.
+// Ink-on-paper so it scans; fail-soft so a missing dep degrades the feature,
+// never the sale.
+function mapsLink(sp) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(sp.maps || sp.name)}`;
+}
+
+async function buildQrMap(c) {
+  let QRCode;
+  try { QRCode = require('qrcode'); } catch (e) { return {}; }
+  const out = {};
+  for (const k of SECTION_KEYS) {
+    for (const sp of (Array.isArray(c[k]) ? c[k] : [])) {
+      const link = mapsLink(sp);
+      if (out[link]) continue;
+      try {
+        out[link] = await QRCode.toBuffer(link, {
+          margin: 0, scale: 3, color: { dark: INK, light: PAPER }
+        });
+      } catch (e) { /* entry simply renders without a square */ }
+    }
+  }
+  return out;
+}
+
+async function buildGuidePdf(guide) {
+  const c = guide.content();
+  const qrMap = await buildQrMap(c);
   return new Promise((resolve, reject) => {
-    const c = guide.content();
     const doc = new PDFDocument({
       size: 'LETTER',
       margins: { top: 64, bottom: 64, left: 64, right: 64 },
@@ -593,6 +650,159 @@ function buildGuidePdf(guide) {
       }
     };
 
+    // ---------- choose by numbers: trail table, amenity index, shortlists --
+    // The decision tools: every trail measured, every park scored — the
+    // pages that answer "which one, today, with my crew" before the reading
+    // pages explain why. Gated on structured data so guides without it
+    // simply skip the section.
+    const trailRows = (c.trails || []).filter(t => t.tr)
+      .sort((a, b) => (a.tr.boots - b.tr.boots) || (a.tr.km - b.tr.km));
+    const amenRows = (c.spots || []).filter(s => s.amen);
+    if (trailRows.length || amenRows.length) {
+      opener('Choose by numbers',
+        'Every trail measured, every park scored on what decides a family outing. The reading pages tell you why; these tables tell you which.');
+
+      const CLIMB_W = ['FLAT', 'ROLLING', 'HILLY'];
+      const SHADE_W = ['OPEN', 'PART', 'FULL'];
+      const CROWD_W = ['QUIET', 'LIGHT', 'BUSY'];
+
+      if (trailRows.length) {
+        doc.font(F.display).fontSize(14).fillColor(INK).text('THE TRAIL TABLE', 64, doc.y, { characterSpacing: 1.8 });
+        rule(64, doc.y + 6, 118);
+        doc.y += 18;
+        // Column plan: name rail + seven measured columns, easiest first.
+        const COLS = [
+          { label: 'KM', x: 242, w: 26 }, { label: 'TYPE', x: 270, w: 52 },
+          { label: 'SURFACE', x: 324, w: 60 }, { label: 'CLIMB', x: 386, w: 38 },
+          { label: 'SHADE', x: 426, w: 36 }, { label: 'CROWDS', x: 464, w: 38 },
+          { label: 'BOOTS', x: 504, w: 44 }
+        ];
+        const headY = doc.y;
+        doc.font(F.displayLight).fontSize(5.5).fillColor(MOSS);
+        doc.text('TRAIL', 64, headY, { characterSpacing: 1.2, lineBreak: false });
+        for (const col of COLS) doc.text(col.label, col.x, headY, { width: col.w, align: 'center', characterSpacing: 1, lineBreak: false });
+        doc.moveTo(64, headY + 10).lineTo(64 + W, headY + 10).lineWidth(0.5).stroke(MOSS);
+        let rowY = headY + 17;
+        for (const t of trailRows) {
+          const d0 = t.tr;
+          // Explicit link rect — the text `link` option emits NaN coords
+          // under lineBreak:false (same pdfkit quirk as the TOC rows).
+          doc.font(F.display).fontSize(9.5).fillColor(INK)
+            .text(t.name, 64, rowY, { width: 176, lineBreak: false });
+          doc.link(64, rowY - 2, 176, 13, mapsLink(t));
+          const cells = [
+            String(d0.km), d0.kind.toUpperCase(), d0.surface.toUpperCase(),
+            CLIMB_W[d0.climb] || '', SHADE_W[d0.shade] || '', CROWD_W[d0.crowd] || ''
+          ];
+          doc.font(F.displayLight).fontSize(6.5).fillColor(INK_SOFT);
+          cells.forEach((v, i) => doc.text(v, COLS[i].x, rowY + 2, { width: COLS[i].w, align: 'center', characterSpacing: 0.6, lineBreak: false }));
+          // Boots: effort 1–5 as filled marks on the survey line.
+          for (let b = 0; b < 5; b++) {
+            const bx = 506 + b * 8.4, by = rowY + 5;
+            if (b < d0.boots) doc.circle(bx, by, 2.2).fill(MOSS);
+            else doc.circle(bx, by, 2.2).lineWidth(0.7).stroke(MOSS);
+          }
+          if (d0.pick) {
+            doc.font(F.bodyItalic).fontSize(8.5).fillColor(MOSS)
+              .text(d0.pick, 64, rowY + 12, { width: W - 60, lineBreak: false });
+          }
+          rowY += 30;
+          doc.moveTo(64, rowY - 8).lineTo(64 + W, rowY - 8).lineWidth(0.3).stroke(MOSS);
+        }
+        doc.y = rowY + 2;
+        doc.font(F.displayLight).fontSize(6.5).fillColor(INK_SOFT)
+          .text('BOOTS — EFFORT, 1 (A STROLL) TO 5 (A WORKOUT). ONE-WAY ROUTES: PLAN THE RETURN OR THE TRANSIT EXIT.', 64, doc.y, { characterSpacing: 1, lineBreak: false });
+        doc.y += 20;
+      }
+
+      if (Array.isArray(c.shortlists) && c.shortlists.length) {
+        if (doc.y + 40 + c.shortlists.length * 32 > doc.page.height - doc.page.margins.bottom) doc.addPage();
+        doc.font(F.display).fontSize(14).fillColor(INK).text('THE SHORTLISTS', 64, doc.y, { characterSpacing: 1.8 });
+        rule(64, doc.y + 6, 118);
+        doc.y += 16;
+        for (const s of c.shortlists) {
+          if (doc.y + 34 > doc.page.height - doc.page.margins.bottom) doc.addPage();
+          doc.font(F.display).fontSize(8.5).fillColor(MOSS)
+            .text(s.title.toUpperCase(), 64, doc.y, { characterSpacing: 1.4 });
+          doc.moveDown(0.12);
+          doc.font(F.body).fontSize(10).fillColor(INK_SOFT).text(s.text, { width: W, lineGap: 1.4 });
+          doc.moveDown(0.42);
+        }
+      }
+
+      if (amenRows.length) {
+        doc.addPage();
+        doc.font(F.display).fontSize(14).fillColor(INK).text('THE PARK AMENITY INDEX', 64, 72, { characterSpacing: 1.8 });
+        rule(64, doc.y + 6, 118);
+        doc.y += 16;
+        doc.font(F.bodyItalic).fontSize(10.5).fillColor(MOSS)
+          .text('The ten-second answer to "will this park work for us" — scored on the ground, not from a brochure.', 64, doc.y, { width: W - 40, lineGap: 2 });
+        doc.moveDown(1);
+        const AMEN_COLS = [
+          { key: 'lot', label: 'LOT' }, { key: 'wash', label: 'WASH' },
+          { key: 'play', label: 'PLAY' }, { key: 'shade', label: 'SHADE' },
+          { key: 'picnic', label: 'PICNIC' }, { key: 'wheels', label: 'WHEELS' },
+          { key: 'water', label: 'WATER' }, { key: 'fish', label: 'FISH' },
+          { key: 'transit', label: 'TRANSIT' }
+        ];
+        const gridX = 234, colW = Math.floor((W - (gridX - 64)) / AMEN_COLS.length);
+        const headY = doc.y + 4;
+        doc.font(F.displayLight).fontSize(5.5).fillColor(MOSS);
+        doc.text('PARK', 64, headY, { characterSpacing: 1.2, lineBreak: false });
+        AMEN_COLS.forEach((col, i) =>
+          doc.text(col.label, gridX + i * colW, headY, { width: colW, align: 'center', characterSpacing: 0.8, lineBreak: false }));
+        doc.moveTo(64, headY + 10).lineTo(64 + W, headY + 10).lineWidth(0.5).stroke(MOSS);
+        // The coral stake: the fullest house in the survey.
+        let bestIdx = 0, bestSum = -1;
+        amenRows.forEach((s, i) => {
+          const sum = Object.values(s.amen).reduce((n, v) => n + v, 0);
+          if (sum > bestSum) { bestSum = sum; bestIdx = i; }
+        });
+        let rowY = headY + 18;
+        const ellipsize = (name, maxW) => {
+          let n = name;
+          doc.font(F.displayLight).fontSize(8.5);
+          while (n.length > 4 && doc.widthOfString(n) > maxW) n = n.slice(0, -2).trimEnd() + '…';
+          return n;
+        };
+        amenRows.forEach((s, i) => {
+          if (i % 2 === 1) doc.rect(64, rowY - 4.5, W, 19).fill(PAPER_DIM);
+          if (i === bestIdx) doc.circle(58, rowY + 4, 2.4).fill(CORAL);
+          doc.font(F.displayLight).fontSize(8.5).fillColor(INK)
+            .text(ellipsize(s.name, gridX - 64 - 10), 64, rowY, { lineBreak: false });
+          doc.link(64, rowY - 2, gridX - 64 - 10, 13, mapsLink(s));
+          AMEN_COLS.forEach((col, j) => {
+            const v = s.amen[col.key];
+            const cx = gridX + j * colW + colW / 2, cy = rowY + 4;
+            if (v === 2) doc.circle(cx, cy, 2.8).fill(MOSS);
+            else if (v === 1) doc.circle(cx, cy, 2.8).lineWidth(0.9).stroke(MOSS);
+          });
+          rowY += 19;
+        });
+        doc.y = rowY + 8;
+        // Legend marks drawn as vectors — National Park has no ●/○ glyphs.
+        {
+          const ly = doc.y + 3;
+          doc.font(F.displayLight).fontSize(6.5).fillColor(INK_SOFT);
+          doc.circle(68, ly, 2.8).fill(MOSS);
+          let lx = 76;
+          doc.text('ON SITE OR GOOD', lx, ly - 3, { characterSpacing: 0.8, lineBreak: false });
+          lx += doc.widthOfString('ON SITE OR GOOD', { characterSpacing: 0.8 }) + 18;
+          doc.circle(lx, ly, 2.8).lineWidth(0.9).stroke(MOSS);
+          lx += 8;
+          doc.fillColor(INK_SOFT).text('SEASONAL, PARTIAL, OR NEARBY', lx, ly - 3, { characterSpacing: 0.8, lineBreak: false });
+          doc.y = ly + 7;
+          doc.text('BLANK — NONE, OR NOT YET FIELD-VERIFIED (WE ONLY MARK WHAT WE\'VE CHECKED)', 64, doc.y, { characterSpacing: 0.8, width: W });
+        }
+        doc.moveDown(0.4);
+        doc.font(F.displayLight).fontSize(6.5).fillColor(CORAL)
+          .text('THE CORAL STAKE MARKS THE FULLEST HOUSE IN THE SURVEY', 64, doc.y, { characterSpacing: 1.2, lineBreak: false });
+        doc.moveDown(1.2);
+        doc.font(F.displayLight).fontSize(6.5).fillColor(MOSS)
+          .text('LOT PARKING · WASHROOMS · PLAYGROUND · SHADE · PICNIC TABLES · STROLLERS & WHEELS · OPEN WATER · SHORE FISHING · TRANSIT REACH', 64, doc.y, { characterSpacing: 0.8, width: W });
+      }
+    }
+
     // ---------- intro / how to use ----------
     opener('Before you head out');
     doc.font(F.body).fontSize(11.5).fillColor(INK_SOFT).text(c.intro, 64, doc.y, { width: W, lineGap: 2.5 });
@@ -603,6 +813,7 @@ function buildGuidePdf(guide) {
       'Names are tappable — each links to the place in Google Maps for live directions, hours, and closures. ' +
       'Cost markers: FREE, $ (under ~$10/person), $$ (~$10–25), $$$ (day-trip money). ' +
       'The small square beside each name is a real checkbox — tick places off as you go and save the PDF; it remembers. ' +
+      'The QR square on each entry\'s right edge opens the same live map link from a printed page. ' +
       'Details like fees and gate hours drift over the seasons; the link is always the source of truth.';
     doc.font(F.body).fontSize(10.5);
     const howH = doc.heightOfString(HOW, { width: W - 36, lineGap: 2 });
@@ -655,6 +866,61 @@ function buildGuidePdf(guide) {
       doc.moveDown(0.5);
     }
 
+    // ---------- the almanac: month by month + the sun clock ----------
+    // The re-open engine: what the land is doing each month, and computed
+    // sunrise/sunset for the guide's own coordinates. Gated on authored data.
+    if (Array.isArray(c.almanac) && c.almanac.length) {
+      opener('The almanac', 'What the land is doing, month by month — and when the sun clocks in and out. The coral month is the one you plan a year around.');
+      for (const mo of c.almanac) {
+        doc.font(F.body).fontSize(10);
+        const h = doc.heightOfString(mo.text, { width: W - 52, lineGap: 1.6 });
+        if (doc.y + h + 14 > doc.page.height - doc.page.margins.bottom) doc.addPage();
+        const y0 = doc.y;
+        if (mo.key) doc.circle(58, y0 + 5, 2.6).fill(CORAL);
+        doc.font(F.display).fontSize(9.5).fillColor(mo.key ? CORAL : MOSS)
+          .text(mo.m.toUpperCase(), 64, y0, { characterSpacing: 2, lineBreak: false });
+        doc.font(F.body).fontSize(10).fillColor(INK_SOFT)
+          .text(mo.text, 116, y0 - 1, { width: W - 52, lineGap: 1.6 });
+        doc.y = Math.max(doc.y, y0 + h) + 9;
+      }
+
+      // The sun clock — a computed instrument, mid-month, local clock.
+      const here = parseCoords(guide.coords);
+      if (here) {
+        const yearNow = new Date().getFullYear();
+        const MONTH_NAMES = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+        if (doc.y + 300 > doc.page.height - doc.page.margins.bottom) doc.addPage();
+        else doc.y += 10;
+        doc.font(F.display).fontSize(14).fillColor(INK).text('THE SUN CLOCK', 64, doc.y === 0 ? 72 : doc.y, { characterSpacing: 1.8 });
+        rule(64, doc.y + 6, 118);
+        doc.y += 16;
+        const headY = doc.y;
+        doc.font(F.displayLight).fontSize(5.5).fillColor(MOSS);
+        doc.text('MONTH', 64, headY, { characterSpacing: 1.2, lineBreak: false });
+        doc.text('SUNRISE', 200, headY, { width: 80, align: 'center', characterSpacing: 1.2, lineBreak: false });
+        doc.text('SUNSET', 300, headY, { width: 80, align: 'center', characterSpacing: 1.2, lineBreak: false });
+        doc.text('DAYLIGHT', 410, headY, { width: 90, align: 'right', characterSpacing: 1.2, lineBreak: false });
+        doc.moveTo(64, headY + 9).lineTo(64 + W, headY + 9).lineWidth(0.5).stroke(MOSS);
+        let sy = headY + 15;
+        for (let m = 1; m <= 12; m++) {
+          const s = sunMinutesUTC(here.lat, here.lon, yearNow, m, 15);
+          if (!s) continue;
+          const dayMin = Math.round(s.set - s.rise);
+          doc.font(F.displayLight).fontSize(7.5).fillColor(INK)
+            .text(MONTH_NAMES[m - 1], 64, sy, { characterSpacing: 1.4, lineBreak: false });
+          doc.font(F.displayLight).fontSize(7.5).fillColor(INK_SOFT)
+            .text(torontoClock(yearNow, m, 15, s.rise).toUpperCase(), 200, sy, { width: 80, align: 'center', characterSpacing: 1, lineBreak: false })
+            .text(torontoClock(yearNow, m, 15, s.set).toUpperCase(), 300, sy, { width: 80, align: 'center', characterSpacing: 1, lineBreak: false })
+            .text(`${Math.floor(dayMin / 60)} H ${String(dayMin % 60).padStart(2, '0')} M`, 410, sy, { width: 90, align: 'right', characterSpacing: 1, lineBreak: false });
+          sy += 14.5;
+        }
+        doc.y = sy + 8;
+        doc.font(F.displayLight).fontSize(6.5).fillColor(INK_SOFT)
+          .text(`COMPUTED FOR ${(guide.coords || '').toUpperCase()} · MID-MONTH · LOCAL CLOCK, DST INCLUDED · GOLDEN HOUR ≈ THE LAST HOUR BEFORE SUNSET`,
+            64, doc.y, { characterSpacing: 0.8, width: W });
+      }
+    }
+
     // ---------- spots ----------
     let spotNo = 0;
     const renderSpots = (label, blurb, spots) => {
@@ -663,12 +929,19 @@ function buildGuidePdf(guide) {
         spotNo++;
         doc.font(F.body).fontSize(10.5);
         const bodyH =
-          doc.heightOfString(sp.why, { width: W }) +
+          doc.heightOfString(sp.why, { width: W - 44 }) +
           (sp.tip ? doc.heightOfString(sp.tip, { width: W }) : 0) + 78 +
           (sp.access ? 14 : 0);
         if (doc.y + bodyH > doc.page.height - doc.page.margins.bottom) doc.addPage();
 
-        const link = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(sp.maps || sp.name)}`;
+        const link = mapsLink(sp);
+        const qr = qrMap[link];
+        // The printed page's tap target: a small ink QR on the right rail,
+        // level with the entry's marker line. Name and body wrap short of it.
+        if (qr) {
+          try { doc.image(qr, 64 + W - 34, doc.y, { width: 34, height: 34 }); } catch (e) { /* render without */ }
+        }
+        const entryW = qr ? W - 44 : W;
         // Reference marker line: coral number, then the surveyed location.
         doc.font(F.displayLight).fontSize(7.5).fillColor(CORAL)
           .text(String(spotNo).padStart(2, '0'), 64, doc.y, { characterSpacing: 1.5, continued: true })
@@ -685,9 +958,9 @@ function buildGuidePdf(guide) {
             borderColor: MOSS, backgroundColor: PAPER
           });
         } catch (e) { /* a reader without form support still sees the square */ }
-        doc.font(F.display).fontSize(13.5).fillColor(INK).text(sp.name, 64, doc.y, { width: W, link });
+        doc.font(F.display).fontSize(13.5).fillColor(INK).text(sp.name, 64, doc.y, { width: entryW, link });
         doc.moveDown(0.16);
-        doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT).text(sp.why, { width: W, lineGap: 1.8 });
+        doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT).text(sp.why, { width: entryW, lineGap: 1.8 });
         if (sp.tip) {
           doc.moveDown(0.15);
           doc.font(F.bodyItalic).fontSize(10).fillColor(MOSS).text(`Local tip: ${sp.tip}`, { width: W, lineGap: 1.4 });
@@ -751,6 +1024,94 @@ function buildGuidePdf(guide) {
         doc.moveDown(0.3);
       });
       doc.moveDown(0.6);
+    }
+
+    // ---------- the day pack: tickable checklists ----------
+    // Real AcroForm boxes like the been-there ledger — tick before the door,
+    // save the PDF, it remembers. Shared across every guide.
+    {
+      opener('The day pack', 'Three lists, checked at the door. Tick them in any PDF reader and save — the boxes remember.');
+      const PACKS = [
+        ['The every-trip pack', [
+          'Water — a litre per person, more in July heat',
+          'Snacks that survive a backpack',
+          'Bug spray (May–September) and sunscreen',
+          'Phone charged — and this PDF saved offline',
+          'Small first-aid kit, plus any personal meds',
+          'Hat, and one layer more than the forecast suggests',
+          'Dry socks waiting in the car — hiking\'s cheapest luxury',
+          'A bag to carry your garbage back out'
+        ]],
+        ['With small companions', [
+          'Double the snacks, halve the distance plan',
+          'Wipes, and a full change of clothes',
+          'Towel — every child finds the water',
+          'Bucket or net for pond edges (catch, look, release)',
+          'The stroller check: match your wheels to the SURFACE column',
+          'Patience for the fourth playground stop'
+        ]],
+        ['Winter add-ons', [
+          'Traction cleats — valley paths ice first',
+          'Thermos of something hot',
+          'Headlamp: dark arrives before 5 pm',
+          'Sit pad for cold benches',
+          'Hand warmers in the glovebox'
+        ]]
+      ];
+      PACKS.forEach(([title, items], gi) => {
+        if (doc.y + 30 + items.length * 19 > doc.page.height - doc.page.margins.bottom) doc.addPage();
+        doc.font(F.display).fontSize(10.5).fillColor(MOSS)
+          .text(title.toUpperCase(), 64, doc.y, { characterSpacing: 1.8 });
+        doc.moveDown(0.4);
+        for (let ii = 0; ii < items.length; ii++) {
+          const y0 = doc.y;
+          doc.rect(64, y0 + 1, 11, 11).lineWidth(0.9).stroke(MOSS);
+          try {
+            doc.formCheckbox(`pack-${guide.slug}-${gi}-${ii}`, 64, y0 + 1, 11, 11, {
+              borderColor: MOSS, backgroundColor: PAPER
+            });
+          } catch (e) { /* square still prints */ }
+          doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT)
+            .text(items[ii], 84, y0, { width: W - 20, lineGap: 1.4 });
+          doc.y = Math.max(doc.y, y0 + 13) + 6;
+        }
+        doc.moveDown(0.7);
+      });
+
+      // ---------- the field ledger: ranks earned, not given ----------
+      const ranks = Array.isArray(c.ledger) && c.ledger.length === 4
+        ? c.ledger : ['Day Scout', 'Pathfinder', 'Field Ranger', 'Completionist'];
+      const thresholds = [5, 12, 20, total];
+      if (doc.y + 220 > doc.page.height - doc.page.margins.bottom) doc.addPage();
+      else doc.y += 6;
+      doc.font(F.display).fontSize(14).fillColor(INK).text('THE FIELD LEDGER', 64, doc.y, { characterSpacing: 1.8 });
+      rule(64, doc.y + 6, 118);
+      doc.y += 16;
+      doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT).text(
+        `All ${total} places in this book carry a been-there checkbox. Tick them as you go — the ranks below are earned on the ground, claimed here.`,
+        64, doc.y, { width: W, lineGap: 2 });
+      doc.moveDown(1.2);
+      const stampY = doc.y + 40;
+      thresholds.forEach((th, ri) => {
+        const cx = 64 + (W * (ri + 0.5)) / 4;
+        const last = ri === 3;
+        const ring = last ? CORAL : MOSS;
+        doc.circle(cx, stampY, 36).lineWidth(1.4).stroke(ring);
+        doc.circle(cx, stampY, 30).lineWidth(0.6).stroke(ring);
+        doc.font(F.display).fontSize(16).fillColor(last ? CORAL : INK)
+          .text(String(th), cx - 30, stampY - 12, { width: 60, align: 'center', lineBreak: false });
+        doc.font(F.displayLight).fontSize(5.5).fillColor(INK_SOFT)
+          .text('PLACES', cx - 30, stampY + 6, { width: 60, align: 'center', characterSpacing: 2, lineBreak: false });
+        doc.font(F.display).fontSize(7.5).fillColor(INK)
+          .text(ranks[ri].toUpperCase(), cx - 56, stampY + 46, { width: 112, align: 'center', characterSpacing: 1.2, lineBreak: false });
+        doc.rect(cx - 5.5, stampY + 60, 11, 11).lineWidth(0.9).stroke(ring);
+        try {
+          doc.formCheckbox(`rank-${guide.slug}-${ri}`, cx - 5.5, stampY + 60, 11, 11, {
+            borderColor: ring, backgroundColor: PAPER
+          });
+        } catch (e) { /* square still prints */ }
+      });
+      doc.y = stampY + 86;
     }
 
     // ---------- etiquette + back page ----------

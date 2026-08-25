@@ -14,84 +14,96 @@ module.exports = {
       area: 'McCowan Rd south of Hwy 7, Markham',
       why: 'Markham\'s biggest natural park: the Rouge River widens into a lake behind the historic dam, with forested trails looping the water and herons working the shallows. It feels a province away from the plazas five minutes north.',
       tip: 'Enter from the McCowan side for the quickest route to the dam overlook; the full loop is a comfortable hour.',
-      best: 'Gorgeous in fall colour', ages: 'all ages', cost: 'FREE (seasonal gate)', access: 'Lot at the gate · washrooms in season · easy main paths', maps: 'Milne Dam Conservation Park Markham'
+      best: 'Gorgeous in fall colour', ages: 'all ages', cost: 'FREE (seasonal gate)', access: 'Lot at the gate · washrooms in season · easy main paths', maps: 'Milne Dam Conservation Park Markham',
+      amen: { lot: 2, wash: 1, shade: 2, picnic: 2, wheels: 1, water: 2, fish: 2, transit: 1 }
     },
     {
       name: 'Toogood Pond Park',
       area: 'Main Street Unionville, Markham',
       why: 'The postcard of Markham: a willow-lined pond at the top of Unionville\'s historic Main Street, with a looping path, boardwalk stretches, and turtles sunning on logs. Pairs a nature walk with ice cream on a heritage street.',
       tip: 'Walk the pond first, then Main Street Unionville south for the café stretch — the combination is the classic Markham afternoon.',
-      best: 'All four seasons; skating vibes in deep winter', ages: 'all ages', cost: 'FREE', access: 'Free lots · washrooms in park · stroller-friendly loop', maps: 'Toogood Pond Park Unionville'
+      best: 'All four seasons; skating vibes in deep winter', ages: 'all ages', cost: 'FREE', access: 'Free lots · washrooms in park · stroller-friendly loop', maps: 'Toogood Pond Park Unionville',
+      amen: { lot: 2, wash: 2, play: 1, shade: 1, picnic: 2, wheels: 2, water: 2, fish: 2, transit: 2 }
     },
     {
       name: 'Rouge National Urban Park — Bob Hunter Memorial Park',
       area: 'Reesor Rd at 14th Ave, Markham',
       why: 'Markham\'s gateway into Canada\'s first national urban park: wide meadow-and-forest trails on old farmland being restored to Carolinian habitat. Big skies, deer at dusk, and almost never crowded.',
       tip: 'The trailhead parking is free like all of Rouge NUP — check the park\'s site for trail notices before you go.',
-      best: 'Golden-hour walks, spring birdsong', ages: 'all ages', cost: 'FREE', access: 'Free trailhead lot · no facilities · mown paths', maps: 'Bob Hunter Memorial Park Markham'
+      best: 'Golden-hour walks, spring birdsong', ages: 'all ages', cost: 'FREE', access: 'Free trailhead lot · no facilities · mown paths', maps: 'Bob Hunter Memorial Park Markham',
+      amen: { lot: 2, shade: 1 }
     },
     {
       name: 'German Mills Settlers Park',
       area: 'John St at Leslie, Thornhill',
       why: 'A surprisingly deep wooded valley along German Mills Creek with a paved multi-use path and dirt side trails. The tree canopy closes overhead for long stretches — summer shade you don\'t expect this close to Leslie Street.',
       tip: 'Connects south toward the East Don trail system if you want a long one-way walk with a transit return.',
-      best: 'Hot summer days (real shade)', ages: 'all ages', cost: 'FREE', access: 'Street + small lots · paved main path · stroller ok', maps: 'German Mills Settlers Park Thornhill'
+      best: 'Hot summer days (real shade)', ages: 'all ages', cost: 'FREE', access: 'Street + small lots · paved main path · stroller ok', maps: 'German Mills Settlers Park Thornhill',
+      amen: { lot: 1, shade: 2, picnic: 1, wheels: 2, water: 1, transit: 2 }
     },
     {
       name: 'Milliken Mills Park',
       area: 'Kennedy Rd at Denison, Markham',
       why: 'A big stormwater lake that birds treat as habitat: swans, cormorants, and night herons all show up. The flat lakeside loop is stroller- and senior-friendly, with fishing platforms over the water.',
       tip: 'Early morning is bird time; the loop plus a playground stop makes an easy family outing.',
-      best: 'Spring and fall migration', ages: 'all ages', cost: 'FREE', access: 'Free lot · washrooms at community centre · paved loop', maps: 'Milliken Mills Park Markham'
+      best: 'Spring and fall migration', ages: 'all ages', cost: 'FREE', access: 'Free lot · washrooms at community centre · paved loop', maps: 'Milliken Mills Park Markham',
+      amen: { lot: 2, wash: 2, play: 2, shade: 1, picnic: 2, wheels: 2, water: 2, fish: 2, transit: 2 }
     },
     {
       name: 'Berczy Park corridors & Bridle Trail',
       area: 'Unionville north of 16th Ave',
       why: 'The Bridle Trail system stitches Unionville\'s neighbourhoods together along Bruce Creek — a genuine off-road walking network under mature trees, past ponds most residents a block away don\'t know exist.',
       tip: 'Start at Toogood Pond and follow Bruce Creek north for the prettiest stretch.',
-      best: 'Fall colour', ages: 'all ages', cost: 'FREE', access: 'Park at Toogood · gravel-paved mix · stroller ok', maps: 'Bridle Trail Unionville Markham'
+      best: 'Fall colour', ages: 'all ages', cost: 'FREE', access: 'Park at Toogood · gravel-paved mix · stroller ok', maps: 'Bridle Trail Unionville Markham',
+      amen: { lot: 2, wash: 1, shade: 2, picnic: 1, wheels: 2, water: 2, transit: 2 }
     },
     {
       name: 'Swan Lake Park',
       area: 'Sixteenth Ave east of Kennedy, Markham',
       why: 'A kettle lake ringed by a short boardwalk-and-gravel loop, with an island the waterfowl commute to. Small, calm, and exactly right when you want twenty green minutes, not an expedition.',
       tip: 'Combine with the Angus Glen community trails across Kennedy for a longer outing.',
-      best: 'Misty autumn mornings', ages: 'all ages', cost: 'FREE', access: 'Street parking · gravel loop · mostly level', maps: 'Swan Lake Park Markham'
+      best: 'Misty autumn mornings', ages: 'all ages', cost: 'FREE', access: 'Street parking · gravel loop · mostly level', maps: 'Swan Lake Park Markham',
+      amen: { lot: 1, shade: 1, wheels: 1, water: 2, transit: 1 }
     },
     {
       name: 'Pomona Mills Park',
       area: 'Thornhill, along Pomona Creek',
       why: 'A narrow creekside ravine park hiding behind Yonge Street\'s Thornhill stretch — footbridges, ducks, and a genuine sense of being below the city. Historic Thornhill village sits at its shoulder.',
       tip: 'Pair with a walk through the Thornhill heritage district; the contrast makes both better.',
-      best: 'Spring, when the creek runs high', ages: 'all ages', cost: 'FREE', access: 'Street parking · paved path · a few stairs', maps: 'Pomona Mills Park Thornhill'
+      best: 'Spring, when the creek runs high', ages: 'all ages', cost: 'FREE', access: 'Street parking · paved path · a few stairs', maps: 'Pomona Mills Park Thornhill',
+      amen: { lot: 1, shade: 2, picnic: 1, wheels: 1, water: 1, transit: 2 }
     },
     {
       name: 'Rouge Valley trails at Box Grove',
       area: 'Box Grove / 14th Ave, southeast Markham',
       why: 'Where the Rouge\'s main branch swings through Markham\'s southeast, informal trails follow the valley rim and drop to the river — wilder and quieter than the park\'s signed sections.',
       tip: 'Footwear with grip; valley-slope paths get greasy after rain.',
-      best: 'Dry summer and fall days', ages: '8+', cost: 'FREE', access: 'Roadside parking · rough valley paths · car only', maps: 'Box Grove trails Rouge Markham'
+      best: 'Dry summer and fall days', ages: '8+', cost: 'FREE', access: 'Roadside parking · rough valley paths · car only', maps: 'Box Grove trails Rouge Markham',
+      amen: { lot: 1, shade: 2, water: 2 }
     },
     {
       name: 'Ada Mackenzie Park & German Mills Creek meadows',
       area: 'Thornhill east of Bayview',
       why: 'Open meadow bowls along the creek where goldenrod and asters take over in late summer — one of the best easy butterfly-and-grasshopper walks in the city\'s north.',
       tip: 'Late August through September is peak meadow.',
-      best: 'Late summer', ages: 'all ages', cost: 'FREE', access: 'Street parking · grass paths · open meadow', maps: 'Ada Mackenzie Park Thornhill'
+      best: 'Late summer', ages: 'all ages', cost: 'FREE', access: 'Street parking · grass paths · open meadow', maps: 'Ada Mackenzie Park Thornhill',
+      amen: { lot: 1, water: 1, transit: 1 }
     },
     {
       name: 'Cornell community trails & Little Rouge fringe',
       area: 'Cornell, east Markham',
       why: 'The Little Rouge Creek corridor grazes Cornell\'s eastern edge, and the community trail network feeds into it — an easy way to touch national-park nature from a residential start point.',
       tip: 'Head east toward Reesor Rd and the land opens up fast.',
-      best: 'Evening walks', ages: 'all ages', cost: 'FREE', access: 'Neighbourhood parking · paved connectors · stroller ok', maps: 'Cornell trails Markham Little Rouge'
+      best: 'Evening walks', ages: 'all ages', cost: 'FREE', access: 'Neighbourhood parking · paved connectors · stroller ok', maps: 'Cornell trails Markham Little Rouge',
+      amen: { lot: 1, play: 1, shade: 1, wheels: 2, transit: 2 }
     },
     {
       name: 'Aaniin / Middlefield stormwater trails',
       area: 'Middlefield Rd, south Markham',
       why: 'A chain of naturalized stormwater ponds with paved loops — red-winged blackbirds in the cattails, and some of Markham\'s most reliable sunset water views.',
       tip: 'Flat and paved throughout: the pick for wheels of any kind.',
-      best: 'Summer evenings', ages: 'all ages', cost: 'FREE', access: 'Free lot at the centre · washrooms inside · paved · transit ok', maps: 'Aaniin Community Centre park trails Markham'
+      best: 'Summer evenings', ages: 'all ages', cost: 'FREE', access: 'Free lot at the centre · washrooms inside · paved · transit ok', maps: 'Aaniin Community Centre park trails Markham',
+      amen: { lot: 2, wash: 2, play: 2, picnic: 1, wheels: 2, water: 2, transit: 2 }
     }
   ],
 
@@ -139,35 +151,40 @@ module.exports = {
       area: 'Milne Dam south into the valley',
       why: 'The town\'s best sustained hike: riverside dirt trail following the Rouge downstream from the dam, valley walls rising as you go. Proper forest walking that keeps going as long as your morning does.',
       tip: 'Out-and-back — turn around at your halfway energy, not your halfway time.',
-      route: '~7 km out & back · dirt', best: 'Fall colour', ages: '6+', cost: 'FREE', access: 'Park at Milne · dirt underfoot — real shoes · no facilities south', maps: 'Milne Dam Conservation Park trail Markham'
+      route: '~7 km out & back · dirt', best: 'Fall colour', ages: '6+', cost: 'FREE', access: 'Park at Milne · dirt underfoot — real shoes · no facilities south', maps: 'Milne Dam Conservation Park trail Markham',
+      tr: { km: 7, kind: 'out & back', surface: 'dirt', climb: 1, shade: 2, crowd: 0, wheels: 0, boots: 3, pick: 'The real hike — most forest per morning' }
     },
     {
       name: 'Unionville Bridle Trail end-to-end',
       area: 'Toogood Pond north along Bruce Creek',
       why: 'Walk or ride the whole creek corridor in one line — ponds, footbridges, and mature willows the entire way, with Main Street Unionville waiting at the finish for the reward stop.',
       tip: 'Quiet enough for young riders learning to hold a line.',
-      route: '~5 km one-way · gravel & paved', best: 'Any green month', ages: 'all ages', cost: 'FREE', access: 'Start at the Toogood lot · stroller ok · exits to Main St', maps: 'Bridle Trail Unionville'
+      route: '~5 km one-way · gravel & paved', best: 'Any green month', ages: 'all ages', cost: 'FREE', access: 'Start at the Toogood lot · stroller ok · exits to Main St', maps: 'Bridle Trail Unionville',
+      tr: { km: 5, kind: 'one-way', surface: 'gravel & paved', climb: 0, shade: 2, crowd: 1, wheels: 2, boots: 2, pick: 'Best finish — Main Street reward at the end' }
     },
     {
       name: 'German Mills Creek trail',
       area: 'Thornhill, John St south',
       why: 'A paved creekside ride under closed canopy — one of the shadiest cycling corridors in the region, connecting south toward the East Don system for riders who want a long one-way.',
       tip: 'Link it to the Don trails and exit by transit for a big-mileage day.',
-      route: '~6 km one-way · paved', best: 'Hot days (real shade)', ages: 'all ages', cost: 'FREE', access: 'Paved throughout · street parking · bike-friendly', maps: 'German Mills Settlers Park trail'
+      route: '~6 km one-way · paved', best: 'Hot days (real shade)', ages: 'all ages', cost: 'FREE', access: 'Paved throughout · street parking · bike-friendly', maps: 'German Mills Settlers Park trail',
+      tr: { km: 6, kind: 'one-way', surface: 'paved', climb: 0, shade: 2, crowd: 1, wheels: 2, boots: 1, pick: 'Shadiest — the July and August pick' }
     },
     {
       name: 'Bob Hunter meadow loops',
       area: 'Rouge NUP, Reesor Rd at 14th Ave',
       why: 'Wide mown paths looping restored meadow and young forest — flat, open-sky walking where you can talk side by side, with deer prints in every soft patch.',
       tip: 'The national park keeps trail notices online — worth a glance after storms.',
-      route: '3–5 km loops · mown grass', best: 'Golden hour', ages: 'all ages', cost: 'FREE', access: 'Trailhead lot · mown grass · no facilities', maps: 'Bob Hunter Memorial Park trails'
+      route: '3–5 km loops · mown grass', best: 'Golden hour', ages: 'all ages', cost: 'FREE', access: 'Trailhead lot · mown grass · no facilities', maps: 'Bob Hunter Memorial Park trails',
+      tr: { km: 4, kind: 'loops', surface: 'mown grass', climb: 0, shade: 0, crowd: 0, wheels: 0, boots: 2, pick: 'Quietest — big-sky walking, deer at dusk' }
     },
     {
       name: 'Milliken Mills lake loop',
       area: 'Kennedy Rd at Denison',
       why: 'The flattest, easiest circuit in this guide — a paved lakeside loop that works for strollers, new skaters on inline wheels, and anyone rebuilding a walking habit.',
       tip: 'Two laps plus the playground equals one satisfied small child.',
-      route: '1.5 km loop · paved', best: 'Summer evenings', ages: 'all ages', cost: 'FREE', access: 'Free lot · fully paved · every kind of wheel', maps: 'Milliken Mills Park Markham'
+      route: '1.5 km loop · paved', best: 'Summer evenings', ages: 'all ages', cost: 'FREE', access: 'Free lot · fully paved · every kind of wheel', maps: 'Milliken Mills Park Markham',
+      tr: { km: 1.5, kind: 'loop', surface: 'paved', climb: 0, shade: 1, crowd: 1, wheels: 2, boots: 1, pick: 'Easiest — strollers, wheelchairs, training wheels' }
     }
   ],
 
@@ -305,6 +322,37 @@ module.exports = {
       ]
     }
   ],
+
+  // Month-by-month natural events — the page that gets re-opened all year.
+  // `key: true` marks the single headline month (the almanac's one coral).
+  almanac: [
+    { m: 'JAN', text: 'Fresh-snow postcard mornings at Toogood Pond and Swan Lake; wintering ducks crowd whatever water stays open below the Milne dam.' },
+    { m: 'FEB', text: 'The clearest skies of the year — Bob Hunter\'s big-sky sunsets at their sharpest, and the first warm spells start the maple sap moving.' },
+    { m: 'MAR', text: 'Maple syrup weeks at Bruce\'s Mill; red-winged blackbirds return to every cattail marsh in the first mild week — the true first day of spring.' },
+    { m: 'APR', text: 'Creeks run loud and high (Pomona Mills\' best month); turtles take their first sun at Toogood on warm afternoons; waterfowl migration moves through.' },
+    { m: 'MAY', text: 'Trilliums and spring ephemerals carpet the valley woods early-month; warbler migration peaks mid-May — the birdiest two weeks of the year.' },
+    { m: 'JUN', text: 'Goslings on every pond, meadow wildflowers opening, and the longest evenings — golden hour runs past 8 pm.' },
+    { m: 'JUL', text: 'Fireflies in the Bob Hunter meadows at dusk through mid-month; dragonflies patrol the stormwater lakes; deep shade season at German Mills.' },
+    { m: 'AUG', text: 'Goldenrod and asters take the meadows — Ada Mackenzie\'s peak builds late-month; farm stands along Reesor Rd hit full harvest stride.' },
+    { m: 'SEP', text: 'Mist mornings return to Swan Lake; monarchs drift south through the meadows; salmon begin staging at the Rouge mouth.' },
+    { m: 'OCT', key: true, text: 'The headline month: salmon run the lower Rouge (late Sep to mid Oct) and fall colour peaks at Milne Dam and the valley walls mid-to-late month.' },
+    { m: 'NOV', text: 'Bare trees open the sightlines — the Box Grove rim views are best now; late waterfowl raft on the reservoirs before freeze-up.' },
+    { m: 'DEC', text: 'First-snow quiet in the valley parks; pair a Toogood loop with Main Street Unionville\'s holiday lights for the classic winter evening.' }
+  ],
+
+  // The shortlists: conclusions the matrix and trail table point to,
+  // stated plainly — the "which one, today, with my crew" answers.
+  shortlists: [
+    { title: 'The full-amenity family day', text: 'Milliken Mills Park — real washrooms, playground, fishing platforms, and a fully paved loop. Everything on one site.' },
+    { title: 'Best without a car', text: 'German Mills Settlers Park — YRT on John St, paved path, and the best canopy shade in the city.' },
+    { title: 'Best toddler outing', text: 'Milliken Mills\' 1.5 km paved lake loop: two laps plus the playground equals one satisfied small child.' },
+    { title: 'Most view for least effort', text: 'Milne Dam overlook — Markham\'s best stand-and-stare spot, steps from the parking lot on level ground.' },
+    { title: 'The quiet one', text: 'Bob Hunter meadow loops — open-sky walking where you can talk side by side and mostly have it to yourselves.' },
+    { title: 'The rainy-day call', text: 'German Mills under full canopy — the trees shrug off drizzle better than any open park in this guide.' }
+  ],
+
+  // Field-ledger ranks, earned by ticking the been-there checkboxes.
+  ledger: ['Day Scout', 'Pathfinder', 'Field Ranger', 'Warden of the Rouge'],
 
   seasons: [
     { label: 'Spring (Apr–May)', text: 'Creeks run loud and the valley parks green up weeks before the streets do. Milne Dam and Pomona Mills are at their liveliest; trails are muddy — boots, not sneakers.' },
