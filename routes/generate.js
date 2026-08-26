@@ -380,6 +380,14 @@ router.post('/plan', async (req, res) => {
   try {
     const plan = await grok.buildDayPlan({ items, city, days, mode });
     analytics.recordEvent({ type: 'plan_built', ownerKey: ownerKeyFor(req), meta: { stops: items.length, days, mode, guest_id: guestIdFor(req) } });
+    // Ad-optimization signal: a finished plan is the product working. CAPI
+    // is fail-soft and inert until META_* env vars exist.
+    require('../services/metaPixel').sendEvent('PlanGenerated', {
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+      sourceUrl: 'https://dayhop-v2.onrender.com/',
+      customData: { city: city || undefined, mode }
+    });
     res.json(plan);
   } catch (err) {
     handleGrokError(err, res);

@@ -56,6 +56,8 @@
     .spreads img:hover { transform: rotate(0) scale(1.02); }
     .spreads figcaption { font-family: var(--display); font-size: .74rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); text-align: center; margin-top: 9px; }
     @media (max-width: 640px) { .spreads { grid-template-columns: 1fr; } }
+    .lday-strip { background: #FBEAE4; border: 1px solid var(--coral); border-radius: 12px; padding: 10px 14px; margin: 4px 0 18px; font-size: .98rem; color: var(--ink); }
+    .lday-strip b { color: var(--coral-dark); }
     .banner { border-radius: 12px; padding: 14px 16px; margin: 18px 0; font-weight: 600; display: none; }
     .banner--ok { display: block; background: #E7F1EA; color: var(--moss); border: 1px solid var(--moss); }
     .banner--sad { display: block; background: #FBEAE4; color: var(--coral-dark); border: 1px solid var(--coral); }
@@ -142,6 +144,7 @@
     <path d="M-10 50 Q 68 41, 135 50 T 272 48 T 409 52 T 546 47 T 683 51 T 950 49" fill="none" stroke="#E1502F" stroke-width="1.6"/>
   </svg>
   <main>
+    <div class="lday-strip">🍁 <b>Labour Day is Sep 5–7.</b> Code <b>LABOURDAY</b> takes 25% off any guide until Sep 8 — and every future edition is free, forever.</div>
     <span class="kicker">DayHop · Field Guides</span>
     <h1>City Guides</h1>
     <p class="lede">Field-checked nature guides for Ontario cities: trails with distances and surfaces, the lookouts, waterways, legal fishing spots — and the parking, washroom, and footing notes on every single entry that decide whether a day actually works.</p>
@@ -206,7 +209,7 @@
       <div class="modal-page"><img id="preview-img" alt="First page of the guide" loading="lazy"></div>
       <div class="modal-foot">
         <button class="buy" id="preview-continue" type="button">Continue to checkout</button>
-        <p class="fine">Secure checkout by Stripe · instant PDF by email · free updated editions</p>
+        <p class="fine">Secure checkout by Stripe · instant PDF by email · free updated editions · 14-day make-it-right guarantee</p>
       </div>
     </div>
   </div>

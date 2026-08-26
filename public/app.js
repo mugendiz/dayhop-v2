@@ -2621,6 +2621,37 @@
     state.lastChangeSummary = null;
     state.editMode = false;
     renderPlanView();
+    maybeShowPostPlanUpsell();
+  }
+
+  // ---------- post-plan soft upsell ----------
+  // The moment the product just proved itself is the one honest time to ask.
+  // Once per session, dismissible, and it sells both products: Pro for the
+  // planners, the $20 field guide for the one-time buyers.
+  function maybeShowPostPlanUpsell() {
+    try {
+      if (sessionStorage.getItem('dayhop_postplan_upsell')) return;
+      sessionStorage.setItem('dayhop_postplan_upsell', '1');
+    } catch (e) { return; } // private mode: skip rather than nag every plan
+    const tier = state.entitlements && state.entitlements.tier;
+    if (tier && tier !== 'free') return; // pro/preview/admin: nothing to sell
+    const panel = document.getElementById('dayplan-panel');
+    if (!panel || document.getElementById('postplan-upsell')) return;
+    const el = document.createElement('div');
+    el.className = 'postplan-upsell';
+    el.id = 'postplan-upsell';
+    el.innerHTML =
+      '<span class="postplan-upsell-text">Like it? Keep the whole long weekend planned — <b>Pro is free for 7 days</b>, or grab a <b>$20 field guide</b> you keep forever.</span>' +
+      '<span class="postplan-upsell-actions">' +
+      '<button type="button" class="postplan-upsell-pro">Try Pro</button>' +
+      '<a class="postplan-upsell-guide" href="/guides">See guides</a>' +
+      '<button type="button" class="postplan-upsell-close" aria-label="Dismiss">✕</button></span>';
+    panel.insertBefore(el, panel.firstChild);
+    el.querySelector('.postplan-upsell-pro').addEventListener('click', () => {
+      el.remove();
+      showUpgradeModal('post_plan');
+    });
+    el.querySelector('.postplan-upsell-close').addEventListener('click', () => el.remove());
   }
 
   // The stop arrays of the current guide: [{ label, stops }] — one entry for
@@ -4491,7 +4522,8 @@
     edit_guide: "You've made this plan yours — Pro saves your version so it's ready next weekend.",
     multi_day: 'Turn a great day into a great weekend — Pro plans 2–3 day getaways.',
     replan: 'Weather changed? Kids changed the mood? Pro re-plans as often as your day does.',
-    new_shortlist: 'Start fresh whenever inspiration strikes — unlimited shortlists with Pro.'
+    new_shortlist: 'Start fresh whenever inspiration strikes — unlimited shortlists with Pro.',
+    post_plan: 'Keep the whole long weekend planned — unlimited plans, saved history, weekend trips.'
   };
 
   function showUpgradeModal(context) {
@@ -5281,7 +5313,32 @@
   }
 
   // ---------- Init ----------
+  // ---------- seasonal urgency strip ----------
+  // Shows only inside the campaign window; dismiss sticks per campaign key.
+  function initHolidayStrip() {
+    const strip = document.getElementById('holiday-strip');
+    if (!strip) return;
+    const CAMPAIGN = 'labourday-2026';
+    const END = new Date('2026-09-08T04:00:00Z'); // Sep 8, Toronto midnight
+    const HOLIDAY = new Date('2026-09-05T04:00:00Z');
+    const now = new Date();
+    let dismissed = false;
+    try { dismissed = localStorage.getItem('dayhop_strip_dismissed') === CAMPAIGN; } catch (e) { /* private mode */ }
+    if (now >= END || dismissed) return;
+    const days = Math.max(0, Math.ceil((HOLIDAY - now) / 86400000));
+    document.getElementById('holiday-strip-text').textContent =
+      days > 0
+        ? `🍁 Labour Day weekend is Sep 5–7 — ${days} day${days === 1 ? '' : 's'} away. Code LABOURDAY takes 25% off any field guide until Sep 8.`
+        : '🍁 It\'s the long weekend — code LABOURDAY takes 25% off any field guide until Sep 8.';
+    strip.hidden = false;
+    document.getElementById('holiday-strip-close').addEventListener('click', () => {
+      strip.hidden = true;
+      try { localStorage.setItem('dayhop_strip_dismissed', CAMPAIGN); } catch (e) { /* fine */ }
+    });
+  }
+
   function init() {
+    initHolidayStrip();
     loadPersisted();
     renderDraftResume(); // an unsaved plan from last time greets them by name
     renderFeaturedEvent([]); // curated sky pool shows before the feed lands
