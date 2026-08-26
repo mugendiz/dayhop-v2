@@ -75,11 +75,14 @@ function bySlug(slug) {
   return GUIDES.find(g => g.slug === slug) || null;
 }
 
-const SECTION_KEYS = ['spots', 'drives', 'trails', 'views', 'waters', 'fishing'];
+const SECTION_KEYS = ['spots', 'drives', 'trails', 'views', 'waters', 'fishing', 'heritage'];
 
 function countSpots(g) {
+  // Unique places only: entries marked facetOf are another lens on a hub
+  // entry, not a new place — counting them would inflate the honest number.
   const c = g.content();
-  return SECTION_KEYS.reduce((n, k) => n + (Array.isArray(c[k]) ? c[k].length : 0), 0);
+  return SECTION_KEYS.reduce((n, k) =>
+    n + (Array.isArray(c[k]) ? c[k].filter(s => !s.facetOf).length : 0), 0);
 }
 
 // Which live guide matches a browsed city string (feed promo card).
@@ -139,19 +142,34 @@ const pdfCache = new Map(); // slug -> { buffer, at }
 const FONT_DIR = path.join(__dirname, '..', 'assets', 'fonts');
 
 // Logical font names → registered TTFs, with built-in fallbacks so a
-// missing asset degrades the typography, never the sale.
+// missing asset degrades the typography, never the sale. Primary faces are
+// the website's own brand type (Satoshi display / Inter body — the same
+// faces the web shell speaks); National Park + Crimson remain the second
+// rung, Helvetica the floor.
 function registerFonts(doc) {
-  try {
-    doc.registerFont('Display', path.join(FONT_DIR, 'NationalPark-Bold.ttf'));
-    doc.registerFont('DisplayLight', path.join(FONT_DIR, 'NationalPark-Regular.ttf'));
-    doc.registerFont('Body', path.join(FONT_DIR, 'CrimsonPro-Regular.ttf'));
-    doc.registerFont('BodyItalic', path.join(FONT_DIR, 'CrimsonPro-Italic.ttf'));
-    doc.registerFont('BodyBold', path.join(FONT_DIR, 'CrimsonPro-Bold.ttf'));
-    return { display: 'Display', displayLight: 'DisplayLight', body: 'Body', bodyItalic: 'BodyItalic', bodyBold: 'BodyBold' };
-  } catch (err) {
-    console.warn('[city-guides] fonts unavailable, falling back to Helvetica:', err.message);
-    return { display: 'Helvetica-Bold', displayLight: 'Helvetica', body: 'Helvetica', bodyItalic: 'Helvetica-Oblique', bodyBold: 'Helvetica-Bold' };
+  const LADDER = [
+    {
+      display: 'Satoshi-Bold.ttf', displayLight: 'Satoshi-Medium.ttf',
+      body: 'Inter-Regular.ttf', bodyItalic: 'Inter-Italic.ttf', bodyBold: 'Inter-Bold.ttf'
+    },
+    {
+      display: 'NationalPark-Bold.ttf', displayLight: 'NationalPark-Regular.ttf',
+      body: 'CrimsonPro-Regular.ttf', bodyItalic: 'CrimsonPro-Italic.ttf', bodyBold: 'CrimsonPro-Bold.ttf'
+    }
+  ];
+  for (const rung of LADDER) {
+    try {
+      doc.registerFont('Display', path.join(FONT_DIR, rung.display));
+      doc.registerFont('DisplayLight', path.join(FONT_DIR, rung.displayLight));
+      doc.registerFont('Body', path.join(FONT_DIR, rung.body));
+      doc.registerFont('BodyItalic', path.join(FONT_DIR, rung.bodyItalic));
+      doc.registerFont('BodyBold', path.join(FONT_DIR, rung.bodyBold));
+      return { display: 'Display', displayLight: 'DisplayLight', body: 'Body', bodyItalic: 'BodyItalic', bodyBold: 'BodyBold' };
+    } catch (err) {
+      console.warn(`[city-guides] font rung unavailable (${rung.display}):`, err.message);
+    }
   }
+  return { display: 'Helvetica-Bold', displayLight: 'Helvetica', body: 'Helvetica', bodyItalic: 'Helvetica-Oblique', bodyBold: 'Helvetica-Bold' };
 }
 
 // Deterministic per-slug randomness — same guide, same art, every build.
@@ -308,7 +326,11 @@ function loadPhoto(key) {
 function creditLine(credit) {
   if (!credit) return 'WIKIMEDIA COMMONS';
   const lic = String(credit.license || '').toUpperCase();
-  return `PHOTO: ${String(credit.author || 'UNKNOWN').toUpperCase()} · ${lic} · WIKIMEDIA COMMONS`;
+  // Fold diacritics outside Latin-1 to their base letters — the display
+  // face lacks glyphs like ǎ and would print tofu into a photographer's name.
+  const author = String(credit.author || 'UNKNOWN')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+  return `PHOTO: ${author} · ${lic} · WIKIMEDIA COMMONS`;
 }
 
 // pdfkit's `cover` scales but does NOT clip — the spill must be fenced.
@@ -486,8 +508,9 @@ async function buildQrMap(c) {
   let QRCode;
   try { QRCode = require('qrcode'); } catch (e) { return {}; }
   const out = {};
-  for (const k of SECTION_KEYS) {
-    for (const sp of (Array.isArray(c[k]) ? c[k] : [])) {
+  const lists = SECTION_KEYS.map(k => c[k]).concat([c.bonus && c.bonus.entries]);
+  for (const list of lists) {
+    for (const sp of (Array.isArray(list) ? list : [])) {
       const link = mapsLink(sp);
       if (out[link]) continue;
       try {
@@ -498,6 +521,401 @@ async function buildQrMap(c) {
     }
   }
   return out;
+}
+
+// ---------- poster covers: "Surveyed Light" ----------
+// The WPA-poster ancestor of Quiet Cartography: the place distilled to five
+// flat colours inside a drawn frame — banded light, stacked silhouettes,
+// ruled water, one living witness, one coral disc. Scene art is authored
+// per slug; guides without one keep the typographic motif cover.
+const MARIGOLD = '#FFB627';
+const FADED_MOSS = '#A9BFAE';
+
+function drawMarkhamPoster(doc, F, guide, total) {
+  const W = doc.page.width;
+  // frame
+  doc.rect(30, 30, W - 60, doc.page.height - 60).lineWidth(2).stroke(INK);
+  doc.rect(38, 38, W - 76, doc.page.height - 76).lineWidth(0.7).stroke(INK);
+  // title band
+  doc.font(F.displayLight).fontSize(8).fillColor(MOSS)
+    .text('DAYHOP  ·  FIELD  GUIDES', 0, 64, { width: W, align: 'center', characterSpacing: 4 });
+  const title = guide.title.replace(/ (Nature Guide|City Nature Spots)$/, '').toUpperCase();
+  let ts = 72;
+  doc.font(F.display).fontSize(ts);
+  while (doc.widthOfString(title, { characterSpacing: 6 }) > 448) { ts -= 1; doc.fontSize(ts); }
+  doc.fillColor(INK).text(title, 0, 82, { width: W, align: 'center', characterSpacing: 6 });
+  doc.font(F.displayLight).fontSize(12.5).fillColor(MOSS)
+    .text('NATURE  GUIDE', 0, 168, { width: W, align: 'center', characterSpacing: 9 });
+
+  // scene window — Milne reservoir at last light, the heron on watch
+  const SX = 58, SW = W - 116, SY = 206, SH = 434, SB = SY + SH;
+  doc.save();
+  doc.rect(SX, SY, SW, SH).clip();
+  doc.rect(SX, SY, SW, SH).fill(PAPER);
+  for (const [by, bh] of [[SY + 148, 11], [SY + 166, 7], [SY + 179, 4]]) {
+    doc.rect(SX, by, SW, bh).fill(MARIGOLD);
+  }
+  const sunX = SX + SW * 0.68, sunY = SY + 72;
+  doc.circle(sunX, sunY, 72).lineWidth(0.7).stroke(CORAL);
+  doc.circle(sunX, sunY, 60).lineWidth(0.9).stroke(CORAL);
+  doc.circle(sunX, sunY, 47).fill(CORAL);
+  // far ridge
+  doc.moveTo(SX, SY + 206);
+  doc.quadraticCurveTo(SX + SW * 0.18, SY + 184, SX + SW * 0.38, SY + 198);
+  doc.quadraticCurveTo(SX + SW * 0.55, SY + 210, SX + SW * 0.72, SY + 194);
+  doc.quadraticCurveTo(SX + SW * 0.88, SY + 180, SX + SW, SY + 196);
+  doc.lineTo(SX + SW, SY + 252).lineTo(SX, SY + 252).closePath().fill(FADED_MOSS);
+  // treeline
+  {
+    const baseY = SY + 216;
+    doc.moveTo(SX, baseY + 26);
+    let x = SX, li = 0;
+    const lumps = [
+      [26, 18], [34, 26], [22, 14], [40, 30], [30, 20], [24, 26], [38, 18],
+      [28, 24], [34, 30], [22, 16], [40, 26], [30, 20], [26, 24], [36, 18], [30, 26]
+    ];
+    while (x <= SX + SW) {
+      const [w, h] = lumps[li % lumps.length];
+      doc.quadraticCurveTo(x + w / 2, baseY + 26 - h, x + w, baseY + 26 - Math.max(4, h * 0.35));
+      x += w; li++;
+    }
+    doc.lineTo(x, baseY + 70).lineTo(SX, baseY + 70).closePath().fill(MOSS);
+  }
+  for (const [fx, ph] of [[0.12, 34], [0.30, 46], [0.47, 30], [0.81, 40], [0.93, 30]]) {
+    const px = SX + SW * fx, base = SY + 244;
+    doc.moveTo(px, base - ph);
+    for (let t = 0; t < 4; t++) {
+      const tw = 4.5 + t * 3.2, tyy = base - ph + 8 + t * (ph - 10) / 4;
+      doc.lineTo(px + tw, tyy).lineTo(px + tw * 0.35, tyy);
+    }
+    doc.lineTo(px + 1.4, base).lineTo(px - 1.4, base);
+    for (let t = 3; t >= 0; t--) {
+      const tw = 4.5 + t * 3.2, tyy = base - ph + 8 + t * (ph - 10) / 4;
+      doc.lineTo(px - tw * 0.35, tyy).lineTo(px - tw, tyy);
+    }
+    doc.closePath().fill(MOSS);
+  }
+  // ruled water + marigold reflection
+  const waterTop = SY + 284;
+  for (let wy = waterTop; wy < SB - 26; wy += 7) {
+    const inset = Math.max(0, (waterTop + 40 - wy)) * 1.8;
+    doc.moveTo(SX + inset, wy).lineTo(SX + SW - inset, wy)
+      .lineWidth(wy < waterTop + 40 ? 0.5 : 0.8).stroke(MOSS);
+  }
+  {
+    const widths = [30, 18, 40, 24, 46, 20, 38, 26, 44, 16, 34, 22];
+    const offs = [0, -6, 4, -3, 6, -8, 2, 5, -4, 7, -2, 3];
+    let i = 0;
+    for (let wy = waterTop + 4; wy < SB - 34; wy += 7) {
+      const w0 = widths[i % widths.length] * (0.7 + (wy - waterTop) / (SB - waterTop) * 0.8);
+      const ox = offs[i % offs.length];
+      doc.moveTo(sunX + ox - w0 / 2, wy).lineTo(sunX + ox + w0 / 2, wy).lineWidth(2).stroke(MARIGOLD);
+      i++;
+    }
+  }
+  // bank + cattails
+  doc.moveTo(SX, SB - 34);
+  doc.quadraticCurveTo(SX + SW * 0.22, SB - 46, SX + SW * 0.45, SB - 36);
+  doc.quadraticCurveTo(SX + SW * 0.70, SB - 27, SX + SW, SB - 38);
+  doc.lineTo(SX + SW, SB).lineTo(SX, SB).closePath().fill(INK);
+  const cattail = (x, h, lean) => {
+    const topY = SB - 34 - h;
+    doc.moveTo(x, SB - 30).quadraticCurveTo(x + lean * 0.4, SB - 34 - h * 0.55, x + lean, topY + 16)
+      .lineWidth(1.5).stroke(INK);
+    doc.save();
+    doc.translate(x + lean, topY + 8).rotate(lean * 1.2, { origin: [0, 0] });
+    doc.roundedRect(-2.2, -9, 4.4, 18, 2.2).fill(INK);
+    doc.restore();
+    doc.moveTo(x + lean * 0.7, topY + 1).lineTo(x + lean * 0.7, topY - 7).lineWidth(0.9).stroke(INK);
+  };
+  cattail(SX + 36, 96, 4); cattail(SX + 52, 128, -3); cattail(SX + 66, 82, 6);
+  cattail(SX + 88, 112, -5); cattail(SX + 104, 74, 3);
+  for (const [bx, bh, bl] of [[SX + 30, 110, -14], [SX + 60, 140, 18], [SX + 96, 120, -20], [SX + 112, 96, 14]]) {
+    doc.moveTo(bx, SB - 30).quadraticCurveTo(bx + bl * 0.2, SB - 30 - bh * 0.7, bx + bl, SB - 30 - bh)
+      .lineWidth(1.8).stroke(INK);
+  }
+  // the heron
+  {
+    const hx = SX + SW * 0.40, hy = SB - 38;
+    doc.lineCap('round');
+    doc.moveTo(hx - 2, hy + 2).lineTo(hx + 2, hy - 56).lineWidth(2.4).stroke(INK);
+    doc.moveTo(hx + 18, hy - 2).lineTo(hx + 9, hy - 56).lineWidth(2.4).stroke(INK);
+    doc.moveTo(hx - 30, hy - 78);
+    doc.quadraticCurveTo(hx - 8, hy - 98, hx + 24, hy - 94);
+    doc.quadraticCurveTo(hx + 52, hy - 90, hx + 62, hy - 74);
+    doc.lineTo(hx + 74, hy - 62);
+    doc.quadraticCurveTo(hx + 48, hy - 52, hx + 20, hy - 50);
+    doc.quadraticCurveTo(hx - 12, hy - 50, hx - 26, hy - 62);
+    doc.quadraticCurveTo(hx - 33, hy - 70, hx - 30, hy - 78);
+    doc.closePath().fill(INK);
+    doc.moveTo(hx - 20, hy - 84);
+    doc.quadraticCurveTo(hx - 44, hy - 96, hx - 42, hy - 122);
+    doc.quadraticCurveTo(hx - 41, hy - 138, hx - 32, hy - 144);
+    doc.lineWidth(9).stroke(INK);
+    doc.save();
+    doc.translate(hx - 30, hy - 146).rotate(-8, { origin: [0, 0] });
+    doc.ellipse(0, 0, 8.5, 5.5).fill(INK);
+    doc.restore();
+    doc.moveTo(hx - 34, hy - 148).lineTo(hx - 72, hy - 139).lineTo(hx - 32, hy - 141).closePath().fill(INK);
+    doc.moveTo(hx - 24, hy - 149).quadraticCurveTo(hx - 12, hy - 154, hx - 6, hy - 150).lineWidth(1.2).stroke(INK);
+    doc.circle(hx - 29, hy - 146.5, 1.4).fill(PAPER);
+  }
+  doc.restore();
+  doc.rect(SX, SY, SW, SH).lineWidth(1.1).stroke(INK);
+
+  // sub band + surveyor's stamp
+  doc.font(F.displayLight).fontSize(8.5).fillColor(MOSS)
+    .text('ROUGE  VALLEY  TRAILS   ·   MILL  PONDS   ·   THE  QUIET  FOREST  CORNERS', 0, SB + 22,
+      { width: W, align: 'center', characterSpacing: 2.4 });
+  doc.moveTo(W / 2 - 59, SB + 44).lineTo(W / 2 + 59, SB + 44).lineWidth(0.8).stroke(MOSS);
+  doc.font(F.displayLight).fontSize(6.5).fillColor(INK)
+    .text(`${total}  FIELD-CHECKED  PLACES   ·   RANKED  TABLES   ·   FOUR  SEASONS   ·   EVERY  ENTRY  LINKED  LIVE`, 0, SB + 54,
+      { width: W, align: 'center', characterSpacing: 1.8 });
+  const edition = new Date().toLocaleDateString('en-CA', { month: 'long', year: 'numeric', timeZone: 'America/Toronto' }).toUpperCase();
+  doc.font(F.displayLight).fontSize(6.5).fillColor(MOSS)
+    .text(`DAYHOP  ·  ${(guide.coords || '').toUpperCase()}  ·  FIELD-CHECKED  EDITION  ·  ${edition}`, 0, SB + 68,
+      { width: W, align: 'center', characterSpacing: 1.8 });
+}
+
+function drawRichmondHillPoster(doc, F, guide, total) {
+  const W = doc.page.width;
+  // frame
+  doc.rect(30, 30, W - 60, doc.page.height - 60).lineWidth(2).stroke(INK);
+  doc.rect(38, 38, W - 76, doc.page.height - 76).lineWidth(0.7).stroke(INK);
+  // title band
+  doc.font(F.displayLight).fontSize(8).fillColor(MOSS)
+    .text('DAYHOP  ·  FIELD  GUIDES', 0, 64, { width: W, align: 'center', characterSpacing: 4 });
+  const title = guide.title.replace(/ (Nature Guide|City Nature Spots)$/, '').toUpperCase();
+  let ts = 72;
+  doc.font(F.display).fontSize(ts);
+  while (doc.widthOfString(title, { characterSpacing: 4 }) > 460) { ts -= 1; doc.fontSize(ts); }
+  doc.fillColor(INK).text(title, 0, 86, { width: W, align: 'center', characterSpacing: 4 });
+  doc.font(F.displayLight).fontSize(12.5).fillColor(MOSS)
+    .text('NATURE  GUIDE', 0, 168, { width: W, align: 'center', characterSpacing: 9 });
+
+  // scene window — a kettle lake on the moraine, the loon on watch
+  const SX = 58, SW = W - 116, SY = 206, SH = 434, SB = SY + SH;
+  doc.save();
+  doc.rect(SX, SY, SW, SH).clip();
+  doc.rect(SX, SY, SW, SH).fill(PAPER);
+  for (const [by, bh] of [[SY + 138, 11], [SY + 156, 7], [SY + 169, 4]]) {
+    doc.rect(SX, by, SW, bh).fill(MARIGOLD);
+  }
+  const sunX = SX + SW * 0.30, sunY = SY + 68;
+  doc.circle(sunX, sunY, 70).lineWidth(0.7).stroke(CORAL);
+  doc.circle(sunX, sunY, 58).lineWidth(0.9).stroke(CORAL);
+  doc.circle(sunX, sunY, 45).fill(CORAL);
+  // far moraine ridge — the long rolling spine
+  doc.moveTo(SX, SY + 196);
+  doc.quadraticCurveTo(SX + SW * 0.22, SY + 168, SX + SW * 0.45, SY + 190);
+  doc.quadraticCurveTo(SX + SW * 0.66, SY + 208, SX + SW * 0.85, SY + 182);
+  doc.quadraticCurveTo(SX + SW * 0.95, SY + 170, SX + SW, SY + 178);
+  doc.lineTo(SX + SW, SY + 246).lineTo(SX, SY + 246).closePath().fill(FADED_MOSS);
+  // near ridge treeline — deep moss canopies
+  {
+    const baseY = SY + 212;
+    doc.moveTo(SX, baseY + 24);
+    let x = SX, li = 0;
+    const lumps = [
+      [30, 20], [24, 14], [38, 26], [28, 18], [34, 28], [22, 15], [40, 24],
+      [26, 20], [36, 30], [24, 16], [32, 22], [28, 26], [38, 18], [30, 24]
+    ];
+    while (x <= SX + SW) {
+      const [w, h] = lumps[li % lumps.length];
+      doc.quadraticCurveTo(x + w / 2, baseY + 24 - h, x + w, baseY + 24 - Math.max(4, h * 0.35));
+      x += w; li++;
+    }
+    doc.lineTo(x, baseY + 62).lineTo(SX, baseY + 62).closePath().fill(MOSS);
+  }
+  for (const [fx, ph] of [[0.08, 32], [0.26, 42], [0.55, 30], [0.68, 44], [0.90, 34]]) {
+    const px = SX + SW * fx, base = SY + 238;
+    doc.moveTo(px, base - ph);
+    for (let t = 0; t < 4; t++) {
+      const tw = 4.2 + t * 3, tyy = base - ph + 8 + t * (ph - 10) / 4;
+      doc.lineTo(px + tw, tyy).lineTo(px + tw * 0.35, tyy);
+    }
+    doc.lineTo(px + 1.3, base).lineTo(px - 1.3, base);
+    for (let t = 3; t >= 0; t--) {
+      const tw = 4.2 + t * 3, tyy = base - ph + 8 + t * (ph - 10) / 4;
+      doc.lineTo(px - tw * 0.35, tyy).lineTo(px - tw, tyy);
+    }
+    doc.closePath().fill(MOSS);
+  }
+  // the kettle lake — ruled water, reflection under the sun
+  const waterTop = SY + 274;
+  for (let wy = waterTop; wy < SB - 26; wy += 7) {
+    const inset = Math.max(0, (waterTop + 40 - wy)) * 1.8;
+    doc.moveTo(SX + inset, wy).lineTo(SX + SW - inset, wy)
+      .lineWidth(wy < waterTop + 40 ? 0.5 : 0.8).stroke(MOSS);
+  }
+  {
+    const widths = [28, 16, 38, 22, 44, 18, 36, 24, 42, 14, 32, 20];
+    const offs = [0, 5, -4, 3, -6, 7, -2, -5, 4, -7, 2, -3];
+    let i = 0;
+    for (let wy = waterTop + 4; wy < SB - 34; wy += 7) {
+      const w0 = widths[i % widths.length] * (0.7 + (wy - waterTop) / (SB - waterTop) * 0.8);
+      doc.moveTo(sunX + offs[i % offs.length] - w0 / 2, wy)
+        .lineTo(sunX + offs[i % offs.length] + w0 / 2, wy).lineWidth(2).stroke(MARIGOLD);
+      i++;
+    }
+  }
+  // foreground bank
+  doc.moveTo(SX, SB - 36);
+  doc.quadraticCurveTo(SX + SW * 0.28, SB - 26, SX + SW * 0.55, SB - 36);
+  doc.quadraticCurveTo(SX + SW * 0.78, SB - 46, SX + SW, SB - 40);
+  doc.lineTo(SX + SW, SB).lineTo(SX, SB).closePath().fill(INK);
+  // shoreline pines standing on the right bank — the moraine's signature
+  const bigPine = (px, baseY, h) => {
+    doc.moveTo(px - 1.6, baseY).lineTo(px - 1.6, baseY - 8).lineTo(px + 1.6, baseY - 8).lineTo(px + 1.6, baseY)
+      .closePath().fill(INK);
+    doc.moveTo(px, baseY - h);
+    for (let t = 0; t < 5; t++) {
+      const tw = 6 + t * 5.2, tyy = baseY - h + 10 + t * (h - 18) / 5;
+      doc.lineTo(px + tw, tyy).lineTo(px + tw * 0.32, tyy);
+    }
+    doc.lineTo(px + 2, baseY - 6).lineTo(px - 2, baseY - 6);
+    for (let t = 4; t >= 0; t--) {
+      const tw = 6 + t * 5.2, tyy = baseY - h + 10 + t * (h - 18) / 5;
+      doc.lineTo(px - tw * 0.32, tyy).lineTo(px - tw, tyy);
+    }
+    doc.closePath().fill(INK);
+  };
+  bigPine(SX + SW * 0.80, SB - 40, 128);
+  bigPine(SX + SW * 0.90, SB - 34, 168);
+  bigPine(SX + SW * 0.97, SB - 38, 108);
+  // the loon — floating, facing the light
+  {
+    const lx = SX + SW * 0.42, ly = SB - 78;
+    doc.lineCap('round');
+    doc.moveTo(lx - 30, ly);
+    doc.quadraticCurveTo(lx - 22, ly - 16, lx + 2, ly - 17);
+    doc.quadraticCurveTo(lx + 28, ly - 16, lx + 40, ly - 5);
+    doc.lineTo(lx + 50, ly - 12);
+    doc.lineTo(lx + 46, ly).closePath().fill(INK);
+    doc.moveTo(lx - 18, ly - 12);
+    doc.quadraticCurveTo(lx - 30, ly - 26, lx - 28, ly - 40);
+    doc.lineWidth(8).stroke(INK);
+    doc.save();
+    doc.translate(lx - 29, ly - 45).rotate(-6, { origin: [0, 0] });
+    doc.ellipse(0, 0, 7.5, 5.2).fill(INK);
+    doc.restore();
+    doc.moveTo(lx - 34, ly - 47).lineTo(lx - 52, ly - 42).lineTo(lx - 33, ly - 41).closePath().fill(INK);
+    // the necklace — the loon's paper stripes
+    for (let i = 0; i < 4; i++) {
+      doc.moveTo(lx - 30 + i * 2.4, ly - 33).lineTo(lx - 29 + i * 2.4, ly - 27).lineWidth(1.1).stroke(PAPER);
+    }
+    doc.circle(lx - 30, ly - 45.5, 1.3).fill(PAPER);
+    // wake
+    doc.moveTo(lx + 56, ly - 2).lineTo(lx + 92, ly - 2).lineWidth(0.5).stroke(MOSS);
+    doc.moveTo(lx - 40, ly - 2).lineTo(lx - 62, ly - 2).lineWidth(0.5).stroke(MOSS);
+  }
+  doc.restore();
+  doc.rect(SX, SY, SW, SH).lineWidth(1.1).stroke(INK);
+
+  // sub band + surveyor's stamp
+  doc.font(F.displayLight).fontSize(8.5).fillColor(MOSS)
+    .text('KETTLE  LAKES   ·   THE  OAK  RIDGES  MORAINE   ·   THE  GREEN  SEAMS', 0, SB + 22,
+      { width: W, align: 'center', characterSpacing: 2.4 });
+  doc.moveTo(W / 2 - 59, SB + 44).lineTo(W / 2 + 59, SB + 44).lineWidth(0.8).stroke(MOSS);
+  doc.font(F.displayLight).fontSize(6.5).fillColor(INK)
+    .text(`${total}  FIELD-CHECKED  PLACES   ·   RANKED  TABLES   ·   FOUR  SEASONS   ·   EVERY  ENTRY  LINKED  LIVE`, 0, SB + 54,
+      { width: W, align: 'center', characterSpacing: 1.8 });
+  const edition = new Date().toLocaleDateString('en-CA', { month: 'long', year: 'numeric', timeZone: 'America/Toronto' }).toUpperCase();
+  doc.font(F.displayLight).fontSize(6.5).fillColor(MOSS)
+    .text(`DAYHOP  ·  ${(guide.coords || '').toUpperCase()}  ·  FIELD-CHECKED  EDITION  ·  ${edition}`, 0, SB + 68,
+      { width: W, align: 'center', characterSpacing: 1.8 });
+}
+
+const POSTER_COVERS = { markham: drawMarkhamPoster, 'richmond-hill': drawRichmondHillPoster };
+
+// ---------- entry stamps ----------
+// Each place's thumbnail: a surveyor's medallion in the left rail — moss
+// ring, ink pictogram, the same engraved economy as the cover. Keyed by
+// the guide's c.icons map; entries without one keep the plain layout.
+const STAMP_ICONS = {
+  dam(doc, cx, cy) {
+    doc.moveTo(cx - 7, cy - 2).lineTo(cx + 7, cy - 2).lineWidth(1.3).stroke(INK);
+    for (const dx of [-4, 0, 4]) doc.moveTo(cx + dx, cy - 2).lineTo(cx + dx, cy + 3).lineWidth(0.8).stroke(INK);
+    doc.moveTo(cx - 6, cy + 6).lineTo(cx + 6, cy + 6).lineWidth(0.5).stroke(INK);
+  },
+  pond(doc, cx, cy) {
+    doc.circle(cx, cy, 6.5).lineWidth(0.8).stroke(INK);
+    doc.circle(cx, cy, 3.6).lineWidth(0.6).stroke(INK);
+    doc.circle(cx, cy, 1).fill(INK);
+  },
+  lake(doc, cx, cy) {
+    for (const [dy, w0] of [[-3.5, 12], [0.5, 10], [4.5, 7]]) {
+      doc.moveTo(cx - w0 / 2, cy + dy).lineTo(cx + w0 / 2, cy + dy).lineWidth(0.9).stroke(INK);
+    }
+  },
+  creek(doc, cx, cy) {
+    doc.moveTo(cx - 6, cy + 7).quadraticCurveTo(cx + 5, cy + 3, cx - 1, cy - 1)
+      .quadraticCurveTo(cx - 7, cy - 5, cx + 6, cy - 7).lineWidth(1.3).stroke(INK);
+  },
+  forest(doc, cx, cy) {
+    const pine = (x, y, h) => {
+      doc.moveTo(x, y - h).lineTo(x + h * 0.42, y).lineTo(x - h * 0.42, y).closePath().fill(INK);
+      doc.moveTo(x, y).lineTo(x, y + 2.4).lineWidth(0.9).stroke(INK);
+    };
+    pine(cx - 3.5, cy + 3, 9.5); pine(cx + 4, cy + 4, 6.5);
+  },
+  meadow(doc, cx, cy) {
+    for (const [dx, lean] of [[-4, -3], [0, 0.5], [4, 3.5]]) {
+      doc.moveTo(cx + dx, cy + 7).quadraticCurveTo(cx + dx + lean * 0.4, cy, cx + dx + lean, cy - 6)
+        .lineWidth(1.1).stroke(INK);
+    }
+    doc.circle(cx + 5.5, cy - 6, 1).fill(INK);
+  },
+  valley(doc, cx, cy) {
+    doc.moveTo(cx - 7, cy - 4).lineTo(cx, cy + 4).lineTo(cx + 7, cy - 4).lineWidth(1.2).stroke(INK);
+    doc.moveTo(cx - 4.5, cy - 6.5).lineTo(cx, cy - 1.5).lineTo(cx + 4.5, cy - 6.5).lineWidth(0.7).stroke(INK);
+  },
+  marsh(doc, cx, cy) {
+    doc.moveTo(cx - 6.5, cy + 6).lineTo(cx + 6.5, cy + 6).lineWidth(0.6).stroke(INK);
+    doc.moveTo(cx - 1, cy + 6).lineTo(cx - 1, cy - 2).lineWidth(1).stroke(INK);
+    doc.roundedRect(cx - 2.4, cy - 7, 2.8, 6, 1.4).fill(INK);
+    doc.moveTo(cx + 3.5, cy + 6).quadraticCurveTo(cx + 5, cy, cx + 6.5, cy - 4).lineWidth(0.9).stroke(INK);
+  },
+  lookout(doc, cx, cy) {
+    doc.moveTo(cx - 7, cy + 5).lineTo(cx, cy - 5.5).lineTo(cx + 7, cy + 5).lineWidth(1.2).stroke(INK);
+    doc.moveTo(cx - 8, cy + 5).lineTo(cx + 8, cy + 5).lineWidth(0.5).stroke(INK);
+    doc.circle(cx + 5, cy - 4.5, 1.3).fill(INK);
+  },
+  fish(doc, cx, cy) {
+    doc.ellipse(cx - 1.5, cy, 5.2, 2.9).fill(INK);
+    doc.moveTo(cx + 3, cy).lineTo(cx + 7, cy - 3).lineTo(cx + 7, cy + 3).closePath().fill(INK);
+    doc.circle(cx - 4.2, cy - 0.6, 0.7).fill(PAPER);
+  },
+  mill(doc, cx, cy) {
+    doc.circle(cx, cy, 6).lineWidth(1).stroke(INK);
+    for (const a of [0, 45, 90, 135]) {
+      const r = a * Math.PI / 180;
+      doc.moveTo(cx - Math.cos(r) * 6, cy - Math.sin(r) * 6)
+        .lineTo(cx + Math.cos(r) * 6, cy + Math.sin(r) * 6).lineWidth(0.7).stroke(INK);
+    }
+    doc.circle(cx, cy, 1.2).fill(INK);
+  },
+  farm(doc, cx, cy) {
+    for (const [y0, w0] of [[-4, 9], [0, 12], [4, 15]]) {
+      doc.moveTo(cx - w0 / 2, cy + y0).lineTo(cx + w0 / 2, cy + y0).lineWidth(1).stroke(INK);
+    }
+  },
+  heritage(doc, cx, cy) {
+    doc.moveTo(cx - 6.5, cy - 1).lineTo(cx, cy - 6.5).lineTo(cx + 6.5, cy - 1).lineWidth(1.2).stroke(INK);
+    doc.rect(cx - 5, cy - 1, 10, 8).lineWidth(1).stroke(INK);
+    doc.rect(cx - 1.3, cy + 3.4, 2.6, 3.6).fill(INK);
+  },
+  patio(doc, cx, cy) {
+    doc.moveTo(cx - 8, cy).quadraticCurveTo(cx, cy - 10.5, cx + 8, cy).closePath().fill(INK);
+    doc.moveTo(cx, cy).lineTo(cx, cy + 7).lineWidth(1.1).stroke(INK);
+    doc.moveTo(cx - 4, cy + 7).lineTo(cx + 4, cy + 7).lineWidth(0.9).stroke(INK);
+  }
+};
+
+function drawStamp(doc, icon, cx, cy) {
+  doc.circle(cx, cy, 13).lineWidth(1).stroke(MOSS);
+  doc.circle(cx, cy, 10.5).lineWidth(0.4).stroke(MOSS);
+  STAMP_ICONS[icon](doc, cx, cy);
 }
 
 async function buildGuidePdf(guide) {
@@ -517,7 +935,9 @@ async function buildGuidePdf(guide) {
 
     const F = registerFonts(doc);
     const W = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-    const total = SECTION_KEYS.reduce((n, k) => n + (Array.isArray(c[k]) ? c[k].length : 0), 0);
+    const total = SECTION_KEYS.reduce((n, k) =>
+      n + (Array.isArray(c[k]) ? c[k].filter(s => !s.facetOf).length : 0), 0);
+    const hubNo = {}; // place name -> its number, for facet cross-references
     const rng = makeRng(guide.slug);
     const usedPhotos = [];
     // Real AcroForm checkboxes — clickable and saveable in any PDF reader,
@@ -538,6 +958,9 @@ async function buildGuidePdf(guide) {
     doc.rect(0, 0, doc.page.width, doc.page.height).fill(PAPER);
     doc.lineCap('round');
 
+    if (POSTER_COVERS[guide.slug]) {
+      POSTER_COVERS[guide.slug](doc, F, guide, total);
+    } else {
     doc.font(F.displayLight).fontSize(9.5).fillColor(INK_SOFT)
       .text('DAYHOP · FIELD GUIDE', 64, 76, { characterSpacing: 3.2 });
     rule(64, 96, 118);
@@ -570,6 +993,7 @@ async function buildGuidePdf(guide) {
       .text('DAYHOP · RICHMOND HILL, ONTARIO · DAYHOP.QUEST · ADMIN@DAYHOP.QUEST', 64, 758,
         { width: W, align: 'center', characterSpacing: 1.6, lineBreak: false });
     doc.page.margins.bottom = mb;
+    } // end typographic-cover fallback
 
     // ---------- frontispiece: the place itself, then the map ----------
     const hero = loadPhoto(`${guide.slug}-hero`);
@@ -601,6 +1025,50 @@ async function buildGuidePdf(guide) {
       try { doc.outline.addItem(label); } catch (e) { /* outline is nice-to-have */ }
     };
 
+    // ---------- whitespace furniture ----------
+    // Deep page tails get reclaimed: first as ruled note lines the reader
+    // writes on (the margins are part of a field guide), then — if paper
+    // still remains — by the city's own contour motif.
+    const pageBottom = () => doc.page.height - doc.page.margins.bottom;
+    const motifBand = (top, height) => {
+      let h = Math.min(height, 340);
+      // Never cut through the motif's coral thread (markham row 7 sits at
+      // local y≈168–215): a clipped coral crest reads as a defect where a
+      // clipped moss hairline reads as an edge.
+      if (h > 162 && h < 218) h = 160;
+      if (h < 60) return;
+      doc.save();
+      doc.rect(64, top, W, h).clip();
+      // The cover motifs draw at y≈395–745; shift that field into the band.
+      doc.translate(0, top - 400);
+      (MOTIFS[guide.slug] || MOTIFS.markham)(doc, makeRng(guide.slug + ':tail'));
+      doc.restore();
+      // Erase the ragged last strip: crest tips of the next row otherwise
+      // peek over the clip edge as disconnected fragments.
+      doc.rect(64, top + h - 14, W, 14).fill(PAPER);
+    };
+    const noteLines = (count) => {
+      for (let i = 0; i < count; i++) {
+        doc.y += 26;
+        for (let dx = 64; dx < 64 + W; dx += 6) doc.circle(dx, doc.y, 0.5).fill(MOSS);
+      }
+      doc.y += 8;
+    };
+    const fillTail = () => {
+      let room = pageBottom() - doc.y;
+      if (room < 220) return;
+      doc.y += 16;
+      doc.font(F.display).fontSize(10).fillColor(MOSS)
+        .text('NOTES FROM THE FIELD', 64, doc.y, { characterSpacing: 2 });
+      doc.moveDown(0.2);
+      doc.font(F.bodyItalic).fontSize(9).fillColor(INK_SOFT)
+        .text('Dates, sightings, who was along — the margins are part of the guide.', 64, doc.y, { width: W });
+      doc.y += 6;
+      noteLines(Math.min(6, Math.floor((pageBottom() - 40 - doc.y) / 26)));
+      room = pageBottom() - doc.y;
+      if (room > 140) motifBand(doc.y + 16, room - 24);
+    };
+
     // ---------- "If you only have…" ----------
     // Travellers buy guides with a checkout time looming — serve the
     // time-budgeted reader before the completionist.
@@ -621,6 +1089,18 @@ async function buildGuidePdf(guide) {
         doc.font(F.body).fontSize(11).fillColor(INK_SOFT).text(q.plan, { width: W, lineGap: 2.2 });
         doc.moveDown(0.95);
       }
+      // Pace math in the tail, then the survey takes the paper back.
+      if (pageBottom() - doc.y > 170) {
+        const PACE = 'Plan on 3 km/h with kids or cameras, 4–5 km/h at an adult walking clip — and add fifteen minutes for every stop you swear will take five.';
+        doc.font(F.body).fontSize(10.5);
+        const pH = doc.heightOfString(PACE, { width: W - 36, lineGap: 2 });
+        const py = doc.y + 4;
+        doc.roundedRect(64, py, W, pH + 46, 8).fill(PAPER_DIM);
+        doc.font(F.display).fontSize(10).fillColor(MOSS).text('PACE MATH', 82, py + 13, { characterSpacing: 2 });
+        doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT).text(PACE, 82, doc.y + 5, { width: W - 36, lineGap: 2 });
+        doc.y = py + pH + 56;
+      }
+      if (pageBottom() - doc.y > 140) motifBand(doc.y + 14, pageBottom() - doc.y - 22);
     }
 
     // Section opener: letterspaced display over a short rule, blurb in the
@@ -800,6 +1280,7 @@ async function buildGuidePdf(guide) {
         doc.moveDown(1.2);
         doc.font(F.displayLight).fontSize(6.5).fillColor(MOSS)
           .text('LOT PARKING · WASHROOMS · PLAYGROUND · SHADE · PICNIC TABLES · STROLLERS & WHEELS · OPEN WATER · SHORE FISHING · TRANSIT REACH', 64, doc.y, { characterSpacing: 0.8, width: W });
+        if (pageBottom() - doc.y > 140) motifBand(doc.y + 16, pageBottom() - doc.y - 24);
       }
     }
 
@@ -921,17 +1402,80 @@ async function buildGuidePdf(guide) {
       }
     }
 
+    // ---------- field notes: the interesting-facts layer ----------
+    // Numbered surveyor's marginalia that fill the almanac's remaining
+    // paper (and flow onward), with occasional small plates.
+    if (Array.isArray(c.facts) && c.facts.length) {
+      if (doc.y + 130 > doc.page.height - doc.page.margins.bottom) doc.addPage();
+      else doc.y += 22;
+      doc.font(F.display).fontSize(14).fillColor(INK).text('FIELD NOTES', 64, doc.y, { characterSpacing: 1.8 });
+      rule(64, doc.y + 6, 118);
+      doc.y += 16;
+      let noteNo = 0;
+      for (const f of c.facts) {
+        noteNo++;
+        doc.font(F.body).fontSize(10);
+        const th = doc.heightOfString(f.n, { width: W - 52, lineGap: 1.6 });
+        if (doc.y + th + (f.photo ? 126 : 0) + 16 > doc.page.height - doc.page.margins.bottom) doc.addPage();
+        const y0 = doc.y;
+        doc.font(F.display).fontSize(8).fillColor(MOSS)
+          .text('N° ' + String(noteNo).padStart(2, '0'), 64, y0 + 1, { characterSpacing: 1.5, lineBreak: false });
+        doc.font(F.body).fontSize(10).fillColor(INK_SOFT).text(f.n, 116, y0, { width: W - 52, lineGap: 1.6 });
+        doc.y = Math.max(doc.y, y0 + th);
+        if (f.photo) {
+          const ph = loadPhoto(f.photo);
+          if (ph) {
+            usedPhotos.push(ph.credit);
+            const py = doc.y + 6;
+            photoBand(doc, ph.buffer, 116, py, W - 52, 100, ph.credit && ph.credit.focal);
+            doc.rect(116, py, W - 52, 100).lineWidth(0.8).stroke(INK);
+            doc.font(F.displayLight).fontSize(6).fillColor(INK_SOFT)
+              .text(creditLine(ph.credit), 116, py + 105, { characterSpacing: 1.2, lineBreak: false });
+            doc.y = py + 116;
+          }
+        }
+        doc.moveDown(0.55);
+      }
+      if (pageBottom() - doc.y > 140) motifBand(doc.y + 14, pageBottom() - doc.y - 22);
+    }
+
     // ---------- spots ----------
     let spotNo = 0;
     const renderSpots = (label, blurb, spots) => {
       opener(label, blurb);
       for (const sp of spots) {
+        // Facet: another lens on a hub place — stamp, cross-reference, and
+        // the activity delta only. No number, no checkbox, no re-description.
+        if (sp.facetOf) {
+          doc.font(F.body).fontSize(10);
+          const fh = doc.heightOfString(sp.why, { width: W, lineGap: 1.6 }) + 52;
+          if (doc.y + fh > doc.page.height - doc.page.margins.bottom) doc.addPage();
+          const fIcon = c.icons && c.icons[sp.name];
+          if (fIcon && STAMP_ICONS[fIcon]) drawStamp(doc, fIcon, 45, doc.y + 8);
+          const hn = hubNo[sp.facetOf];
+          doc.font(F.displayLight).fontSize(7.5).fillColor(CORAL)
+            .text(hn ? `SEE N° ${String(hn).padStart(2, '0')}` : 'SEE THE PLACES', 64, doc.y, { characterSpacing: 1.5, continued: true })
+            .fillColor(INK_SOFT)
+            .text('  ·  ' + (sp.area || sp.facetOf).toUpperCase(), { characterSpacing: 1.5 });
+          doc.moveDown(0.12);
+          doc.font(F.display).fontSize(11.5).fillColor(INK).text(sp.name, 64, doc.y, { width: W, link: mapsLink(sp) });
+          doc.moveDown(0.14);
+          doc.font(F.body).fontSize(10).fillColor(INK_SOFT).text(sp.why, { width: W, lineGap: 1.6 });
+          if (sp.best) {
+            doc.moveDown(0.14);
+            doc.font(F.display).fontSize(7.5).fillColor(CORAL).text(sp.best.toUpperCase(), { characterSpacing: 1.2 });
+          }
+          doc.moveDown(0.7);
+          continue;
+        }
         spotNo++;
+        hubNo[sp.name] = spotNo;
         doc.font(F.body).fontSize(10.5);
         const bodyH =
           doc.heightOfString(sp.why, { width: W - 44 }) +
           (sp.tip ? doc.heightOfString(sp.tip, { width: W }) : 0) + 78 +
-          (sp.access ? 14 : 0);
+          (sp.access ? 14 : 0) +
+          (c.photos && c.photos[sp.name] ? (c.photos[sp.name].size === 'large' ? 194 : 134) : 0);
         if (doc.y + bodyH > doc.page.height - doc.page.margins.bottom) doc.addPage();
 
         const link = mapsLink(sp);
@@ -948,13 +1492,20 @@ async function buildGuidePdf(guide) {
           .fillColor(INK_SOFT)
           .text('  ·  ' + sp.area.toUpperCase(), { characterSpacing: 1.5 });
         doc.moveDown(0.12);
-        // Been-there checkbox in the left margin, riding the name line. A
-        // static square is drawn first so viewers that skip widget
-        // appearances (and paper) still show the box; the interactive
-        // field sits exactly on top of it.
-        doc.rect(44, doc.y + 2, 11, 11).lineWidth(0.9).stroke(MOSS);
+        // Left rail: the entry's stamp medallion (when the guide's icons
+        // map names one) with the been-there checkbox beneath — otherwise
+        // the checkbox alone rides the name line. A static square is drawn
+        // first so viewers that skip widget appearances (and paper) still
+        // show the box; the interactive field sits exactly on top of it.
+        const railIcon = c.icons && c.icons[sp.name];
+        let boxX = 44, boxY = doc.y + 2;
+        if (railIcon && STAMP_ICONS[railIcon]) {
+          drawStamp(doc, railIcon, 45, doc.y + 10);
+          boxX = 39.5; boxY = doc.y + 28;
+        }
+        doc.rect(boxX, boxY, 11, 11).lineWidth(0.9).stroke(MOSS);
         try {
-          doc.formCheckbox(`been-${guide.slug}-${spotNo}`, 44, doc.y + 2, 11, 11, {
+          doc.formCheckbox(`been-${guide.slug}-${spotNo}`, boxX, boxY, 11, 11, {
             borderColor: MOSS, backgroundColor: PAPER
           });
         } catch (e) { /* a reader without form support still sees the square */ }
@@ -974,8 +1525,75 @@ async function buildGuidePdf(guide) {
           doc.moveDown(0.08);
           doc.font(F.displayLight).fontSize(7.5).fillColor(MOSS).text(sp.access.toUpperCase(), { characterSpacing: 1.1 });
         }
+        // Flagship sub-blocks: an anchor place's every use on one spread —
+        // THE WALK / THE PADDLE / THE CAST — replacing scattered repeats.
+        if (Array.isArray(sp.flagship) && sp.flagship.length) {
+          for (const fb of sp.flagship) {
+            doc.font(F.body).fontSize(10);
+            const fbH = doc.heightOfString(fb.x, { width: W - 20, lineGap: 1.6 }) + 26;
+            if (doc.y + fbH > doc.page.height - doc.page.margins.bottom) doc.addPage();
+            doc.moveDown(0.42);
+            doc.font(F.display).fontSize(8.5).fillColor(MOSS)
+              .text(fb.t.toUpperCase(), 64, doc.y, { characterSpacing: 1.8 });
+            doc.moveDown(0.12);
+            doc.font(F.body).fontSize(10).fillColor(INK_SOFT).text(fb.x, 84, doc.y, { width: W - 20, lineGap: 1.6 });
+          }
+        }
+        // Photo plate: an openly-licensed photograph of the place itself,
+        // framed like a plate in a field monograph, credit beneath.
+        const plate = c.photos && c.photos[sp.name];
+        if (plate) {
+          const ph = loadPhoto(plate.key);
+          if (ph) {
+            usedPhotos.push(ph.credit);
+            const phH = plate.size === 'large' ? 168 : 108;
+            if (doc.y + phH + 26 > doc.page.height - doc.page.margins.bottom) doc.addPage();
+            const py = doc.y + 6;
+            photoBand(doc, ph.buffer, 64, py, W, phH, ph.credit && ph.credit.focal);
+            doc.rect(64, py, W, phH).lineWidth(0.8).stroke(INK);
+            doc.font(F.displayLight).fontSize(6).fillColor(INK_SOFT)
+              .text(creditLine(ph.credit), 64, py + phH + 5, { width: W, characterSpacing: 1.2, lineBreak: false });
+            doc.y = py + phH + 14;
+          }
+        }
         doc.moveDown(0.78);
       }
+      // Field companions: a labelled species-plate row closing the section —
+      // honest wildlife images, never a stand-in photo of some other park.
+      const comp = c.companions && c.companions[label];
+      if (comp && Array.isArray(comp.species) && comp.species.length) {
+        const shots = comp.species.map(s => ({ s, ph: loadPhoto(s.key) })).filter(x => x.ph).slice(0, 3);
+        if (shots.length) {
+          const gap = 12, cw = Math.floor((W - gap * (shots.length - 1)) / shots.length), chh = 96;
+          if (doc.y + chh + 100 > pageBottom()) doc.addPage();
+          doc.y += 10;
+          doc.font(F.display).fontSize(10).fillColor(MOSS)
+            .text('FIELD COMPANIONS', 64, doc.y, { characterSpacing: 2 });
+          if (comp.note) {
+            doc.moveDown(0.15);
+            doc.font(F.bodyItalic).fontSize(9).fillColor(INK_SOFT).text(comp.note, 64, doc.y, { width: W });
+          }
+          doc.y += 8;
+          const rowY = doc.y;
+          shots.forEach((x, i) => {
+            const px = 64 + i * (cw + gap);
+            usedPhotos.push(x.ph.credit);
+            photoBand(doc, x.ph.buffer, px, rowY, cw, chh, x.ph.credit && x.ph.credit.focal);
+            doc.rect(px, rowY, cw, chh).lineWidth(0.8).stroke(INK);
+            doc.font(F.display).fontSize(7).fillColor(INK)
+              .text(x.s.label.toUpperCase(), px, rowY + chh + 6, { width: cw, characterSpacing: 1, lineBreak: false });
+            if (x.s.sub) {
+              doc.font(F.displayLight).fontSize(6).fillColor(INK_SOFT)
+                .text(x.s.sub.toUpperCase(), px, rowY + chh + 16, { width: cw, characterSpacing: 0.8, lineBreak: false });
+            }
+          });
+          doc.y = rowY + chh + 28;
+          doc.font(F.displayLight).fontSize(5.5).fillColor(INK_SOFT)
+            .text(shots.map(x => creditLine(x.ph.credit)).join('   ·   '), 64, doc.y, { width: W, characterSpacing: 0.6 });
+          doc.y += 16;
+        }
+      }
+      fillTail();
     };
     renderSpots('The places', `${c.spots.length} spots, roughly north to south — each one worth a morning on its own.`, c.spots);
     if (c.drives && c.drives.length) {
@@ -993,6 +1611,52 @@ async function buildGuidePdf(guide) {
     if (c.fishing && c.fishing.length) {
       renderSpots('Casting lines',
         'Shore-accessible public fishing. An Ontario fishing licence (Outdoors Card) is required for most anglers, and seasons, limits, and sanctuaries are set per provincial zone — check ontario.ca before you cast.', c.fishing);
+    }
+    if (c.heritage && c.heritage.length) {
+      renderSpots('The heritage layer',
+        'The human history threaded through the green — an artist\'s village, settler mills, and streets older than the province. Every entry pairs with a park in this book.', c.heritage);
+    }
+
+    // ---------- bonus page: patios & rooftops ----------
+    // The edition's rotating food shortlist. Unnumbered and outside the
+    // field-checked count/ledger — these are venues, not nature spots.
+    // Slots are sponsorable; the disclosure panel says exactly how.
+    if (c.bonus && Array.isArray(c.bonus.entries) && c.bonus.entries.length) {
+      opener('Bonus: ' + c.bonus.title, c.bonus.blurb);
+      for (const b of c.bonus.entries) {
+        const link = mapsLink(b);
+        const qr = qrMap[link];
+        doc.font(F.body).fontSize(10.5);
+        const bh = doc.heightOfString(b.why, { width: W - 44 }) + 60;
+        if (doc.y + bh > pageBottom()) doc.addPage();
+        if (qr) {
+          try { doc.image(qr, 64 + W - 34, doc.y, { width: 34, height: 34 }); } catch (e) { /* without */ }
+        }
+        drawStamp(doc, 'patio', 45, doc.y + 10);
+        doc.font(F.displayLight).fontSize(7.5).fillColor(INK_SOFT)
+          .text(b.area.toUpperCase(), 64, doc.y, { characterSpacing: 1.5 });
+        doc.moveDown(0.12);
+        doc.font(F.display).fontSize(13.5).fillColor(INK).text(b.name, 64, doc.y, { width: W - 44, link });
+        doc.moveDown(0.16);
+        doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT).text(b.why, { width: W - 44, lineGap: 1.8 });
+        if (b.pair) {
+          doc.moveDown(0.18);
+          doc.font(F.display).fontSize(7.5).fillColor(CORAL).text(b.pair.toUpperCase(), { characterSpacing: 1.2 });
+        }
+        doc.moveDown(0.8);
+      }
+      if (c.bonus.disclosure) {
+        doc.moveDown(0.3);
+        doc.font(F.body).fontSize(9.5);
+        const dh = doc.heightOfString(c.bonus.disclosure, { width: W - 36, lineGap: 1.6 });
+        if (doc.y + dh + 48 > pageBottom()) doc.addPage();
+        const py = doc.y;
+        doc.roundedRect(64, py, W, dh + 44, 8).fill(PAPER_DIM);
+        doc.font(F.display).fontSize(9).fillColor(MOSS).text('HOW THIS PAGE WORKS', 82, py + 13, { characterSpacing: 2 });
+        doc.font(F.body).fontSize(9.5).fillColor(INK_SOFT).text(c.bonus.disclosure, 82, doc.y + 5, { width: W - 36, lineGap: 1.6 });
+        doc.y = py + dh + 52;
+      }
+      fillTail();
     }
 
     // ---------- itineraries ----------
@@ -1081,7 +1745,8 @@ async function buildGuidePdf(guide) {
       // ---------- the field ledger: ranks earned, not given ----------
       const ranks = Array.isArray(c.ledger) && c.ledger.length === 4
         ? c.ledger : ['Day Scout', 'Pathfinder', 'Field Ranger', 'Completionist'];
-      const thresholds = [5, 12, 20, total];
+      // Thresholds scale with the honest place count.
+      const thresholds = [5, Math.round(total * 0.4), Math.round(total * 0.7), total];
       if (doc.y + 220 > doc.page.height - doc.page.margins.bottom) doc.addPage();
       else doc.y += 6;
       doc.font(F.display).fontSize(14).fillColor(INK).text('THE FIELD LEDGER', 64, doc.y, { characterSpacing: 1.8 });
@@ -1102,16 +1767,43 @@ async function buildGuidePdf(guide) {
           .text(String(th), cx - 30, stampY - 12, { width: 60, align: 'center', lineBreak: false });
         doc.font(F.displayLight).fontSize(5.5).fillColor(INK_SOFT)
           .text('PLACES', cx - 30, stampY + 6, { width: 60, align: 'center', characterSpacing: 2, lineBreak: false });
-        doc.font(F.display).fontSize(7.5).fillColor(INK)
-          .text(ranks[ri].toUpperCase(), cx - 56, stampY + 46, { width: 112, align: 'center', characterSpacing: 1.2, lineBreak: false });
-        doc.rect(cx - 5.5, stampY + 60, 11, 11).lineWidth(0.9).stroke(ring);
+        // Rank label shrinks to fit its column — long titles wrapped into
+        // the checkbox before this.
+        let rs = 7.5;
+        doc.font(F.display).fontSize(rs);
+        while (doc.widthOfString(ranks[ri].toUpperCase(), { characterSpacing: 1.2 }) > 116 && rs > 5.5) {
+          rs -= 0.5; doc.fontSize(rs);
+        }
+        doc.fillColor(INK)
+          .text(ranks[ri].toUpperCase(), cx - 60, stampY + 47, { width: 120, align: 'center', characterSpacing: 1.2, lineBreak: false });
+        doc.rect(cx - 5.5, stampY + 62, 11, 11).lineWidth(0.9).stroke(ring);
         try {
-          doc.formCheckbox(`rank-${guide.slug}-${ri}`, cx - 5.5, stampY + 60, 11, 11, {
+          doc.formCheckbox(`rank-${guide.slug}-${ri}`, cx - 5.5, stampY + 62, 11, 11, {
             borderColor: ring, backgroundColor: PAPER
           });
         } catch (e) { /* square still prints */ }
       });
-      doc.y = stampY + 86;
+      doc.y = stampY + 90;
+
+      // ---------- the firsts log ----------
+      // The ledger's memory: first heron, first salmon leap, first
+      // trillium — logged by hand on ruled lines.
+      if (pageBottom() - doc.y > 210) {
+        doc.y += 16;
+        doc.font(F.display).fontSize(14).fillColor(INK).text('FIRSTS', 64, doc.y, { characterSpacing: 1.8 });
+        rule(64, doc.y + 6, 118);
+        doc.y += 14;
+        doc.font(F.bodyItalic).fontSize(9.5).fillColor(INK_SOFT)
+          .text('First heron. First salmon leap. First trillium of the spring. Log them — a year from now this table is the best page in the book.', 64, doc.y, { width: W, lineGap: 1.6 });
+        doc.y += 10;
+        doc.font(F.displayLight).fontSize(5.5).fillColor(MOSS);
+        doc.text('THE FIRST', 64, doc.y, { characterSpacing: 1.2, lineBreak: false });
+        doc.text('WHERE', 268, doc.y, { characterSpacing: 1.2, lineBreak: false });
+        doc.text('WHEN', 440, doc.y, { characterSpacing: 1.2, lineBreak: false });
+        doc.y += 2;
+        noteLines(Math.min(6, Math.floor((pageBottom() - 40 - doc.y) / 26)));
+      }
+      if (pageBottom() - doc.y > 140) motifBand(doc.y + 14, pageBottom() - doc.y - 22);
     }
 
     // ---------- etiquette + back page ----------
@@ -1174,6 +1866,11 @@ async function buildGuidePdf(guide) {
     }
     doc.font(F.bodyItalic).fontSize(10).fillColor(MOSS)
       .text('Every line is tappable — and so is every place name in the book.', 64, tocY + 12, { width: W });
+    // The survey reclaims the contents page's lower half.
+    {
+      const top = tocY + 48, bottom = doc.page.height - 74;
+      if (bottom - top > 140) motifBand(top, bottom - top);
+    }
 
     // Page furniture (skip cover): a centred hairline over the folio.
     const range = doc.bufferedPageRange();

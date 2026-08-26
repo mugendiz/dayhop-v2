@@ -98,6 +98,14 @@ module.exports = {
       amen: { lot: 1, play: 1, shade: 1, wheels: 2, transit: 2 }
     },
     {
+      name: 'Reesor Pond',
+      area: 'Reesor Rd, Rouge NUP, east Markham',
+      why: 'A roadside pond inside the national park that became the local birders\' stakeout: shorebirds work the muddy edges in migration, ducks raft mid-water, and harriers patrol the farm fields behind. The reward-per-minute ratio is absurd — you watch it all from the road allowance.',
+      tip: 'Bring binoculars and stay roadside — the fields around the pond are working farmland.',
+      best: 'Migration (May, Aug–Oct)', ages: 'all ages', cost: 'FREE', access: 'Roadside pull-off · flat verge · no facilities', maps: 'Reesor Pond Markham',
+      amen: { lot: 1, water: 2 }
+    },
+    {
       name: 'Aaniin / Middlefield stormwater trails',
       area: 'Middlefield Rd, south Markham',
       why: 'A chain of naturalized stormwater ponds with paved loops — red-winged blackbirds in the cattails, and some of Markham\'s most reliable sunset water views.',
@@ -281,6 +289,55 @@ module.exports = {
     }
   ],
 
+  // The human history threaded through the green — every entry pairs with
+  // a park in this guide.
+  heritage: [
+    {
+      name: 'Main Street Unionville',
+      area: 'Unionville',
+      why: 'A near-intact 19th-century mill-village high street at the foot of Toogood Pond — bakeries, verandas, and storefronts that have watched the pond for over 150 years. Famously convincing as a storybook town: the Gilmore Girls pilot filmed here in 2000.',
+      tip: 'The classic loop: pond first, then the street south for the bakery-and-ice-cream stretch.',
+      best: 'Golden hour, all seasons', ages: 'all ages', cost: 'FREE to wander', access: 'Free municipal lots · level sidewalks · stroller easy', maps: 'Main Street Unionville'
+    },
+    {
+      name: 'Varley Art Gallery & the McKay Art Centre',
+      area: 'Main St Unionville, north end',
+      why: 'Frederick Varley of the Group of Seven spent his last years in Unionville, and the village keeps his flame: the gallery anchors Main Street\'s north end, and the McKay house where he lived and painted still stands a few doors south.',
+      tip: 'Pair a gallery hour with the Toogood loop — the art, then the landscape that inspired it.',
+      best: 'The rainy-day pairing', ages: 'all ages', cost: '$', access: 'Lot at the gallery · fully accessible', maps: 'Varley Art Gallery Unionville'
+    },
+    {
+      name: 'Markham Museum',
+      area: 'Hwy 48 north of 16th Ave',
+      why: 'A 25-acre open-air village of rescued Markham buildings — houses, barns, a church, a train station — that shows what the townships around these trails looked like before the suburbs arrived.',
+      tip: 'Check the events calendar first: applefest and the heritage-craft weekends are the best days to go.',
+      best: 'Fall events season', ages: 'all ages', cost: '$', access: 'Free lot · gravel paths between buildings', maps: 'Markham Museum'
+    },
+    {
+      name: 'Thornhill Village heritage district',
+      area: 'Yonge St at Centre St, Thornhill',
+      why: 'One of the oldest village cores on Yonge Street — 1800s cottages behind picket fences, the old church and burying ground, and Pomona Mills Park\'s creek ravine running directly behind it all.',
+      tip: 'Walk the heritage streets first, then drop into Pomona Mills — the village-to-ravine transition is the point.',
+      best: 'Fall colour on the old streets', ages: 'all ages', cost: 'FREE', access: 'Side-street parking · level sidewalks', maps: 'Thornhill Heritage Conservation District'
+    }
+  ],
+
+  // Field notes: the interesting-facts layer. `photo` (optional) renders a
+  // small plate under the note. Every claim here is establishment-grade —
+  // no folklore.
+  facts: [
+    { n: 'Rouge National Urban Park — which begins at Markham\'s eastern edge — is Canada\'s first national urban park and one of the largest urban parks in North America. Unlike the mountain parks, entry is free, every day of the year.' },
+    { n: 'The Rouge valley shelters Carolinian forest, Canada\'s rarest and most species-rich forest zone: it covers less than one percent of the country\'s land yet hosts an outsized share of its species at risk.', photo: 'markham-spot-trillium' },
+    { n: 'Hurricane Hazel (1954) is the reason these valleys are parks. After the flood, Ontario effectively banned building on floodplains, and the conservation authorities turned the river corridors into the trail network this guide walks.' },
+    { n: 'Swan Lake is a kettle: a stranded block of glacier ice melted in place here roughly 12,000 years ago, and the basin it left behind is the lake you loop today.' },
+    { n: 'German Mills takes its name from the mills of a settlement founded in 1794 by William Berczy and some sixty German families — the same crews that helped cut Yonge Street north and raise early York, now Toronto.' },
+    { n: 'Each fall, Chinook salmon push up the Rouge from Lake Ontario to spawn — a genuine wild salmon run threading through a metropolitan area of six million people.' },
+    { n: 'The great blue heron — this guide\'s cover bird — stands over a metre tall, and individuals often hold the same hunting territory all season. The hunched sentry in the Milne shallows is likely the same bird you saw last visit.', photo: 'markham-spot-heron' },
+    { n: 'Toogood Pond is a working artifact: it began as a mill pond for Unionville\'s 19th-century mills, which is why the village\'s Main Street starts at its foot — the pond came first, the street grew to meet it.' },
+    { n: 'The goldenrod meadows of late August are a refuelling station: monarch butterflies tank up here before a flight of some 4,000 km to the mountains of central Mexico — an insect weighing about as much as a paper clip.' },
+    { n: 'The marsh at Rouge Beach — where this guide\'s river finishes — is among the largest coastal wetlands left on Toronto\'s waterfront, which is why a fall morning there can out-bird anywhere else in this book.' }
+  ],
+
   itineraries: [
     {
       title: 'The Unionville classic (half day)',
@@ -322,6 +379,143 @@ module.exports = {
       ]
     }
   ],
+
+  // Entry stamps: each place's thumbnail medallion in the left rail,
+  // keyed by exact entry name. Types live in services/cityGuides.js.
+  icons: {
+    'Milne Dam Conservation Park': 'dam',
+    'Toogood Pond Park': 'pond',
+    'Rouge National Urban Park — Bob Hunter Memorial Park': 'meadow',
+    'German Mills Settlers Park': 'forest',
+    'Milliken Mills Park': 'lake',
+    'Berczy Park corridors & Bridle Trail': 'creek',
+    'Swan Lake Park': 'pond',
+    'Pomona Mills Park': 'creek',
+    'Rouge Valley trails at Box Grove': 'valley',
+    'Ada Mackenzie Park & German Mills Creek meadows': 'meadow',
+    'Cornell community trails & Little Rouge fringe': 'creek',
+    'Aaniin / Middlefield stormwater trails': 'lake',
+    'Rouge National Urban Park — Zoo & Vista trails': 'lookout',
+    'Bruce\'s Mill Conservation Park': 'mill',
+    'Whittamore\'s / Reesor farm country loop': 'farm',
+    'Milne Hollow & the Lower Don': 'meadow',
+    'Rouge Valley Trail from Milne': 'valley',
+    'Unionville Bridle Trail end-to-end': 'creek',
+    'German Mills Creek trail': 'forest',
+    'Bob Hunter meadow loops': 'meadow',
+    'Milliken Mills lake loop': 'lake',
+    'Milne Dam overlook': 'lookout',
+    'Bob Hunter big-sky sunset': 'lookout',
+    'Toogood Pond willow bank': 'pond',
+    'Rouge rim at Box Grove': 'valley',
+    'Rouge reservoir shoreline': 'dam',
+    'Bruce Creek ponds chain': 'pond',
+    'Swan Lake still water': 'pond',
+    'Rouge Marsh at the lake': 'marsh',
+    'Milliken Mills Park platforms': 'fish',
+    'Toogood Pond': 'fish',
+    'Milne reservoir': 'fish',
+    'Lower Rouge runs': 'fish',
+    'Reesor Pond': 'pond',
+    'Main Street Unionville': 'heritage',
+    'Varley Art Gallery & the McKay Art Centre': 'heritage',
+    'Markham Museum': 'heritage',
+    'Thornhill Village heritage district': 'heritage'
+  },
+
+  // Photo plates: openly-licensed Commons photographs of the notable
+  // locations, keyed by exact entry name (files in assets/photos, credits
+  // printed on the back page). size: 'large' (full plate) | 'small'.
+  photos: {
+    'Milne Dam Conservation Park': { key: 'markham-spot-milne', size: 'small' },
+    'Toogood Pond Park': { key: 'markham-spot-toogood', size: 'large' },
+    'Rouge National Urban Park — Zoo & Vista trails': { key: 'markham-spot-vista', size: 'large' },
+    'Rouge Marsh at the lake': { key: 'markham-spot-rougebeach', size: 'large' },
+    'Main Street Unionville': { key: 'markham-spot-unionville', size: 'small' },
+    'Varley Art Gallery & the McKay Art Centre': { key: 'markham-spot-varley', size: 'small' },
+    'Markham Museum': { key: 'markham-spot-museum', size: 'small' },
+    'Thornhill Village heritage district': { key: 'markham-spot-thornhill', size: 'small' }
+  },
+
+  // Field companions: species plates closing each section — honest wildlife
+  // ID images (never a stand-in photo of some other park). Keyed by the
+  // section label the renderer uses.
+  companions: {
+    'The places': {
+      note: 'The regulars — met on ordinary mornings in these parks.',
+      species: [
+        { key: 'wild-chipmunk', label: 'Eastern chipmunk', sub: 'every wooded edge' },
+        { key: 'wild-cardinal', label: 'Northern cardinal', sub: 'year-round colour' },
+        { key: 'wild-cottontail', label: 'Eastern cottontail', sub: 'dusk lawns & meadows' }
+      ]
+    },
+    'On the trail': {
+      note: 'Walk quietly at the day\'s edges and the valley shows its residents.',
+      species: [
+        { key: 'wild-deer', label: 'White-tailed deer', sub: 'meadow edges at dusk' },
+        { key: 'wild-fox', label: 'Red fox', sub: 'field margins, early' },
+        { key: 'wild-woodpecker', label: 'Pileated woodpecker', sub: 'the big valley woods' }
+      ]
+    },
+    'Worth the climb': {
+      note: 'The lookout\'s other audience — keep one eye on the sky.',
+      species: [
+        { key: 'wild-hawk', label: 'Red-tailed hawk', sub: 'riding the valley thermals' },
+        { key: 'wild-vulture', label: 'Turkey vulture', sub: 'wobbling Vs overhead' },
+        { key: 'wild-monarch', label: 'Monarch', sub: 'goldenrod season' }
+      ]
+    },
+    'On the water': {
+      note: 'Who you\'ll meet at the water line.',
+      species: [
+        { key: 'wild-turtle', label: 'Painted turtle', sub: 'basking logs, warm mornings' },
+        { key: 'wild-swan', label: 'Mute swan cygnets', sub: 'June on the mill ponds' },
+        { key: 'wild-kingfisher', label: 'Belted kingfisher', sub: 'the rattle over open water' }
+      ]
+    },
+    'Casting lines': {
+      note: 'The usual suspects — what these waters actually hold.',
+      species: [
+        { key: 'wild-pumpkinseed', label: 'Pumpkinseed', sub: 'first casts & small hooks' },
+        { key: 'wild-bass', label: 'Largemouth bass', sub: 'weed edges, summer' },
+        { key: 'wild-chinook', label: 'Chinook salmon', sub: 'the fall run, lower Rouge' }
+      ]
+    }
+  },
+
+  // Bonus page: patios near the green. Rotates each edition; slots are
+  // sponsorable and always marked when sponsored.
+  bonus: {
+    title: 'Patios & rooftops',
+    blurb: 'Where to land after the trail — a rotating shortlist of independent patios beside the green, refreshed with each edition.',
+    disclosure: 'This page rotates: venues change with new editions, and every reader gets updated editions free. No venue has paid for placement in this edition — when a slot is sponsored, it will say so right on it. A venue that wants the next edition\'s slot can write admin@dayhop.quest.',
+    entries: [
+      {
+        name: 'Jake\'s on Main',
+        area: 'Main Street Unionville',
+        why: 'The village standby: pub comfort and a people-watching patio right on the heritage strip, a ten-minute walk from the Toogood loop.',
+        pair: 'After: the Toogood Pond loop', maps: 'Jake\'s on Main Unionville'
+      },
+      {
+        name: 'Next Door Restaurant',
+        area: 'Main Street Unionville',
+        why: 'The dressed-up option on the strip — seasonal plates and a coveted patio. Book ahead on summer weekends.',
+        pair: 'After: Bridle Trail end-to-end', maps: 'Next Door Restaurant Unionville'
+      },
+      {
+        name: 'The Unionville Arms',
+        area: 'Main Street Unionville',
+        why: 'A proper pub back-patio under the trees, generous portions, zero pretension — built for post-hike appetites.',
+        pair: 'After: any Rouge morning', maps: 'Unionville Arms pub Markham'
+      },
+      {
+        name: 'Duchess of Markham',
+        area: 'Main Street Markham village',
+        why: 'The British pub on Markham\'s other heritage main street — fish and chips and a street-side patio five minutes from Milne Dam.',
+        pair: 'After: Milne Dam Conservation Park', maps: 'Duchess of Markham'
+      }
+    ]
+  },
 
   // Month-by-month natural events — the page that gets re-opened all year.
   // `key: true` marks the single headline month (the almanac's one coral).

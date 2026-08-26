@@ -160,5 +160,236 @@
     "license": "CC BY-SA 2.5 ca",
     "author": "Óðinn",
     "source": "https://commons.wikimedia.org/w/index.php?curid=4271973"
+  },
+  "markham-spot-milne": {
+    "key": "markham-spot-milne",
+    "term": "Milne Dam Conservation Park Markham",
+    "license": "CC BY-SA 4.0",
+    "author": "Tomukatsusu",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=109964310"
+  },
+  "markham-spot-vista": {
+    "key": "markham-spot-vista",
+    "term": "Vista Trail Rouge National Urban Park",
+    "license": "CC BY-SA 4.0",
+    "author": "Mhsheikholeslami",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=92349514"
+  },
+  "markham-spot-toogood": {
+    "key": "markham-spot-toogood",
+    "term": "Toogood Pond",
+    "license": "CC BY 4.0",
+    "author": "Nath87",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=151211454"
+  },
+  "markham-spot-rougebeach": {
+    "key": "markham-spot-rougebeach",
+    "term": "Rouge River mouth Lake Ontario",
+    "license": "CC0",
+    "author": "Remixia",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=177918968"
+  },
+  "markham-spot-unionville": {
+    "key": "markham-spot-unionville",
+    "term": "Unionville Ontario Main Street",
+    "license": "CC0",
+    "author": "Nath87",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=151211265"
+  },
+  "markham-spot-varley": {
+    "key": "markham-spot-varley",
+    "term": "Varley Art Gallery Unionville",
+    "license": "CC BY 3.0",
+    "author": "Gisling",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=6406226"
+  },
+  "markham-spot-museum": {
+    "key": "markham-spot-museum",
+    "term": "Markham Museum",
+    "license": "CC BY-SA 4.0",
+    "author": "Zhangj1079",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=59777258"
+  },
+  "markham-spot-thornhill": {
+    "key": "markham-spot-thornhill",
+    "term": "Thornhill Ontario heritage house",
+    "license": "CC BY-SA 4.0",
+    "author": "Mhsheikholeslami",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=95171722"
+  },
+  "markham-spot-trillium": {
+    "key": "markham-spot-trillium",
+    "term": "white trillium forest Ontario",
+    "license": "CC BY 2.0",
+    "author": "Charles de Mille-Isles from Mille-Isles, Canada",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=37095074"
+  },
+  "markham-spot-heron": {
+    "key": "markham-spot-heron",
+    "term": "Great Blue Heron Ardea herodias",
+    "license": "CC BY-SA 3.0",
+    "author": "Dori",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=9732780"
+  },
+  "wild-chipmunk": {
+    "key": "wild-chipmunk",
+    "term": "Eastern Chipmunk",
+    "license": "CC BY-SA 3.0",
+    "author": "Cephas",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=7512943"
+  },
+  "wild-cardinal": {
+    "key": "wild-cardinal",
+    "term": "Northern Cardinal male",
+    "license": "CC BY-SA 4.0",
+    "author": "Rhododendrites",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=115093761"
+  },
+  "wild-cottontail": {
+    "key": "wild-cottontail",
+    "term": "Eastern Cottontail rabbit",
+    "license": "CC BY-SA 4.0",
+    "author": "Paul Danese",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=192699942"
+  },
+  "wild-deer": {
+    "key": "wild-deer",
+    "term": "White-tailed deer doe",
+    "license": "CC BY-SA 4.0",
+    "author": "Charles J. Sharp",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=129756454"
+  },
+  "wild-fox": {
+    "key": "wild-fox",
+    "term": "Red fox Vulpes vulpes",
+    "license": "CC BY-SA 2.0",
+    "author": "Gregory \"Slobirdr\" Smith",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=40573988"
+  },
+  "wild-woodpecker": {
+    "key": "wild-woodpecker",
+    "term": "Pileated Woodpecker",
+    "license": "CC BY-SA 3.0",
+    "author": "Cephas",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=19350739"
+  },
+  "wild-hawk": {
+    "key": "wild-hawk",
+    "term": "Red-tailed Hawk flight",
+    "license": "CC BY-SA 3.0",
+    "author": "John Kees",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=31297003"
+  },
+  "wild-vulture": {
+    "key": "wild-vulture",
+    "term": "Turkey Vulture soaring",
+    "license": "Public domain",
+    "author": "U.S. Fish and Wildlife Service - Midwest Region",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=162714794"
+  },
+  "wild-monarch": {
+    "key": "wild-monarch",
+    "term": "Monarch butterfly goldenrod",
+    "license": "Public domain",
+    "author": "vonOettingen Susi, U.S. Fish and Wildlife Service",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=24866924"
+  },
+  "wild-turtle": {
+    "key": "wild-turtle",
+    "term": "Painted turtle basking log",
+    "license": "Public domain",
+    "author": "U.S. Fish and Wildlife Service - Midwest Region",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=162747371"
+  },
+  "wild-swan": {
+    "key": "wild-swan",
+    "term": "Mute swan pond",
+    "license": "CC BY-SA 4.0",
+    "author": "Rhododendrites",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=80275875"
+  },
+  "wild-kingfisher": {
+    "key": "wild-kingfisher",
+    "term": "Belted Kingfisher perched",
+    "license": "CC BY 2.0",
+    "author": "Amaury Laporte",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=146716605"
+  },
+  "wild-pumpkinseed": {
+    "key": "wild-pumpkinseed",
+    "term": "Pumpkinseed sunfish",
+    "license": "CC BY-SA 4.0",
+    "author": "Dimitǎr Boevski",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=77341037"
+  },
+  "wild-bass": {
+    "key": "wild-bass",
+    "term": "Largemouth bass fish",
+    "license": "CC BY-SA 4.0",
+    "author": "Totti",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=71834603"
+  },
+  "wild-chinook": {
+    "key": "wild-chinook",
+    "term": "Oncorhynchus tshawytscha spawning",
+    "license": "CC BY 2.0",
+    "author": "gailhampshire from Cradley, Malvern, U.K",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=49914745"
+  },
+  "rh-spot-wilcox": {
+    "key": "rh-spot-wilcox",
+    "term": "Lake Wilcox park",
+    "license": "CC BY 4.0",
+    "author": "Canmenwalker",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=160687126"
+  },
+  "rh-spot-bond": {
+    "key": "rh-spot-bond",
+    "term": "Bond Lake Oak Ridges",
+    "license": "CC BY-SA 4.0",
+    "author": "Mhsheikholeslami",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=168111317"
+  },
+  "rh-spot-ddo": {
+    "key": "rh-spot-ddo",
+    "term": "David Dunlap Observatory",
+    "license": "CC BY-SA 2.5 ca",
+    "author": "The Cosmonaut",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=88908328"
+  },
+  "rh-spot-jefferson": {
+    "key": "rh-spot-jefferson",
+    "term": "Jefferson Forest Richmond Hill",
+    "license": "CC BY-SA 4.0",
+    "author": "Mhsheikholeslami",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=168111487"
+  },
+  "rh-spot-heritagectr": {
+    "key": "rh-spot-heritagectr",
+    "term": "Richmond Hill Heritage Centre",
+    "license": "CC0",
+    "author": "Raysonho @ Open Grid Scheduler / Scalable Grid Engine",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=94664780"
+  },
+  "rh-spot-burr": {
+    "key": "rh-spot-burr",
+    "term": "Burr House Richmond Hill",
+    "license": "CC BY-SA 4.0",
+    "author": "Silver Dovelet",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=192158377"
+  },
+  "wild-loon": {
+    "key": "wild-loon",
+    "term": "Common Loon Gavia immer",
+    "license": "Public domain",
+    "author": "Art Weber/U.S. Fish and Wildlife Service",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=138406"
+  },
+  "wild-peeper": {
+    "key": "wild-peeper",
+    "term": "Spring Peeper Pseudacris crucifer",
+    "license": "Public domain",
+    "author": "USGS",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=131097"
   }
 }
