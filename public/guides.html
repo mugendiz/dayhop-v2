@@ -333,6 +333,12 @@
           card.querySelector('.buy').addEventListener('click', () => {
             window.open('/api/cityguides/download?t=' + encodeURIComponent(g.admin_token) + '&inline=1', '_blank');
           });
+        } else if (!isBundle && live && g.slug === 'richmond-hill') {
+          // Richmond Hill has a dedicated sales letter — send buyers there
+          // (keyed src so the funnel shows up in analytics).
+          card.querySelector('.buy').addEventListener('click', () => {
+            window.location.href = '/guides/richmond-hill?src=guides';
+          });
         } else if (!isBundle && live) {
           card.querySelector('.buy').addEventListener('click', () => openPreview(g));
         }
