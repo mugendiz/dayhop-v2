@@ -129,7 +129,10 @@ router.get('/claim', async (req, res) => {
     const session = await stripe.checkout.sessions.retrieve(sid);
     const slug = session.metadata && session.metadata.guide;
     const isBundle = slug === cityGuides.BUNDLE.slug;
-    if (session.payment_status !== 'paid' || !slug || (!isBundle && !cityGuides.bySlug(slug))) {
+    // 'no_payment_required' = a completed checkout where a 100%-off promo
+    // (e.g. an owner/partner code) zeroed the total — still a real purchase.
+    const settled = session.payment_status === 'paid' || session.payment_status === 'no_payment_required';
+    if (!settled || !slug || (!isBundle && !cityGuides.bySlug(slug))) {
       return res.status(402).json({ error: 'NOT_PAID', message: 'This purchase has not completed.' });
     }
     if (isBundle) {
