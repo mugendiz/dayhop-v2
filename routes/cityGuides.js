@@ -55,6 +55,15 @@ router.get('/', (req, res) => {
 // minting them in bulk.
 const checkoutLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
 
+// Where the buyer lands after Stripe. Allow-listed by key — the client never
+// supplies a URL, only a name from this table.
+const RETURN_PATHS = {
+  'richmond-hill-letter': {
+    success: '/guides/richmond-hill/thanks?session_id={CHECKOUT_SESSION_ID}',
+    cancel: '/guides/richmond-hill?purchase=cancelled'
+  }
+};
+
 router.post('/checkout', checkoutLimiter, async (req, res) => {
   const stripe = getStripe();
   if (!stripe) return res.status(503).json({ error: 'NOT_CONFIGURED', message: 'Purchases are not available right now.' });
@@ -71,6 +80,10 @@ router.post('/checkout', checkoutLimiter, async (req, res) => {
     // there is one (analytics only — the download link is the entitlement).
     const ownerId = (req.user && req.user.id) ||
       (typeof (req.body && req.body.owner_id) === 'string' ? req.body.owner_id.trim().slice(0, 80) : null);
+    const ret = RETURN_PATHS[req.body && req.body.return] || null;
+    // Keyed-ad tracking: each channel sends its own src so conversions are
+    // attributable per channel in analytics and in Stripe metadata.
+    const src = /^[a-z0-9_-]{1,32}$/.test(String((req.body && req.body.src) || '')) ? req.body.src : undefined;
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: [{
@@ -88,15 +101,15 @@ router.post('/checkout', checkoutLimiter, async (req, res) => {
       }],
       client_reference_id: ownerId || undefined,
       customer_email: (req.user && req.user.email) || undefined,
-      metadata: { guide: guide.slug },
+      metadata: Object.assign({ guide: guide.slug }, src ? { src } : {}),
       // The invoice carries the guide slug so billing.js books this sale to
       // 'other_income' in the ledger instead of 'uncategorized'.
       invoice_creation: { enabled: true, invoice_data: { metadata: { guide: guide.slug } } },
       allow_promotion_codes: true,
-      success_url: `${origin}/guides?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/guides?purchase=cancelled`
+      success_url: origin + (ret ? ret.success : '/guides?purchase=success&session_id={CHECKOUT_SESSION_ID}'),
+      cancel_url: origin + (ret ? ret.cancel : '/guides?purchase=cancelled')
     });
-    analytics.recordEvent({ type: 'guide_checkout_started', ownerKey: ownerId || 'anon', meta: { guide: guide.slug } });
+    analytics.recordEvent({ type: 'guide_checkout_started', ownerKey: ownerId || 'anon', meta: Object.assign({ guide: guide.slug }, src ? { src } : {}) });
     res.json({ url: session.url });
   } catch (err) {
     console.error('[city-guides] checkout failed:', err.message);

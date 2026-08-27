@@ -283,6 +283,14 @@ app.get('/guides', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'guides.html'));
 });
 
+// Richmond Hill sales letter + its post-purchase page.
+app.get('/guides/richmond-hill', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'guide-richmond-hill.html'));
+});
+app.get('/guides/richmond-hill/thanks', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'guide-richmond-hill-thanks.html'));
+});
+
 // Server-rendered blog (SEO surface) + sitemap. Must sit above the SPA
 // fallback or /blog would 200 with the shell and index as an empty page.
 const blog = require('./routes/blog');

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Richmond Hill Nature Guide — $20 | DayHop</title>
+  <meta name="description" content="21 field-checked places. Kids-in-boots half day. Tables scored on the ground. $20. 14-day refund.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="DayHop">
+  <meta property="og:title" content="Richmond Hill Nature Guide — $20 | DayHop">
+  <meta property="og:description" content="21 field-checked places. Kids-in-boots half day. Tables scored on the ground. $20. 14-day refund.">
+  <meta property="og:url" content="https://dayhop-v2.onrender.com/guides/richmond-hill">
+  <meta property="og:image" content="https://dayhop-v2.onrender.com/img/guides-og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Richmond Hill Nature Guide — $20 | DayHop">
+  <meta name="twitter:description" content="21 field-checked places. Kids-in-boots half day. Tables scored on the ground. $20. 14-day refund.">
+  <meta name="twitter:image" content="https://dayhop-v2.onrender.com/img/guides-og.jpg">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <style>
+    @font-face { font-family: 'National Park'; src: url('/fonts/NationalPark-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+    @font-face { font-family: 'National Park'; src: url('/fonts/NationalPark-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+    @font-face { font-family: 'Crimson Pro'; src: url('/fonts/CrimsonPro-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+    @font-face { font-family: 'Crimson Pro'; src: url('/fonts/CrimsonPro-Italic.ttf') format('truetype'); font-weight: 400; font-style: italic; font-display: swap; }
+    :root {
+      --ink: #102A2E; --ink-soft: #41585C; --coral: #E1502F; --coral-dark: #C43F22;
+      --marigold: #FFB627;
+      --moss: #3F6F5C; --paper: #FBF7EE; --paper-dim: #F2ECDC; --line: #E3DCC9;
+      --display: 'National Park', -apple-system, 'Segoe UI', sans-serif;
+      --body: 'Crimson Pro', Georgia, serif;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body { font-family: var(--body); background: var(--paper); color: var(--ink); line-height: 1.55; font-size: 1.05rem; }
+    a { color: var(--coral); }
+    .top { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+    .logo { font-family: var(--display); font-weight: 700; font-size: 1.3rem; color: var(--ink); text-decoration: none; letter-spacing: .02em; }
+    .back { font-size: .95rem; color: var(--ink-soft); text-decoration: none; }
+    .motif { display: block; width: 100%; height: 92px; }
+    main { max-width: 680px; margin: 0 auto; padding: 20px 20px 64px; }
+    .kicker { font-family: var(--display); font-size: .8rem; letter-spacing: .32em; color: var(--ink-soft); text-transform: uppercase; border-bottom: 2px solid var(--moss); display: inline-block; padding-bottom: 6px; margin-bottom: 14px; }
+    h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; letter-spacing: .01em; line-height: 1.18; }
+    .subhead { color: var(--ink-soft); margin: 12px 0 8px; font-size: 1.16rem; font-style: italic; }
+    h2 { font-family: var(--display); font-weight: 700; font-size: 1.25rem; letter-spacing: .02em; margin: 0 0 10px; }
+    section { margin-top: 44px; }
+    .cover-shot { width: min(320px, 78%); display: block; margin: 18px auto 22px; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(16,42,46,.14); transform: rotate(-1.2deg); }
+    .buy { font-family: var(--display); display: inline-block; background: var(--coral); color: #fff; border: 0; border-radius: 10px; padding: 15px 22px; font-size: 1rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; min-height: 44px; }
+    .buy:hover { background: var(--coral-dark); }
+    .buy:disabled { opacity: .6; cursor: default; }
+    .cta-wrap { margin: 20px 0 6px; text-align: center; }
+    .promo-line { font-family: var(--display); color: var(--coral-dark); font-size: .88rem; letter-spacing: .04em; margin-top: 10px; }
+    .sample-link { display: inline-block; margin-top: 12px; font-size: 1rem; padding: 8px 4px; }
+    .banner { border-radius: 12px; padding: 14px 16px; margin: 18px 0 0; font-weight: 600; display: none; }
+    .banner--sad { display: block; background: #FBEAE4; color: var(--coral-dark); border: 1px solid var(--coral); }
+    .day { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; margin-top: 14px; }
+    .day ol { padding-left: 22px; display: grid; gap: 10px; }
+    .day .pace { margin-top: 14px; color: var(--ink-soft); font-style: italic; }
+    .also { margin-top: 18px; color: var(--ink-soft); }
+    .also ul { list-style: none; padding: 6px 0 0; display: grid; gap: 6px; }
+    .also li::before { content: '• '; color: var(--moss); }
+    .spreads { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 18px 0 8px; }
+    .spreads figure { margin: 0; }
+    .spreads img { width: 100%; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 26px rgba(16,42,46,.10); display: block; }
+    .spreads figure:nth-child(1) img { transform: rotate(-1.2deg); }
+    .spreads figure:nth-child(3) img { transform: rotate(1.2deg); }
+    @media (max-width: 640px) { .spreads { grid-template-columns: 1fr; } }
+    .proof-caption { font-family: var(--display); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); text-align: center; margin-top: 10px; }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+    @media (max-width: 560px) { .split { grid-template-columns: 1fr; } }
+    .split > div { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+    .split h3 { font-family: var(--display); font-size: 1rem; letter-spacing: .03em; margin-bottom: 8px; }
+    .split .is h3 { color: var(--moss); }
+    .split .isnot h3 { color: var(--coral-dark); }
+    .split ul { list-style: none; padding: 0; display: grid; gap: 7px; color: var(--ink-soft); font-size: .98rem; }
+    .split .is li::before { content: '✓ '; color: var(--moss); }
+    .split .isnot li::before { content: '✕ '; color: var(--coral-dark); }
+    .forwho p { color: var(--ink-soft); margin-top: 8px; }
+    .forwho strong { color: var(--moss); font-family: var(--display); font-size: .95rem; letter-spacing: .03em; }
+    .close-block { text-align: center; border-top: 1px solid var(--line); padding-top: 34px; }
+    .close-block .price-line { font-size: 1.12rem; margin-bottom: 4px; }
+    .planner-line { margin-top: 16px; color: var(--ink-soft); }
+    footer { text-align: center; color: var(--ink-soft); font-size: .82rem; padding: 24px; border-top: 1px solid var(--line); margin-top: 48px; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <a class="logo" href="/">DayHop</a>
+    <a class="back" href="/guides">← All city guides</a>
+  </div>
+  <svg class="motif" viewBox="0 0 940 92" preserveAspectRatio="none" aria-hidden="true">
+    <g fill="none" stroke="#3F6F5C" stroke-width="1">
+      <path d="M-10 14 Q 60 6, 120 14 T 250 12 T 380 16 T 510 12 T 640 15 T 770 11 T 950 14"/>
+      <path d="M-10 32 Q 70 24, 140 32 T 280 30 T 420 34 T 560 29 T 700 33 T 950 31"/>
+      <path d="M-10 68 Q 65 60, 130 68 T 265 66 T 400 70 T 535 65 T 670 69 T 950 67"/>
+      <path d="M-10 86 Q 75 78, 145 86 T 285 84 T 425 88 T 565 83 T 705 87 T 950 85"/>
+    </g>
+    <path d="M-10 50 Q 68 41, 135 50 T 272 48 T 409 52 T 546 47 T 683 51 T 950 49" fill="none" stroke="#E1502F" stroke-width="1.6"/>
+  </svg>
+  <main>
+    <!-- Block 1 — hero -->
+    <span class="kicker">DayHop · Field Guide</span>
+    <img class="cover-shot" src="/img/guide-previews/richmond-hill.png" alt="Cover of the Richmond Hill Nature Guide, August 2026 edition">
+    <h1>Still deciding Saturday at 11? The half-day is already written. $20.</h1>
+    <p class="subhead">21 field-checked Richmond Hill places. Ranked tables. Live map links. August 2026 edition.</p>
+    <div class="cta-wrap">
+      <button class="buy js-buy" type="button">Get the guide — $20</button>
+      <p class="promo-line">LABOURDAY takes it to $15 until Sep 8.</p>
+      <a class="sample-link" href="#sample">Read one free sample day ↓</a>
+    </div>
+    <div class="banner" id="banner"></div>
+
+    <!-- Block 2 — the sample -->
+    <section id="sample">
+      <h2>Kids-in-boots expedition — half day</h2>
+      <div class="day">
+        <ol>
+          <li><b>Morning</b> — Pioneer Park creek prowl. Rubber boots non-negotiable.</li>
+          <li><b>Midday</b> — Saigeon Trail boardwalks. Flat, stroller-ok, red-winged blackbirds at eye level.</li>
+          <li><b>Bonus, in season</b> — 20 minutes to Kortright or Bruce's Mill for syrup done properly.</li>
+        </ol>
+        <p class="pace">Pace: 3 km/h with kids. Add fifteen minutes for every stop you swear will take five.</p>
+      </div>
+      <div class="also">
+        <p>Also in the file (not printed here):</p>
+        <ul>
+          <li>3 perfect hours — Mill Pond + heritage streets + Yonge café</li>
+          <li>Half day — Corridor from Bond Lake, then Wilcox</li>
+          <li>Full day — Moraine Sampler</li>
+          <li>Rain — Jefferson pines, then Richmond Green</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Block 3 — proof -->
+    <section>
+      <h2>What the pages look like</h2>
+      <div class="spreads">
+        <figure><img src="/img/guide-previews/richmond-hill.png" alt="Guide cover — Richmond Hill Nature Guide, August 2026" loading="lazy"></figure>
+        <figure><img src="/img/guide-previews/richmond-hill-p4.png" alt="Page 4 — four ready answers for four sizes of day" loading="lazy"></figure>
+        <figure><img src="/img/guide-previews/richmond-hill-p6.png" alt="Page 6 — the park amenity index, scored on the ground" loading="lazy"></figure>
+      </div>
+      <p class="proof-caption">Boots and washrooms scored on the ground. A blank cell means we have not marked it.</p>
+    </section>
+
+    <!-- Block 4 — offer split -->
+    <section>
+      <h2>What $20 buys</h2>
+      <div class="split">
+        <div class="is">
+          <h3>$20 is</h3>
+          <ul>
+            <li>August 2026 PDF</li>
+            <li>21 places</li>
+            <li>Trail table and amenity index</li>
+            <li>Almanac and sun clock</li>
+            <li>Four ready-made days</li>
+            <li>Tappable names / QR to Maps</li>
+            <li>Updated file this season if a gate changes</li>
+          </ul>
+        </div>
+        <div class="isnot">
+          <h3>$20 is not</h3>
+          <ul>
+            <li>The live weather planner. That stays free on the <a href="/">homepage</a>.</li>
+            <li>If you only want a day from one sentence, don't buy this.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Block 5 — for / not for -->
+    <section class="forwho">
+      <h2>Who it's for</h2>
+      <p><strong>For:</strong> Richmond Hill, Vaughan, Markham-adjacent. Small kids or a quiet outdoor loop with an honest washroom answer.</p>
+      <p><strong>Not:</strong> nightlife, restaurant crawls, Niagara.</p>
+    </section>
+
+    <!-- Block 6 — close -->
+    <section class="close-block">
+      <p class="price-line">$20 CAD. 14-day refund — email <a href="mailto:admin@dayhop.quest">admin@dayhop.quest</a>.</p>
+      <div class="cta-wrap">
+        <button class="buy js-buy" type="button">Get the guide — $20</button>
+        <p class="promo-line">LABOURDAY takes it to $15 until Sep 8.</p>
+      </div>
+      <p class="planner-line">Need a day from a sentence instead? <a href="/">Free planner →</a></p>
+    </section>
+  </main>
+  <footer>
+    DayHop · Richmond Hill, Ontario, Canada · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · admin@dayhop.quest<br>
+    Personal-use license: one purchaser, please don't redistribute the file.
+  </footer>
+
+  <script>
+    const banner = document.getElementById('banner');
+    function ownerId() {
+      try { return localStorage.getItem('dayhop_owner_id') || undefined; } catch (e) { return undefined; }
+    }
+    // Keyed-ad tracking: every channel links here with its own ?src=.
+    const src = (new URLSearchParams(location.search).get('src') || 'guides-letter').slice(0, 32);
+
+    async function buy(btn) {
+      const label = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Opening checkout…';
+      try {
+        const res = await fetch('/api/cityguides/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug: 'richmond-hill', owner_id: ownerId(), return: 'richmond-hill-letter', src })
+        });
+        const data = await res.json();
+        if (data && data.url) { window.location.href = data.url; return; }
+        throw new Error((data && data.message) || 'checkout failed');
+      } catch (err) {
+        btn.disabled = false; btn.textContent = label;
+        banner.className = 'banner banner--sad';
+        banner.textContent = 'Could not start checkout — please try again in a moment.';
+        banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+    document.querySelectorAll('.js-buy').forEach(b => b.addEventListener('click', () => buy(b)));
+
+    if (new URLSearchParams(location.search).get('purchase') === 'cancelled') {
+      banner.className = 'banner banner--sad';
+      banner.textContent = 'Checkout cancelled — your card was not charged.';
+    }
+  </script>
+</body>
+</html>

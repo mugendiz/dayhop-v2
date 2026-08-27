@@ -5328,8 +5328,8 @@
     const days = Math.max(0, Math.ceil((HOLIDAY - now) / 86400000));
     document.getElementById('holiday-strip-text').textContent =
       days > 0
-        ? `🍁 Labour Day weekend is Sep 5–7 — ${days} day${days === 1 ? '' : 's'} away. Code LABOURDAY takes 25% off any field guide until Sep 8.`
-        : '🍁 It\'s the long weekend — code LABOURDAY takes 25% off any field guide until Sep 8.';
+        ? `🍁 Labour Day is ${days} day${days === 1 ? '' : 's'} away. Richmond Hill Nature Guide — 21 places, $20. Code LABOURDAY = $15 until Sep 8.`
+        : '🍁 It\'s the long weekend — Richmond Hill Nature Guide, 21 places, $20. Code LABOURDAY = $15 until Sep 8.';
     strip.hidden = false;
     document.getElementById('holiday-strip-close').addEventListener('click', () => {
       strip.hidden = true;
