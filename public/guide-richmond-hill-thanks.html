@@ -57,8 +57,7 @@
         if (data && data.token) {
           const href = '/api/cityguides/download?t=' + encodeURIComponent(data.token);
           dl.href = href; dl.classList.add('show');
-          statusEl.textContent = 'Your download is starting — a copy with a re-download link is in your inbox too.';
-          window.location.href = href;
+          statusEl.textContent = 'A copy with a re-download link is in your inbox too.';
         } else {
           statusEl.textContent = FALLBACK;
         }
