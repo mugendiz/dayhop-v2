@@ -165,7 +165,7 @@ module.exports = {
       route: 'section hikes · dirt', best: 'Fall', ages: '8+', cost: 'FREE', access: 'Roadside + CA lots along the route · white blazes · dirt footpath', maps: 'Bruce Trail Hamilton'
     },
     {
-      name: 'Chedoke Radial Trail',
+      name: 'Chedoke Radial Trail', facetOf: 'Chedoke Radial Trail & Chedoke Falls',
       area: 'West Mountain',
       why: 'The old radial-railway grade climbs the escarpment face at a train\'s patient gradient — waterfalls beside you, city below you, and the best effort-to-reward climb in town.',
       tip: 'Top-to-bottom with a return via the Chedoke stairs makes an honest workout loop.',
@@ -179,7 +179,7 @@ module.exports = {
       route: '32 km one-way · crushed stone', best: 'Any green month', ages: '8+ riding', cost: 'FREE', access: 'Lot at Dundas Valley Trail Centre · crushed stone · all bikes', maps: 'Hamilton Brantford Rail Trail'
     },
     {
-      name: 'Dundas Valley Main Loop',
+      name: 'Dundas Valley Main Loop', facetOf: 'Dundas Valley Conservation Area',
       area: 'Trail Centre, Governors Rd',
       why: 'The conservation area\'s signature circuit: Carolinian forest, the Hermitage ruins, and orchard clearings on a well-marked loop that samples everything the valley does.',
       tip: 'Add the Hermitage side trail — the ruined mansion is worth the extra kilometre.',
@@ -224,7 +224,7 @@ module.exports = {
       best: 'Golden hour', ages: 'all ages', cost: 'FREE', access: 'Park at Dundurn or Bayfront · sidewalk walk onto the bridge', maps: 'York Boulevard High Level Bridge Hamilton'
     },
     {
-      name: 'Rock Chapel escarpment edge',
+      name: 'Rock Chapel escarpment edge', facetOf: 'Borer\'s Falls',
       area: 'Rock Chapel Rd, Dundas',
       why: 'The RBG\'s clifftop sanctuary trail walks the escarpment lip past Borer\'s Falls — valley below, turkey vultures riding the updraft at eye level.',
       tip: 'The vultures kettle on warm afternoons; bring binoculars.',
@@ -234,14 +234,14 @@ module.exports = {
 
   waters: [
     {
-      name: 'Cootes Paradise by canoe',
+      name: 'Cootes Paradise by canoe', facetOf: 'Cootes Paradise & Princess Point',
       area: 'Launch at Princess Point',
       why: 'Paddle from Princess Point into the great marsh and the city evaporates — channels through wild rice and lotus beds, turtles on every log, the RBG\'s restoration work visible everywhere.',
       tip: 'Wind funnels down the valley by afternoon; mornings are the glass.',
       best: 'Summer mornings', ages: '8+', cost: 'FREE (own boat)', access: 'Princess Point lot · carry-in launch · washrooms in season', maps: 'Princess Point canoe launch'
     },
     {
-      name: 'Bayfront beach & pier loop',
+      name: 'Bayfront beach & pier loop', facetOf: 'Bayfront Park & Pier 4',
       area: 'Hamilton harbour',
       why: 'The reclaimed harbour\'s pebble cove and pier make an easy water hour — swans, sailboats, and the north-facing light that photographers quietly prize.',
       tip: 'The Pier 4 boardwalk extension completes the loop.',
@@ -272,14 +272,14 @@ module.exports = {
       best: 'Spring & fall (lake), summer (pond)', ages: 'all ages', cost: '$$', access: 'Gate fee · pond and shore steps from lots', maps: 'Fifty Point Conservation Area fishing'
     },
     {
-      name: 'Bayfront & Pier 4 shore',
+      name: 'Bayfront & Pier 4 shore', facetOf: 'Bayfront Park & Pier 4',
       area: 'Hamilton harbour',
       why: 'The rehabilitated harbour has become genuine pike water, with panfish along the sheltered edges — urban fishing with a skyline, minutes from downtown.',
       tip: 'Early season pike prowl the warming shallows off the park points.',
       best: 'May–Jun', ages: 'all ages', cost: 'FREE', access: 'Free lots · casting room off paved points', maps: 'Bayfront Park Hamilton fishing'
     },
     {
-      name: 'Princess Point banks',
+      name: 'Princess Point banks', facetOf: 'Cootes Paradise & Princess Point',
       area: 'Cootes Paradise outlet',
       why: 'Where the marsh drains toward the harbour, carp and pike patrol the channel edges — easy banks, big fish, and the occasional spectacle of a carp the size of a corgi.',
       tip: 'Respect the sanctuary boundaries posted around the marsh proper.',
@@ -292,6 +292,51 @@ module.exports = {
       tip: 'Check the RBG\'s posted rules — parts of the estuary are protected habitat.',
       best: 'Late spring', ages: '8+', cost: 'FREE', access: 'Small lot · flat banks · boardwalk nearby', maps: 'Valley Inn Road Burlington'
     }
+  ],
+
+  // The human history threaded through the green — every entry pairs with
+  // a place already in this guide.
+  heritage: [
+    {
+      name: 'Dundurn Castle & Dundurn Park',
+      area: 'York Blvd, west harbour',
+      why: 'An 1830s Italianate villa on Burlington Heights, built for Sir Allan MacNab and now a city-run house museum — with formal grounds, a recreated kitchen garden, and lawns overlooking the harbour where the High Level Bridge walk begins.',
+      tip: 'The park and grounds are open even when the castle isn\'t — pair with the bridge walk to Cootes or the Bayfront loop, both minutes away.',
+      best: 'Paired with the harbour walks', ages: 'all ages', cost: 'FREE grounds · $ castle tours', maps: 'Dundurn Castle Hamilton'
+    },
+    {
+      name: 'Battlefield House Museum & Park',
+      area: 'King St W, Stoney Creek',
+      why: 'The site of the 1813 Battle of Stoney Creek: a Georgian homestead museum, a monument tower on the rise behind it, and treed parkland running back toward the escarpment — five minutes from the Devil\'s Punchbowl.',
+      tip: 'The park is open daily even when the house isn\'t; the June battle re-enactment weekend is the big date on its calendar.',
+      best: 'Paired with the Punchbowl', ages: 'all ages', cost: 'FREE park · $ museum', maps: 'Battlefield House Museum Stoney Creek'
+    },
+    {
+      name: 'The Hermitage Ruins',
+      area: 'Sulphur Springs Rd, Ancaster',
+      why: 'The stabilized stone shell of an 1850s estate house deep in the Dundas Valley — burned in 1934 and left standing, with the old gatehouse and carriage lanes still tracing the property through the forest.',
+      tip: 'Reach it on foot via the Dundas Valley trails — the Main Loop\'s side trail passes right by, which is the best way to arrive at a ruin anyway.',
+      best: 'Fall, mid-hike', ages: 'all ages', cost: '$ (vehicle, via the conservation area)', maps: 'Hermitage Ruins Ancaster'
+    },
+    {
+      name: 'HMCS Haida National Historic Site',
+      area: 'Pier 9, Hamilton harbour',
+      why: 'A Second World War Tribal-class destroyer preserved as a museum ship on the harbour\'s edge — Parks Canada runs the decks, and the pier itself extends the waterfront walk east from Bayfront.',
+      tip: 'Open seasonally — check before building the day around going aboard; the pier-side view of her costs nothing year-round.',
+      best: 'Summer, paired with the Waterfront Trail', ages: 'all ages', cost: 'FREE from the pier · $ aboard', maps: 'HMCS Haida Hamilton'
+    }
+  ],
+
+  // Field notes: the interesting-facts layer. Every claim here is
+  // establishment-grade — no folklore.
+  facts: [
+    { n: 'The Niagara Escarpment — the ridge every waterfall in this guide pours off — was designated a UNESCO World Biosphere Reserve in 1990. It runs some 725 km across Ontario, and Hamilton sits where it bends around the head of Lake Ontario.' },
+    { n: 'The city counts more than 100 waterfalls along its stretch of the Escarpment — a byproduct of simple plumbing: every creek on the upper city has to get off the ridge somehow, and each one that does makes a falls.' },
+    { n: 'Cootes Paradise is one of the largest remaining coastal wetlands at the western end of Lake Ontario and a crucial fish nursery for the lake. The fishway at its outlet — operated by the Royal Botanical Gardens — sorts native fish in while keeping invasive carp out.' },
+    { n: 'The Bruce Trail, Canada\'s oldest and longest marked footpath, follows the Escarpment roughly 900 km from Niagara to Tobermory — and the idea for it was first put forward by Hamilton naturalist Ray Lowes of the Hamilton Naturalists\' Club.' },
+    { n: 'The Royal Botanical Gardens is Canada\'s largest botanical garden: about 1,100 hectares of cultivated gardens and nature sanctuaries spanning the Hamilton–Burlington boundary, Cootes Paradise included.' },
+    { n: 'The Devil\'s Punchbowl\'s striped walls are a stacked archive: layers of shale, limestone and sandstone laid down as ancient seabed more than 400 million years ago, exposed in one glacial-meltwater gouge you can read like tree rings.' },
+    { n: 'Eramosa Karst is designated a provincially significant Area of Natural and Scientific Interest for its karst features — streams that sink underground mid-course, hollowing caves and sinkholes into the soluble rock beneath the Stoney Creek mountain.' }
   ],
 
   itineraries: [
@@ -335,6 +380,172 @@ module.exports = {
       ]
     }
   ],
+
+  // Entry stamps: each place's thumbnail medallion in the left rail,
+  // keyed by exact entry name. Types live in services/cityGuides.js.
+  icons: {
+    'Webster Falls & Tews Falls (Spencer Gorge)': 'valley',
+    'Dundas Peak': 'lookout',
+    'Albion Falls': 'creek',
+    'Devil\'s Punchbowl': 'valley',
+    'Tiffany Falls': 'creek',
+    'Sherman Falls': 'creek',
+    'Dundas Valley Conservation Area': 'forest',
+    'Cootes Paradise & Princess Point': 'marsh',
+    'Royal Botanical Gardens — Arboretum & Rock Garden': 'meadow',
+    'Chedoke Radial Trail & Chedoke Falls': 'creek',
+    'Felker\'s Falls & the Peter Street Trail': 'creek',
+    'Great Falls (Smokey Hollow)': 'mill',
+    'Eramosa Karst Conservation Area': 'creek',
+    'Bayfront Park & Pier 4': 'lake',
+    'Sam Lawrence Park': 'lookout',
+    'Borer\'s Falls': 'creek',
+    'Crawford Lake Conservation Area': 'lake',
+    'Rattlesnake Point Conservation Area': 'lookout',
+    'Fifty Point Conservation Area': 'lake',
+    'Bruce Trail, Iroquoia highlights': 'valley',
+    'Chedoke Radial Trail': 'creek',
+    'Hamilton–Brantford Rail Trail': 'forest',
+    'Dundas Valley Main Loop': 'forest',
+    'Waterfront Trail, harbour west': 'lake',
+    'Escarpment Rail Trail & the stairs': 'lookout',
+    'Sydenham Lookout': 'lookout',
+    'Mountain Brow path': 'lookout',
+    'High Level Bridge vantage': 'lookout',
+    'Rock Chapel escarpment edge': 'lookout',
+    'Cootes Paradise by canoe': 'marsh',
+    'Bayfront beach & pier loop': 'lake',
+    'Grindstone Creek estuary': 'marsh',
+    'Fifty Point lakefront': 'lake',
+    'Fifty Point': 'fish',
+    'Bayfront & Pier 4 shore': 'fish',
+    'Princess Point banks': 'fish',
+    'Grindstone mouth at Valley Inn': 'fish',
+    'Dundurn Castle & Dundurn Park': 'heritage',
+    'Battlefield House Museum & Park': 'heritage',
+    'The Hermitage Ruins': 'heritage',
+    'HMCS Haida National Historic Site': 'heritage'
+  },
+
+  // Field companions (wild-* keys are the shared species library).
+  companions: {
+    'Worth the climb': {
+      note: 'The escarpment edge has its own commuters — keep one eye on the updraft.',
+      species: [
+        { key: 'wild-vulture', label: 'Turkey vulture', sub: 'kettling over Rock Chapel' },
+        { key: 'wild-hawk', label: 'Red-tailed hawk', sub: 'patrolling the brow' },
+        { key: 'wild-monarch', label: 'Monarch', sub: 'drifting the ridge in September' }
+      ]
+    },
+    'On the trail': {
+      note: 'Walk the Dundas Valley quietly at the day\'s edges and it shows its residents.',
+      species: [
+        { key: 'wild-deer', label: 'White-tailed deer', sub: 'valley clearings at dusk' },
+        { key: 'wild-woodpecker', label: 'Pileated woodpecker', sub: 'the big Carolinian woods' },
+        { key: 'wild-chipmunk', label: 'Eastern chipmunk', sub: 'every trailside stone wall' }
+      ]
+    },
+    'On the water': {
+      note: 'Who you\'ll meet where the marsh meets the harbour.',
+      species: [
+        { key: 'wild-swan', label: 'Trumpeter swan', sub: 'the harbour\'s winter bays' },
+        { key: 'wild-turtle', label: 'Painted turtle', sub: 'basking logs in Cootes' },
+        { key: 'wild-kingfisher', label: 'Belted kingfisher', sub: 'the rattle over the channels' }
+      ]
+    }
+  },
+
+  // Bonus page: patios near the green. Rotates each edition; slots are
+  // sponsorable and always marked when sponsored.
+  bonus: {
+    title: 'Patios & rooftops',
+    blurb: 'Where to land after the trail — a rotating shortlist beside the green, refreshed with each edition.',
+    disclosure: 'This page rotates: venues change with new editions, and every reader gets updated editions free. No venue has paid for placement in this edition — when a slot is sponsored, it will say so right on it. A venue that wants a named slot in the next edition can write admin@dayhop.quest.',
+    entries: [
+      {
+        name: 'The Locke Street strip',
+        area: 'Locke St S, west Hamilton',
+        why: 'The west end\'s café-and-patio street, ten minutes from Princess Point — walk the strip after the marsh trails and pick the fullest room.',
+        pair: 'After: Cootes Paradise & Princess Point', maps: 'restaurants Locke Street South Hamilton'
+      },
+      {
+        name: 'Downtown Dundas, King Street',
+        area: 'Old Dundas, valley town',
+        why: 'The escarpment towns do cafés properly, and Dundas\' King Street is the proof — bakeries and patios minutes from the valley trailheads and the gorge.',
+        pair: 'After: the Dundas Valley Main Loop', maps: 'restaurants King Street West Dundas Ontario'
+      },
+      {
+        name: 'Ottawa Street North',
+        area: 'East lower city',
+        why: 'The old textile district turned café-and-antiques strip — the natural refuel after an east-end falls morning comes down off the mountain.',
+        pair: 'After: the three-falls east morning', maps: 'restaurants Ottawa Street North Hamilton'
+      },
+      {
+        name: 'This could be your table',
+        area: 'Hamilton',
+        why: 'The named slots on this page debut in the next edition — and every buyer receives that edition free. Know the patio that belongs here, or own it? Tell us.',
+        pair: 'admin@dayhop.quest', maps: 'patio restaurants Hamilton'
+      }
+    ]
+  },
+
+  // Month-by-month natural events — the page that gets re-opened all year.
+  // `key: true` marks the single headline month (the almanac's one coral).
+  almanac: [
+    { m: 'JAN', text: 'Deep cold builds Tiffany Falls\' ice column and glazes Albion\'s terraces; clear days give the Mountain Brow its longest sightlines of the year.' },
+    { m: 'FEB', text: 'The frozen falls at their thickest; trumpeter swans and wintering ducks raft the harbour\'s sheltered bays off Bayfront.' },
+    { m: 'MAR', text: 'The melt begins and every falls in this guide starts clearing its throat; red-winged blackbirds return to the Cootes cattails in the first mild week.' },
+    { m: 'APR', text: 'Peak melt is peak falls — Webster, Albion, and Great Falls at full throat — and Eramosa Karst\'s streams run, sink, and vanish on cue.' },
+    { m: 'MAY', text: 'The RBG\'s lilac dell closes the month like a festival; warblers move through Cootes; the Grindstone estuary boils with spawning fish under the boardwalk.' },
+    { m: 'JUN', text: 'Roses take over at the RBG; turtles line the Cootes basking logs; the harbour evenings stretch long on the Waterfront Trail.' },
+    { m: 'JUL', text: 'Falls thin to ribbons but the gorges stay cool and green; Fifty Point\'s beach season peaks; Cootes is glass for the morning paddle.' },
+    { m: 'AUG', text: 'Late-summer honesty: go to the falls for the gorges, not the flow. Turkey vultures kettle over Rock Chapel on hot afternoons; Spencer Gorge stays on its reservation system.' },
+    { m: 'SEP', text: 'Fall rains bring the falls back to life; salmon start pushing up Spencer Creek toward Cootes; monarchs drift south along the brow.' },
+    { m: 'OCT', key: true, text: 'The headline month: Dundas Peak in full colour (reservation essential), the Dundas Valley\'s forty trail-kilometres amber, and the salmon run at its height.' },
+    { m: 'NOV', text: 'Bare trees open the escarpment sightlines — the brow lookouts and Sydenham are at their longest-range; late waterfowl raft the harbour before freeze-up.' },
+    { m: 'DEC', text: 'First hard freezes start sculpting the falls again; Sam Lawrence Park at dusk, city lights coming on below, is the season\'s free show.' }
+  ],
+
+  // The shortlists: the "which one, today, with my crew" answers.
+  shortlists: [
+    { title: 'The no-reservation falls run', text: 'Albion\'s two platforms, Felker\'s rim trail, and the Devil\'s Punchbowl — three major falls, minimal walking, zero booking.' },
+    { title: 'Best without a car', text: 'Bayfront Park & Pier 4 — transit-friendly, fully paved, and the harbour loop connects west toward Princess Point.' },
+    { title: 'Best toddler outing', text: 'Felker\'s Falls — a flat, stroller-friendly rim trail with a real waterfall as the payoff.' },
+    { title: 'Most view for least effort', text: 'Sydenham Lookout — drive up, steps to the view, the whole Dundas Valley below. No reservation, ever.' },
+    { title: 'The quiet one', text: 'Sherman Falls — quieter than its famous neighbours and arguably prettier in soft light. Stay on the path; it\'s open because visitors have behaved.' },
+    { title: 'The rainy-day call', text: 'Rain is a Hamilton feature — the falls run loudest. Tiffany\'s boardwalk and Sherman are short dashes between downpours.' }
+  ],
+
+  // Field-ledger ranks, earned by ticking the been-there checkboxes.
+  ledger: ['Day Scout', 'Pathfinder', 'Field Ranger', 'Warden of the Escarpment'],
+
+  // Photo plates (curated Commons; see assets/photos/credits.json).
+  photos: {
+      "Webster Falls & Tews Falls (Spencer Gorge)": {
+          "key": "hamilton-spot-webster",
+          "size": "large"
+      },
+      "Dundas Peak": {
+          "key": "hamilton-spot-dundaspeak",
+          "size": "small"
+      },
+      "Devil's Punchbowl": {
+          "key": "hamilton-spot-punchbowl",
+          "size": "small"
+      },
+      "Albion Falls": {
+          "key": "hamilton-spot-albion",
+          "size": "large"
+      },
+      "Dundurn Castle & Dundurn Park": {
+          "key": "hamilton-spot-dundurn",
+          "size": "small"
+      },
+      "Cootes Paradise & Princess Point": {
+          "key": "hamilton-spot-cootes",
+          "size": "small"
+      }
+  },
 
   seasons: [
     { label: 'Spring (Apr–May)', text: 'Melt season is falls season — every drop in this guide runs at full throat, and the karst streams appear and vanish on cue. RBG\'s lilacs close May like a festival.' },

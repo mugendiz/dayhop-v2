@@ -391,5 +391,187 @@
     "license": "Public domain",
     "author": "USGS",
     "source": "https://commons.wikimedia.org/w/index.php?curid=131097"
+  },
+  "markham-a": {
+    "key": "markham-a",
+    "term": "Milne Dam Conservation Park",
+    "license": "CC BY-SA 4.0",
+    "author": "Tomukatsusu",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=109964309"
+  },
+  "richmond-hill-a": {
+    "key": "richmond-hill-a",
+    "term": "Mill Pond Richmond Hill",
+    "license": "CC BY-SA 2.0",
+    "author": "atzerok",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=91286074"
+  },
+  "newmarket-a": {
+    "key": "newmarket-a",
+    "term": "Holland Marsh",
+    "license": "Public domain",
+    "author": "GTD Aquitaine",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=5010816"
+  },
+  "toronto-a": {
+    "key": "toronto-a",
+    "term": "Toronto Islands lagoon",
+    "license": "CC BY 2.0",
+    "author": "Robert Taylor",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=28175096"
+  },
+  "hamilton-a": {
+    "key": "hamilton-a",
+    "term": "Cootes Paradise",
+    "license": "CC BY 4.0",
+    "author": "Lucastphotography",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=147666874"
+  },
+  "lake-simcoe-a": {
+    "key": "lake-simcoe-a",
+    "term": "Sibbald Point Provincial Park",
+    "license": "CC BY-SA 4.0",
+    "author": "OwenX",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=69723532"
+  },
+  "toronto-spot-highpark": {
+    "key": "toronto-spot-highpark",
+    "term": "Grenadier Pond High Park",
+    "license": "CC BY-SA 3.0",
+    "author": "Lucastphotography",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=147567503"
+  },
+  "toronto-spot-islands": {
+    "key": "toronto-spot-islands",
+    "term": "Centre Island Toronto",
+    "license": "CC BY-SA 4.0",
+    "author": "Whpq",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=92204729"
+  },
+  "toronto-spot-spit": {
+    "key": "toronto-spot-spit",
+    "term": "Leslie Street Spit lighthouse",
+    "license": "CC BY-SA 3.0",
+    "author": "OldYorkGuy",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=61035410"
+  },
+  "toronto-spot-bluffs": {
+    "key": "toronto-spot-bluffs",
+    "term": "Scarborough Bluffs Bluffers Park",
+    "license": "CC BY-SA 2.5 ca",
+    "author": "The Cosmonaut",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=98604295"
+  },
+  "toronto-spot-distillery": {
+    "key": "toronto-spot-distillery",
+    "term": "Gooderham and Worts Distillery Toronto",
+    "license": "CC BY-SA 2.5 ca",
+    "author": "Óðinn",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=45373558"
+  },
+  "hamilton-spot-webster": {
+    "key": "hamilton-spot-webster",
+    "term": "Webster Falls Dundas",
+    "license": "CC BY 2.0",
+    "author": "Joe deSousa",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=31414315"
+  },
+  "hamilton-spot-dundaspeak": {
+    "key": "hamilton-spot-dundaspeak",
+    "term": "Dundas Peak view",
+    "license": "CC BY 2.0",
+    "author": "Vlad Litvinov from Toronto",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=81877341"
+  },
+  "hamilton-spot-punchbowl": {
+    "key": "hamilton-spot-punchbowl",
+    "term": "Devil's Punchbowl Stoney Creek",
+    "license": "CC BY-SA 4.0",
+    "author": "Mhsheikholeslami",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=167741862"
+  },
+  "hamilton-spot-albion": {
+    "key": "hamilton-spot-albion",
+    "term": "Albion Falls",
+    "license": "Public domain",
+    "author": "Rick Cordeiro",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=14677288"
+  },
+  "hamilton-spot-dundurn": {
+    "key": "hamilton-spot-dundurn",
+    "term": "Dundurn Castle Hamilton",
+    "license": "Public domain",
+    "author": "Nhl4hamilton (Rick Cordeiro)",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=3708679"
+  },
+  "hamilton-spot-cootes": {
+    "key": "hamilton-spot-cootes",
+    "term": "Cootes Paradise marsh",
+    "license": "CC BY 4.0",
+    "author": "Lucastphotography",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=147666874"
+  },
+  "newmarket-spot-mainst": {
+    "key": "newmarket-spot-mainst",
+    "term": "Main Street Newmarket Ontario",
+    "license": "CC BY-SA 4.0",
+    "author": "Mhsheikholeslami",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=95658422"
+  },
+  "newmarket-spot-sharon": {
+    "key": "newmarket-spot-sharon",
+    "term": "Sharon Temple Ontario",
+    "license": "CC BY-SA 4.0",
+    "author": "Mhsheikholeslami",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=123607496"
+  },
+  "newmarket-spot-oldtownhall": {
+    "key": "newmarket-spot-oldtownhall",
+    "term": "Old Town Hall Newmarket",
+    "license": "CC BY-SA 4.0",
+    "author": "Mhsheikholeslami",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=95662659"
+  },
+  "lake-simcoe-spot-sibbald": {
+    "key": "lake-simcoe-spot-sibbald",
+    "term": "Sibbald Point Provincial Park beach",
+    "license": "CC BY 2.0",
+    "author": "George Ian Bowles from Toronto, Canada",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=74793372"
+  },
+  "lake-simcoe-spot-barrie": {
+    "key": "lake-simcoe-spot-barrie",
+    "term": "Kempenfelt Bay Barrie waterfront",
+    "license": "CC BY 2.0",
+    "author": "Fool4myCanon",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=40358811"
+  },
+  "lake-simcoe-spot-leacock": {
+    "key": "lake-simcoe-spot-leacock",
+    "term": "Stephen Leacock Museum Orillia",
+    "license": "CC BY-SA 3.0",
+    "author": "Jcart1534",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=7519142"
+  },
+  "lake-simcoe-spot-mara": {
+    "key": "lake-simcoe-spot-mara",
+    "term": "Mara Provincial Park beach",
+    "license": "CC BY-SA 4.0",
+    "author": "Oaktree b",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=34204563"
+  },
+  "newmarket-spot-rogers": {
+    "key": "newmarket-spot-rogers",
+    "term": "Newmarket Canal lock",
+    "license": "CC BY-SA 4.0",
+    "author": "Kelisi",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=178432712"
+  },
+  "newmarket-spot-fairylake2": {
+    "key": "newmarket-spot-fairylake2",
+    "term": "Fairy Lake Newmarket",
+    "license": "CC BY 2.0",
+    "author": "Reg Natarajan from Vancouver, Bogotá",
+    "source": "https://commons.wikimedia.org/w/index.php?curid=75418333"
   }
 }

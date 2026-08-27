@@ -34,7 +34,31 @@ const MANIFEST = {
   'hamilton-hero': 'Webster Falls',
   'hamilton-a': 'Cootes Paradise',
   'lake-simcoe-hero': 'Lake Simcoe shore',
-  'lake-simcoe-a': 'Sibbald Point Provincial Park'
+  'lake-simcoe-a': 'Sibbald Point Provincial Park',
+  // per-spot plates, premium pass 2026-08-27
+  'toronto-spot-highpark': 'Grenadier Pond High Park',
+  'toronto-spot-islands': 'Toronto Islands park',
+  'toronto-spot-spit': 'Leslie Street Spit lighthouse',
+  'toronto-spot-bluffs': 'Scarborough Bluffs Bluffers Park',
+  'toronto-spot-brickworks': 'Evergreen Brick Works',
+  'toronto-spot-distillery': 'Distillery District Toronto',
+  'hamilton-spot-webster': 'Webster Falls Dundas',
+  'hamilton-spot-dundaspeak': 'Dundas Peak view',
+  'hamilton-spot-punchbowl': 'Devil\'s Punchbowl Stoney Creek',
+  'hamilton-spot-albion': 'Albion Falls Hamilton',
+  'hamilton-spot-dundurn': 'Dundurn Castle Hamilton',
+  'hamilton-spot-cootes': 'Princess Point Cootes Paradise Hamilton',
+  'newmarket-spot-fairylake': 'Fairy Lake Newmarket Ontario',
+  'newmarket-spot-mainst': 'Main Street Newmarket Ontario',
+  'newmarket-spot-sharon': 'Sharon Temple Ontario',
+  'newmarket-spot-rogers': 'Rogers Reservoir East Gwillimbury',
+  'newmarket-spot-oldtownhall': 'Old Town Hall Newmarket',
+  'lake-simcoe-spot-sibbald': 'Sibbald Point Provincial Park beach',
+  'lake-simcoe-spot-innisfil': 'Innisfil Beach Park',
+  'lake-simcoe-spot-barrie': 'Kempenfelt Bay Barrie waterfront',
+  'lake-simcoe-spot-beaverton': 'Beaverton Ontario harbour',
+  'lake-simcoe-spot-leacock': 'Stephen Leacock Museum Orillia',
+  'lake-simcoe-spot-mara': 'Mara Provincial Park'
 };
 
 async function search(term) {

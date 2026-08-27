@@ -6,7 +6,7 @@ outreach email; pricing is a starting position, negotiable per venue.*
 ## The product
 
 Field-checked PDF nature guides for Markham, Richmond Hill, Newmarket,
-Toronto, Hamilton, and Lake Simcoe — 31–37 places per guide with trails,
+Toronto, Hamilton, and Lake Simcoe — 20–38 places per guide with trails,
 lookouts, waterways, legal fishing spots, parking/washroom notes on every
 entry, ready-made day plans, and a season calendar. Updated editions ship
 free to every reader. Retail: $20/guide, $59 the collection.

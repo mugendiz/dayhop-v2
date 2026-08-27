@@ -826,7 +826,391 @@ function drawRichmondHillPoster(doc, F, guide, total) {
       { width: W, align: 'center', characterSpacing: 1.8 });
 }
 
-const POSTER_COVERS = { markham: drawMarkhamPoster, 'richmond-hill': drawRichmondHillPoster };
+// Shared chrome for the newer posters: frame, title band, scene border and
+// sub band are identical across cities — only the scene art differs. The
+// original Markham/Richmond Hill functions predate this helper and keep
+// their own copies.
+function drawPosterChrome(doc, F, guide, total, tagline, scene) {
+  const W = doc.page.width;
+  doc.rect(30, 30, W - 60, doc.page.height - 60).lineWidth(2).stroke(INK);
+  doc.rect(38, 38, W - 76, doc.page.height - 76).lineWidth(0.7).stroke(INK);
+  doc.font(F.displayLight).fontSize(8).fillColor(MOSS)
+    .text('DAYHOP  ·  FIELD  GUIDES', 0, 64, { width: W, align: 'center', characterSpacing: 4 });
+  const title = guide.title.replace(/ (Nature Guide|City Nature Spots)$/, '').toUpperCase();
+  let ts = 72;
+  doc.font(F.display).fontSize(ts);
+  while (doc.widthOfString(title, { characterSpacing: 4 }) > 460) { ts -= 1; doc.fontSize(ts); }
+  doc.fillColor(INK).text(title, 0, 86, { width: W, align: 'center', characterSpacing: 4 });
+  doc.font(F.displayLight).fontSize(12.5).fillColor(MOSS)
+    .text('NATURE  GUIDE', 0, 168, { width: W, align: 'center', characterSpacing: 9 });
+
+  const SX = 58, SW = W - 116, SY = 206, SH = 434, SB = SY + SH;
+  doc.save();
+  doc.rect(SX, SY, SW, SH).clip();
+  doc.rect(SX, SY, SW, SH).fill(PAPER);
+  scene(SX, SW, SY, SH, SB);
+  doc.restore();
+  doc.rect(SX, SY, SW, SH).lineWidth(1.1).stroke(INK);
+
+  doc.font(F.displayLight).fontSize(8.5).fillColor(MOSS)
+    .text(tagline, 0, SB + 22, { width: W, align: 'center', characterSpacing: 2.4 });
+  doc.moveTo(W / 2 - 59, SB + 44).lineTo(W / 2 + 59, SB + 44).lineWidth(0.8).stroke(MOSS);
+  doc.font(F.displayLight).fontSize(6.5).fillColor(INK)
+    .text(`${total}  FIELD-CHECKED  PLACES   ·   RANKED  TABLES   ·   FOUR  SEASONS   ·   EVERY  ENTRY  LINKED  LIVE`, 0, SB + 54,
+      { width: W, align: 'center', characterSpacing: 1.8 });
+  const edition = new Date().toLocaleDateString('en-CA', { month: 'long', year: 'numeric', timeZone: 'America/Toronto' }).toUpperCase();
+  doc.font(F.displayLight).fontSize(6.5).fillColor(MOSS)
+    .text(`DAYHOP  ·  ${(guide.coords || '').toUpperCase()}  ·  FIELD-CHECKED  EDITION  ·  ${edition}`, 0, SB + 68,
+      { width: W, align: 'center', characterSpacing: 1.8 });
+}
+
+// The scene helpers the four newer posters share.
+function posterSun(doc, sunX, sunY, r) {
+  doc.circle(sunX, sunY, r * 1.55).lineWidth(0.7).stroke(CORAL);
+  doc.circle(sunX, sunY, r * 1.28).lineWidth(0.9).stroke(CORAL);
+  doc.circle(sunX, sunY, r).fill(CORAL);
+}
+function posterWater(doc, SX, SW, SB, waterTop, sunX) {
+  for (let wy = waterTop; wy < SB - 26; wy += 7) {
+    const inset = Math.max(0, (waterTop + 40 - wy)) * 1.8;
+    doc.moveTo(SX + inset, wy).lineTo(SX + SW - inset, wy)
+      .lineWidth(wy < waterTop + 40 ? 0.5 : 0.8).stroke(MOSS);
+  }
+  const widths = [28, 16, 38, 22, 44, 18, 36, 24, 42, 14, 32, 20];
+  const offs = [0, 5, -4, 3, -6, 7, -2, -5, 4, -7, 2, -3];
+  let i = 0;
+  for (let wy = waterTop + 4; wy < SB - 34; wy += 7) {
+    const w0 = widths[i % widths.length] * (0.7 + (wy - waterTop) / (SB - waterTop) * 0.8);
+    doc.moveTo(sunX + offs[i % offs.length] - w0 / 2, wy)
+      .lineTo(sunX + offs[i % offs.length] + w0 / 2, wy).lineWidth(2).stroke(MARIGOLD);
+    i++;
+  }
+}
+function posterPine(doc, px, baseY, h, ink) {
+  doc.moveTo(px - 1.6, baseY).lineTo(px - 1.6, baseY - 8).lineTo(px + 1.6, baseY - 8).lineTo(px + 1.6, baseY)
+    .closePath().fill(ink);
+  doc.moveTo(px, baseY - h);
+  for (let t = 0; t < 5; t++) {
+    const tw = 6 + t * 5.2, tyy = baseY - h + 10 + t * (h - 18) / 5;
+    doc.lineTo(px + tw, tyy).lineTo(px + tw * 0.32, tyy);
+  }
+  doc.lineTo(px + 2, baseY - 6).lineTo(px - 2, baseY - 6);
+  for (let t = 4; t >= 0; t--) {
+    const tw = 6 + t * 5.2, tyy = baseY - h + 10 + t * (h - 18) / 5;
+    doc.lineTo(px - tw * 0.32, tyy).lineTo(px - tw, tyy);
+  }
+  doc.closePath().fill(ink);
+}
+function posterTreeline(doc, SX, SW, baseY) {
+  doc.moveTo(SX, baseY + 24);
+  let x = SX, li = 0;
+  const lumps = [
+    [30, 20], [24, 14], [38, 26], [28, 18], [34, 28], [22, 15], [40, 24],
+    [26, 20], [36, 30], [24, 16], [32, 22], [28, 26], [38, 18], [30, 24]
+  ];
+  while (x <= SX + SW) {
+    const [w, h] = lumps[li % lumps.length];
+    doc.quadraticCurveTo(x + w / 2, baseY + 24 - h, x + w, baseY + 24 - Math.max(4, h * 0.35));
+    x += w; li++;
+  }
+  doc.lineTo(x, baseY + 62).lineTo(SX, baseY + 62).closePath().fill(MOSS);
+}
+
+function drawTorontoPoster(doc, F, guide, total) {
+  drawPosterChrome(doc, F, guide, total,
+    'THE  RAVINES   ·   THE  ISLAND  SHORE   ·   THE  HARBOUR  LIGHT',
+    (SX, SW, SY, SH, SB) => {
+      for (const [by, bh] of [[SY + 128, 11], [SY + 146, 7], [SY + 159, 4]]) {
+        doc.rect(SX, by, SW, bh).fill(MARIGOLD);
+      }
+      const sunX = SX + SW * 0.72, sunY = SY + 66;
+      posterSun(doc, sunX, sunY, 45);
+      // the skyline across the harbour — flat blocks in faded moss
+      {
+        const baseY = SY + 232;
+        const blocks = [
+          [0.02, 0.07, 46], [0.10, 0.05, 70], [0.16, 0.06, 54], [0.23, 0.05, 88],
+          [0.29, 0.07, 62], [0.44, 0.06, 96], [0.51, 0.05, 58], [0.57, 0.07, 78],
+          [0.65, 0.05, 50], [0.71, 0.06, 84], [0.78, 0.05, 64], [0.84, 0.07, 44], [0.92, 0.06, 56]
+        ];
+        for (const [fx, fw, h] of blocks) {
+          doc.rect(SX + SW * fx, baseY - h, SW * fw, h).fill(FADED_MOSS);
+        }
+        // CN Tower — the one unmistakable line
+        const tx = SX + SW * 0.38;
+        doc.moveTo(tx - 3.4, baseY).lineTo(tx - 1.1, baseY - 118).lineTo(tx + 1.1, baseY - 118)
+          .lineTo(tx + 3.4, baseY).closePath().fill(FADED_MOSS);
+        doc.ellipse(tx, baseY - 122, 7.5, 5).fill(FADED_MOSS);
+        doc.moveTo(tx - 0.8, baseY - 127).lineTo(tx - 0.8, baseY - 152).lineTo(tx + 0.8, baseY - 152)
+          .lineTo(tx + 0.8, baseY - 127).closePath().fill(FADED_MOSS);
+        doc.moveTo(SX, baseY).lineTo(SX + SW, baseY).lineWidth(0.8).stroke(FADED_MOSS);
+      }
+      // the harbour
+      posterWater(doc, SX, SW, SB, SY + 244, sunX);
+      // a ferry mid-harbour, ink
+      {
+        const fx2 = SX + SW * 0.16, fy = SY + 292;
+        doc.moveTo(fx2 - 26, fy).lineTo(fx2 + 26, fy).lineTo(fx2 + 20, fy + 9).lineTo(fx2 - 20, fy + 9)
+          .closePath().fill(INK);
+        doc.rect(fx2 - 18, fy - 8, 36, 8).fill(INK);
+        doc.rect(fx2 - 10, fy - 13, 20, 5).fill(INK);
+        doc.moveTo(fx2 + 30, fy + 4).lineTo(fx2 + 52, fy + 4).lineWidth(0.5).stroke(MOSS);
+      }
+      // island beach foreground
+      doc.moveTo(SX, SB - 44);
+      doc.quadraticCurveTo(SX + SW * 0.30, SB - 30, SX + SW * 0.62, SB - 42);
+      doc.quadraticCurveTo(SX + SW * 0.84, SB - 50, SX + SW, SB - 40);
+      doc.lineTo(SX + SW, SB).lineTo(SX, SB).closePath().fill(INK);
+      for (const [gx, gh, gl] of [[SX + 34, 30, 6], [SX + 46, 42, -5], [SX + 58, 26, 8],
+        [SX + SW - 70, 38, -7], [SX + SW - 54, 28, 5], [SX + SW - 40, 44, -4]]) {
+        doc.moveTo(gx, SB - 36).quadraticCurveTo(gx + gl * 0.4, SB - 36 - gh * 0.6, gx + gl, SB - 36 - gh)
+          .lineWidth(1.4).stroke(INK);
+      }
+      // the swan — riding the chop, facing the light
+      {
+        const sx2 = SX + SW * 0.42, sy2 = SB - 84;
+        doc.lineCap('round');
+        doc.moveTo(sx2 - 26, sy2);
+        doc.quadraticCurveTo(sx2 - 20, sy2 - 15, sx2 + 2, sy2 - 16);
+        doc.quadraticCurveTo(sx2 + 24, sy2 - 15, sx2 + 34, sy2 - 4);
+        doc.lineTo(sx2 + 46, sy2 - 14).lineTo(sx2 + 42, sy2).closePath().fill(INK);
+        doc.moveTo(sx2 - 16, sy2 - 12);
+        doc.quadraticCurveTo(sx2 - 32, sy2 - 20, sx2 - 31, sy2 - 36);
+        doc.quadraticCurveTo(sx2 - 30, sy2 - 46, sx2 - 24, sy2 - 50);
+        doc.lineWidth(6.5).stroke(INK);
+        doc.save();
+        doc.translate(sx2 - 22, sy2 - 52).rotate(-10, { origin: [0, 0] });
+        doc.ellipse(0, 0, 6.5, 4.6).fill(INK);
+        doc.restore();
+        doc.moveTo(sx2 - 27, sy2 - 54).lineTo(sx2 - 42, sy2 - 50).lineTo(sx2 - 26, sy2 - 48).closePath().fill(INK);
+        doc.circle(sx2 - 23, sy2 - 53, 1.2).fill(PAPER);
+        doc.moveTo(sx2 + 50, sy2 - 2).lineTo(sx2 + 82, sy2 - 2).lineWidth(0.5).stroke(MOSS);
+        doc.moveTo(sx2 - 36, sy2 - 2).lineTo(sx2 - 58, sy2 - 2).lineWidth(0.5).stroke(MOSS);
+      }
+    });
+}
+
+function drawHamiltonPoster(doc, F, guide, total) {
+  drawPosterChrome(doc, F, guide, total,
+    'THE  ESCARPMENT  BROW   ·   FALLING  WATER   ·   COOTES  PARADISE',
+    (SX, SW, SY, SH, SB) => {
+      for (const [by, bh] of [[SY + 118, 11], [SY + 136, 7], [SY + 149, 4]]) {
+        doc.rect(SX, by, SW, bh).fill(MARIGOLD);
+      }
+      const sunX = SX + SW * 0.26, sunY = SY + 66;
+      posterSun(doc, sunX, sunY, 45);
+      const browX = SX + SW * 0.58, browY = SY + 180, floorY = SY + 330;
+      // the escarpment plateau — a high faded shoulder; the falls are carved
+      // into its face so the paper ribbon reads against the moss block
+      doc.moveTo(SX + SW, SY + 168);
+      doc.quadraticCurveTo(SX + SW * 0.86, SY + 158, browX + 34, browY - 12);
+      doc.quadraticCurveTo(browX + 10, browY - 4, browX - 8, browY);
+      doc.lineTo(browX - 84, browY + 4);
+      doc.lineTo(browX - 84, floorY + 40).lineTo(SX + SW, floorY + 40).closePath().fill(FADED_MOSS);
+      // brow woods
+      {
+        doc.moveTo(browX + 6, browY - 6);
+        let x = browX + 6, li = 0;
+        const lumps = [[26, 18], [34, 24], [22, 14], [38, 26], [28, 18], [32, 22]];
+        while (x <= SX + SW) {
+          const [w, h] = lumps[li % lumps.length];
+          doc.quadraticCurveTo(x + w / 2, browY - 6 - h, x + w, browY - 6 - Math.max(4, h * 0.35));
+          x += w; li++;
+        }
+        doc.lineTo(x, browY + 22).lineTo(browX + 6, browY + 22).closePath().fill(MOSS);
+      }
+      posterPine(doc, browX + 26, browY - 2, 54, INK);
+      posterPine(doc, browX + 52, browY + 2, 40, INK);
+      // the falls — a paper ribbon carved into the cliff face
+      {
+        const fx0 = browX - 58, fw = 28;
+        doc.rect(fx0, browY + 2, fw, floorY - browY - 2).fill(PAPER);
+        for (const fx of [0.2, 0.45, 0.72]) {
+          doc.moveTo(fx0 + fw * fx, browY + 8).lineTo(fx0 + fw * fx, floorY - 8)
+            .lineWidth(0.7).stroke(MOSS);
+        }
+        doc.moveTo(fx0 - 2, browY + 2).lineTo(fx0 + fw + 2, browY + 2).lineWidth(1.4).stroke(INK);
+        // mist at the plunge
+        doc.circle(fx0 - 6, floorY - 4, 7).lineWidth(0.6).stroke(MOSS);
+        doc.circle(fx0 + fw / 2, floorY + 2, 9).lineWidth(0.6).stroke(MOSS);
+        doc.circle(fx0 + fw + 6, floorY - 2, 6).lineWidth(0.6).stroke(MOSS);
+      }
+      // plunge pool
+      posterWater(doc, SX, SW, SB, floorY + 8, browX - 44);
+      // foreground bank + pines on the near rim
+      doc.moveTo(SX, SB - 40);
+      doc.quadraticCurveTo(SX + SW * 0.26, SB - 28, SX + SW * 0.52, SB - 40);
+      doc.quadraticCurveTo(SX + SW * 0.76, SB - 50, SX + SW, SB - 42);
+      doc.lineTo(SX + SW, SB).lineTo(SX, SB).closePath().fill(INK);
+      posterPine(doc, SX + SW * 0.08, SB - 40, 132, INK);
+      posterPine(doc, SX + SW * 0.17, SB - 34, 96, INK);
+      // the vultures riding the thermals — two, banked
+      const soar = (bx, by2, s, tilt) => {
+        doc.save();
+        doc.translate(bx, by2).rotate(tilt, { origin: [0, 0] });
+        doc.moveTo(-16 * s, 0);
+        doc.quadraticCurveTo(-8 * s, -7 * s, -1.5 * s, -1.5 * s);
+        doc.lineTo(1.5 * s, -1.5 * s);
+        doc.quadraticCurveTo(8 * s, -7 * s, 16 * s, 0);
+        doc.quadraticCurveTo(8 * s, -3.5 * s, 1.5 * s, 1.2 * s);
+        doc.lineTo(-1.5 * s, 1.2 * s);
+        doc.quadraticCurveTo(-8 * s, -3.5 * s, -16 * s, 0);
+        doc.closePath().fill(INK);
+        doc.restore();
+      };
+      soar(sunX + 64, sunY - 20, 1.5, -8);
+      soar(sunX + 20, sunY + 44, 1.0, 10);
+    });
+}
+
+function drawNewmarketPoster(doc, F, guide, total) {
+  drawPosterChrome(doc, F, guide, total,
+    'FAIRY  LAKE   ·   THE  NOKIIDAA  TRAIL   ·   THE  HOLLAND  RIVER',
+    (SX, SW, SY, SH, SB) => {
+      for (const [by, bh] of [[SY + 134, 11], [SY + 152, 7], [SY + 165, 4]]) {
+        doc.rect(SX, by, SW, bh).fill(MARIGOLD);
+      }
+      const sunX = SX + SW * 0.64, sunY = SY + 68;
+      posterSun(doc, sunX, sunY, 45);
+      // low valley ridge
+      doc.moveTo(SX, SY + 198);
+      doc.quadraticCurveTo(SX + SW * 0.24, SY + 178, SX + SW * 0.48, SY + 194);
+      doc.quadraticCurveTo(SX + SW * 0.74, SY + 208, SX + SW, SY + 186);
+      doc.lineTo(SX + SW, SY + 250).lineTo(SX, SY + 250).closePath().fill(FADED_MOSS);
+      posterTreeline(doc, SX, SW, SY + 212);
+      // the millpond
+      posterWater(doc, SX, SW, SB, SY + 276, sunX);
+      // the footbridge — flat arc over the water, right side
+      {
+        const bx0 = SX + SW * 0.56, bx1 = SX + SW * 0.98, by2 = SY + 320;
+        doc.moveTo(bx0, by2 + 12).quadraticCurveTo((bx0 + bx1) / 2, by2 - 14, bx1, by2 + 12)
+          .lineWidth(3).stroke(INK);
+        doc.moveTo(bx0, by2 - 2).quadraticCurveTo((bx0 + bx1) / 2, by2 - 28, bx1, by2 - 2)
+          .lineWidth(1.4).stroke(INK);
+        for (let i2 = 0; i2 <= 8; i2++) {
+          const t = i2 / 8, bx = bx0 + (bx1 - bx0) * t;
+          const yTop = by2 - 2 - 26 * (4 * t * (1 - t)) * 0.5 - 0.5;
+          const yBot = by2 + 12 - 26 * (4 * t * (1 - t)) * 0.5;
+          doc.moveTo(bx, yTop).lineTo(bx, yBot).lineWidth(0.9).stroke(INK);
+        }
+      }
+      // bank + cattails, left
+      doc.moveTo(SX, SB - 36);
+      doc.quadraticCurveTo(SX + SW * 0.26, SB - 46, SX + SW * 0.52, SB - 34);
+      doc.quadraticCurveTo(SX + SW * 0.78, SB - 26, SX + SW, SB - 36);
+      doc.lineTo(SX + SW, SB).lineTo(SX, SB).closePath().fill(INK);
+      const cattail = (x, h, lean) => {
+        const topY = SB - 34 - h;
+        doc.moveTo(x, SB - 30).quadraticCurveTo(x + lean * 0.4, SB - 34 - h * 0.55, x + lean, topY + 16)
+          .lineWidth(1.5).stroke(INK);
+        doc.save();
+        doc.translate(x + lean, topY + 8).rotate(lean * 1.2, { origin: [0, 0] });
+        doc.roundedRect(-2.2, -9, 4.4, 18, 2.2).fill(INK);
+        doc.restore();
+        doc.moveTo(x + lean * 0.7, topY + 1).lineTo(x + lean * 0.7, topY - 7).lineWidth(0.9).stroke(INK);
+      };
+      cattail(SX + 40, 92, 4); cattail(SX + 58, 120, -4); cattail(SX + 74, 78, 5);
+      // the kingfisher — on a bare branch over the water
+      {
+        const bx = SX + SW * 0.06, by2 = SY + 292;
+        doc.moveTo(bx - 14, by2 + 6).quadraticCurveTo(bx + 26, by2 - 4, bx + 74, by2 - 14)
+          .lineWidth(2.6).stroke(INK);
+        doc.moveTo(bx + 44, by2 - 10).lineTo(bx + 58, by2 - 26).lineWidth(1.2).stroke(INK);
+        const kx = bx + 74, ky = by2 - 16;
+        doc.lineCap('round');
+        // body — chunky, tail down
+        doc.moveTo(kx - 8, ky);
+        doc.quadraticCurveTo(kx - 10, ky - 16, kx + 2, ky - 20);
+        doc.quadraticCurveTo(kx + 13, ky - 22, kx + 15, ky - 12);
+        doc.quadraticCurveTo(kx + 16, ky - 2, kx + 10, ky + 6);
+        doc.lineTo(kx + 12, ky + 18).lineTo(kx + 5, ky + 8);
+        doc.quadraticCurveTo(kx - 4, ky + 8, kx - 8, ky).closePath().fill(INK);
+        // crest
+        doc.moveTo(kx - 4, ky - 19).lineTo(kx - 1, ky - 27).lineTo(kx + 4, ky - 21).closePath().fill(INK);
+        doc.moveTo(kx + 3, ky - 21).lineTo(kx + 7, ky - 28).lineTo(kx + 10, ky - 20).closePath().fill(INK);
+        // the spear bill
+        doc.moveTo(kx - 6, ky - 15).lineTo(kx - 30, ky - 9).lineTo(kx - 5, ky - 11).closePath().fill(INK);
+        doc.circle(kx - 1, ky - 15, 1.3).fill(PAPER);
+        // paper collar
+        doc.moveTo(kx - 5, ky - 8).quadraticCurveTo(kx + 2, ky - 5, kx + 11, ky - 7).lineWidth(1.4).stroke(PAPER);
+      }
+    });
+}
+
+function drawLakeSimcoePoster(doc, F, guide, total) {
+  drawPosterChrome(doc, F, guide, total,
+    'BIG  WATER   ·   SOUTH-SHORE  SANDS   ·   THE  PARK  SHORELINES',
+    (SX, SW, SY, SH, SB) => {
+      for (const [by, bh] of [[SY + 96, 11], [SY + 114, 7], [SY + 127, 4]]) {
+        doc.rect(SX, by, SW, bh).fill(MARIGOLD);
+      }
+      const sunX = SX + SW * 0.5, sunY = SY + 76;
+      doc.circle(sunX, sunY, 84).lineWidth(0.7).stroke(CORAL);
+      doc.circle(sunX, sunY, 68).lineWidth(0.9).stroke(CORAL);
+      doc.circle(sunX, sunY, 52).fill(CORAL);
+      // the horizon — nothing but water beyond it
+      const horizon = SY + 186;
+      doc.moveTo(SX, horizon).lineTo(SX + SW, horizon).lineWidth(1).stroke(MOSS);
+      posterWater(doc, SX, SW, SB, horizon + 6, sunX);
+      // a distant sail, starboard of the sun
+      {
+        const mx = SX + SW * 0.80, my = horizon + 26;
+        doc.moveTo(mx, my).lineTo(mx, my - 34).lineTo(mx + 17, my - 6).closePath().fill(INK);
+        doc.moveTo(mx - 1.2, my - 30).lineTo(mx - 12, my - 5).lineTo(mx - 1.2, my - 5).closePath().fill(INK);
+        doc.moveTo(mx - 14, my + 2).lineTo(mx + 19, my + 2).lineTo(mx + 15, my + 7).lineTo(mx - 10, my + 7)
+          .closePath().fill(INK);
+      }
+      // the flying pair — loons heading up the shore
+      const flyer = (bx, by2, s) => {
+        doc.lineCap('round');
+        doc.moveTo(bx - 13 * s, by2 - 6 * s);
+        doc.quadraticCurveTo(bx - 5 * s, by2 - 1.5 * s, bx, by2);
+        doc.quadraticCurveTo(bx + 6 * s, by2 - 1 * s, bx + 15 * s, by2 + 3 * s);
+        doc.lineWidth(2.6 * s).stroke(INK);
+        doc.ellipse(bx, by2 + 1.5 * s, 7 * s, 2.6 * s).fill(INK);
+        doc.moveTo(bx + 6 * s, by2 + 1 * s).lineTo(bx + 14 * s, by2 - 0.5 * s).lineWidth(1.4 * s).stroke(INK);
+      };
+      flyer(SX + SW * 0.16, SY + 60, 1.35);
+      flyer(SX + SW * 0.26, SY + 84, 1.0);
+      // the beach — sand band, then the grassed dune in ink
+      doc.rect(SX, SB - 74, SW, 40).fill(MARIGOLD);
+      for (const [dy, lw] of [[SB - 70, 0.5], [SB - 60, 0.5], [SB - 48, 0.5]]) {
+        doc.moveTo(SX, dy).lineTo(SX + SW, dy).lineWidth(lw).stroke(PAPER);
+      }
+      doc.moveTo(SX, SB - 38);
+      doc.quadraticCurveTo(SX + SW * 0.30, SB - 28, SX + SW * 0.58, SB - 38);
+      doc.quadraticCurveTo(SX + SW * 0.82, SB - 46, SX + SW, SB - 36);
+      doc.lineTo(SX + SW, SB).lineTo(SX, SB).closePath().fill(INK);
+      for (const [gx, gh, gl] of [[SX + 44, 34, 6], [SX + 58, 46, -5], [SX + 72, 30, 8],
+        [SX + SW * 0.52, 40, -6], [SX + SW * 0.56, 28, 5],
+        [SX + SW - 74, 42, -7], [SX + SW - 58, 30, 5], [SX + SW - 44, 48, -4]]) {
+        doc.moveTo(gx, SB - 32).quadraticCurveTo(gx + gl * 0.4, SB - 32 - gh * 0.6, gx + gl, SB - 32 - gh)
+          .lineWidth(1.4).stroke(INK);
+      }
+      // an Adirondack chair facing the water — the south shore's witness
+      {
+        const ax = SX + SW * 0.14, ay = SB - 40;
+        doc.save();
+        doc.translate(ax, ay);
+        doc.moveTo(-2, -34).lineTo(14, -30).lineTo(15, -6).lineTo(-1, -8).closePath().fill(INK);
+        doc.moveTo(-14, -12).lineTo(2, -10).lineTo(6, 0).lineTo(-11, -2).closePath().fill(INK);
+        doc.moveTo(-12, -2).lineTo(-12, 10).lineWidth(2.2).stroke(INK);
+        doc.moveTo(4, 0).lineTo(4, 12).lineWidth(2.2).stroke(INK);
+        doc.moveTo(13, -8).lineTo(13, 8).lineWidth(2.2).stroke(INK);
+        doc.moveTo(-16, -13).lineTo(3, -11).lineWidth(2.6).stroke(INK);
+        doc.restore();
+      }
+    });
+}
+
+const POSTER_COVERS = {
+  markham: drawMarkhamPoster,
+  'richmond-hill': drawRichmondHillPoster,
+  toronto: drawTorontoPoster,
+  hamilton: drawHamiltonPoster,
+  newmarket: drawNewmarketPoster,
+  'lake-simcoe': drawLakeSimcoePoster
+};
 
 // ---------- entry stamps ----------
 // Each place's thumbnail: a surveyor's medallion in the left rail — moss
@@ -1961,7 +2345,7 @@ function buildSamplerPdf() {
     doc.moveTo(64, doc.y + 6).lineTo(182, doc.y + 6).lineWidth(0.8).stroke(MOSS);
     doc.y += 14;
     doc.font(F.body).fontSize(10.5).fillColor(INK_SOFT).text(
-      'Each city guide carries 31–37 field-checked places — trails with distances and surfaces, lookouts, waterways, ' +
+      'Each city guide carries 20–38 field-checked places — trails with distances and surfaces, lookouts, waterways, ' +
       'legal fishing spots, parking-and-washroom notes on every entry, ready-made day plans, and a season-by-season calendar. ' +
       'Free updated editions with every purchase.', { width: W, lineGap: 2 });
     doc.moveDown(0.4);
