@@ -94,9 +94,11 @@ else. Your listing lives inside recommendations people actually believe.</div>
 deliberately capped — one sponsored slot per plan, one per weekend brief — so placements stay
 scarce and effective.</p>
 
-<div class="founding"><strong>🎉 Founding partner offer — first 5 venues:</strong> 50% off for
-your first 3 months, in exchange for honest feedback and permission to share your results.
-Cancel anytime.</div>
+<div class="founding"><strong>🎉 Founding partner offer — first 5 venues:</strong> Spotlight for
+<strong>$99/mo</strong> with code <strong>FOUNDING</strong> at checkout, locked in until your monthly
+report shows 500+ families seeing your venue — then list price with 30 days' notice, or cancel.
+We're early and you're paying for the audience you actually get. In exchange: honest feedback and
+permission to share your results. Month-to-month, cancel anytime.</div>
 
 <h2>Tell us about your venue</h2>
 <form id="inq-form">
