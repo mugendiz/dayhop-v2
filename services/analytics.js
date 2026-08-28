@@ -688,14 +688,26 @@ async function retentionFromDb() {
 //     owner to the IP.
 const SEARCH_TYPES = new Set(['prompt_generated', 'browse_feed', 'surprise_feed']);
 
+// Internal (founder/developer) traffic. Three signals, any one marks an
+// owner internal and every one of that owner's events with it:
+//   - INTERNAL_OWNERS: the founder's signed-in user ids and guest ids
+//     (stable across networks — the IP-only approach missed the founder's
+//     own account for six weeks while it produced 57% of all prompts);
+//   - localhost: events stamped ::1 / 127.0.0.1 come from a dev server
+//     pointed at the production database, never from a visitor;
+//   - IPs: the dashboard requester (meIp) plus INTERNAL_IPS.
+const LOCALHOST_IPS = ['::1', '127.0.0.1', '::ffff:127.0.0.1'];
+function envList(name) {
+  return String(process.env[name] || '').split(',').map(s => s.trim()).filter(Boolean);
+}
+
 function internalSets(events, { meOwner, meIp } = {}) {
-  const ips = new Set();
+  const ips = new Set(LOCALHOST_IPS);
   if (meIp) ips.add(String(meIp));
-  String(process.env.INTERNAL_IPS || '')
-    .split(',').map(s => s.trim()).filter(Boolean)
-    .forEach(ip => ips.add(ip));
+  envList('INTERNAL_IPS').forEach(ip => ips.add(ip));
   const owners = new Set();
   if (meOwner) owners.add(String(meOwner).slice(0, 80));
+  envList('INTERNAL_OWNERS').forEach(k => owners.add(k.slice(0, 80)));
   for (const ip of ips) owners.add(`ip-${ip}`);
   for (const e of events) {
     const meta = e.meta && typeof e.meta === 'object' ? e.meta : {};
@@ -797,6 +809,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 async function userActivity(limit = 200) {
   const { source, events } = await fetchEvents();
+  const sets = internalSets(events);
   const users = new Map();
   for (const e of events) {
     const key = e.owner_key || 'anon';
@@ -835,7 +848,11 @@ async function userActivity(limit = 200) {
         cities: undefined,
         ips: [...u.ips],
         top_city: topCity ? topCity[0] : null,
-        kind: u.owner_key.startsWith('ip-') ? 'ip' : (UUID_RE.test(u.owner_key) ? 'user' : 'guest')
+        kind: u.owner_key.startsWith('ip-') ? 'ip' : (UUID_RE.test(u.owner_key) ? 'user' : 'guest'),
+        // 'anon' is nobody — a single localhost event must not paint every
+        // anonymous visitor internal (per-event exclusion still applies).
+        internal: sets.owners.has(u.owner_key) ||
+          (u.owner_key !== 'anon' && [...u.ips].some(ip => sets.ips.has(ip)))
       });
     });
   return { source, users: rows };
