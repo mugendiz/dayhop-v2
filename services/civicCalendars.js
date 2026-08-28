@@ -24,6 +24,8 @@ const axios = require('axios');
 // The label doubles as the address so ranking/geo can tell towns apart.
 // Towns verified live on the iCreate platform 2026-07-24 (each returned
 // events from /default/_List): Aurora, Milton, Burlington, Caledon.
+// Whitchurch-Stouffville verified 2026-08-27 (18 rows; the town's events
+// team asked for a free listing — this feed IS that listing).
 // Probed and NOT on this platform (skip; don't re-add): Vaughan, Markham,
 // Newmarket, Whitby, Oakville, Mississauga, Brampton, Georgina, Clarington
 // (no calendar.<town>.ca DNS), Ajax (times out), Pickering (308 loop).
@@ -34,7 +36,8 @@ const DEFAULT_FEEDS =
   'Aurora|https://calendar.aurora.ca/default;' +
   'Milton|https://calendar.milton.ca/default;' +
   'Burlington|https://calendar.burlington.ca/default;' +
-  'Caledon|https://calendar.caledon.ca/default';
+  'Caledon|https://calendar.caledon.ca/default;' +
+  'Whitchurch-Stouffville|https://calendar.townofws.ca/default';
 
 const WINDOW_DAYS = 45;
 const TTL_MS = 6 * 60 * 60 * 1000;
@@ -111,13 +114,18 @@ function parseFeed(html, feed, today, endDate) {
     if (date < today || date > endDate) return;
     // Skin extras live between this anchor and the next one.
     const chunk = html.slice(index, matches[i + 1] ? matches[i + 1].index : index + 4000);
-    const venueM = chunk.match(/card-location[^>]*>([^<]+)</i);
-    const descM = chunk.match(/card-description[^>]*>([\s\S]{0,400}?)<\/p>/i);
+    // Third skin (Whitchurch-Stouffville, verified 2026-08-27): meta-title
+    // anchor, then "<p>6:30 PM<span>|</span>6240 Main Street</p>" and the
+    // blurb's first paragraph inside div.icrt-calendarListItemDesc.
+    const venueM = chunk.match(/card-location[^>]*>([^<]+)</i)
+      || chunk.match(/<p>\s*\d{1,2}:\d{2}\s*[AP]M\s*<span>\|<\/span>\s*([^<]+?)\s*<\/p>/i);
+    const descM = chunk.match(/card-description[^>]*>([\s\S]{0,400}?)<\/p>/i)
+      || chunk.match(/icrt-calendarListItemDesc[^>]*>\s*<p>([\s\S]{0,400}?)<\/p>/i);
     const ariaM = attrs.match(ARIA_TITLE_RE);
     const title = clean(ariaM ? ariaM[1] : (chunk.match(/card-title[^>]*>([^<]+)</i) || [])[1] || inner);
     if (!title) return;
     const time = fmtTime(hhmm);
-    const description = descM
+    const description = descM && clean(descM[1])
       ? clean(descM[1]).slice(0, 220)
       : `${title} — ${date}${time ? ' at ' + time : ''}, from the ${feed.label} community events calendar.`;
     events.push({
