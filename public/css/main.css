@@ -2237,6 +2237,12 @@ button, .filter-chip {
   .topbar { padding: 18px 16px 0; }
   /* Free up the cramped topbar: the location also lives in the hero picker. */
   .topbar-tag { display: none; }
+  /* Seen in the Android TWA (411px): four pills at desktop gaps/padding overflowed
+     onto the wordmark. Keep every pill on one line and squeeze the group instead. */
+  .logo { font-size: 20px; white-space: nowrap; }
+  .topbar-right { gap: 6px; flex-shrink: 0; }
+  .stories-btn, .go-pro-btn { white-space: nowrap; font-size: 11.5px; padding: 6px 10px; }
+  .auth-btn { white-space: nowrap; font-size: 13px; padding: 7px 2px; }
   .user-email { max-width: 110px; }
   .hero-content { padding: 0 16px; margin-top: 40px; }
   .hero { padding-bottom: 56px; }

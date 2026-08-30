@@ -227,6 +227,18 @@ module.exports = {
       area: 'Between the lakes, Oak Ridges',
       why: 'The wet lowland stitching the two kettle lakes together hums with frogs and red-wings in spring — walk it and you\'re walking the moraine\'s plumbing. Dusk in May is peak chorus.',
       best: 'May evenings', maps: 'Oak Ridges Corridor Conservation Reserve'
+    },
+    {
+      name: 'German Mills Creek at the Saigeon boardwalk', facetOf: 'Saigeon Trail & German Mills Creek headwaters',
+      area: 'East Richmond Hill, off Leslie',
+      why: 'The long boardwalk sections put you a metre above the creek\'s cattail marsh — herons stalk the channels, red-wings scold from the reeds, and spring melt turns the whole floor into slow-moving water. The town\'s best close-up of a living wetland.',
+      best: 'April–May, after rain', maps: 'Saigeon Trail Richmond Hill'
+    },
+    {
+      name: 'Lake Wilcox by paddle', facetOf: 'Lake Wilcox Park',
+      area: 'Oak Ridges',
+      why: 'The only real open water in town you can actually be on: calm, non-motorized-friendly, forested shoreline, and loons if you launch at first light. Carry-in canoe, kayak, or board — the launch logistics are in the Wilcox Pages.',
+      best: 'Calm summer mornings', maps: 'Lake Wilcox Park Richmond Hill'
     }
   ],
 
@@ -242,6 +254,12 @@ module.exports = {
       area: 'Central Richmond Hill',
       why: 'The beginner\'s pond: panfish-friendly water, easy grassy banks, and a coffee shop within walking distance for when attention spans expire. Light tackle, small hooks, high delight.',
       best: 'Summer mornings', maps: 'Mill Pond Park Richmond Hill'
+    },
+    {
+      name: 'Musselman\'s Lake', facetOf: 'Musselman\'s Lake',
+      area: 'Whitchurch-Stouffville (15 min)',
+      why: 'The step-up lake once the pond feels small: a deep kettle lake with a real local fishing tradition — bass and pike water — and simple public banks on the north side. Evening calm is the productive window; licence and zone rules on ontario.ca.',
+      best: 'Summer evenings', maps: 'Musselman\'s Lake Stouffville'
     }
   ],
 
