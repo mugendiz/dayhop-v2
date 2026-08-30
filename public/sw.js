@@ -102,8 +102,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // /img/ (sales-page promos, guide previews) is excluded like Unsplash:
+  // hundreds of KB per file — HTTP caching handles them now, and the SW
+  // cache quota on low-end Android is better spent on the shell.
   const cacheable = url.origin === location.origin
     ? (!url.pathname.startsWith('/api/') || url.pathname.startsWith('/api/guides/shared/'))
+      && !url.pathname.startsWith('/img/')
     : CDN_HOSTS.has(url.hostname);
   if (!cacheable) return;
 
