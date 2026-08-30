@@ -15,7 +15,7 @@
 //     stale-while-revalidate so a revisited share link opens instantly even
 //     through a free-tier cold start.
 // Bump the version to invalidate every cached asset on the next visit.
-const CACHE = 'dayhop-shell-v17'; // v17: nav timeout→cached shell, pixel.js precached
+const CACHE = 'dayhop-shell-v18'; // v18: PNG icons + manifest id/scope for the Android (TWA) app
 
 const SHELL = [
   '/',
@@ -25,7 +25,8 @@ const SHELL = [
   '/motion.js',
   '/css/main.css',
   '/manifest.webmanifest',
-  '/icons/icon.svg'
+  '/icons/icon.svg',
+  '/icons/icon-192.png'
 ];
 
 // Cross-origin hosts safe to cache (fonts + the supabase client script).

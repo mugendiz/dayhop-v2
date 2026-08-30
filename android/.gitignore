@@ -1,0 +1,15 @@
+# Signing material never enters the repo. Back these two files up somewhere
+# safe (password manager) — losing the keystore = a new Play listing.
+*.keystore
+*.jks
+keystore.properties
+
+# Bubblewrap / Gradle output
+app/build/
+build/
+.gradle/
+.idea/
+*.apk
+*.aab
+*.idsig
+local.properties

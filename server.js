@@ -315,6 +315,17 @@ const advertiseLimiter = rateLimit({
 });
 app.use('/advertise', advertiseLimiter, require('./routes/advertise'));
 
+// Digital Asset Links — proves to Android that the Play app (quest.dayhop.app)
+// is allowed to open dayhop.quest full-screen as a Trusted Web Activity.
+// express.static ignores dotfiles, so /.well-known needs its own route; it
+// must sit above the SPA fallback or Android gets index.html and shows the
+// browser bar. Fingerprints live in public/.well-known/assetlinks.json.
+app.get('/.well-known/assetlinks.json', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.type('application/json');
+  res.sendFile(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'));
+});
+
 // SPA fallback — must stay last.
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

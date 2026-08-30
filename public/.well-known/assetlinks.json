@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "quest.dayhop.app",
+      "sha256_cert_fingerprints": [
+        "37:EE:A3:6B:51:27:E1:4F:81:B1:7E:9B:38:AB:DC:46:E6:D4:92:67:BF:26:DB:36:61:FE:F8:DC:B6:82:57:B7"
+      ]
+    }
+  }
+]
