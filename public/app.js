@@ -32,6 +32,17 @@
     return `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${width}&q=70`;
   }
 
+  // Third-party card images arrive at whatever size their host serves —
+  // the worst seen live was a 2.6 MB PNG rendered ~400px wide. /api/img
+  // refetches once server-side, resizes to WebP, and Cloudflare edge-caches
+  // it for a week. Own assets and data: URIs pass through untouched.
+  function proxiedImage(url, w = 640) {
+    if (!url || typeof url !== 'string') return url;
+    if (url.startsWith('/') || url.startsWith('data:')) return url;
+    if (!url.startsWith('https://')) return url;
+    return '/api/img?u=' + encodeURIComponent(url) + '&w=' + w;
+  }
+
   // ---------- Modes: R&R vs Adventure ----------
   // Two equal product personalities. The active mode shapes the browse feed,
   // search results, AI plans (server-side via the `mode` param), and the
@@ -398,8 +409,13 @@
     // The browser chrome follows the mode too (mobile address bar tint).
     const themeMeta = document.querySelector('meta[name="theme-color"]');
     if (themeMeta) themeMeta.content = state.mode === 'adventure' ? '#8A3418' : '#102A2E';
-    document.querySelectorAll('#mode-toggle .mode-option').forEach(btn =>
-      btn.setAttribute('aria-checked', String(btn.dataset.mode === state.mode)));
+    document.querySelectorAll('#mode-toggle .mode-option').forEach(btn => {
+      const checked = btn.dataset.mode === state.mode;
+      btn.setAttribute('aria-checked', String(checked));
+      // Roving tabindex: the radiogroup is ONE tab stop — Tab lands on the
+      // checked mode, arrow keys (wireModeToggle) move within the group.
+      btn.tabIndex = checked ? 0 : -1;
+    });
     const hint = document.getElementById('mode-hint');
     if (hint) hint.textContent = MODES[state.mode].hint;
     const feedTitle = document.getElementById('feed-title');
@@ -523,6 +539,27 @@
       toggle.addEventListener(ev, warmAdventureHero, { passive: true, once: false }));
     toggle.querySelectorAll('.mode-option').forEach(btn => {
       btn.addEventListener('click', () => setMode(btn.dataset.mode));
+    });
+    // Radio-pattern arrow keys: moving selects (same code path as a click).
+    // Two radios, so every arrow flips to the other one; Home/End pin the
+    // ends for completeness. Focus moves immediately even though the
+    // aria-checked/tabindex repaint may ride a view transition.
+    toggle.addEventListener('keydown', (e) => {
+      if (!e.target.closest || !e.target.closest('.mode-option')) return;
+      let next;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        next = state.mode === 'rr' ? 'adventure' : 'rr';
+      } else if (e.key === 'Home') {
+        next = 'rr';
+      } else if (e.key === 'End') {
+        next = 'adventure';
+      } else {
+        return;
+      }
+      e.preventDefault();
+      const btn = toggle.querySelector('.mode-option[data-mode="' + next + '"]');
+      if (btn) btn.focus();
+      setMode(next); // no-ops when already there (Home/End on the same end)
     });
     addModeSwipe(toggle);
     // The rest of the hero swipes too — but never steal from the inputs,
@@ -1052,6 +1089,109 @@
     setTimeout(() => { el.hidden = true; }, 200);
   }
 
+  // ---------- Overlay focus management (a11y) ----------
+  // One shared helper behind every aria-modal surface. Every open/close path
+  // already funnels through overlayNav.opened/closed below — openPanel /
+  // closePanel, the upgrade + membership modals, and auth.js via the
+  // DayHopOverlayNav hooks — so wiring in here covers the ✕ buttons, the
+  // backdrops, Escape, AND the phone-back popstate path with zero
+  // per-dialog listeners.
+  //
+  // On open: remember the opener, move focus into the dialog, and make the
+  // page behind it inert so Tab can't wander into the background. On close:
+  // lift inert (only when the last overlay goes) and hand focus back to the
+  // opener. A stack rather than a single slot, because overlays legitimately
+  // pile up — e.g. the upgrade modal over the shortlist panel — and each
+  // close must restore the focus IT stole, not the bottom one's.
+  const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  const focusStack = []; // { id, opener } — one entry per open overlay
+
+  // The overlays are body-level siblings, so the whole background is these
+  // five regions: skip link, hero (topbar included), main, the floating
+  // shortlist button, and the footer. Toast + return sheet stay live —
+  // they're status regions, not tab stops that could dive under the modal.
+  function setBackgroundInert(on) {
+    if (!('inert' in HTMLElement.prototype)) return; // fallback trap below
+    ['.skip-link', '.hero', '#main', '#shortlist-btn', '.site-footer'].forEach(sel => {
+      const el = document.querySelector(sel);
+      if (el) el.inert = on;
+    });
+  }
+
+  function focusOverlayOpened(id) {
+    // Re-opening an already-open overlay (openPanel doesn't guard against
+    // double-opens) must not re-capture an opener from inside itself.
+    if (focusStack.some(entry => entry.id === id)) return;
+    // The control that opened the overlay still holds focus — our way back.
+    focusStack.push({ id, opener: document.activeElement });
+    setBackgroundInert(true);
+    const overlay = document.getElementById(id);
+    if (!overlay) return;
+    // One frame later: openers un-hide first and add their --open class in a
+    // rAF of their own, so focusing after that settles is reliable. (auth.js
+    // then moves focus onward to its email field — fine, later wins.)
+    requestAnimationFrame(() => {
+      if (overlay.hidden) return; // closed again within the same frame
+      const target = overlay.querySelector('.panel-close, .modal-close') ||
+        overlay.querySelector(FOCUSABLE) || overlay;
+      if (target.focus) target.focus();
+    });
+  }
+
+  function focusOverlayClosed(id) {
+    let entry = null;
+    let wasTop = false;
+    for (let i = focusStack.length - 1; i >= 0; i--) {
+      if (focusStack[i].id === id) {
+        wasTop = i === focusStack.length - 1;
+        entry = focusStack.splice(i, 1)[0];
+        break;
+      }
+    }
+    if (focusStack.length === 0) setBackgroundInert(false);
+    // Only the topmost close hands focus back — closing a buried overlay
+    // must not yank focus out of the one still on screen. In the stacked
+    // case the opener often lives inside a lower overlay: still correct.
+    if (wasTop && entry && entry.opener && entry.opener.isConnected &&
+        typeof entry.opener.focus === 'function') {
+      entry.opener.focus();
+    }
+  }
+
+  // The phone-back path closes EVERY open overlay at once (see the popstate
+  // handler below), so focus goes back to whoever opened the first one.
+  function focusOverlaysUnwound() {
+    const bottom = focusStack[0];
+    focusStack.length = 0;
+    setBackgroundInert(false);
+    if (bottom && bottom.opener && bottom.opener.isConnected &&
+        typeof bottom.opener.focus === 'function') {
+      bottom.opener.focus();
+    }
+  }
+
+  // Browsers without inert (pre-2022) get a minimal Tab cycle inside the
+  // top overlay instead — deliberately small; inert does this properly
+  // everywhere modern.
+  if (!('inert' in HTMLElement.prototype)) {
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab' || !focusStack.length) return;
+      const overlay = document.getElementById(focusStack[focusStack.length - 1].id);
+      if (!overlay) return;
+      const items = Array.from(overlay.querySelectorAll(FOCUSABLE))
+        .filter(el => el.offsetParent !== null);
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const inside = overlay.contains(document.activeElement);
+      if (e.shiftKey && (!inside || document.activeElement === first)) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && (!inside || document.activeElement === last)) {
+        e.preventDefault(); first.focus();
+      }
+    });
+  }
+
   // ---------- Overlay ↔ history integration ----------
   // One synthetic history entry exists while any panel/modal is open, so the
   // phone's back button closes the overlay instead of leaving DayHop.
@@ -1062,6 +1202,7 @@
     owned: false,      // we pushed the entry that's currently on top
     ignorePop: false,  // the next popstate is our own history.back()
     opened(id) {
+      focusOverlayOpened(id);
       this.open.add(id);
       if (!this.owned) {
         this.owned = true;
@@ -1069,6 +1210,7 @@
       }
     },
     closed(id) {
+      focusOverlayClosed(id);
       this.open.delete(id);
       // Deferred so a close immediately followed by an open (shortlist →
       // plan) keeps the entry instead of bouncing history around.
@@ -1098,6 +1240,7 @@
     overlayNav.owned = false;
     overlayNav.open.forEach(domCloseOverlay);
     overlayNav.open.clear();
+    focusOverlaysUnwound();
   });
 
   // auth.js owns its own modal; these hooks let it join the same history
@@ -1133,6 +1276,12 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         document.querySelectorAll('.panel.panel--open').forEach(closePanel);
+        // The two app-owned modals close on Escape through the same helpers
+        // (focus restore + history ride along); auth.js Escapes its own.
+        const upgrade = document.getElementById('upgrade-panel');
+        if (upgrade && upgrade.classList.contains('modal--open')) hideUpgradeModal();
+        const membership = document.getElementById('membership-panel');
+        if (membership && membership.classList.contains('modal--open')) hideMembershipModal();
       }
     });
   }
@@ -1769,7 +1918,7 @@
 
     card.innerHTML = `
       <div class="card-photo">
-        <img src="${escapeAttr(idea.image_url || categoryImage(idea.category))}" alt="" loading="lazy" decoding="async">
+        <img src="${escapeAttr(proxiedImage(idea.image_url || categoryImage(idea.category), 640))}" alt="" loading="lazy" decoding="async">
         <span class="card-stamp">STOP ${stopNumber}</span>
         ${bestMatch ? '<span class="card-badge card-badge--best">🎯 Best match for you</span>' : ''}
         ${idea.sponsored ? '<span class="card-badge card-badge--sponsored">⭐ Sponsored</span>' : ''}
@@ -1812,7 +1961,8 @@
       openDetail(idea);
     });
     card.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && e.target === card) {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target === card) {
+        e.preventDefault(); // Space would page-scroll otherwise
         track('card_open', idea);
         openDetail(idea);
       }
@@ -1901,7 +2051,7 @@
     card.innerHTML = `
       <div class="best-match-inner">
         <div class="best-match-photo">
-          <img src="${escapeAttr(idea.image_url || categoryImage(idea.category, 1200))}" alt="" decoding="async" fetchpriority="high">
+          <img src="${escapeAttr(proxiedImage(idea.image_url || categoryImage(idea.category, 1200), 960))}" alt="" decoding="async" fetchpriority="high">
           <span class="best-match-flag">✦ Best match for you</span>
         </div>
         <div class="best-match-body">
@@ -2168,7 +2318,7 @@
     const onDay = Boolean(state.shortlist.find(i => i.id === idea.id));
     document.getElementById('detail-content').innerHTML = `
       <div class="detail-photo">
-        <img src="${escapeAttr(idea.image_url || categoryImage(idea.category))}" alt="" loading="lazy">
+        <img src="${escapeAttr(proxiedImage(idea.image_url || categoryImage(idea.category), 640))}" alt="" loading="lazy">
       </div>
       <span class="card-category">${categoryLabel}</span>
       <p class="detail-why">${escapeHtml(idea.why || '')}</p>
@@ -2262,7 +2412,7 @@
     const photos = (place && place.photos || []).filter(u => u !== idea.image_url);
     if (photos.length > 1) {
       parts.push(`<div class="detail-gallery">${photos.map(u =>
-        `<img src="${escapeAttr(u)}" alt="" loading="lazy" decoding="async">`).join('')}</div>`);
+        `<img src="${escapeAttr(proxiedImage(u, 480))}" alt="" loading="lazy" decoding="async">`).join('')}</div>`);
     }
 
     // Right now: live open state (Google) + typical crowd rhythm (Grok).
@@ -2748,7 +2898,7 @@
           ${stop.changed ? '<span class="plan-changed-badge">✨ Updated</span>' : ''}
           ${timeHtml}
           <h3>${escapeHtml(stop.title || idea.title || '')}</h3>
-          ${idea.image_url && !state.editMode ? `<div class="plan-stop-photo"><img src="${escapeAttr(idea.image_url)}" alt="" loading="lazy"></div>` : ''}
+          ${idea.image_url && !state.editMode ? `<div class="plan-stop-photo"><img src="${escapeAttr(proxiedImage(idea.image_url, 480))}" alt="" loading="lazy"></div>` : ''}
           ${idea.why && !state.editMode ? `<p class="plan-stop-why">${escapeHtml(idea.why)}</p>` : ''}
           ${facts.length && !state.editMode ? `<p class="plan-stop-facts">${facts.join(' · ')}</p>` : ''}
           ${!state.editMode ? bookingLinksHtml(idea, 'stop') : ''}
@@ -5337,6 +5487,85 @@
     });
   }
 
+  // ---------- Install prompt (PWA) ----------
+  // Chrome hands out ONE beforeinstallprompt event per page load and
+  // prompt() consumes it — so stash it and surface calm affordances instead
+  // of the browser's mini-infobar: an "Install DayHop" item in the account
+  // menu (signed-in users), and a one-time toast with an Install action for
+  // everyone else, since signed-out visitors never open that menu. The toast
+  // fires once ever (localStorage) — an ignored toast is a "no thanks" —
+  // while the menu item keeps quietly offering for whoever changes their mind.
+  let deferredInstallEvt = null;
+
+  function installToastSeen() {
+    try { return localStorage.getItem('dayhop_install_toast') === '1'; }
+    catch (e) { return true; } // private mode: can't persist → never nag
+  }
+
+  function markInstallToastSeen() {
+    try { localStorage.setItem('dayhop_install_toast', '1'); } catch (e) { /* private mode */ }
+  }
+
+  async function promptInstall() {
+    const evt = deferredInstallEvt;
+    if (!evt) return;
+    // The event is single-use: clear the stash and the affordance up front.
+    deferredInstallEvt = null;
+    removeInstallMenuItem();
+    evt.prompt();
+    try { await evt.userChoice; } catch (e) { /* closed the native sheet */ }
+    // Declined? Chrome offers a fresh event on a future load — the menu
+    // item simply reappears then.
+  }
+
+  // auth.js owns the account menu's markup; we only append one extra item,
+  // above Sign out. Invisible until the user-chip shows (signed-in only).
+  function ensureInstallMenuItem() {
+    const menu = document.getElementById('user-menu');
+    if (!menu || document.getElementById('install-app-btn')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'install-app-btn';
+    btn.className = 'user-menu-item';
+    btn.setAttribute('role', 'menuitem');
+    btn.textContent = '📲 Install DayHop';
+    btn.addEventListener('click', () => {
+      menu.hidden = true; // mirror the other menu items' close-on-pick
+      promptInstall();
+    });
+    menu.insertBefore(btn, document.getElementById('signout-btn') || null);
+  }
+
+  function removeInstallMenuItem() {
+    const btn = document.getElementById('install-app-btn');
+    if (btn) btn.remove();
+  }
+
+  function wireInstallPrompt() {
+    // Already running as the installed app → nothing to offer.
+    if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault(); // quiet the mini-infobar; we pick the moment
+      deferredInstallEvt = e;
+      ensureInstallMenuItem();
+      // The toast waits a beat so a stored session has time to resolve —
+      // signed-in users get the menu item, not a toast.
+      setTimeout(() => {
+        if (!deferredInstallEvt || isLoggedIn() || installToastSeen()) return;
+        markInstallToastSeen();
+        showToast('Add DayHop to your home screen — it works offline', {
+          duration: 7000,
+          actionLabel: 'Install',
+          onAction: promptInstall
+        });
+      }, 4000);
+    });
+    window.addEventListener('appinstalled', () => {
+      deferredInstallEvt = null;
+      removeInstallMenuItem();
+    });
+  }
+
   function init() {
     initHolidayStrip();
     loadPersisted();
@@ -5478,6 +5707,7 @@
     wireDaySelector();
     wireUpgradeModal();
     wireMembership();
+    wireInstallPrompt();
 
     // Outbound click tracking (booking links are the affiliate-revenue metric)
     // + booking retention: the link opens in a new tab, so THIS tab is still
