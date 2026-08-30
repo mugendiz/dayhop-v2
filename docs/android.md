@@ -28,7 +28,18 @@ set BUBBLEWRAP_KEY_PASSWORD=<keyPassword from keystore.properties>
 bubblewrap build --skipPwaValidation
 ```
 
-Outputs `android/app-release-signed.apk` (sideload / testing) and
+Gotchas seen on the founder's machine (2026-08-29):
+
+- The Claude Code shell sets `NoDefaultCurrentDirectoryInExePath=1`, which makes cmd.exe
+  refuse to run `gradlew.bat` from the project dir ("not recognized"). `unset` it first.
+  A normal terminal does not have this problem.
+- Put the JDK's `bin` on PATH or the final AAB signing step fails on `jarsigner`.
+  Manual fallback: `jarsigner -sigalg SHA256withRSA -digestalg SHA-256 -keystore android.keystore
+  -signedjar app-release-bundle.aab app/build/outputs/bundle/release/app-release.aab dayhop`
+- Bubblewrap needs `twa-manifest.json` without a UTF-8 BOM (PowerShell 5 `-Encoding utf8` adds one).
+- The version-name key in `twa-manifest.json` is `appVersion` (not `appVersionName`).
+
+First build ~4 min (Gradle 8.11 + AGP download). Outputs `android/app-release-signed.apk` (sideload / testing) and
 `android/app-release-bundle.aab` (what Play Console wants).
 
 ## Site-side contract (must stay true)
