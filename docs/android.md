@@ -54,16 +54,28 @@ First build ~4 min (Gradle 8.11 + AGP download). Outputs `android/app-release-si
 
 ## Simulating on a phone (emulator)
 
-One-time admin install of the Android Emulator Hypervisor Driver (already downloaded):
-
 ```
-Start-Process -Verb RunAs cmd -ArgumentList '/c "%USERPROFILE%.bubblewrapandroid_sdkextrasgoogleAndroid_Emulator_Hypervisor_Driversilent_install.bat"'
+powershell -ExecutionPolicy Bypass -File androidsim.ps1 [-KeepRunning] [-SettleSeconds 20]
 ```
 
-Then `powershell -ExecutionPolicy Bypass -File androidsim.ps1` boots the `dayhop` AVD
-(Pixel 6, API 34 Play-Store image, already created), installs the APK, launches it and
-saves `android/sim-screenshot.png`. Without the driver the emulator cannot boot on this
-machine (pure-software x86 emulation stalls; verified 2026-08-29).
+Boots the `dayhop` AVD (Pixel 6, API 34 Play-Store image), installs the APK, completes Chrome's
+first-run, forces on-device Digital Asset Links verification (`pm verify-app-links`), launches
+DayHop, auto-dismisses ANR / Chrome nag sheets, saves `android/sim-screenshot.png` and exits
+0 = full-screen TWA, 2 = browser bar present (asset links not verified), 3 = unknown.
+Reuses an emulator that is already running; otherwise kills it at the end unless `-KeepRunning`.
+
+Machine prerequisites (all done on the founder's box, 2026-08-30):
+
+- Android Emulator Hypervisor Driver (AEHD) — one-time admin install; the command is in the
+  header of `sim.ps1`. Without it pure-software x86 emulation stalls (verified 2026-08-29).
+  `emulator -accel-check` must say "installed and usable".
+- The AVD must run with host GPU: in `%USERPROFILE%.androidavddayhop.avdconfig.ini` set
+  `hw.gpu.enabled = yes`, `hw.gpu.mode = host`, `hw.ramSize = 3072`, `hw.cpu.ncore = 6`,
+  `vm.heapSize = 512M`. The defaults (`hw.gpu.enabled = no`, 2 GB) made the Play image ANR
+  itself to death on first boot ("Process system isn't responding").
+- A Custom-Tab-style URL bar inside the app on the emulator means either Chrome's first-run
+  was never completed or the device has not verified `assetlinks.json` yet — the script handles
+  both; `adb shell pm get-app-links quest.dayhop.app` should show `dayhop.quest: verified`.
 
 ## Play Store release
 
@@ -78,6 +90,29 @@ machine (pure-software x86 emulation stalls; verified 2026-08-29).
 4. Privacy policy URL: https://dayhop.quest/privacy
 5. Bump `appVersionCode` (+1) and `appVersionName` in `android/twa-manifest.json`
    for every new Play upload, then rebuild.
+
+### Store listing copy (ready to paste)
+
+- **App name:** DayHop
+- **Short description (≤80):** Plan your perfect day out in Ontario — trails, lakes, towns, weather-aware.
+- **Full description:**
+  DayHop plans your day out for you. Tell it where you are and what mood you're in — Rest & Relax or
+  Adventure — and it builds a real itinerary for today: trails, beaches, small towns, markets, viewpoints,
+  and the drives between them, checked against the weather and official park/road advisories.
+
+  • Day-trip ideas across the Greater Toronto Area, York Region, Hamilton, Lake Simcoe and beyond
+  • R&R vs Adventure mode — same day, two very different plans
+  • Live weather + government advisories baked into every plan (never a fake all-clear)
+  • Seasonal picks: fall colours, swimming holes, maple season, winter trails
+  • Deep-dive city nature guides for Markham, Richmond Hill, Newmarket, Toronto, Hamilton, Lake Simcoe
+  • Weekly Thursday digest of the best days out, if you want it
+
+  Free to start. Premium plans and the $20 city nature guides are available in-app.
+- **Category:** Travel & Local · **Tags:** day trips, hiking, Ontario, itinerary, weekend
+- **Contact email:** the founder's · **Privacy policy:** https://dayhop.quest/privacy
+- **Assets:** icon `android/store_icon.png` (512×512), feature graphic 1024×500 (render from the
+  hackathon-media 'Field Notes' sheets), phone screenshots = `android/sim-screenshot.png` runs
+  from the emulator (1080×2400; Play wants 2–8 of them).
 
 Play developer account for an **organization** requires a D-U-N-S number
 (free from Dun & Bradstreet, ~2–30 days to issue). Register as an individual
