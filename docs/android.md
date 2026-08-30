@@ -52,6 +52,19 @@ First build ~4 min (Gradle 8.11 + AGP download). Outputs `android/app-release-si
 - Upload key SHA-256 (local keystore):
   `37:EE:A3:6B:51:27:E1:4F:81:B1:7E:9B:38:AB:DC:46:E6:D4:92:67:BF:26:DB:36:61:FE:F8:DC:B6:82:57:B7`
 
+## Simulating on a phone (emulator)
+
+One-time admin install of the Android Emulator Hypervisor Driver (already downloaded):
+
+```
+Start-Process -Verb RunAs cmd -ArgumentList '/c "%USERPROFILE%.bubblewrapandroid_sdkextrasgoogleAndroid_Emulator_Hypervisor_Driversilent_install.bat"'
+```
+
+Then `powershell -ExecutionPolicy Bypass -File androidsim.ps1` boots the `dayhop` AVD
+(Pixel 6, API 34 Play-Store image, already created), installs the APK, launches it and
+saves `android/sim-screenshot.png`. Without the driver the emulator cannot boot on this
+machine (pure-software x86 emulation stalls; verified 2026-08-29).
+
 ## Play Store release
 
 1. Play Console → create app `DayHop` → upload `app-release-bundle.aab` to Internal testing.
