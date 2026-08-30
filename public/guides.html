@@ -10,14 +10,14 @@
   <meta property="og:site_name" content="DayHop">
   <meta property="og:title" content="DayHop City Guides">
   <meta property="og:description" content="Field-checked nature guides for Ontario cities — trails with distances, lookouts, waterways, fishing spots, and the parking-and-washroom notes on every entry.">
-  <meta property="og:url" content="https://dayhop-v2.onrender.com/guides">
-  <meta property="og:image" content="https://dayhop-v2.onrender.com/img/guides-og.jpg">
+  <meta property="og:url" content="https://dayhop.quest/guides">
+  <meta property="og:image" content="https://dayhop.quest/img/guides-og.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="DayHop City Guides">
   <meta name="twitter:description" content="Field-checked nature guides for Ontario cities.">
-  <meta name="twitter:image" content="https://dayhop-v2.onrender.com/img/guides-og.jpg">
+  <meta name="twitter:image" content="https://dayhop.quest/img/guides-og.jpg">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <style>
     /* The product's own typography (OFL, self-hosted) — the page speaks
@@ -119,8 +119,8 @@
     /* Preview modal IS the guide's first page */
     .modal-backdrop { position: fixed; inset: 0; background: rgba(16, 42, 46, .62); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
     .modal-backdrop.open { display: flex; }
-    .modal { background: #fff; border-radius: 14px; max-width: 430px; width: 100%; max-height: 94vh; overflow: hidden; padding: 0; position: relative; display: flex; flex-direction: column; box-shadow: 0 18px 60px rgba(16, 42, 46, .35); }
-    .modal-page { flex: 1; min-height: 0; overflow: auto; }
+    .modal { background: #fff; border-radius: 14px; max-width: 430px; width: 100%; max-height: 94vh; max-height: 94dvh; /* dvh: honest height under mobile browser UI */ overflow: hidden; padding: 0; position: relative; display: flex; flex-direction: column; box-shadow: 0 18px 60px rgba(16, 42, 46, .35); }
+    .modal-page { flex: 1; min-height: 0; overflow-y: auto; } /* landscape phones scroll the page art */
     .modal-page img { width: 100%; display: block; }
     .modal-foot { padding: 12px 16px 14px; border-top: 1px solid var(--line); background: #fff; }
     .modal-foot .buy { width: 100%; }
@@ -250,7 +250,7 @@
       previewSlug = g.slug;
       previewDialog.setAttribute('aria-label', g.title + ' — first page preview');
       previewImg.alt = 'First page of ' + g.title;
-      previewImg.src = '/img/guide-previews/' + g.slug + '.png';
+      previewImg.src = '/img/guide-previews/' + g.slug + '.webp';
       previewImg.hidden = false;
       previewImg.onerror = () => { previewImg.hidden = true; };
       continueBtn.disabled = false;
@@ -304,7 +304,7 @@
             var mid = (liveSlugs.length - 1) / 2;
             var rot = (i - mid) * 7;
             var left = 90 + (i - mid) * 26;
-            return '<img src="/img/guide-previews/' + s + '.png" alt="" loading="lazy" style="left:' + left + 'px; transform: rotate(' + rot + 'deg); z-index:' + i + ';">';
+            return '<img src="/img/guide-previews/' + s + '.webp" alt="" loading="lazy" style="left:' + left + 'px; transform: rotate(' + rot + 'deg); z-index:' + i + ';">';
           }).join('');
           card.innerHTML =
             '<span class="deal">Best value · six guides for less than the price of three</span>' +
@@ -316,7 +316,7 @@
             '<div class="fan" aria-hidden="true">' + fan + '</div>';
         } else {
           card.innerHTML =
-            (live ? '<div class="cover"><img src="/img/guide-previews/' + g.slug + '.png" alt="Cover of ' + g.title.replace(/"/g, '') + '" loading="lazy"></div>' : '') +
+            (live ? '<div class="cover"><img src="/img/guide-previews/' + g.slug + '.webp" alt="Cover of ' + g.title.replace(/"/g, '') + '" loading="lazy"></div>' : '') +
             '<h2></h2><p class="sub"></p>' +
             (live ? '<p class="meta">' + (g.spot_count ? g.spot_count + ' field-checked places · ' : '') + 'trails · views · water · fishing · day plans</p>' : '') +
             (live && g.admin_token

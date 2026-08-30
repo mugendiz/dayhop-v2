@@ -1,7 +1,7 @@
 {
   "packageId": "quest.dayhop.app",
   "host": "dayhop.quest",
-  "name": "DayHop â€” Plan your perfect day",
+  "name": "DayHop — Plan your perfect day",
   "launcherName": "DayHop",
   "display": "standalone",
   "themeColor": "#102A2E",
@@ -20,20 +20,22 @@
     "path": "./android.keystore",
     "alias": "dayhop"
   },
-  "appVersion": "1.0.0",
-  "appVersionCode": 1,
+  "appVersion": "1.1.0",
+  "appVersionCode": 2,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://dayhop.quest/manifest.webmanifest",
   "fallbackType": "customtabs",
   "features": {},
-  "alphaDependencies": { "enabled": false },
+  "alphaDependencies": {
+    "enabled": false
+  },
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "isMetaQuest": false,
   "fullScopeUrl": "https://dayhop.quest/",
   "minSdkVersion": 21,
-  "orientation": "portrait",
+  "orientation": "any",
   "fingerprints": [],
   "additionalTrustedOrigins": [],
   "retainedBundles": []

@@ -9,8 +9,9 @@
   --ink-soft: #2C4A4E;
   --paper: #FBF7EE;
   --paper-dim: #F2ECDC;
-  --coral: #FF6B4A;
-  --coral-dark: #E1502F;
+  --coral: #FF6B4A;      /* decorative coral: tints, borders, badges on photos */
+  --coral-btn: #E1502F;  /* white-label button fills — darkest coral that still reads "sunset" */
+  --coral-dark: #C43F22; /* coral as text on paper — 4.8:1, WCAG AA */
   --marigold: #FFB627;
   --moss: #3F6F5C;
   --line: rgba(16, 42, 46, 0.14);
@@ -61,6 +62,10 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* One un-wrapped URL or over-wide absolute child must never hand the page a
+   horizontal scrollbar. clip (not hidden) so it can't become a scroll box. */
+body { overflow-x: clip; }
+
 h1, h2, h3 {
   font-family: var(--display);
   font-weight: 700;
@@ -76,12 +81,29 @@ button, .filter-chip {
   letter-spacing: -0.01em;
   cursor: pointer;
 }
-:focus-visible { outline: 2px solid var(--coral); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--coral-dark); outline-offset: 2px; }
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; overflow: hidden;
   clip: rect(0,0,0,0); white-space: nowrap;
 }
+
+/* Keyboard users: the first tab stop jumps past the whole header. Parked
+   off-screen (not display:none) so it stays focusable, lands as a pill. */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 12px;
+  z-index: 100;
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 16px;
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+}
+.skip-link:focus { top: 12px; }
 
 /* ---------- Hero — "Calm Intelligence" ---------- */
 /* Light, spacious, low-overwhelm: a soft warm-to-cool gradient with the
@@ -108,21 +130,21 @@ button, .filter-chip {
      index.html mirror these exact breakpoints/URLs so preload and CSS agree. */
   background:
     linear-gradient(180deg, rgba(253,250,243,0.9) 0%, rgba(251,247,238,0.68) 48%, rgba(251,247,238,0.9) 100%),
-    url("https://images.unsplash.com/photo-1517935706615-2717063c2225?auto=format&fit=crop&w=800&q=80")
+    url("/img/hero/rr-800.webp")
       center 22% / cover no-repeat;
 }
 @media (min-width: 640px) {
   .hero::before {
     background-image:
       linear-gradient(180deg, rgba(253,250,243,0.9) 0%, rgba(251,247,238,0.68) 48%, rgba(251,247,238,0.9) 100%),
-      url("https://images.unsplash.com/photo-1517935706615-2717063c2225?auto=format&fit=crop&w=1400&q=80");
+      url("/img/hero/rr-1400.webp");
   }
 }
 @media (min-width: 1200px) {
   .hero::before {
     background-image:
       linear-gradient(180deg, rgba(253,250,243,0.9) 0%, rgba(251,247,238,0.68) 48%, rgba(251,247,238,0.9) 100%),
-      url("https://images.unsplash.com/photo-1517935706615-2717063c2225?auto=format&fit=crop&w=2100&q=80");
+      url("/img/hero/rr-2100.webp");
   }
 }
 /* Pinned to the viewport, not the hero box: the skyline holds still while
@@ -154,6 +176,9 @@ button, .filter-chip {
   align-items: center;
   justify-content: space-between;
   padding: 28px 24px 0;
+  /* Android 15 TWA draws edge-to-edge: keep the topbar out of the status
+     bar. Zero-inset devices see the plain 28px from the shorthand above. */
+  padding-top: calc(28px + env(safe-area-inset-top));
   max-width: 1040px;
   margin: 0 auto;
 }
@@ -226,8 +251,8 @@ button, .filter-chip {
 /* The one accent in the header: compact, solid, and still — presence
    through contrast with a quiet field, not through animation. */
 .go-pro-btn {
-  background: var(--coral);
-  border: 1px solid var(--coral);
+  background: var(--coral-btn);
+  border: 1px solid var(--coral-btn);
   color: var(--paper);
   font-size: 12.5px;
   font-weight: 600;
@@ -257,6 +282,14 @@ button, .filter-chip {
 }
 .stories-btn:hover { filter: brightness(1.08); box-shadow: 0 4px 14px rgba(63, 111, 92, 0.3); }
 .stories-btn:active { transform: scale(0.96); }
+
+/* Touch targets: the header pills keep their compact width (they must fit
+   four-up at 411px) but stand 44px tall; flex keeps labels on center. */
+.stories-btn, .go-pro-btn, .auth-btn, .my-plans-btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
 
 /* Account: one 32px circle; identity details live in its dropdown. */
 .user-chip { position: relative; display: flex; align-items: center; }
@@ -530,14 +563,18 @@ button, .filter-chip {
   border-radius: var(--radius-sm);
   padding: 6px 9px;
   font-family: var(--body);
-  font-size: 13.5px;
+  font-size: 16px; /* >=16px so iOS Safari doesn't zoom on focus */
   color: var(--ink);
   background: var(--paper);
 }
-.date-input:focus-visible { outline: 2px solid var(--coral); outline-offset: 2px; }
+.date-input:focus-visible { outline: 2px solid var(--coral-dark); outline-offset: 2px; }
 .date-range-sep { color: var(--ink-soft); font-weight: 600; }
 
-.date-clear-btn { font-size: 12.5px; margin-left: auto; }
+/* Still a small text link to the eye, but a 44px-tall slab to the thumb —
+   the negative margins hand back the extra height so the row doesn't grow. */
+.date-clear-btn { font-size: 12.5px; margin: -13px 0 -13px auto; }
+/* .linklike (later in the file) zeroes padding — outrank it for the tap slab. */
+button.date-clear-btn { padding: 13px 4px; }
 
 @media (max-width: 480px) {
   .date-fields { flex-direction: column; align-items: flex-start; }
@@ -552,7 +589,7 @@ button, .filter-chip {
   border: none;
   background: transparent;
   font-family: var(--body);
-  font-size: 15px;
+  font-size: 16px; /* >=16px so iOS Safari doesn't zoom on focus */
   font-weight: 600;
   color: var(--ink);
   outline: none;
@@ -564,7 +601,7 @@ button, .filter-chip {
 }
 
 .location-input::placeholder { color: #8A9594; font-weight: 600; }
-.location-input:focus-visible { outline: 2px solid var(--coral); outline-offset: 3px; border-radius: 6px; }
+.location-input:focus-visible { outline: 2px solid var(--coral-dark); outline-offset: 3px; border-radius: 6px; }
 
 .location-listbox {
   position: absolute;
@@ -661,7 +698,7 @@ button, .filter-chip {
   position: relative;
   align-self: flex-end;
   overflow: hidden;
-  background: var(--coral);
+  background: var(--coral-btn);
   color: var(--paper);
   border: none;
   padding: 14px 24px;
@@ -1331,7 +1368,7 @@ button, .filter-chip {
 .btn-dismiss:hover { background: var(--paper-dim); color: var(--coral-dark); opacity: 1; }
 /* Details is now the card's gateway to booking/map links (they live in the
    detail panel), so it wears the brand coral like the other primary actions. */
-.btn-detail { background: var(--coral); color: var(--paper); }
+.btn-detail { background: var(--coral-btn); color: var(--paper); }
 .btn-detail:hover { background: var(--coral-dark); }
 .btn-add { background: var(--moss); color: var(--paper); flex: 1; }
 .btn-add:hover { background: #335c4c; box-shadow: 0 6px 16px rgba(63, 111, 92, 0.35); transform: translateY(-1px); }
@@ -1491,6 +1528,7 @@ button, .filter-chip {
 .floating-btn {
   position: fixed;
   bottom: 24px;
+  bottom: calc(24px + env(safe-area-inset-bottom)); /* clear the Android 15 gesture bar */
   right: 24px;
   background: var(--glass-ink);
   -webkit-backdrop-filter: var(--blur);
@@ -1577,7 +1615,11 @@ button, .filter-chip {
 .panel-close {
   background: var(--paper-dim);
   border: none;
-  width: 32px; height: 32px;
+  /* 44px touch target (was 32px); flex centering keeps the ✕ optically true. */
+  min-width: 44px; min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 50%;
   font-size: 14px;
   color: var(--ink-soft);
@@ -1920,7 +1962,7 @@ button, .filter-chip {
 }
 .export-btn:hover { background: var(--paper-dim); }
 .export-btn:active { transform: scale(0.96); }
-.export-btn--primary { background: var(--coral); border-color: var(--coral); color: white; }
+.export-btn--primary { background: var(--coral-btn); border-color: var(--coral-btn); color: white; }
 .export-btn--primary:hover { background: var(--coral-dark); }
 
 /* "Start a new shortlist" (Pro) inside the shortlist panel */
@@ -1942,7 +1984,8 @@ button, .filter-chip {
 .detail-why { font-size: 15px; line-height: 1.6; margin: 14px 0 18px; color: var(--ink-soft); }
 .detail-grid { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 14px; }
 .detail-grid dt { font-family: var(--mono); font-size: 11px; text-transform: uppercase; color: var(--ink-soft); align-self: center; }
-.detail-grid dd { margin: 0; font-weight: 500; }
+/* Values can be pasted URLs/addresses — wrap anywhere, never stretch the panel. */
+.detail-grid dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
 
 /* Detail enrichment: photos strip, live status, facts, hours */
 .detail-more { margin-top: 18px; }
@@ -2053,6 +2096,7 @@ button, .filter-chip {
   position: fixed;
   left: 50%;
   bottom: 90px;
+  bottom: calc(90px + env(safe-area-inset-bottom)); /* clear the Android 15 gesture bar */
   transform: translate(-50%, 12px);
   background: var(--glass-ink);
   -webkit-backdrop-filter: var(--blur);
@@ -2077,8 +2121,10 @@ button, .filter-chip {
   color: var(--marigold);
   font-weight: 700;
   font-size: 13.5px;
-  margin-left: 12px;
-  padding: 0;
+  /* 44px-effective tap area: padding grows the target, negative margins hand
+     the space back so the toast itself doesn't inflate (left keeps 12px net). */
+  padding: 10px 8px;
+  margin: -10px -8px -10px 4px;
   text-decoration: underline;
 }
 
@@ -2121,6 +2167,12 @@ button, .filter-chip {
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.6);
   padding: 30px 26px 24px;
+  /* The auth/Pro card runs ~550px tall — taller than a landscape phone
+     viewport (~411px). Cap it and scroll inside so the close button and the
+     submit row are both reachable. */
+  max-height: calc(100vh - 32px);  /* fallback where dvh is unsupported */
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
   opacity: 0;
   transform: translateY(12px) scale(0.98);
   transition: opacity 0.22s var(--ease), transform 0.22s var(--ease);
@@ -2234,7 +2286,7 @@ button, .filter-chip {
 /* Mobile-first refinements — verified against a 375px viewport. */
 @media (max-width: 420px) {
   .app { padding: 0 16px 96px; }
-  .topbar { padding: 18px 16px 0; }
+  .topbar { padding: 18px 16px 0; padding-top: calc(18px + env(safe-area-inset-top)); }
   /* Free up the cramped topbar: the location also lives in the hero picker. */
   .topbar-tag { display: none; }
   /* Seen in the Android TWA (411px): four pills at desktop gaps/padding overflowed
@@ -2272,7 +2324,7 @@ button, .filter-chip {
   .btn-build-around { flex: 1; }
 
   .example-chip { font-size: 13px; padding: 9px 14px; }
-  .floating-btn { bottom: 16px; right: 16px; padding: 13px 16px; }
+  .floating-btn { bottom: calc(16px + env(safe-area-inset-bottom)); right: 16px; padding: 13px 16px; }
 }
 
 /* =====================================================
@@ -2386,6 +2438,8 @@ button, .filter-chip {
   border-radius: var(--radius-sm);
   padding: 7px 10px;
 }
+/* Free text can carry pasted URLs — wrap anywhere, never stretch the page. */
+.plan-stop-why, .plan-stop-facts, .plan-stop-note { overflow-wrap: anywhere; }
 
 /* ---------- Edit mode controls ---------- */
 .plan-edit-controls {
@@ -2399,7 +2453,7 @@ button, .filter-chip {
   display: block;
   width: 100%;
   font-family: var(--body);
-  font-size: 13.5px;
+  font-size: 16px; /* >=16px so iOS Safari doesn't zoom on focus */
   color: var(--ink);
   background: white;
   border: 1px solid var(--line-strong);
@@ -2407,7 +2461,7 @@ button, .filter-chip {
   padding: 7px 10px;
   margin: 4px 0;
 }
-.plan-time-input { max-width: 220px; font-family: var(--mono); font-size: 12.5px; }
+.plan-time-input { max-width: 220px; font-family: var(--mono); }
 .plan-note-input { resize: vertical; min-height: 34px; }
 .plan-time-input:focus,
 .plan-note-input:focus { outline: 2px solid var(--coral); outline-offset: 1px; border-color: transparent; }
@@ -2638,21 +2692,21 @@ body[data-mode="adventure"] .hero {
 body[data-mode="adventure"] .hero::before {
   background:
     linear-gradient(180deg, rgba(253,235,208,0.84) 0%, rgba(250,224,189,0.52) 48%, rgba(249,224,189,0.88) 100%),
-    url("https://images.unsplash.com/photo-1522163182402-834f871fd851?auto=format&fit=crop&w=800&q=80")
+    url("/img/hero/adventure-800.webp")
       center 30% / cover no-repeat;
 }
 @media (min-width: 640px) {
   body[data-mode="adventure"] .hero::before {
     background-image:
       linear-gradient(180deg, rgba(253,235,208,0.84) 0%, rgba(250,224,189,0.52) 48%, rgba(249,224,189,0.88) 100%),
-      url("https://images.unsplash.com/photo-1522163182402-834f871fd851?auto=format&fit=crop&w=1400&q=80");
+      url("/img/hero/adventure-1400.webp");
   }
 }
 @media (min-width: 1200px) {
   body[data-mode="adventure"] .hero::before {
     background-image:
       linear-gradient(180deg, rgba(253,235,208,0.84) 0%, rgba(250,224,189,0.52) 48%, rgba(249,224,189,0.88) 100%),
-      url("https://images.unsplash.com/photo-1522163182402-834f871fd851?auto=format&fit=crop&w=2100&q=80");
+      url("/img/hero/adventure-2100.webp");
   }
 }
 @media (min-width: 880px) and (prefers-reduced-motion: no-preference) {
@@ -2749,6 +2803,7 @@ body[data-mode="adventure"] .mode-thumb { transform: translateX(100%); }
    hint, gently bobbing, inviting the OTHER mode by name. Gone for good once
    the user switches modes (app.js sets a localStorage flag). */
 .mode-nudge {
+  position: relative; /* anchors the invisible ::after tap slab below */
   font-family: var(--mono);
   font-size: 10px;
   font-weight: 600;
@@ -2764,6 +2819,9 @@ body[data-mode="adventure"] .mode-thumb { transform: translateX(100%); }
   animation: nudgeFloat 2.4s ease-in-out infinite;
   transition: opacity 0.5s ease, background 0.35s ease;
 }
+/* Invisible tap slab: the pill stays a ~22px whisper, the target is 44px.
+   (Padding would fatten the visible pill; a pseudo-element hits without showing.) */
+.mode-nudge::after { content: ''; position: absolute; inset: -11px -8px; }
 .mode-nudge.is-leaving { opacity: 0; }
 @keyframes nudgeFloat {
   0%, 100% { transform: translateY(0); }
@@ -2942,7 +3000,7 @@ body[data-mode="adventure"] .mode-thumb { transform: translateX(100%); }
   font-weight: 700;
   font-size: 14px;
   color: #fff;
-  background: var(--coral);
+  background: var(--coral-btn);
   border: 0;
   border-radius: 10px;
   padding: 10px 16px;
@@ -3354,6 +3412,7 @@ body[data-mode="adventure"] .mode-thumb { transform: translateX(100%); }
   position: fixed;
   left: 50%;
   bottom: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom)); /* clear the Android 15 gesture bar */
   transform: translate(-50%, 24px);
   z-index: 65;
   width: min(520px, calc(100vw - 24px));
@@ -3585,7 +3644,7 @@ html.lenis, html.lenis body { height: auto; }
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--coral);
+  color: var(--coral-dark); /* text on paper: bright coral misses AA here */
 }
 .draft-resume-text strong {
   font-size: 16px;
@@ -3793,7 +3852,7 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
   padding: 11px 20px;
   border: 0;
   border-radius: var(--radius-btn);
-  background: var(--coral);
+  background: var(--coral-btn);
   color: #fff;
   font-weight: 700;
   font-family: var(--body);
@@ -3882,7 +3941,7 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
 }
 .postplan-upsell-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .postplan-upsell-pro {
-  background: var(--coral); color: #fff; border: 0; border-radius: var(--radius-btn);
+  background: var(--coral-btn); color: #fff; border: 0; border-radius: var(--radius-btn);
   padding: 7px 12px; font-weight: 700; cursor: pointer; font-size: 0.85rem;
 }
 .postplan-upsell-pro:hover { background: var(--coral-dark); }
@@ -3892,3 +3951,13 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
   padding: 2px 6px; border-radius: 6px;
 }
 .postplan-upsell-close:hover { background: rgba(16,42,46,0.08); }
+
+/* ---------- Landscape phones (short viewports) ----------
+   Chrome anchored for tall screens (toast at 90px) lands mid-screen when the
+   viewport is only ~400px tall — hug the edges instead. Lives at the end of
+   the file so it outranks every equal-specificity base rule above. */
+@media (max-height: 500px) {
+  .toast { bottom: calc(16px + env(safe-area-inset-bottom)); }
+  .floating-btn { bottom: calc(12px + env(safe-area-inset-bottom)); right: 12px; }
+  .return-sheet { bottom: calc(8px + env(safe-area-inset-bottom)); }
+}
