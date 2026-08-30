@@ -24,7 +24,8 @@ function timingSafeEqual(a, b) {
 function presentedSecret(req) {
   const auth = req.headers.authorization || '';
   if (auth.startsWith('Bearer ')) return auth.slice(7).trim();
-  return req.headers['x-webhook-secret'] || req.query.secret || '';
+  // Header-only: a ?secret= query param lands in access logs and proxies.
+  return req.headers['x-webhook-secret'] || '';
 }
 
 router.post('/webhook', async (req, res) => {

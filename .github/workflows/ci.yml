@@ -27,3 +27,22 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+
+  # Deploy gate (opt-in): create a Render "deploy hook" URL, add it as the
+  # RENDER_DEPLOY_HOOK repo secret, and turn OFF auto-deploy in Render —
+  # from then on main only deploys after the matrix above is green.
+  # Without the secret this job is a silent no-op, so committing it is safe.
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Trigger Render deploy (only if hook configured)
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$HOOK" ]; then
+            curl -fsS -X POST "$HOOK" && echo "Render deploy triggered."
+          else
+            echo "RENDER_DEPLOY_HOOK not set — skipping (Render auto-deploy still active)."
+          fi

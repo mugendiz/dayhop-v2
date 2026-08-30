@@ -20,13 +20,71 @@ const isProd = process.env.NODE_ENV === 'production';
 app.set('trust proxy', 1);
 
 app.use(helmet({
-  // The SPA runs inline <script> blocks and pulls GSAP/Supabase/fonts from
-  // jsdelivr, Fontshare, and Google — a real CSP needs its own dedicated
-  // pass. Helmet's other headers (nosniff, frame denial, HSTS, …) apply.
-  contentSecurityPolicy: false
+  // CSP ships REPORT-ONLY first (2026-08-30): the allowlist below is built
+  // from a live audit of every host the app actually touches. Watch
+  // /api/csp-report noise for a week, then flip reportOnly to false.
+  // 'unsafe-inline' stays for now — index.html runs inline <script> blocks;
+  // removing it needs build-time hashes (planned with asset hashing).
+  contentSecurityPolicy: {
+    useDefaults: true,
+    reportOnly: true,
+    directives: {
+      'default-src': ["'self'"],
+      'script-src': ["'self'", "'unsafe-inline'",
+        'https://cdn.jsdelivr.net',
+        'https://www.googletagmanager.com',
+        'https://connect.facebook.net'],
+      'style-src': ["'self'", "'unsafe-inline'",
+        'https://fonts.googleapis.com',
+        'https://api.fontshare.com'],
+      'font-src': ["'self'", 'data:',
+        'https://fonts.gstatic.com',
+        'https://cdn.fontshare.com'],
+      // Feed card images are hotlinked from arbitrary partner/place hosts —
+      // https: stays until the image proxy narrows this to 'self'.
+      'img-src': ["'self'", 'data:', 'blob:', 'https:'],
+      'connect-src': ["'self'",
+        'https://*.supabase.co',
+        'wss://*.supabase.co',
+        'https://www.google-analytics.com',
+        'https://*.analytics.google.com',
+        'https://stats.g.doubleclick.net',
+        'https://www.facebook.com',
+        'https://cdn.jsdelivr.net'],
+      'frame-ancestors': ["'self'"],
+      'base-uri': ["'self'"],
+      'form-action': ["'self'", 'https://checkout.stripe.com'],
+      'report-uri': ['/api/csp-report']
+    }
+  }
 }));
+
+// Minimal Permissions-Policy: the app uses geolocation (share-location
+// button) and nothing else sensor-shaped.
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy',
+    'camera=(), microphone=(), geolocation=(self), payment=(), usb=()');
+  next();
+});
 app.use(compression());
-app.use(cors());
+// Same-origin traffic needs no CORS at all; the allowlist exists for the
+// occasional cross-origin caller we actually mean to serve (the live site
+// hitting the Render URL during DNS moves, localhost dev). Wildcard CORS
+// let any website drive visitors' browsers at the metered endpoints.
+const CORS_ORIGINS = new Set([
+  'https://dayhop.quest',
+  'https://www.dayhop.quest',
+  'https://dayhop-v2.onrender.com',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000'
+]);
+app.use(cors({
+  origin(origin, cb) {
+    // No Origin header (same-origin, curl, server-to-server) → allow.
+    if (!origin || CORS_ORIGINS.has(origin)) return cb(null, true);
+    cb(null, false); // no CORS headers → browser blocks the read
+  }
+}));
 // Request context (client IP) for deep call sites — analytics stamps every
 // event with the requester's IP so the admin dashboard can tell internal
 // (developer) traffic apart from real users.
@@ -60,6 +118,30 @@ if (isProd) {
     console.log(`[static] serving minified shell for: ${Object.keys(minifiedShell).join(', ')}`);
   }
 }
+// Content-hashed shell (build.js): /assets/* URLs change every deploy, so
+// they can cache forever — Cloudflare serves the whole shell from edge even
+// while a free-tier instance sleeps. dist/index.html references them.
+const hashedIndex = path.join(__dirname, 'public', 'dist', 'index.html');
+const hashedSw = path.join(__dirname, 'public', 'dist', 'sw.js');
+const hasHashedShell = isProd && fs.existsSync(hashedIndex)
+  && fs.existsSync(path.join(__dirname, 'public', 'dist', 'asset-manifest.json'));
+if (hasHashedShell) {
+  console.log('[static] hashed shell active (dist/index.html + /assets/*)');
+  app.use('/assets', express.static(path.join(__dirname, 'public', 'dist', 'assets'), {
+    immutable: true,
+    maxAge: '365d',
+    fallthrough: false
+  }));
+  // The SW itself must never be long-cached or updates stall for a day.
+  app.get('/sw.js', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.type('application/javascript');
+    res.sendFile(fs.existsSync(hashedSw) ? hashedSw : path.join(__dirname, 'public', 'sw.js'));
+  });
+}
+
+// Legacy stable-name minified shell — kept for HTML/SW cached before the
+// hashing deploy; 5-minute cache bounds the skew window.
 app.use((req, res, next) => {
   const abs = minifiedShell[req.path];
   if (!abs) return next();
@@ -74,7 +156,10 @@ app.use(express.static(path.join(__dirname, 'public'), {
     // (bypassing the HTTP cache), so a version bump can no longer pin a
     // stale deploy — and 5 min of no-revalidation removes a conditional
     // round trip from every navigation. HTML stays on pure ETag.
-    if (/[\\/]icons[\\/]/.test(filePath)) {
+    if (/[\\/](icons|img|fonts)[\\/]/.test(filePath)) {
+      // Images and fonts are content-stable (replaced, not edited in place)
+      // — without a max-age every view revalidates and Cloudflare's edge
+      // can't shield a sleeping Render instance.
       res.setHeader('Cache-Control', 'public, max-age=86400');
     } else if (/\.(js|css)$/.test(filePath)) {
       res.setHeader('Cache-Control', 'public, max-age=300');
@@ -151,15 +236,43 @@ const geoLimiter = rateLimit({
   message: { error: 'RATE_LIMITED', message: 'Slow down a little — try again in a moment.' }
 });
 app.use('/api/geo', geoLimiter, require('./routes/geo'));
+// Feed-image resize proxy: cache misses cost an outbound fetch + a resize,
+// so it gets a real ceiling; Cloudflare's 7-day edge cache absorbs the rest.
+const imgLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120, // a fresh feed paints ~20 cards; 120 covers fast browsing
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'RATE_LIMITED', message: 'Slow down a little.' }
+});
+app.use('/api/img', imgLimiter, require('./routes/img'));
 app.use('/api/events', require('./routes/events'));
 app.use('/api/config', require('./routes/config'));
 app.use('/api/adventures', require('./routes/adventures'));
 app.use('/api/community', require('./routes/community'));
 app.use('/api/shortlist', require('./routes/shortlist'));
-app.use('/api/billing', require('./routes/billing'));
+// Checkout/portal POSTs each hit Stripe's API — cheap, but not free to spam.
+const billingLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === 'GET',
+  message: { error: 'RATE_LIMITED', message: 'Slow down a little.' }
+});
+app.use('/api/billing', billingLimiter, require('./routes/billing'));
 // Paid city nature guides ($20 PDFs) — one-time Stripe checkout, guests
 // welcome. Fulfillment rides the existing billing webhook.
-app.use('/api/cityguides', require('./routes/cityGuides'));
+// claim/checkout POSTs call Stripe (session retrieve / create) per hit.
+const cityGuidesLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === 'GET', // signed download links must not bounce
+  message: { error: 'RATE_LIMITED', message: 'Slow down a little.' }
+});
+app.use('/api/cityguides', cityGuidesLimiter, require('./routes/cityGuides'));
 
 // A plan-less POST /api/guides triggers a Grok call server-side — the save
 // path must not be a free unmetered AI endpoint just because /generate is.
@@ -201,7 +314,16 @@ app.use('/api/newsletter', newsletterLimiter, require('./routes/newsletter'));
 // email. Signatures gate what gets counted, not what renders.
 app.use('/api/digest', require('./routes/digestTrack'));
 
-app.use('/api/admin', require('./routes/admin'));
+// Admin auth is a single shared key — without a ceiling the mount is an
+// unthrottled online-guessing oracle. 30/min is generous for one operator.
+const adminLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'RATE_LIMITED', message: 'Slow down a little.' }
+});
+app.use('/api/admin', adminLimiter, require('./routes/admin'));
 
 // Inbound article publishing (BabyLoveGrowth → /blog). Secret-gated inside
 // the route; the limiter is a backstop against secret-guessing.
@@ -265,6 +387,24 @@ app.get('/health', (req, res) => {
   });
 });
 
+// CSP violation reports (Report-Only phase). Logged compactly + counted;
+// the /health schedulers block is the operator's window into whether the
+// allowlist is clean enough to enforce. Body cap keeps this un-abusable.
+let cspReportCount = 0;
+app.post('/api/csp-report',
+  express.json({ type: ['application/csp-report', 'application/json'], limit: '8kb' }),
+  (req, res) => {
+    cspReportCount++;
+    if (cspReportCount <= 50 || cspReportCount % 100 === 0) {
+      const r = (req.body && (req.body['csp-report'] || req.body)) || {};
+      console.warn('[csp] violation #' + cspReportCount + ':',
+        r['violated-directive'] || r.violatedDirective || '?',
+        '→', String(r['blocked-uri'] || r.blockedURI || '?').slice(0, 120),
+        'on', String(r['document-uri'] || r.documentURI || '?').slice(0, 80));
+    }
+    res.status(204).end();
+  });
+
 // Unknown API paths get a JSON 404 — never the SPA shell with a 200,
 // which silently confuses API clients. Must come after every /api mount.
 app.use('/api', (req, res) => {
@@ -326,9 +466,10 @@ app.get('/.well-known/assetlinks.json', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'));
 });
 
-// SPA fallback — must stay last.
+// SPA fallback — must stay last. Serves the hash-rewritten shell when the
+// build produced one (production), the source shell otherwise (dev).
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(hasHashedShell ? hashedIndex : path.join(__dirname, 'public', 'index.html'));
 });
 
 // Centralized error handler — catches anything thrown synchronously in routes.
@@ -338,6 +479,28 @@ app.use((err, req, res, next) => {
     error: 'INTERNAL_ERROR',
     message: 'Something went wrong on our end.'
   });
+});
+
+// A missed rejection anywhere (Node >=15 default: kill the process) must
+// not take down the whole app — that turns any transient Supabase/Resend
+// hiccup inside an unguarded async path into a full-site outage. Log loud,
+// keep serving. uncaughtException stays fatal (state is suspect); Render
+// restarts the instance.
+let lastRejectionAlertAt = 0;
+process.on('unhandledRejection', (reason) => {
+  console.error('[server] Unhandled promise rejection:', reason);
+  // Same playbook as the Grok-outage alert: silent failure is the enemy.
+  // At most one email per 12h — a rejection storm must not burn Resend quota.
+  if (isProd && Date.now() - lastRejectionAlertAt > 12 * 60 * 60 * 1000) {
+    lastRejectionAlertAt = Date.now();
+    require('./services/email').sendEmail({
+      to: process.env.OPERATOR_REPORT_TO || 'dayhopadmin@gmail.com',
+      subject: 'DayHop: unhandled promise rejection (server kept running)',
+      text: 'An async code path rejected with no handler. The process was kept alive, but this is a bug worth finding.\n\n'
+        + String((reason && reason.stack) || reason).slice(0, 1500)
+        + '\n\nThis alert repeats at most every 12 hours.'
+    }).catch(() => {});
+  }
 });
 
 // Keep-alive: Render's free tier spins the instance down after ~15 min

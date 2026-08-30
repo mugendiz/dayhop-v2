@@ -500,3 +500,15 @@ create table if not exists public.recurring_expenses (
 );
 alter table public.recurring_expenses enable row level security;
 revoke all on public.recurring_expenses from anon, authenticated;
+
+-- Stripe webhook replay dedupe (2026-08-30). Signature verification proves
+-- origin, not novelty — processed event ids are recorded so a replayed or
+-- re-delivered event can't re-fulfill a guide purchase or re-activate a
+-- cancelled subscription across restarts.
+create table if not exists public.stripe_webhook_events (
+  event_id     text primary key,              -- Stripe evt_... id
+  event_type   text not null,
+  processed_at timestamptz not null default now()
+);
+alter table public.stripe_webhook_events enable row level security;
+revoke all on public.stripe_webhook_events from anon, authenticated;

@@ -13,6 +13,52 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID;
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 
+// ---------- webhook replay dedupe ----------
+// Signature verification proves the payload came from Stripe — it does NOT
+// prove we haven't seen it before. Stripe retries on non-2xx, and a replayed
+// checkout.session.completed re-sends guide PDFs / re-activates a sub. Track
+// processed event ids: in-memory always (covers retries within a process
+// lifetime), plus public.stripe_webhook_events when Supabase is configured
+// (covers replays across restarts). Fail-open on DB trouble — a dedupe-store
+// hiccup must not make us drop real events.
+const seenEvents = new Set();
+const SEEN_EVENTS_CAP = 2000;
+function rememberEvent(id) {
+  seenEvents.add(id);
+  if (seenEvents.size > SEEN_EVENTS_CAP) {
+    // Sets iterate in insertion order — drop the oldest half.
+    let drop = seenEvents.size - SEEN_EVENTS_CAP / 2;
+    for (const v of seenEvents) { if (drop-- <= 0) break; seenEvents.delete(v); }
+  }
+}
+
+async function wasProcessed(eventId) {
+  if (seenEvents.has(eventId)) return true;
+  if (!hasServiceKey()) return false;
+  try {
+    const { data, error } = await dbClient.getClient()
+      .from('stripe_webhook_events').select('event_id').eq('event_id', eventId).maybeSingle();
+    if (error) throw error;
+    return Boolean(data);
+  } catch (err) {
+    console.warn('[billing] event dedupe lookup failed (processing anyway):', err.message);
+    return false;
+  }
+}
+
+async function markProcessed(eventId, eventType) {
+  rememberEvent(eventId);
+  if (!hasServiceKey()) return;
+  try {
+    const { error } = await dbClient.getClient()
+      .from('stripe_webhook_events')
+      .insert({ event_id: eventId, event_type: eventType });
+    if (error && error.code !== '23505') throw error; // unique violation = fine
+  } catch (err) {
+    console.warn('[billing] event dedupe record failed (non-fatal):', err.message);
+  }
+}
+
 let _stripe = null;
 function getStripe() {
   if (!_stripe) {
@@ -361,6 +407,19 @@ async function handleWebhook(rawBody, signature) {
   }
   const event = getStripe().webhooks.constructEvent(rawBody, signature, STRIPE_WEBHOOK_SECRET);
 
+  // Check-then-process-then-record: recording only after success means a
+  // crash mid-fulfillment lets Stripe's retry actually retry (the tiny
+  // concurrent-duplicate window is additionally covered by the idempotent
+  // ledger upserts and subscription upserts downstream).
+  if (await wasProcessed(event.id)) {
+    return `duplicate ${event.type} skipped (${event.id})`;
+  }
+  const outcome = await dispatchWebhookEvent(event);
+  await markProcessed(event.id, event.type);
+  return outcome;
+}
+
+async function dispatchWebhookEvent(event) {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object;

@@ -93,7 +93,9 @@ router.post('/', async (req, res) => {
     });
   }
 
-  const targetLocation = (location && location.trim()) || (city && city.trim()) || DEFAULT_CITY;
+  // Capped: this string flows into geocoding calls and the cache key — an
+  // unbounded value is a cheap cache-poisoning / log-noise vector.
+  const targetLocation = ((location && location.trim()) || (city && city.trim()) || DEFAULT_CITY).slice(0, 120);
   const eventKeyword = typeof event_keyword === 'string' ? event_keyword.trim().slice(0, 80) : '';
   const userCoords = sanitizeCoords(req.body && req.body.coords);
   const ownerKey = ownerKeyFor(req);

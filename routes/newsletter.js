@@ -14,6 +14,11 @@ const express = require('express');
 const router = express.Router();
 const newsletter = require('../services/newsletter');
 
+// Express 4 drops async rejections on the floor — before the process-level
+// guard existed, one Supabase/Resend throw here crashed the instance. Route
+// every handler's rejection into the centralized error handler instead.
+const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
 // Minimal branded page for the two human-facing link landings — same tokens
 // as /blog so the trip out of the inbox still looks like DayHop.
 function page(title, body, ok = true) {
@@ -30,7 +35,7 @@ a.btn{display:inline-block;background:#FF6B4A;color:#fff;text-decoration:none;fo
 <a class="btn" href="/">Plan a day →</a></div></body></html>`;
 }
 
-router.post('/subscribe', async (req, res) => {
+router.post('/subscribe', wrap(async (req, res) => {
   const { email, source, owner_id, attrib } = req.body || {};
   const result = await newsletter.subscribe(email, {
     source: typeof source === 'string' ? source : 'unknown',
@@ -44,9 +49,9 @@ router.post('/subscribe', async (req, res) => {
   }
   // Same body for every outcome (see header note).
   res.json({ ok: true, message: 'Check your inbox — click the confirmation link and you’re in.' });
-});
+}));
 
-router.get('/confirm', async (req, res) => {
+router.get('/confirm', wrap(async (req, res) => {
   const token = String(req.query.token || '');
   const result = await newsletter.confirm(token);
   res.setHeader('Cache-Control', 'no-store');
@@ -60,10 +65,10 @@ router.get('/confirm', async (req, res) => {
     'Your Weekend Playbook is ready — 70+ GTA outings actually worth your Saturday. It’s also in the welcome email we just sent, along with your Thursday weekend brief.')
     .replace('<a class="btn" href="/">Plan a day →</a>',
       `<a class="btn" href="/playbook?t=${encodeURIComponent(token)}">Open my Playbook →</a>`));
-});
+}));
 
 // Human path: someone clicked "Unsubscribe" in the email footer.
-router.get('/unsubscribe', async (req, res) => {
+router.get('/unsubscribe', wrap(async (req, res) => {
   const result = await newsletter.unsubscribe(String(req.query.token || ''));
   res.setHeader('Cache-Control', 'no-store');
   if (!result.ok) {
@@ -72,13 +77,13 @@ router.get('/unsubscribe', async (req, res) => {
   }
   res.send(page('You’re unsubscribed',
     'Done — no more weekend briefs. The planner itself is still yours any time you want it.'));
-});
+}));
 
 // Machine path: RFC 8058 one-click POST from the mail provider's own
 // unsubscribe button. Must succeed with no interstitial and no redirect.
-router.post('/unsubscribe', async (req, res) => {
+router.post('/unsubscribe', wrap(async (req, res) => {
   await newsletter.unsubscribe(String(req.query.token || ''));
   res.status(200).end();
-});
+}));
 
 module.exports = router;

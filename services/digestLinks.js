@@ -18,7 +18,13 @@ function secret() {
   // Dedicated secret preferred; ADMIN_KEY is an acceptable stand-in (both
   // live server-side only). The literal fallback keeps dev links renderable
   // — worthless as a signature, fine for localhost previews.
-  return process.env.DIGEST_TRACK_SECRET || process.env.ADMIN_KEY || 'dayhop-dev-only';
+  const s = process.env.DIGEST_TRACK_SECRET || process.env.ADMIN_KEY;
+  if (s) return s;
+  if (process.env.NODE_ENV === 'production') {
+    // Forgeable click-signatures = open-redirect + analytics spoofing.
+    throw new Error('DIGEST_TRACK_SECRET (or ADMIN_KEY) must be set in production.');
+  }
+  return 'dayhop-dev-only';
 }
 
 const hmac = input => crypto.createHmac('sha256', secret()).update(input).digest('hex');

@@ -595,6 +595,10 @@ async function fetchEventsUncached() {
       // 1000-row chunks up to the 20k cap instead.
       const data = [];
       const PAGE = 1000;
+      // Row cap AND an age floor: metrics windows are <=30 days, so paging
+      // deep into ancient history just burns Supabase quota as the table
+      // grows. Stop at 60 days regardless of row count.
+      const OLDEST_MS = Date.now() - 60 * 24 * 3600 * 1000;
       while (data.length < 20000) {
         const { data: page, error } = await dbClient.getClient()
           .from('events')
@@ -604,6 +608,8 @@ async function fetchEventsUncached() {
         if (error) throw error;
         data.push(...(page || []));
         if (!page || page.length < PAGE) break;
+        const oldest = page[page.length - 1] && page[page.length - 1].created_at;
+        if (oldest && new Date(oldest).getTime() < OLDEST_MS) break;
       }
       if ((data || []).length === 0 && mirror.length > 0) {
         return {

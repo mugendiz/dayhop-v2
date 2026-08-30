@@ -242,20 +242,59 @@ async function verifyAndAdd(item) {
  * `auto` annotation for the admin inbox). Concurrency-limited; one find
  * failing never stops the rest.
  */
+// Publish cap: the verification chain consumes third-party text (local
+// media, Reddit) that an outsider can author — a crafted campaign that
+// slips past both gates must not be able to flood the live catalog in one
+// run. Everything over the cap stays in the inbox as capped_for_review;
+// the operator email below is the human eye the pipeline otherwise lacks.
+const MAX_AUTO_PUBLISH_PER_RUN = Number(process.env.AUTO_PUBLISH_CAP || 5);
+
+function reportRun(published, capped) {
+  if (!published.length && !capped.length) return;
+  const lines = [];
+  if (published.length) {
+    lines.push('Auto-published into the live catalog:');
+    for (const it of published) lines.push('  - ' + it.name + (it.area ? ' (' + it.area + ')' : ''));
+  }
+  if (capped.length) {
+    lines.push('', 'Held back (over the per-run cap of ' + MAX_AUTO_PUBLISH_PER_RUN + ') — review in the admin inbox:');
+    for (const it of capped) lines.push('  - ' + it.name + (it.area ? ' (' + it.area + ')' : ''));
+  }
+  lines.push('', 'Every entry above passed Google + Grok verification. Pull anything that looks wrong from the admin catalog panel.');
+  require('./email').sendEmail({
+    to: process.env.OPERATOR_REPORT_TO || 'dayhopadmin@gmail.com',
+    subject: 'DayHop autopilot: ' + published.length + ' published' + (capped.length ? ', ' + capped.length + ' held for review' : ''),
+    text: lines.join('\n')
+  }).catch(() => {});
+}
+
 async function processFinds(items) {
   await loadFromDb(); // dedupe must see everything already published
   const CONCURRENCY = 2;
   let next = 0;
+  let publishedCount = 0;
+  const published = [];
+  const capped = [];
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, items.length) }, async () => {
     while (next < items.length) {
       const item = items[next++];
       try {
+        if (publishedCount >= MAX_AUTO_PUBLISH_PER_RUN) {
+          item.auto = { added: false, status: 'capped_for_review' };
+          capped.push(item);
+          continue;
+        }
         item.auto = await verifyAndAdd(item);
+        if (item.auto && item.auto.added) {
+          publishedCount++;
+          published.push(item);
+        }
       } catch (err) {
         item.auto = { added: false, status: 'error', checks: { error: err.message } };
       }
     }
   }));
+  reportRun(published, capped);
   return items;
 }
 
