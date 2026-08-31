@@ -166,7 +166,8 @@ app.use(express.static(path.join(__dirname, 'public'), {
       // — without a max-age every view revalidates and Cloudflare's edge
       // can't shield a sleeping Render instance.
       res.setHeader('Cache-Control', 'public, max-age=86400');
-    } else if (/\.(js|css)$/.test(filePath)) {
+    } else if (/\.(js|css)$/.test(filePath) && isProd) {
+      // Prod only: a 5-min cache in dev serves stale JS right after an edit.
       res.setHeader('Cache-Control', 'public, max-age=300');
     }
   }

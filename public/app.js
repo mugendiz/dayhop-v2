@@ -3510,7 +3510,28 @@
       // system print → Save as PDF dialog.
       window.open(`${saved.share_url}?print=1`, '_blank', 'noopener');
     } else if (format === 'email') {
-      window.location.href = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(guideAsText(saved))}`;
+      const text = guideAsText(saved);
+      // RFC 6068 line breaks are CRLF — classic Outlook renders bare %0A as
+      // one mashed line. And Windows silently drops mailto URLs past ~2083
+      // chars, so long guides fall back to title + link (the share page has
+      // the full plan anyway).
+      let url = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(text.replace(/\n/g, '\r\n'))}`;
+      if (url.length > 1900) {
+        url = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(`${shareTitle}\r\n\r\nFull guide: ${saved.share_url}`)}`;
+      }
+      window.location.href = url;
+      // No working mail handler (dead Windows Mail association, webmail-only
+      // users) drops the launch with zero feedback — the page never loses
+      // focus. Give those users the guide on the clipboard instead.
+      // hasFocus alone, deliberately: a working mail app steals OS focus
+      // (hasFocus → false), while a dead handler leaves it true. Don't also
+      // gate on visibilityState — background/automation tabs report 'hidden'
+      // while still holding focus, which would silence the fallback.
+      setTimeout(() => {
+        if (document.hasFocus()) {
+          copyToClipboard(text, 'No email app opened — guide copied, paste it into any email ✉️');
+        }
+      }, 1200);
     } else if (format === 'file') {
       const blob = new Blob([guideAsMarkdown(saved)], { type: 'text/markdown;charset=utf-8' });
       const a = document.createElement('a');
