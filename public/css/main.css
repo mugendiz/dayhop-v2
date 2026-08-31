@@ -1348,6 +1348,7 @@ button.date-clear-btn { padding: 13px 4px; }
 
 .card-actions {
   display: flex;
+  flex-wrap: wrap; /* narrow two-up columns: Build/Add drop to a full row */
   gap: 8px;
   border-top: 1px solid var(--line);
   padding-top: 12px;
@@ -2278,7 +2279,12 @@ button.date-clear-btn { padding: 13px 4px; }
 
 /* ---------- Responsive ---------- */
 @media (min-width: 720px) {
-  .card-feed { grid-template-columns: 1fr 1fr; }
+  /* minmax(0,…): plain 1fr floors each column at the card's min-content
+     (the four-button actions row, ~456px), which blows the grid out to
+     ~983px on 720–990px viewports — landscape phones pan-and-zoom the
+     whole page and clip the topbar. Letting columns shrink below content
+     keeps the document at viewport width; the actions row wraps instead. */
+  .card-feed { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .card-feed::before { display: none; }
   .idea-card::before { display: none; }
 }
