@@ -150,6 +150,11 @@ app.use((req, res, next) => {
 });
 
 app.use(express.static(path.join(__dirname, 'public'), {
+  // No directory index: '/' must fall through to the SPA fallback below,
+  // which serves the content-hashed shell in production. With the default
+  // index this middleware answered '/' with the unhashed public/index.html
+  // and the whole /assets/ pipeline sat unused on the homepage.
+  index: false,
   setHeaders(res, filePath) {
     // Icons are effectively immutable — a day of caching is safe. JS/CSS get
     // 5 minutes: sw.js now pre-caches the shell with cache:'reload' requests
