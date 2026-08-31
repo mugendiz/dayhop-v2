@@ -13,3 +13,6 @@ build/
 *.aab
 *.idsig
 local.properties
+
+# Local QA evidence (rotation sweeps etc.) — sim.ps1 regenerates on demand
+qa-*.png
