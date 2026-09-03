@@ -17,7 +17,9 @@ router.get('/', async (req, res) => {
 
   try {
     const uri = await maps.getPhotoUri(name);
-    res.set('Cache-Control', 'public, max-age=86400');
+    // 7 days, matching the server-side photo-URI cache: a returning
+    // browser never re-asks for a card image it already resolved.
+    res.set('Cache-Control', 'public, max-age=604800');
     res.redirect(uri);
   } catch (err) {
     // Frontend <img onerror> falls back to the category stock photo.

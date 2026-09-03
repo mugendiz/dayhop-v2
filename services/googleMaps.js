@@ -129,7 +129,7 @@ async function autocompletePlaces({ input, lat, lng }) {
  * clones so the candidate pipeline can stamp per-request fields without
  * poisoning the cache.
  */
-const SEARCH_TTL_MS = 3 * DAY;
+const SEARCH_TTL_MS = 7 * DAY;
 
 async function searchPlaces({ query, lat, lng, radiusMeters = 15000, maxResults = 8 }) {
   assertConfigured();
@@ -185,6 +185,47 @@ async function fetchPlaces({ query, lat, lng, radiusMeters, maxResults }) {
 
   const places = res.data?.places || [];
   return places.map(normalizePlace);
+}
+
+/**
+ * Identity-only text search on the Pro SKU ($32/1k, 5,000 free a month vs
+ * 1,000 for the Enterprise mask above): id, name, address, location,
+ * open/closed status, photo. For lookups that only need to know WHICH
+ * place and WHETHER it is open — the autopilot's closed-tag veto, the
+ * detail panel's "find the place_id first" step. No rating, hours, price,
+ * website or patio fields (those are what make the full search Enterprise).
+ * Cached 14 days: identity does not drift.
+ */
+async function searchPlacesLite({ query, lat, lng, radiusMeters = 30000, maxResults = 3 }) {
+  assertConfigured();
+  const key = `maps:search-lite:${String(query).trim().toLowerCase()}|${grid(lat, lng, 0.05)}|${maxResults}`;
+  const places = await apiCache.cached({
+    key,
+    ttlMs: 14 * DAY,
+    fetch: async () => {
+      apiCache.spend('text_search_pro');
+      const body = { textQuery: query, maxResultCount: maxResults };
+      if (lat != null && lng != null) {
+        body.locationBias = {
+          circle: { center: { latitude: lat, longitude: lng }, radius: radiusMeters }
+        };
+      }
+      const res = await axios.post(`${PLACES_BASE}/places:searchText`, body, {
+        timeout: 10000,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY,
+          'X-Goog-FieldMask': [
+            'places.id', 'places.displayName', 'places.formattedAddress',
+            'places.location', 'places.types', 'places.googleMapsUri',
+            'places.photos', 'places.businessStatus'
+          ].join(',')
+        }
+      });
+      return (res.data?.places || []).map(normalizePlace);
+    }
+  });
+  return places.map(p => ({ ...p }));
 }
 
 const PRICE_LEVEL_TO_TIER = {
@@ -429,6 +470,6 @@ async function getPhotoUri(photoName, { maxWidthPx = 800 } = {}) {
 }
 
 module.exports = {
-  geocode, searchPlaces, getPlaceDetails, getPhotoUri, findPhotoUrl, reverseGeocode, autocompletePlaces,
+  geocode, searchPlaces, searchPlacesLite, getPlaceDetails, getPhotoUri, findPhotoUrl, reverseGeocode, autocompletePlaces,
   usageStatus: apiCache.usageStatus
 };

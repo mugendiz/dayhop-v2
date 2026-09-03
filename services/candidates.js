@@ -267,7 +267,7 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   const sources = [
     {
       name: 'google_places',
-      run: () => geo ? searchPlacesWithThemes(prompt, themeQueries, geo, Boolean(userCoords), opts.radiusKm ? opts.radiusKm * 1000 : null) : []
+      run: () => geo ? searchPlacesWithThemes(prompt, opts.skipThemes ? [] : themeQueries, geo, Boolean(userCoords), opts.radiusKm ? opts.radiusKm * 1000 : null) : []
     },
     {
       // Fetch a deep top-20 and surface a daily-rotating window of 6 — the
@@ -600,18 +600,16 @@ function isUnverifiableStorefront(place) {
 }
 
 async function searchPlacesWithThemes(prompt, themeQueries, geo, hyperLocal = false, radiusOverride = null) {
-  const radiusMeters = radiusOverride || (hyperLocal ? 5000 : 20000);
+  // ONE prompt search per gather. Hyper-local (shared coords) used to add a
+  // second 20 km prompt search on top of the 5 km one; it returned mostly
+  // the same venues for one more metered call. Locality bias is a bias, not
+  // a fence — a 10 km circle keeps the neighbourhood flavour and still
+  // reaches the town over.
+  const radiusMeters = radiusOverride || (hyperLocal ? 10000 : 20000);
   const searches = [
     maps.searchPlaces({ query: prompt, lat: geo.lat, lng: geo.lng, radiusMeters, maxResults: 16 })
       .then(places => places.map(p => Object.assign({}, p, { source: 'google_places', id: p.place_id })))
   ];
-  if (hyperLocal && !(radiusOverride >= 20000)) {
-    searches.push(
-      maps.searchPlaces({ query: prompt, lat: geo.lat, lng: geo.lng, radiusMeters: 20000, maxResults: 10 })
-        .then(places => places.map(p => Object.assign({}, p, { source: 'google_places', id: p.place_id })))
-        .catch(() => [])
-    );
-  }
   for (const query of themeQueries) {
     searches.push(
       maps.searchPlaces({ query, lat: geo.lat, lng: geo.lng, radiusMeters, maxResults: 10 })

@@ -146,6 +146,14 @@
       <a href="https://console.x.ai" style="color:#FFD9CF;font-weight:600">console.x.ai</a>.</span>
   </div>
 
+  <!-- Google Maps budget banner: the daily spend guard (services/apiCache.js)
+       is refusing metered calls; feeds are on cached/stale data + catalog. -->
+  <div id="maps-banner" hidden
+       style="background:#8A5A00;color:#fff;border-radius:12px;padding:14px 18px;margin:0 0 18px;font-size:14px;line-height:1.5">
+    <strong style="display:block;margin-bottom:2px">💸 Google Maps daily budget reached — new venue searches paused until midnight</strong>
+    <span id="maps-banner-detail"></span>
+  </div>
+
   <div id="report" hidden>
     <label class="toggle-row" for="exclude-internal">
       <input type="checkbox" id="exclude-internal">
@@ -1642,6 +1650,7 @@
       : 'Authenticated with the admin key.';
 
     renderGrokBanner(data.grok_health);
+    renderMapsBanner(data.maps_usage);
     renderTiles(data.totals || {}, data.billing || {});
     renderDailyChart(data.daily || []);
     renderFunnel(data.funnel || {});
@@ -1804,6 +1813,24 @@
       $('grok-banner-detail').textContent =
         (h.last_error || 'Unknown error') + (h.last_status ? ' (HTTP ' + h.last_status + ')' : '') +
         (when ? ' · last failure ' + when : '');
+      banner.hidden = false;
+    } else {
+      banner.hidden = true;
+    }
+  }
+
+  // Amber banner once the Maps spend guard starts refusing calls. Spend is
+  // nominal list price (free tiers not credited), so "$1.00 of $1.00" means
+  // ~25 venue searches today, not a real dollar.
+  function renderMapsBanner(u) {
+    const banner = $('maps-banner');
+    if (!banner) return;
+    if (u && u.blocked > 0) {
+      const calls = Object.entries(u.calls || {}).map(([k, v]) => k + ' ' + v).join(', ');
+      $('maps-banner-detail').textContent =
+        '$' + Number(u.spent_usd || 0).toFixed(2) + ' of $' + Number(u.budget_usd || 0).toFixed(2) +
+        ' nominal spent (' + u.day + '), ' + u.blocked + ' calls refused' +
+        (calls ? ' · ' + calls : '') + (u.l2 ? '' : ' · shared cache OFF (no service key)');
       banner.hidden = false;
     } else {
       banner.hidden = true;

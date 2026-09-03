@@ -25,14 +25,28 @@ and the same searches were bought over and over:
    instances. Requires `SUPABASE_SERVICE_KEY`; missing table = L1 only.
 4. **Stale-on-error** — if Google fails or the budget is spent, an expired
    entry (≤ 30 days) is served instead of nothing.
-5. **Daily USD budget** `MAPS_DAILY_BUDGET_USD` (default 3). Counters live in
-   `public.api_usage` so a restart can't reset them. Past the cap: Maps calls
-   throw `BUDGET_EXCEEDED`, feeds fall back to catalog + other sources,
-   cards fall back to stock photos. `/health` (admin) shows `maps_usage`.
+5. **Daily USD budget** `MAPS_DAILY_BUDGET_USD` (default **1** = 25
+   Enterprise searches/day = 750/month, inside Google's 1,000 free). Counters
+   live in `public.api_usage` so a restart can't reset them. Past the cap:
+   Maps calls throw `BUDGET_EXCEEDED`, feeds fall back to catalog + other
+   sources, cards fall back to stock photos. `/health` (admin) shows
+   `maps_usage`; the admin dashboard shows an amber banner while blocked.
 
 Cache keys are coarse on purpose (search ~5 km cell, reverse geocode ~1 km,
-autocomplete ~50 km) and TTLs are long (search 3 d, photo search 14 d,
-photo URI 7 d, geocode 30 d).
+autocomplete ~50 km) and TTLs are long (search 7 d, lite search 14 d, photo
+search 14 d, photo URI 7 d, geocode 30 d).
+
+Unique-query surface was also cut (2026-09-03, second commit):
+- browse pool is **daypart-free** (`routes/browse.js` `MODE_PROMPTS`,
+  `daypartOrder`): 2 query sets per city instead of 6;
+- one prompt search per gather (`searchPlacesWithThemes`), themes ≤ 3;
+- surprise-me variant rotates by day and "Next" pages reuse the shared pool
+  (excludes applied locally) — they used to be uncacheable full fan-outs;
+- autopilot verify + details fallback use `searchPlacesLite` (Pro SKU,
+  5,000 free/month).
+
+Expected: ~700 Enterprise searches/month → $0 inside the free tier; the
+$1/day guard bounds the worst case at a few dollars.
 
 `data/catalogPhotos.json` (from `scripts/photo-catalog.js`) bakes a photo
 into every curated entry, so the catalog costs nothing at runtime. Re-run

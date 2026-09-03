@@ -92,32 +92,45 @@ router.post('/', async (req, res) => {
 
   try {
     const variants = SURPRISE_PROMPTS[mode] || SURPRISE_PROMPTS.rr;
-    const prompt = variants[Math.floor(Math.random() * variants.length)] + (wider ? WIDER_SUFFIX : '');
+    // Variant rotates by DAY, not by press: a random pick per request made
+    // every press a fresh pool key (and a fresh metered fan-out). Variety
+    // within a day comes from the randomized sectioning below.
+    const dayIdx = Math.floor(Date.now() / 86400000);
+    const prompt = variants[dayIdx % variants.length] + (wider ? WIDER_SUFFIX : '');
+    const excludesActive = excludeIds.size > 0 || excludeTitles.size > 0;
+    const notExcluded = c => !excludeIds.has(String(c.id)) && !excludeTitles.has(normTitle(c.title));
+    const gatherOpts = {
+      radiusKm: wider ? WIDER_RADIUS_KM : null,
+      // A wider "Next" page is one metered prompt search, not a full theme
+      // fan-out — the local page already bought the themes.
+      skipThemes: Boolean(wider)
+    };
 
     const key = poolKey(city, coords, mode, wider, dateWindow, prompt);
     const hit = poolCache.get(key);
-    let gathered = null;
-    if (hit && Date.now() - hit.at < POOL_TTL_MS) {
-      const filtered = hit.gathered.candidates.filter(c =>
-        !excludeIds.has(String(c.id)) && !excludeTitles.has(normTitle(c.title)));
-      // A drained pool must not serve an anemic feed from cache — fall
-      // through to a real (deeper, exclusion-aware) gather instead.
-      if (filtered.length >= MIN_FEED) {
-        gathered = Object.assign({}, hit.gathered, { candidates: filtered });
+    let shared = (hit && Date.now() - hit.at < POOL_TTL_MS) ? hit.gathered : null;
+    if (!shared) {
+      // ALWAYS gather the shareable pool first (no per-user excludes) and
+      // cache it — excludes are applied locally afterwards. "Next" pages
+      // used to pass excludes INTO the gather, which made every page an
+      // uncacheable full fan-out, and the client auto-fires Next on scroll.
+      shared = await gatherCandidates(prompt, city, '', null, coords, mode, dateWindow, gatherOpts);
+      if (shared.candidates.length) {
+        if (poolCache.size >= POOL_CACHE_MAX) poolCache.delete(poolCache.keys().next().value);
+        poolCache.set(key, { at: Date.now(), gathered: shared });
       }
     }
-    if (!gathered) {
-      const excludesActive = excludeIds.size > 0 || excludeTitles.size > 0;
-      gathered = await gatherCandidates(prompt, city, '', null, coords, mode, dateWindow, {
-        radiusKm: wider ? WIDER_RADIUS_KM : null,
-        excludeIds: excludeIds.size ? excludeIds : null,
-        excludeTitles: excludeTitles.size ? excludeTitles : null
-      });
-      // Only a pool gathered WITHOUT per-user excludes is shareable.
-      if (!excludesActive && gathered.candidates.length) {
-        if (poolCache.size >= POOL_CACHE_MAX) poolCache.delete(poolCache.keys().next().value);
-        poolCache.set(key, { at: Date.now(), gathered });
-      }
+    let gathered;
+    const filtered = shared.candidates.filter(notExcluded);
+    if (!excludesActive || filtered.length >= MIN_FEED) {
+      gathered = Object.assign({}, shared, { candidates: filtered });
+    } else {
+      // A drained pool must not serve an anemic feed — do the deeper,
+      // exclusion-aware gather. Its Google searches are the same keys the
+      // shared gather just filled, so this costs zero metered calls.
+      gathered = await gatherCandidates(prompt, city, '', null, coords, mode, dateWindow, Object.assign({}, gatherOpts, {
+        excludeIds, excludeTitles
+      }));
     }
     const { candidates, weather, resolvedCity, advisories, advisoriesStatus } = gathered;
 

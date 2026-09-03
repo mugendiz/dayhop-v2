@@ -97,7 +97,11 @@ async function googleVerdict(item) {
     return { pass: true, place: null, note: 'Maps not configured — no closed-tag check possible' };
   }
   try {
-    const places = await maps.searchPlaces({
+    // Identity + open/closed is all the veto needs — the Pro-tier lite
+    // search costs a fifth of the Enterprise mask and has 5× the free tier.
+    // (rating/rating_count on the stored place are null as a result; the
+    // catalog display already tolerates that.)
+    const places = await maps.searchPlacesLite({
       query: `${item.name}, ${item.area || 'Canada'}`, maxResults: 3
     });
     const want = normName(item.name).split(' ').filter(w => w.length > 2);

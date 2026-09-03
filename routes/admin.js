@@ -196,6 +196,9 @@ router.get('/metrics', requireAdmin, async (req, res) => {
       // AI planner health — the dashboard shows a red banner while not-ok
       // (the Aug 2026 credits outage hid behind fail-soft for three days).
       grok_health: require('../services/grok').getHealth(),
+      // Metered Google Maps spend today vs. the daily budget (the dashboard
+      // shows an amber banner once calls are being refused).
+      maps_usage: require('../services/apiCache').usageStatus(),
       generated_at: new Date().toISOString()
     }, data));
   } catch (err) {

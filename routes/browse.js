@@ -43,7 +43,7 @@ router.post('/', async (req, res) => {
   const mode = normalizeMode(req.body && req.body.mode);
   const dateWindow = parseDateWindow(req.body && req.body.date, req.body && req.body.date_end);
   const part = daypart();
-  const key = cacheKey(city, coords, part, mode, dateWindow);
+  const key = cacheKey(city, coords, mode, dateWindow);
 
   try {
     // The CANDIDATE POOL is what's cached (the expensive part: 14 sources +
@@ -56,7 +56,7 @@ router.post('/', async (req, res) => {
       base = hit.base;
     } else {
       const [gathered, sky] = await Promise.all([
-        gatherCandidates(syntheticPrompt(part, mode), city, '', null, coords, mode, dateWindow),
+        gatherCandidates(syntheticPrompt(mode), city, '', null, coords, mode, dateWindow),
         getSkyTonight(coords || GTA_CENTER)
       ]);
       base = Object.assign(gathered, { sky });
@@ -76,7 +76,7 @@ router.post('/', async (req, res) => {
     //    "bad", it just shouldn't block discovery).
     const ownerKey = (req.user && req.user.id) ||
       (typeof (req.body && req.body.owner_id) === 'string' && req.body.owner_id.trim().slice(0, 80)) || '';
-    let pool = personalOrder(candidates, `${ownerKey}|${new Date().toISOString().slice(0, 10)}`);
+    let pool = personalOrder(daypartOrder(candidates, part), `${ownerKey}|${new Date().toISOString().slice(0, 10)}`);
     const seenRaw = Array.isArray(req.body && req.body.seen) ? req.body.seen.slice(0, 200) : [];
     if (seenRaw.length) {
       const seen = new Set(seenRaw.map(String));
@@ -260,35 +260,53 @@ function daypart() {
   return 'evening';
 }
 
-// The daypart AND mode are baked into the synthetic prompt, so the existing
-// relevance ranking naturally floats "right now, right vibe" material to the
-// top of the pool. R&R leans restorative/scenic; Adventure leans active/thrill.
-const DAYPART_PROMPTS = {
-  rr: {
-    morning: 'peaceful gardens and parks, quiet scenic trails, calm waterfront walks, cozy coffee and brunch spots, farmers markets, lookouts and viewpoints, conservation areas',
-    afternoon: 'botanical gardens and parks, scenic trails and lookouts, calm beaches, museums and galleries, spas and wellness, tea rooms and quiet cafés, waterfront strolls, picnic spots',
-    evening: 'relaxed dinner spots, quiet patios, sunset lookouts, waterfront walks, gardens, dessert cafés, calm evening strolls'
-  },
-  adventure: {
-    morning: 'ziplining and treetop trekking, rock climbing, mountain biking trails, kayaking and paddleboarding, hiking adventures, aerial adventure parks, go-karting',
-    afternoon: 'ziplining and aerial adventure parks, rock climbing, kayaking and rafting, mountain biking, go-karts, jet ski and watersport rentals, trampoline parks, adventure tours, axe throwing',
-    evening: 'go-karting, indoor climbing, axe throwing, escape rooms, trampoline parks, laser tag, high-energy evening events and shows, night hikes'
-  }
+// ONE synthetic prompt per mode, daypart-free. The prompt drives the metered
+// Google Text Searches (services/candidates.js), so baking the daypart into
+// it — as this used to — meant three distinct query sets per city per day,
+// re-bought every day: the single biggest line on the Sept 2026 Maps bill.
+// The daypart now shapes the feed for free, after the fetch: daypartOrder()
+// below nudges "right now" material up the ranked pool, and buildSections
+// labels the lead shelf by time of day. R&R leans restorative/scenic;
+// Adventure leans active/thrill.
+const MODE_PROMPTS = {
+  rr: 'peaceful gardens and parks, quiet scenic trails and lookouts, calm waterfront walks and beaches, cozy coffee and brunch spots, farmers markets, museums and galleries, spas and wellness, tea rooms and quiet cafés, relaxed dinner spots and quiet patios, sunset lookouts, dessert cafés, picnic spots, conservation areas',
+  adventure: 'ziplining and treetop trekking, aerial adventure parks, rock climbing and indoor climbing, mountain biking trails, kayaking, paddleboarding and rafting, hiking adventures, go-karting, jet ski and watersport rentals, trampoline parks, axe throwing, escape rooms, laser tag, high-energy evening events and shows, night hikes'
 };
 
-function syntheticPrompt(part, mode) {
-  const byPart = DAYPART_PROMPTS[mode] || DAYPART_PROMPTS.rr;
-  return byPart[part] || byPart.afternoon;
+function syntheticPrompt(mode) {
+  return MODE_PROMPTS[mode] || MODE_PROMPTS.rr;
+}
+
+// Time-of-day fit, applied to the shared pool without touching the network.
+// A matching candidate climbs up to DAYPART_LIFT ranks (stable sort on
+// index − lift), so evening surfaces dinner/patio/escape-room picks first
+// without ever burying a top-ranked park below a mediocre bar.
+const DAYPART_RE = {
+  morning: /brunch|breakfast|coffee|caf[eé]|bakery|farmers'? market|sunrise|morning|trail|hike|hiking|park\b|garden|paddle|kayak|canoe|bike|biking|climb/i,
+  afternoon: /museum|gallery|beach|zoo|aquarium|pool|water ?park|splash|trampoline|go-?kart|zipline|zip line|aerial|rafting|jet ski|axe/i,
+  evening: /dinner|patio|sunset|rooftop|dessert|ice cream|night|evening|escape room|laser tag|bowling|axe|show|theatre|theater|brewery|winery|\bbar\b|\bpub\b|cocktail|live music/i
+};
+const DAYPART_LIFT = 8;
+
+function daypartOrder(candidates, part) {
+  const re = DAYPART_RE[part];
+  if (!re || !Array.isArray(candidates)) return candidates;
+  const text = c => `${c.title || ''} ${c.description || ''} ${c.category || ''} ${(c.tags || []).join(' ')}`;
+  return candidates
+    .map((c, i) => ({ c, score: i - (re.test(text(c)) ? DAYPART_LIFT : 0), i }))
+    .sort((a, b) => a.score - b.score || a.i - b.i)
+    .map(x => x.c);
 }
 
 // ~2 km grid so neighbours share a cache entry without leaking anything
-// more precise than the client already sent (~110 m rounding).
-function cacheKey(city, coords, part, mode, dateWindow) {
+// more precise than the client already sent (~110 m rounding). No daypart
+// in the key: the pool is the same all day, only its ordering changes.
+function cacheKey(city, coords, mode, dateWindow) {
   const grid = coords
     ? `${Math.round(coords.lat * 50) / 50},${Math.round(coords.lng * 50) / 50}`
     : '';
   const dateKey = dateWindow ? `${dateWindow.start}..${dateWindow.end}` : '';
-  return `${city.toLowerCase()}|${grid}|${part}|${mode}|${dateKey}`;
+  return `${city.toLowerCase()}|${grid}|${mode}|${dateKey}`;
 }
 
 // Assign ranked candidates to named sections, first match wins (a card never
@@ -565,20 +583,19 @@ function toBrowseIdea(c) {
 // partner-API cost is at most one gather per mode per TTL window.
 const GTA_WIDE_CITY = 'Across the GTA'; // mirrors GTA_WIDE in public/app.js
 async function warmDefaultPool() {
-  const part = daypart();
   for (const mode of ['rr', 'adventure']) {
-    const key = cacheKey(GTA_WIDE_CITY, null, part, mode, null);
+    const key = cacheKey(GTA_WIDE_CITY, null, mode, null);
     const hit = cache.get(key);
     if (hit && Date.now() - hit.at < CACHE_TTL_MS) continue;
     try {
       const [gathered, sky] = await Promise.all([
-        gatherCandidates(syntheticPrompt(part, mode), GTA_WIDE_CITY, '', null, null, mode, null),
+        gatherCandidates(syntheticPrompt(mode), GTA_WIDE_CITY, '', null, null, mode, null),
         getSkyTonight(GTA_CENTER)
       ]);
       if (gathered.candidates.length) {
         if (cache.size >= CACHE_MAX_ENTRIES) cache.delete(cache.keys().next().value);
         cache.set(key, { at: Date.now(), base: Object.assign(gathered, { sky }) });
-        console.log(`[browse] warmed default pool (${mode}/${part}): ${gathered.candidates.length} candidates`);
+        console.log(`[browse] warmed default pool (${mode}): ${gathered.candidates.length} candidates`);
       }
     } catch (err) {
       console.warn(`[browse] default pool warm failed (${mode}):`, err.message);
@@ -591,3 +608,8 @@ module.exports = router;
 // function over candidate objects, no network.
 module.exports.buildSections = buildSections;
 module.exports.warmDefaultPool = warmDefaultPool;
+// Cost invariants (test/browseDaypart.test.js): the pool key and prompt must
+// stay daypart-free, and daypart ordering must be pure.
+module.exports.cacheKey = cacheKey;
+module.exports.syntheticPrompt = syntheticPrompt;
+module.exports.daypartOrder = daypartOrder;

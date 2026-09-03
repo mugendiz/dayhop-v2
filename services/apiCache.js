@@ -19,8 +19,9 @@
 // rather than nothing — a week-old venue list beats an empty shelf.
 //
 // Spend guard: every metered call is charged against MAPS_DAILY_BUDGET_USD
-// (default $3/day ≈ $90/month absolute worst case; typical spend is far
-// lower because nearly everything is a cache hit). Past the cap the call
+// (default $1/day nominal — 25 Enterprise searches, which keeps a month
+// inside Google's free allowance; typical spend is far lower because nearly
+// everything is a cache hit). Past the cap the call
 // throws code BUDGET_EXCEEDED and callers degrade: feeds fall back to the
 // catalog + other sources, cards fall back to stock photos. Counters
 // persist in public.api_usage so a restart can't reset the meter.
@@ -138,7 +139,10 @@ const COST_USD = {
 const TORONTO_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto' });
 const budgetUsd = () => {
   const n = Number(process.env.MAPS_DAILY_BUDGET_USD);
-  return Number.isFinite(n) && n >= 0 ? n : 3;
+  // Default $1/day nominal = 25 Enterprise searches/day = 750/month, inside
+  // Google's 1,000 free allowance for that SKU — so the typical real bill
+  // is $0 and the worst case is a few dollars.
+  return Number.isFinite(n) && n >= 0 ? n : 1;
 };
 
 let usage = { day: TORONTO_DAY.format(new Date()), calls: {}, usd: 0, blocked: 0, loaded: false };

@@ -107,7 +107,9 @@ async function lookupPlace({ id, source, title, venue, location, city }) {
   // Everything else (curated, Viator, events…): one text search, then take
   // the top match — same normalized pipeline the grounding search uses.
   const query = [venue || title, location || city].filter(Boolean).join(', ');
-  const results = await maps.searchPlaces({ query, maxResults: 1 });
+  // Lite (Pro-tier) search: only the place_id is needed here — the full
+  // details call that follows carries the rich fields.
+  const results = await maps.searchPlacesLite({ query, maxResults: 1 });
   if (!results.length || !results[0].place_id) return null;
   return maps.getPlaceDetails(results[0].place_id);
 }
