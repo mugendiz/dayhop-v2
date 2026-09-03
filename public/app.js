@@ -1368,6 +1368,10 @@
           attrib: (window.dayhopAttrib && window.dayhopAttrib()) || undefined
         }),
         keepalive: true // survives the page navigating to a booking site
+      }).then(r => {
+        // Silent failure is the enemy: a rejected event is invisible in the
+        // admin numbers, so say so in the console (never to the user).
+        if (r && !r.ok) console.warn('[track] ' + type + ' rejected: HTTP ' + r.status + ' via ' + (r.headers.get('server') || 'origin'));
       }).catch(() => {});
     } catch (e) { /* never let analytics break the app */ }
   }
