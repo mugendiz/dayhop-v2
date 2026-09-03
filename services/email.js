@@ -48,7 +48,16 @@ let warnedUnconfigured = false;
  *   from           — optional sender override (must stay on the verified
  *                    domain), e.g. outreach sends as "Andrew at DayHop <…>"
  */
-async function sendEmail({ to, subject, html, text, unsubscribeUrl, attachments, from }) {
+/*
+ *   inReplyTo      — optional Message-ID of the email being answered (with
+ *                    the angle brackets). Sets In-Reply-To + References so
+ *                    Gmail/Outlook keep the reply in the recipient's thread.
+ *                    Without it every reply lands as a NEW conversation —
+ *                    the Joyride 150 prospect asked why in Sept 2026.
+ *   references     — optional full References chain (space-separated
+ *                    Message-IDs); defaults to inReplyTo alone.
+ */
+async function sendEmail({ to, subject, html, text, unsubscribeUrl, attachments, from, inReplyTo, references }) {
   if (!isConfigured()) {
     if (!warnedUnconfigured) {
       warnedUnconfigured = true;
@@ -68,6 +77,13 @@ async function sendEmail({ to, subject, html, text, unsubscribeUrl, attachments,
       'List-Unsubscribe': `<${unsubscribeUrl}>`,
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
     };
+  }
+  if (inReplyTo) {
+    const id = /^<.*>$/.test(inReplyTo.trim()) ? inReplyTo.trim() : `<${inReplyTo.trim()}>`;
+    payload.headers = Object.assign(payload.headers || {}, {
+      'In-Reply-To': id,
+      'References': (references && references.trim()) || id
+    });
   }
   try {
     const { data } = await axios.post(RESEND_URL, payload, {
