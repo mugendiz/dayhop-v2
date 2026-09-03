@@ -300,7 +300,17 @@ const trackLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'RATE_LIMITED', message: 'Slow down a little.' }
 });
-app.use('/api/track', trackLimiter, require('./routes/track'));
+// Tally what /api/track actually answers, by status, since boot. A 503 seen
+// by the browser that never shows up here came from the edge, not from
+// Node — the distinction that settled the Sept 2026 "dropped events" hunt.
+const trackStats = { received: 0, by_status: {} };
+app.use('/api/track', (req, res, next) => {
+  trackStats.received++;
+  res.on('finish', () => {
+    trackStats.by_status[res.statusCode] = (trackStats.by_status[res.statusCode] || 0) + 1;
+  });
+  next();
+}, trackLimiter, require('./routes/track'));
 
 // Newsletter consent endpoints: subscribe is a cheap write but each new email
 // triggers a real outbound send (confirmation) — the limiter keeps a bot from
@@ -394,7 +404,9 @@ app.get('/health', (req, res) => {
     // whether the shared L2 cache is live (services/apiCache.js).
     maps_usage: require('./services/apiCache').usageStatus(),
     // Pre-bought venue rows vs. the full cells × vocabulary grid.
-    venue_index: require('./services/venueIndex').status()
+    venue_index: require('./services/venueIndex').status(),
+    // /api/track requests Node has seen since boot, by response status.
+    track_stats: trackStats
   });
 });
 
