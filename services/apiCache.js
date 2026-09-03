@@ -145,13 +145,18 @@ const budgetUsd = () => {
   return Number.isFinite(n) && n >= 0 ? n : 1;
 };
 
-let usage = { day: TORONTO_DAY.format(new Date()), calls: {}, usd: 0, blocked: 0, loaded: false };
-const persistTimers = new Map(); // sku -> timeout
+// Two buckets: 'live' (user-triggered, governed by the USD cap) and 'index'
+// (the scheduled venue-index refresh — services/venueIndex.js — exempt from
+// the cap because it has its own row cap, but still counted and persisted
+// under provider google_maps_index so /health shows the real total).
+let usage = { day: TORONTO_DAY.format(new Date()), calls: {}, usd: 0, blocked: 0, index: {}, loaded: false };
+const persistTimers = new Map(); // `${provider}|${sku}` -> timeout
+const PROVIDER = { live: 'google_maps', index: 'google_maps_index' };
 
 function rollDay() {
   const today = TORONTO_DAY.format(new Date());
   if (usage.day !== today) {
-    usage = { day: today, calls: {}, usd: 0, blocked: 0, loaded: true };
+    usage = { day: today, calls: {}, usd: 0, blocked: 0, index: {}, loaded: true };
   }
 }
 
@@ -161,10 +166,14 @@ async function loadUsage() {
   if (!hasServiceKey()) { usage.loaded = true; return; }
   try {
     const { data, error } = await dbClient.getClient()
-      .from('api_usage').select('sku, calls').eq('day', usage.day);
+      .from('api_usage').select('provider, sku, calls').eq('day', usage.day);
     if (error) throw error;
     rollDay();
     for (const row of data || []) {
+      if (row.provider === PROVIDER.index) {
+        usage.index[row.sku] = Math.max(usage.index[row.sku] || 0, row.calls);
+        continue;
+      }
       const have = usage.calls[row.sku] || 0;
       if (row.calls > have) {
         usage.usd += (row.calls - have) * (COST_USD[row.sku] || 0);
@@ -177,17 +186,19 @@ async function loadUsage() {
   usage.loaded = true;
 }
 
-function persistUsage(sku) {
-  if (!hasServiceKey() || persistTimers.has(sku)) return;
-  // Coalesce bursts: one upsert per SKU per 5 s at most.
-  persistTimers.set(sku, setTimeout(() => {
-    persistTimers.delete(sku);
+function persistUsage(sku, bucket = 'live') {
+  const provider = PROVIDER[bucket] || PROVIDER.live;
+  const timerKey = `${provider}|${sku}`;
+  if (!hasServiceKey() || persistTimers.has(timerKey)) return;
+  // Coalesce bursts: one upsert per (provider, SKU) per 5 s at most.
+  persistTimers.set(timerKey, setTimeout(() => {
+    persistTimers.delete(timerKey);
     const day = usage.day;
-    const calls = usage.calls[sku] || 0;
+    const calls = (bucket === 'index' ? usage.index[sku] : usage.calls[sku]) || 0;
     dbClient.getClient()
       .from('api_usage')
       .upsert({
-        day, provider: 'google_maps', sku, calls,
+        day, provider, sku, calls,
         usd: Number((calls * (COST_USD[sku] || 0)).toFixed(4)),
         updated_at: new Date().toISOString()
       }, { onConflict: 'day,provider,sku' })
@@ -198,12 +209,18 @@ function persistUsage(sku) {
 
 /**
  * Charge one upstream call against today's budget. Throws BUDGET_EXCEEDED
- * (never records the call) when the cap would be crossed.
+ * (never records the call) when the cap would be crossed. { bucket: 'index' }
+ * counts the call without applying the cap (the index refresh caps rows).
  */
-function spend(sku) {
+function spend(sku, { bucket = 'live' } = {}) {
   rollDay();
   const cost = COST_USD[sku];
   if (cost == null) throw new Error(`apiCache.spend: unknown SKU "${sku}"`);
+  if (bucket === 'index') {
+    usage.index[sku] = (usage.index[sku] || 0) + 1;
+    persistUsage(sku, 'index');
+    return;
+  }
   const cap = budgetUsd();
   if (usage.usd + cost > cap) {
     usage.blocked++;
@@ -227,6 +244,8 @@ function usageStatus() {
     spent_usd: Number(usage.usd.toFixed(3)),
     calls: { ...usage.calls },
     blocked: usage.blocked,
+    // Scheduled venue-index refresh calls today (not under the cap).
+    index_calls: { ...usage.index },
     l1_entries: l1.size,
     l2: hasServiceKey()
   };
@@ -235,7 +254,7 @@ function usageStatus() {
 // Test hooks — not for production callers.
 function _reset() {
   l1.clear(); inflight.clear();
-  usage = { day: TORONTO_DAY.format(new Date()), calls: {}, usd: 0, blocked: 0, loaded: true };
+  usage = { day: TORONTO_DAY.format(new Date()), calls: {}, usd: 0, blocked: 0, index: {}, loaded: true };
 }
 
 module.exports = { cached, spend, usageStatus, loadUsage, COST_USD, _reset };

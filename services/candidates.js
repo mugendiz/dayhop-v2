@@ -36,6 +36,8 @@ let catalogPhotos = {};
 try { catalogPhotos = require('../data/catalogPhotos.json'); }
 catch { console.warn('[candidates] data/catalogPhotos.json missing — run scripts/photo-catalog.js'); }
 const autoCatalog = require('./autoCatalog');
+const venueIndex = require('./venueIndex');
+const { DINING_QUERY, INDOOR_REFUGE_QUERY } = require('../data/feedPrompts');
 const { matchThemes } = require('../data/themes');
 const seasons = require('../data/seasons');
 const relevance = require('./relevance');
@@ -251,7 +253,7 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   // Unshifted, not pushed: the google_places source cap trims from the end,
   // and refuge results must survive it.
   if (advisoryPressure.avoid_outdoor >= 2) {
-    themeQueries.unshift('best indoor attractions museums galleries aquariums');
+    themeQueries.unshift(INDOOR_REFUGE_QUERY);
   }
 
   // Dining is universal: one always-on query keeps the "New & notable
@@ -259,7 +261,7 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   // vocabulary at all, so without this the shelf starves there). Cached 6h
   // per grid like every other text search.
   if (!themeQueries.some(q => /restaurant|food|dessert|brunch|patio|cafe/i.test(q))) {
-    themeQueries.push('highly rated restaurants and cafes');
+    themeQueries.push(DINING_QUERY);
   }
 
   // One parallel batch: each source is independently optional — a failed or
@@ -606,19 +608,38 @@ async function searchPlacesWithThemes(prompt, themeQueries, geo, hyperLocal = fa
   // a fence — a 10 km circle keeps the neighbourhood flavour and still
   // reaches the town over.
   const radiusMeters = radiusOverride || (hyperLocal ? 10000 : 20000);
-  const searches = [
-    maps.searchPlaces({ query: prompt, lat: geo.lat, lng: geo.lng, radiusMeters, maxResults: 16 })
-      .then(places => places.map(p => Object.assign({}, p, { source: 'google_places', id: p.place_id })))
-  ];
-  for (const query of themeQueries) {
-    searches.push(
-      maps.searchPlaces({ query, lat: geo.lat, lng: geo.lng, radiusMeters, maxResults: 10 })
-        .then(places => places.map(p => Object.assign({}, p, { source: 'google_places', id: p.place_id, theme_hit: true })))
-        .catch(err => {
-          console.warn(`[candidates] places theme search "${query}" failed:`, err.message);
-          return [];
-        })
-    );
+  const tag = (places, extra) => places.map(p => Object.assign({}, p, { source: 'google_places', id: p.place_id }, extra || {}));
+  const live = (query, maxResults, extra) =>
+    maps.searchPlaces({ query, lat: geo.lat, lng: geo.lng, radiusMeters, maxResults })
+      .then(places => tag(places, extra))
+      .catch(err => {
+        console.warn(`[candidates] places search "${query.slice(0, 40)}" failed:`, err.message);
+        return [];
+      });
+
+  // The venue index (services/venueIndex.js) answers every vocabulary
+  // query for free inside the Ontario belt. What is left to buy live:
+  //   - a free-text prompt (not in the vocabulary) ONLY when no theme query
+  //     stood in for it — otherwise the themes + dining carry the pool and
+  //     Grok/ranking do the rest;
+  //   - a vocabulary query the index hasn't filled yet (the nightly refresh
+  //     will), or any query outside the belt.
+  // Every live call is still shared-cached and budget-capped.
+  const idx = venueIndex.lookup({ queries: [prompt, ...themeQueries], lat: geo.lat, lng: geo.lng, radiusKm: radiusMeters / 1000 });
+  const searches = [];
+  if (idx) {
+    const promptHits = idx.byQuery[prompt];
+    if (promptHits) searches.push(Promise.resolve(tag(promptHits)));
+    else if (venueIndex.inVocabulary(prompt)) searches.push(live(prompt, 16)); // indexed query, row not filled yet
+    else if (!themeQueries.length) searches.push(live(prompt, 16));           // free text, nothing stands in for it
+    // else: free text WITH themes — the index-served theme rows carry the pool.
+    for (const query of themeQueries) {
+      const hits = idx.byQuery[query];
+      searches.push(hits ? Promise.resolve(tag(hits, { theme_hit: true })) : live(query, 10, { theme_hit: true }));
+    }
+  } else {
+    searches.push(live(prompt, 16));
+    for (const query of themeQueries) searches.push(live(query, 10, { theme_hit: true }));
   }
   const results = await Promise.all(searches);
   // The trade gate stands down only when the user explicitly asked for one.

@@ -18,7 +18,8 @@ const { isAroundSpotlight, formatRange, torontoToday } = require('../services/sp
 const { getSeasonContext } = require('../data/seasons');
 const { haversineKm } = require('../services/relevance');
 const { getSkyTonight } = require('../services/skyConditions');
-const maps = require('../services/googleMaps');
+const venueIndex = require('../services/venueIndex');
+const { MODE_PROMPTS, CORRIDOR_QUERY } = require('../data/feedPrompts');
 const sponsors = require('../services/sponsors');
 
 // Sky checks anchor to the user's point when shared, else metro Toronto —
@@ -163,19 +164,18 @@ function sanitizeCorridors(raw, origin) {
   return out;
 }
 
-// One tightly-biased, 6h-cached Places search per corridor point; only
-// crowd-verified spots (4.4+, 50+ reviews, operational, actually within
-// 5 km of the corridor) make the shelf, 3 cards max.
+// Corridor points are answered from the venue index only — never a live
+// Places call (a corridor is per-user, so a live search here would scale
+// with users). Only crowd-verified spots (4.4+, 50+ reviews, operational,
+// actually within 5 km of the corridor) make the shelf, 3 cards max.
 async function corridorFinds(corridors, excludeIds) {
   const out = [];
-  const results = await Promise.allSettled(corridors.map(pt =>
-    maps.searchPlaces({
-      query: 'popular restaurants cafes and attractions',
-      lat: pt.lat, lng: pt.lng, radiusMeters: 4000, maxResults: 6
-    }).then(places => ({ pt, places }))));
+  const results = corridors.map(pt => {
+    const idx = venueIndex.lookup({ queries: [CORRIDOR_QUERY], lat: pt.lat, lng: pt.lng, radiusKm: 4 });
+    return { pt, places: (idx && idx.byQuery[CORRIDOR_QUERY]) || [] };
+  });
   for (const r of results) {
-    if (r.status !== 'fulfilled') continue;
-    const { pt, places } = r.value;
+    const { pt, places } = r;
     for (const p of places) {
       if (out.length >= 3) break;
       if (!p.place_id || excludeIds.has(p.place_id)) continue;
@@ -268,11 +268,8 @@ function daypart() {
 // below nudges "right now" material up the ranked pool, and buildSections
 // labels the lead shelf by time of day. R&R leans restorative/scenic;
 // Adventure leans active/thrill.
-const MODE_PROMPTS = {
-  rr: 'peaceful gardens and parks, quiet scenic trails and lookouts, calm waterfront walks and beaches, cozy coffee and brunch spots, farmers markets, museums and galleries, spas and wellness, tea rooms and quiet cafés, relaxed dinner spots and quiet patios, sunset lookouts, dessert cafés, picnic spots, conservation areas',
-  adventure: 'ziplining and treetop trekking, aerial adventure parks, rock climbing and indoor climbing, mountain biking trails, kayaking, paddleboarding and rafting, hiking adventures, go-karting, jet ski and watersport rentals, trampoline parks, axe throwing, escape rooms, laser tag, high-energy evening events and shows, night hikes'
-};
-
+// (Prompt text lives in data/feedPrompts.js so the venue index pre-buys the
+// exact same strings.)
 function syntheticPrompt(mode) {
   return MODE_PROMPTS[mode] || MODE_PROMPTS.rr;
 }

@@ -392,7 +392,9 @@ app.get('/health', (req, res) => {
     schedulers: require('./services/heartbeat').status(),
     // Metered-API spend today vs. MAPS_DAILY_BUDGET_USD, per SKU, plus
     // whether the shared L2 cache is live (services/apiCache.js).
-    maps_usage: require('./services/apiCache').usageStatus()
+    maps_usage: require('./services/apiCache').usageStatus(),
+    // Pre-bought venue rows vs. the full cells × vocabulary grid.
+    venue_index: require('./services/venueIndex').status()
   });
 });
 
@@ -534,6 +536,32 @@ if (isProd && keepAliveBase && keepAliveBase !== 'off') {
 // Restore today's metered-API spend counters BEFORE anything can call
 // Google — the daily budget must survive the restart it is guarding against.
 require('./services/apiCache').loadUsage().catch(() => {});
+
+// Venue index (services/venueIndex.js): load the pre-bought Places rows on
+// boot, then top up ≤ VENUE_INDEX_DAILY_CALLS stale/missing rows once a day
+// in the 03:xx Toronto hour. This is the ONLY scheduled Google spend, and it
+// scales with data/venueCells.js × data/feedPrompts.js, never with users.
+// VENUE_INDEX_REFRESH=off disables the schedule (manual: scripts/crawl-venue-index.js).
+{
+  const venueIndex = require('./services/venueIndex');
+  venueIndex.load().catch(() => {});
+  if (isProd && process.env.VENUE_INDEX_REFRESH !== 'off') {
+    let lastIndexRun = 0;
+    const torontoHourNow = () => new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Toronto', hour: '2-digit', hour12: false
+    }).format(new Date());
+    setInterval(() => {
+      if (torontoHourNow() === '03' && Date.now() - lastIndexRun > 20 * 60 * 60 * 1000) {
+        lastIndexRun = Date.now();
+        require('./services/heartbeat').record('venue_index_refresh');
+        const maxCalls = Number(process.env.VENUE_INDEX_DAILY_CALLS) || 30;
+        venueIndex.refreshStale({ maxCalls })
+          .then(r => console.log(`[venue-index] nightly refresh: ${r.fetched} rows fetched, ${r.remaining} still stale of ${r.total}`))
+          .catch(err => console.warn('[venue-index] nightly refresh failed:', err.message));
+      }
+    }, 20 * 60 * 1000).unref();
+  }
+}
 
 if (process.env.WARM_POOL !== 'off') {
   const { warmDefaultPool } = require('./routes/browse');

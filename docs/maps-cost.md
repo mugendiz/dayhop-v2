@@ -52,6 +52,29 @@ $1/day guard bounds the worst case at a few dollars.
 into every curated entry, so the catalog costs nothing at runtime. Re-run
 the script after adding catalog entries — it only looks up new ids.
 
+## The venue index (2026-09-03, third commit) — cost scales with geography, not users
+
+`services/venueIndex.js` pre-buys Google Places results for a **fixed
+vocabulary** (`data/feedPrompts.js` mode/surprise prompts + dining/refuge/
+corridor + every `placesQueries` in `data/themes.js` — 48 queries) × a
+**fixed geography** (`data/venueCells.js`, 18 Ontario-belt cells) into
+`public.venue_index`, refreshed on a 30-day cycle (Google's caching limit for
+Places content). 864 rows ≈ 29 Enterprise searches a night at the default
+`VENUE_INDEX_DAILY_CALLS=30`, inside the 1,000 free.
+
+What reads it: browse pools, Surprise me (all pages), the warmer, corridor
+radar, and every theme query behind a free-text prompt. What still goes
+live (cached + budget-capped): a free-text prompt that matches **no** theme,
+vocabulary rows the refresh hasn't filled yet, and anything outside the belt.
+Corridor radar never goes live (it is per-user).
+
+- `/health` → `venue_index` shows rows/total/stale; `maps_usage.index_calls`
+  shows the refresh's spend (its own bucket, exempt from the per-user cap).
+- Initial fill / force: `node scripts/crawl-venue-index.js --cells core|all|id,id --max N`.
+- Autocomplete is answered from `data/ontarioPlaces.js` first; Google only
+  for ≥4-char inputs with <3 local matches.
+- Surprise "Next" is a button (no infinite scroll), capped at 3 pages.
+
 ## Operator checklist
 
 - [ ] Run the `api_cache` / `api_usage` blocks from `db/schema.sql` in the

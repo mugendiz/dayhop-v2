@@ -3914,6 +3914,7 @@
     state.browseMode = true;
     state.surpriseMode = opts.surprise === true;
     state.nextExhausted = opts.exhausted === true;
+    state.nextPages = 0;
     state.dismissedIds = new Set();
     state.lastPrompt = '';
     state.lastWeather = data.weather || null;
@@ -4528,6 +4529,7 @@
       state.browseMode = false;
       state.surpriseMode = false;
       state.nextExhausted = false;
+      state.nextPages = 0;
       state.dismissedIds = new Set();
       state.lastPrompt = prompt;
       state.lastWeather = data.weather || null;
@@ -4636,8 +4638,14 @@
   // "Next": append more unrelated-but-awesome picks — wider radius included —
   // under whatever feed is showing. Everything on screen goes into the
   // exclude list (ids AND titles), so pages never repeat.
+  // Three "Next" pages per feed, then the well is declared dry. Each page is
+  // served from the pre-bought venue index, but the cap keeps the feed a
+  // curated set rather than an endless scroll — and bounds what one
+  // session can ever ask the server for.
+  const NEXT_PAGE_CAP = 3;
+
   async function handleNext({ auto = false } = {}) {
-    if (state.isLoadingMore || state.isGenerating) return;
+    if (state.isLoadingMore || state.isGenerating || state.nextExhausted) return;
     state.isLoadingMore = true;
     const btn = document.getElementById('feed-next-btn');
     btn.classList.add('is-loading');
@@ -4667,9 +4675,11 @@
           firstNew.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
         }
       }
-      if (data.exhausted === true) {
+      state.nextPages = (state.nextPages || 0) + 1;
+      if (data.exhausted === true || state.nextPages >= NEXT_PAGE_CAP) {
         state.nextExhausted = true;
         if (!fresh.length) showToast("That's everything awesome we could find 🎉", { duration: 3500 });
+        else if (state.nextPages >= NEXT_PAGE_CAP) showToast("That's today's set — describe your day for a tailored one ✨", { duration: 3500 });
       }
     } catch (err) {
       showToast(err.message || 'Could not load more right now.', { duration: 3500 });
@@ -5668,27 +5678,10 @@
     // whatever feed is showing.
     document.getElementById('feed-next-btn').addEventListener('click', handleNext);
 
-    // Infinite scroll: nearing the bottom of the feed loads the next page
-    // before the user has to ask. The Next button stays as the visible,
-    // keyboard-reachable version of the same action; updateFeedChrome hides
-    // the whole block (killing the observer's target) once the well runs
-    // dry, so auto-loading stops exactly when manual loading would.
-    // rootMargin fires ~1.5 viewports early — pages arrive mid-scroll, not
-    // after a stop-and-wait at the bottom.
-    if ('IntersectionObserver' in window) {
-      const nextBlock = document.getElementById('feed-next');
-      const autoNext = new IntersectionObserver(async entries => {
-        if (!entries.some(e => e.isIntersecting)) return;
-        if (nextBlock.hidden || state.isLoadingMore || state.isGenerating || state.nextExhausted) return;
-        await handleNext({ auto: true });
-        // A short page can leave the sentinel inside the margin, where the
-        // observer would never re-fire (no intersection *change*) — re-arm
-        // it so back-to-back pages keep flowing until the well runs dry.
-        autoNext.unobserve(nextBlock);
-        autoNext.observe(nextBlock);
-      }, { rootMargin: '150% 0px' });
-      autoNext.observe(nextBlock);
-    }
+    // No infinite scroll (removed 2026-09-03): auto-loading fired a wider
+    // server gather every ~1.5 viewports of scrolling, which was the one
+    // path where a single user could keep buying venue searches. Next is an
+    // explicit press, capped at NEXT_PAGE_CAP pages per feed.
 
     // Mode toggle (R&R / Adventure): tap or swipe, then paint the
     // mode-flavored chrome — accent, hint, placeholder, example prompts,

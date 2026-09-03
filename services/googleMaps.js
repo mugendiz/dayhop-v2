@@ -142,8 +142,18 @@ async function searchPlaces({ query, lat, lng, radiusMeters = 15000, maxResults 
   return places.map(p => ({ ...p }));
 }
 
-async function fetchPlaces({ query, lat, lng, radiusMeters, maxResults }) {
-  apiCache.spend('text_search_ent_atm');
+/**
+ * Uncached text search for the venue index (services/venueIndex.js), which
+ * keeps its own 30-day store. Charged to the 'index' bucket: counted, but
+ * not under the per-user daily USD cap (the refresh caps rows instead).
+ */
+async function searchPlacesFresh({ query, lat, lng, radiusMeters = 20000, maxResults = 20, bucket = 'index' }) {
+  assertConfigured();
+  return fetchPlaces({ query, lat, lng, radiusMeters, maxResults, bucket });
+}
+
+async function fetchPlaces({ query, lat, lng, radiusMeters, maxResults, bucket = 'live' }) {
+  apiCache.spend('text_search_ent_atm', { bucket });
   const body = {
     textQuery: query,
     maxResultCount: maxResults
@@ -470,6 +480,6 @@ async function getPhotoUri(photoName, { maxWidthPx = 800 } = {}) {
 }
 
 module.exports = {
-  geocode, searchPlaces, searchPlacesLite, getPlaceDetails, getPhotoUri, findPhotoUrl, reverseGeocode, autocompletePlaces,
+  geocode, searchPlaces, searchPlacesLite, searchPlacesFresh, getPlaceDetails, getPhotoUri, findPhotoUrl, reverseGeocode, autocompletePlaces,
   usageStatus: apiCache.usageStatus
 };

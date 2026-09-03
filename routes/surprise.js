@@ -34,19 +34,11 @@ const SECTION_CAP = 6;
 const MIN_FEED = 6;               // below this, the backstop shelf tops up
 const EXCLUDE_MAX = 200;
 
-// Two fixed variants per mode (not free-form): a small stable set keeps
-// googleMaps' query-keyed cache warm, so repeat presses are cheap.
-const SURPRISE_PROMPTS = {
-  rr: [
-    'hidden gems, surprising beautiful places, buzzworthy new openings, scenic lookouts, unusual gardens, acclaimed restaurants and Michelin-recognized dining, and calm one-of-a-kind spots locals love',
-    'secret gardens, quiet scenic viewpoints, remarkable new openings, peaceful waterfronts, charming cafés, celebrated fine dining and viral food spots locals line up for, and under-the-radar calm places locals recommend'
-  ],
-  adventure: [
-    'surprising thrills, unusual adrenaline activities, buzzworthy new attractions, one-of-a-kind adventures and hidden gems locals rave about',
-    'unique adventure experiences, exciting new attractions, adrenaline sports, unusual outdoor challenges and thrilling hidden gems locals talk about'
-  ]
-};
-const WIDER_SUFFIX = ', worth the drive, standout destination attractions';
+// Two fixed variants per mode (not free-form), shared with the venue index
+// (data/feedPrompts.js) so every press is answered from pre-bought rows.
+// "Wider" pages widen the RADIUS (more index cells), not the prompt text —
+// a suffixed prompt would be a new, unindexed query.
+const { SURPRISE_PROMPTS } = require('../data/feedPrompts');
 
 const normTitle = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
@@ -96,7 +88,7 @@ router.post('/', async (req, res) => {
     // every press a fresh pool key (and a fresh metered fan-out). Variety
     // within a day comes from the randomized sectioning below.
     const dayIdx = Math.floor(Date.now() / 86400000);
-    const prompt = variants[dayIdx % variants.length] + (wider ? WIDER_SUFFIX : '');
+    const prompt = variants[dayIdx % variants.length];
     const excludesActive = excludeIds.size > 0 || excludeTitles.size > 0;
     const notExcluded = c => !excludeIds.has(String(c.id)) && !excludeTitles.has(normTitle(c.title));
     const gatherOpts = {

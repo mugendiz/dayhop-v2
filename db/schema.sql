@@ -541,3 +541,18 @@ create table if not exists public.api_usage (
 );
 alter table public.api_usage enable row level security;
 revoke all on public.api_usage from anon, authenticated;
+
+-- ---------- venue_index (services/venueIndex.js) ----------
+-- Pre-bought Google Places results for a fixed query vocabulary x fixed
+-- geography, refreshed on a 30-day cycle (Google caching limit). Feeds read
+-- this instead of calling Google. Server-side only - no anon policies.
+create table if not exists public.venue_index (
+  cell        text not null,          -- data/venueCells.js id
+  query       text not null,          -- normalized vocabulary query
+  places      jsonb not null,         -- normalized place objects (googleMaps.normalizePlace)
+  fetched_at  timestamptz not null default now(),
+  primary key (cell, query)
+);
+create index if not exists venue_index_fetched_idx on public.venue_index (fetched_at);
+alter table public.venue_index enable row level security;
+revoke all on public.venue_index from anon, authenticated;

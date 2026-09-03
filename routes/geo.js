@@ -12,10 +12,41 @@
 const express = require('express');
 const router = express.Router();
 const maps = require('../services/googleMaps');
+const { ONTARIO_PLACES } = require('../data/ontarioPlaces');
+
+// Keyless first pass: Ontario places matched by prefix (then substring).
+// Google Places Autocomplete is only consulted when the local list has
+// fewer than LOCAL_ENOUGH matches AND the input is long enough to mean
+// somewhere specific — so "niag", "rich", "mark" never leave the server.
+const LOCAL_ENOUGH = 3;
+const REMOTE_MIN_CHARS = 4;
+const fold = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+function localSuggest(q) {
+  const n = fold(q);
+  const starts = [], contains = [];
+  for (const p of ONTARIO_PLACES) {
+    const t = fold(p.name);
+    if (t.startsWith(n)) starts.push(p);
+    else if (n.length >= 3 && t.includes(n)) contains.push(p);
+  }
+  return [...starts, ...contains].slice(0, 6).map(p => ({
+    place_id: null,
+    text: `${p.name}, ON, Canada`,
+    main: p.name,
+    secondary: `${p.region}, Ontario`
+  }));
+}
 
 router.get('/autocomplete', async (req, res) => {
   const q = String(req.query.q || '').trim();
   if (q.length < 2 || q.length > 120) return res.json({ suggestions: [] });
+
+  const local = localSuggest(q);
+  if (local.length >= LOCAL_ENOUGH || q.length < REMOTE_MIN_CHARS) {
+    res.set('Cache-Control', 'public, max-age=86400');
+    return res.json({ suggestions: local });
+  }
 
   let lat = Number(req.query.lat);
   let lng = Number(req.query.lng);
@@ -40,12 +71,15 @@ router.get('/autocomplete', async (req, res) => {
     // same, so retyping a prefix never re-crosses the network (and never
     // burns a slot in the geo rate limiter).
     res.set('Cache-Control', 'public, max-age=300');
-    res.json({ suggestions: suggestions.slice(0, 6) });
+    // Local matches lead; Google fills the rest (deduped by display text).
+    const seen = new Set(local.map(s => fold(s.main)));
+    const remote = suggestions.filter(s => !seen.has(fold(s.main)));
+    res.json({ suggestions: [...local, ...remote].slice(0, 6) });
   } catch (err) {
     console.warn('[geo] autocomplete failed:', err.message);
-    // The combobox always has its typed-text fallback row — an empty list
-    // degrades gracefully, an error banner would not.
-    res.json({ suggestions: [] });
+    // The combobox always has its typed-text fallback row — the local
+    // matches (if any) still serve; an error banner would not.
+    res.json({ suggestions: local });
   }
 });
 
