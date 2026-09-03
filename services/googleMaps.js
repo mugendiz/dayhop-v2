@@ -2,11 +2,23 @@
 // Wraps Google Places API (New) for worldwide place search + geocoding.
 // Used to ground Grok's suggestions in real, verifiable venues instead of
 // AI-generated guesses.
+//
+// COST CONTRACT (read before touching any call below):
+// Every metered request goes through services/apiCache — persistent
+// (Supabase) + in-memory cache, in-flight de-duplication across concurrent
+// users, and a daily USD budget. Nothing here may call Google directly
+// without (a) a cache key coarse enough that two neighbours share it and
+// (b) a spend() charge against the right SKU. The Sept 2026 $100 bill came
+// from per-process caches that died on every deploy; see apiCache.js.
 
 const axios = require('axios');
+const apiCache = require('./apiCache');
 
 const PLACES_BASE = 'https://places.googleapis.com/v1';
 const GEOCODE_URL = 'https://maps.googleapis.com/maps/api/geocode/json';
+
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
 
 function assertConfigured() {
   if (!process.env.GOOGLE_MAPS_API_KEY) {
@@ -16,153 +28,122 @@ function assertConfigured() {
   }
 }
 
+// Coarse coordinate keys. Text search is a *bias* (not a restriction), so
+// results are near-identical for anyone within a few km — a ~5 km cell
+// (0.05°) lets a whole neighbourhood share one purchased search instead of
+// the old ~1 km cells that made every user's driveway a fresh cache miss.
+const grid = (lat, lng, step) => (lat != null && lng != null)
+  ? `${(Math.round(Number(lat) / step) * step).toFixed(3)},${(Math.round(Number(lng) / step) * step).toFixed(3)}`
+  : 'none';
+
 /**
  * Geocode a free-text location ("Richmond Hill, ON" / "Lisbon, Portugal")
- * into lat/lng so we can bias place search around it.
- *
- * Cached 24h: the inputs are overwhelmingly the same handful of picker
- * city strings, and this used to pay one billable Geocoding call per
- * generate/browse-miss for what is effectively a static lookup table.
- * "Not found" is a stable answer and is cached too; transient failures
- * are evicted so they retry.
+ * into lat/lng. A static lookup: cached 30 days. "Not found" is a stable
+ * answer and is cached (as null) for 7 days; transient failures are not.
  */
-const geoCache = new Map(); // normalized text -> { promise, expires }
-const GEO_TTL_MS = 24 * 60 * 60 * 1000;
-const GEO_CACHE_MAX = 500;
-
 async function geocode(locationText) {
   assertConfigured();
-  const key = String(locationText).trim().toLowerCase();
-  const cached = geoCache.get(key);
-  if (cached && cached.expires > Date.now()) return cached.promise;
-
-  const promise = axios.get(GEOCODE_URL, {
-    params: { address: locationText, key: process.env.GOOGLE_MAPS_API_KEY },
-    timeout: 10000
-  }).then(res => {
-    const result = res.data?.results?.[0];
-    if (!result) {
-      const err = new Error(`Could not locate "${locationText}"`);
-      err.code = 'GEOCODE_NOT_FOUND';
-      throw err;
+  const key = `maps:geo:${String(locationText).trim().toLowerCase()}`;
+  const value = await apiCache.cached({
+    key,
+    ttlMs: 30 * DAY,
+    fetch: async () => {
+      apiCache.spend('geocode');
+      const res = await axios.get(GEOCODE_URL, {
+        params: { address: locationText, key: process.env.GOOGLE_MAPS_API_KEY },
+        timeout: 10000
+      });
+      const result = res.data?.results?.[0];
+      if (!result) return null; // stable miss — cache it, don't re-buy it
+      return {
+        lat: result.geometry.location.lat,
+        lng: result.geometry.location.lng,
+        formatted_address: result.formatted_address
+      };
     }
-    return {
-      lat: result.geometry.location.lat,
-      lng: result.geometry.location.lng,
-      formatted_address: result.formatted_address
-    };
-  }).catch(err => {
-    if (err.code !== 'GEOCODE_NOT_FOUND') geoCache.delete(key);
-    throw err;
   });
-
-  if (geoCache.size >= GEO_CACHE_MAX) geoCache.delete(geoCache.keys().next().value);
-  geoCache.set(key, { promise, expires: Date.now() + GEO_TTL_MS });
-  return promise;
+  if (!value) {
+    const err = new Error(`Could not locate "${locationText}"`);
+    err.code = 'GEOCODE_NOT_FOUND';
+    throw err;
+  }
+  return { ...value };
 }
 
 /**
  * Autocomplete a partially-typed location ("niag" → "Niagara Falls, ON,
- * Canada") via Places Autocomplete (New). Powers the location combobox's
- * live suggestions; results are area/address predictions the client turns
- * into the same free-text city strings the rest of the pipeline geocodes.
- *
- * Biased (not restricted) around lat/lng when provided, so "spri" near
- * Toronto surfaces Springwater ON before Springfield IL — the industry
- * pattern that replaces making users pick a country first.
- *
- * Short TTL, small cache: predictions are keystroke-shaped and only need
- * to absorb same-prefix retypes and multi-user hot spots, not persist.
+ * Canada") via Places Autocomplete (New). Biased (not restricted) around
+ * lat/lng when provided. Cached 24h on prefix + ~50 km bias cell — the
+ * same prefixes recur across users and days.
  */
-const autoCache = new Map(); // input|grid -> { promise, expires }
-const AUTO_TTL_MS = 5 * 60 * 1000;
-const AUTO_CACHE_MAX = 300;
-
 async function autocompletePlaces({ input, lat, lng }) {
   assertConfigured();
-  const grid = (lat != null && lng != null)
-    ? `${Number(lat).toFixed(1)},${Number(lng).toFixed(1)}` : 'none';
-  const key = `${String(input).trim().toLowerCase()}|${grid}`;
-  const cached = autoCache.get(key);
-  if (cached && cached.expires > Date.now()) return cached.promise;
-
-  const body = {
-    input: String(input).slice(0, 120),
-    // Geography only — cities, neighbourhoods, postal codes — never
-    // businesses ("Lisbon Paving Co." must not answer "where?"). Street
-    // addresses fall to the combobox's free-text search row instead.
-    includedPrimaryTypes: ['(regions)']
-  };
-  if (lat != null && lng != null) {
-    body.locationBias = {
-      circle: { center: { latitude: lat, longitude: lng }, radius: 50000 }
-    };
-  }
-
-  const promise = axios.post(`${PLACES_BASE}/places:autocomplete`, body, {
-    timeout: 8000,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY
+  const key = `maps:auto:${String(input).trim().toLowerCase()}|${grid(lat, lng, 0.5)}`;
+  const value = await apiCache.cached({
+    key,
+    ttlMs: DAY,
+    fetch: async () => {
+      apiCache.spend('autocomplete');
+      const body = {
+        input: String(input).slice(0, 120),
+        // Geography only — cities, neighbourhoods, postal codes — never
+        // businesses ("Lisbon Paving Co." must not answer "where?").
+        includedPrimaryTypes: ['(regions)']
+      };
+      if (lat != null && lng != null) {
+        body.locationBias = {
+          circle: { center: { latitude: lat, longitude: lng }, radius: 50000 }
+        };
+      }
+      const res = await axios.post(`${PLACES_BASE}/places:autocomplete`, body, {
+        timeout: 8000,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY
+        }
+      });
+      const suggestions = res.data?.suggestions || [];
+      return suggestions
+        .map(s => s.placePrediction)
+        .filter(Boolean)
+        .map(p => ({
+          place_id: p.placeId || null,
+          text: p.text?.text || '',
+          main: p.structuredFormat?.mainText?.text || p.text?.text || '',
+          secondary: p.structuredFormat?.secondaryText?.text || ''
+        }))
+        .filter(p => p.text);
     }
-  }).then(res => {
-    const suggestions = res.data?.suggestions || [];
-    return suggestions
-      .map(s => s.placePrediction)
-      .filter(Boolean)
-      .map(p => ({
-        place_id: p.placeId || null,
-        text: p.text?.text || '',
-        main: p.structuredFormat?.mainText?.text || p.text?.text || '',
-        secondary: p.structuredFormat?.secondaryText?.text || ''
-      }))
-      .filter(p => p.text);
-  }).catch(err => {
-    autoCache.delete(key); // a failed fill must not stick for the TTL
-    throw err;
   });
-
-  if (autoCache.size >= AUTO_CACHE_MAX) autoCache.delete(autoCache.keys().next().value);
-  autoCache.set(key, { promise, expires: Date.now() + AUTO_TTL_MS });
-  return promise;
+  return value.map(p => ({ ...p }));
 }
 
 /**
- * Text-search Google Places (New API) for venues matching a query,
- * biased around a lat/lng. Returns a normalized, lightweight shape —
- * we deliberately don't pass the full Google payload downstream.
+ * Text-search Google Places (New API) for venues matching a query, biased
+ * around a lat/lng. Returns a normalized, lightweight shape.
+ *
+ * The priciest call in the pipeline (Enterprise + Atmosphere field mask,
+ * up to 7 per cold gather). Cached 3 days on query + ~5 km cell: venue
+ * lists don't change hour to hour, and the default-pool warmer alone
+ * re-buys 36 of these a day at a 24h TTL. Each hit hands back fresh
+ * clones so the candidate pipeline can stamp per-request fields without
+ * poisoning the cache.
  */
-// Text Search is the priciest call in the pipeline (Advanced-tier field
-// mask, up to 7 calls per cold generate). Cached 6h on query + ~1 km coord
-// grid; each hit hands back fresh clones so the candidate pipeline can
-// stamp per-request fields without poisoning the cache.
-const searchCache = new Map(); // key -> { promise, expires }
-const SEARCH_TTL_MS = 6 * 60 * 60 * 1000;
-const SEARCH_CACHE_MAX = 500;
+const SEARCH_TTL_MS = 3 * DAY;
 
 async function searchPlaces({ query, lat, lng, radiusMeters = 15000, maxResults = 8 }) {
   assertConfigured();
-
-  const coordKey = (lat != null && lng != null)
-    ? `${Number(lat).toFixed(2)},${Number(lng).toFixed(2)}` : 'none';
-  const key = `${String(query).trim().toLowerCase()}|${coordKey}|${radiusMeters}|${maxResults}`;
-  const cached = searchCache.get(key);
-  if (cached && cached.expires > Date.now()) {
-    return (await cached.promise).map(p => ({ ...p }));
-  }
-
-  const promise = fetchPlaces({ query, lat, lng, radiusMeters, maxResults }).catch(err => {
-    searchCache.delete(key); // a failed fill must not stick for the TTL
-    throw err;
+  const key = `maps:search:${String(query).trim().toLowerCase()}|${grid(lat, lng, 0.05)}|${radiusMeters}|${maxResults}`;
+  const places = await apiCache.cached({
+    key,
+    ttlMs: SEARCH_TTL_MS,
+    fetch: () => fetchPlaces({ query, lat, lng, radiusMeters, maxResults })
   });
-  if (searchCache.size >= SEARCH_CACHE_MAX) {
-    searchCache.delete(searchCache.keys().next().value);
-  }
-  searchCache.set(key, { promise, expires: Date.now() + SEARCH_TTL_MS });
-  return (await promise).map(p => ({ ...p }));
+  return places.map(p => ({ ...p }));
 }
 
 async function fetchPlaces({ query, lat, lng, radiusMeters, maxResults }) {
+  apiCache.spend('text_search_ent_atm');
   const body = {
     textQuery: query,
     maxResultCount: maxResults
@@ -195,8 +176,8 @@ async function fetchPlaces({ query, lat, lng, radiusMeters, maxResults }) {
         'places.regularOpeningHours.weekdayDescriptions',
         // Patio truth for the bar/restaurant outdoor-space gate
         // (candidates.js). NOTE: this field bills Text Search at the
-        // Enterprise + Atmosphere SKU — dropping it is the first lever if
-        // the Maps bill ever needs trimming.
+        // Enterprise + Atmosphere SKU ($40/1k vs $35/1k Enterprise) —
+        // dropping it is the next lever if the Maps bill needs trimming.
         'places.outdoorSeating'
       ].join(',')
     }
@@ -284,172 +265,170 @@ function normalizePlace(p) {
   };
 }
 
-// Reverse geocode lat/lng into a friendly locality label ("Richmond Hill",
-// postal prefix "L4C"). Cached on rounded coords — the frontend rounds to
-// 3 decimals (~110 m) before sending, so keys are naturally coarse.
-const reverseCache = new Map();
-const REVERSE_TTL_MS = 24 * 60 * 60 * 1000;
-const REVERSE_CACHE_MAX = 2000; // entries expire logically but were never deleted
-
+/**
+ * Reverse geocode lat/lng into a friendly locality label ("Richmond Hill",
+ * postal prefix "L4C"). Keyed on a ~1 km cell (a town name doesn't change
+ * inside a kilometre) and cached 30 days. "No locality" is cached as null.
+ */
 async function reverseGeocode({ lat, lng }) {
   assertConfigured();
-  const key = `${Number(lat).toFixed(3)},${Number(lng).toFixed(3)}`;
-  const cached = reverseCache.get(key);
-  if (cached && cached.expires > Date.now()) return cached.value;
+  const key = `maps:rev:${grid(lat, lng, 0.01)}`;
+  const value = await apiCache.cached({
+    key,
+    ttlMs: 30 * DAY,
+    fetch: async () => {
+      apiCache.spend('geocode');
+      const res = await axios.get(GEOCODE_URL, {
+        params: {
+          latlng: `${lat},${lng}`,
+          result_type: 'locality|neighborhood|postal_code',
+          key: process.env.GOOGLE_MAPS_API_KEY
+        },
+        timeout: 8000
+      });
 
-  const res = await axios.get(GEOCODE_URL, {
-    params: {
-      latlng: `${lat},${lng}`,
-      result_type: 'locality|neighborhood|postal_code',
-      key: process.env.GOOGLE_MAPS_API_KEY
-    },
-    timeout: 8000
+      let city = null;
+      let neighborhood = null;
+      let postalPrefix = null;
+      for (const result of res.data?.results || []) {
+        for (const comp of result.address_components || []) {
+          if (!city && comp.types.includes('locality')) city = comp.long_name;
+          if (!neighborhood && comp.types.includes('neighborhood')) neighborhood = comp.long_name;
+          if (!postalPrefix && comp.types.includes('postal_code')) {
+            postalPrefix = comp.long_name.replace(/\s/g, '').slice(0, 3).toUpperCase();
+          }
+        }
+      }
+      if (!city) city = neighborhood;
+      if (!city) return null;
+      const label = [neighborhood && neighborhood !== city ? neighborhood : null, city, postalPrefix]
+        .filter(Boolean).join(' · ');
+      return { city, label };
+    }
   });
-
-  const results = res.data?.results || [];
-  if (!results.length) {
+  if (!value) {
     const err = new Error('No reverse-geocode match for that location');
     err.code = 'REVERSE_NOT_FOUND';
     throw err;
   }
-
-  let city = null;
-  let neighborhood = null;
-  let postalPrefix = null;
-  for (const result of results) {
-    for (const comp of result.address_components || []) {
-      if (!city && comp.types.includes('locality')) city = comp.long_name;
-      if (!neighborhood && comp.types.includes('neighborhood')) neighborhood = comp.long_name;
-      if (!postalPrefix && comp.types.includes('postal_code')) {
-        postalPrefix = comp.long_name.replace(/\s/g, '').slice(0, 3).toUpperCase();
-      }
-    }
-  }
-  if (!city) city = neighborhood;
-  if (!city) {
-    const err = new Error('No locality in reverse-geocode result');
-    err.code = 'REVERSE_NOT_FOUND';
-    throw err;
-  }
-
-  const label = [neighborhood && neighborhood !== city ? neighborhood : null, city, postalPrefix]
-    .filter(Boolean).join(' · ');
-  const value = { city, label };
-  if (reverseCache.size >= REVERSE_CACHE_MAX) {
-    reverseCache.delete(reverseCache.keys().next().value);
-  }
-  reverseCache.set(key, { value, expires: Date.now() + REVERSE_TTL_MS });
-  return value;
+  return { ...value };
 }
 
 /**
  * Full place lookup for the detail panel: extra photos, Google's editorial
- * summary, live open-now status, hours, and rating depth. Normalized like
- * searchPlaces — photos ride through the /api/photo proxy.
+ * summary, live open-now status, hours, and rating depth. Cached 24h (the
+ * detail route persists the merged payload for 24h as well; this layer
+ * additionally de-duplicates concurrent viewers of the same place).
  */
 async function getPlaceDetails(placeId) {
   assertConfigured();
-  const res = await axios.get(`${PLACES_BASE}/places/${encodeURIComponent(placeId)}`, {
-    timeout: 10000,
-    headers: {
-      'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY,
-      'X-Goog-FieldMask': [
-        'id',
-        'displayName',
-        'editorialSummary',
-        'rating',
-        'userRatingCount',
-        'websiteUri',
-        'googleMapsUri',
-        'photos',
-        'currentOpeningHours.openNow',
-        'regularOpeningHours.weekdayDescriptions'
-      ].join(',')
+  const value = await apiCache.cached({
+    key: `maps:details:${placeId}`,
+    ttlMs: DAY,
+    fetch: async () => {
+      apiCache.spend('place_details_ent_atm');
+      const res = await axios.get(`${PLACES_BASE}/places/${encodeURIComponent(placeId)}`, {
+        timeout: 10000,
+        headers: {
+          'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY,
+          'X-Goog-FieldMask': [
+            'id',
+            'displayName',
+            'editorialSummary',
+            'rating',
+            'userRatingCount',
+            'websiteUri',
+            'googleMapsUri',
+            'photos',
+            'currentOpeningHours.openNow',
+            'regularOpeningHours.weekdayDescriptions'
+          ].join(',')
+        }
+      });
+      const p = res.data || {};
+      return {
+        place_id: p.id || placeId,
+        title: p.displayName?.text || null,
+        editorial_summary: p.editorialSummary?.text || null,
+        rating: p.rating ?? null,
+        rating_count: p.userRatingCount ?? 0,
+        website: p.websiteUri || null,
+        maps_url: p.googleMapsUri || null,
+        open_now: p.currentOpeningHours?.openNow ?? null,
+        open_hours: p.regularOpeningHours?.weekdayDescriptions || null,
+        photos: (p.photos || []).slice(0, 6)
+          .map(ph => ph.name ? `/api/photo?name=${encodeURIComponent(ph.name)}` : null)
+          .filter(Boolean)
+      };
     }
   });
-
-  const p = res.data || {};
-  return {
-    place_id: p.id || placeId,
-    title: p.displayName?.text || null,
-    editorial_summary: p.editorialSummary?.text || null,
-    rating: p.rating ?? null,
-    rating_count: p.userRatingCount ?? 0,
-    website: p.websiteUri || null,
-    maps_url: p.googleMapsUri || null,
-    open_now: p.currentOpeningHours?.openNow ?? null,
-    open_hours: p.regularOpeningHours?.weekdayDescriptions || null,
-    photos: (p.photos || []).slice(0, 6)
-      .map(ph => ph.name ? `/api/photo?name=${encodeURIComponent(ph.name)}` : null)
-      .filter(Boolean)
-  };
+  return { ...value, photos: [...(value.photos || [])] };
 }
 
-// Find a real venue photo for an idea that arrived without one (curated
-// catalog, open-data events). Photos-only field mask + single result keeps
-// this the cheapest possible Text Search; results (including misses) are
-// cached by query so the static catalog converges on zero API calls.
-const photoSearchCache = new Map();
-const PHOTO_SEARCH_TTL_MS = 24 * 60 * 60 * 1000;
-const PHOTO_SEARCH_CACHE_MAX = 2000;
-
+/**
+ * Find a real venue photo for an idea that arrived without one (curated
+ * catalog, open-data events). Photos-only field mask + single result is
+ * the Pro SKU ($32/1k — NOT cheap). Cached 14 days by venue query, misses
+ * included, so a venue is looked up about twice a month across ALL users
+ * and restarts. The curated catalog should never reach here at all —
+ * scripts/photo-catalog.js bakes its photos into data/catalogPhotos.json.
+ */
 async function findPhotoUrl({ query, lat, lng }) {
   assertConfigured();
-  const key = String(query).trim().toLowerCase();
-  const cached = photoSearchCache.get(key);
-  if (cached && cached.expires > Date.now()) return cached.url;
-
-  const body = { textQuery: query, maxResultCount: 1 };
-  if (lat != null && lng != null) {
-    body.locationBias = {
-      circle: { center: { latitude: lat, longitude: lng }, radius: 30000 }
-    };
-  }
-
-  const res = await axios.post(`${PLACES_BASE}/places:searchText`, body, {
-    timeout: 7000,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY,
-      'X-Goog-FieldMask': 'places.photos'
+  const key = `maps:photo-search:${String(query).trim().toLowerCase()}`;
+  return apiCache.cached({
+    key,
+    ttlMs: 14 * DAY,
+    fetch: async () => {
+      apiCache.spend('text_search_pro');
+      const body = { textQuery: query, maxResultCount: 1 };
+      if (lat != null && lng != null) {
+        body.locationBias = {
+          circle: { center: { latitude: lat, longitude: lng }, radius: 30000 }
+        };
+      }
+      const res = await axios.post(`${PLACES_BASE}/places:searchText`, body, {
+        timeout: 7000,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY,
+          'X-Goog-FieldMask': 'places.photos'
+        }
+      });
+      const photoName = res.data?.places?.[0]?.photos?.[0]?.name || null;
+      return photoName ? `/api/photo?name=${encodeURIComponent(photoName)}` : null;
     }
   });
-
-  const photoName = res.data?.places?.[0]?.photos?.[0]?.name || null;
-  const url = photoName ? `/api/photo?name=${encodeURIComponent(photoName)}` : null;
-  if (photoSearchCache.size >= PHOTO_SEARCH_CACHE_MAX) {
-    photoSearchCache.delete(photoSearchCache.keys().next().value);
-  }
-  photoSearchCache.set(key, { url, expires: Date.now() + PHOTO_SEARCH_TTL_MS });
-  return url;
 }
 
-// Resolve a Places photo resource name ("places/…/photos/…") to its
-// image URI. Cached in-memory so repeat card renders don't re-hit Google.
-const photoUriCache = new Map();
-const PHOTO_TTL_MS = 12 * 60 * 60 * 1000;
-const PHOTO_URI_CACHE_MAX = 2000;
-
+/**
+ * Resolve a Places photo resource name ("places/…/photos/…") to its image
+ * URI. Google's photo URIs are long-lived; cached 7 days so a card image
+ * is bought once per week across all viewers, not once per process.
+ */
 async function getPhotoUri(photoName, { maxWidthPx = 800 } = {}) {
   assertConfigured();
-  const cached = photoUriCache.get(photoName);
-  if (cached && cached.expires > Date.now()) return cached.uri;
-
-  const res = await axios.get(`${PLACES_BASE}/${photoName}/media`, {
-    params: { maxWidthPx, skipHttpRedirect: true, key: process.env.GOOGLE_MAPS_API_KEY },
-    timeout: 8000
+  const value = await apiCache.cached({
+    key: `maps:photo-uri:${photoName}|${maxWidthPx}`,
+    ttlMs: 7 * DAY,
+    fetch: async () => {
+      apiCache.spend('place_photo');
+      const res = await axios.get(`${PLACES_BASE}/${photoName}/media`, {
+        params: { maxWidthPx, skipHttpRedirect: true, key: process.env.GOOGLE_MAPS_API_KEY },
+        timeout: 8000
+      });
+      return res.data?.photoUri || null;
+    }
   });
-  const uri = res.data?.photoUri;
-  if (!uri) {
+  if (!value) {
     const err = new Error('Places returned no photoUri');
     err.code = 'PHOTO_NOT_FOUND';
     throw err;
   }
-  if (photoUriCache.size >= PHOTO_URI_CACHE_MAX) {
-    photoUriCache.delete(photoUriCache.keys().next().value);
-  }
-  photoUriCache.set(photoName, { uri, expires: Date.now() + PHOTO_TTL_MS });
-  return uri;
+  return value;
 }
 
-module.exports = { geocode, searchPlaces, getPlaceDetails, getPhotoUri, findPhotoUrl, reverseGeocode, autocompletePlaces };
+module.exports = {
+  geocode, searchPlaces, getPlaceDetails, getPhotoUri, findPhotoUrl, reverseGeocode, autocompletePlaces,
+  usageStatus: apiCache.usageStatus
+};

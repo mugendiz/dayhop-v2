@@ -389,7 +389,10 @@ app.get('/health', (req, res) => {
     },
     // Did everything fire? Last-run stamps for every scheduled job (resets
     // on deploy — check process_uptime_hours before reading absence as death).
-    schedulers: require('./services/heartbeat').status()
+    schedulers: require('./services/heartbeat').status(),
+    // Metered-API spend today vs. MAPS_DAILY_BUDGET_USD, per SKU, plus
+    // whether the shared L2 cache is live (services/apiCache.js).
+    maps_usage: require('./services/apiCache').usageStatus()
   });
 });
 
@@ -528,6 +531,10 @@ if (isProd && keepAliveBase && keepAliveBase !== 'off') {
 // the same 10-min cadence as keep-alive; a no-op while the pool is fresh.
 // Runs on localhost too so the instant-load path is testable in dev; set
 // WARM_POOL=off to skip it (e.g. to save partner-API calls while hacking).
+// Restore today's metered-API spend counters BEFORE anything can call
+// Google — the daily budget must survive the restart it is guarding against.
+require('./services/apiCache').loadUsage().catch(() => {});
+
 if (process.env.WARM_POOL !== 'off') {
   const { warmDefaultPool } = require('./routes/browse');
   const warm = () => warmDefaultPool().catch(() => {});

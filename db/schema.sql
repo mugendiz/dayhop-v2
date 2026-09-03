@@ -512,3 +512,32 @@ create table if not exists public.stripe_webhook_events (
 );
 alter table public.stripe_webhook_events enable row level security;
 revoke all on public.stripe_webhook_events from anon, authenticated;
+
+-- ---------- api_cache / api_usage (services/apiCache.js) ----------
+-- Shared L2 cache for metered third-party calls (Google Maps). Survives
+-- deploys and is shared by every instance, so a Text Search is bought once
+-- across ALL users instead of once per process. Server-side only (service
+-- key) - no anon policies. Rows expire logically; prune with:
+--   delete from public.api_cache where expires_at < now() - interval '30 days';
+create table if not exists public.api_cache (
+  key         text primary key,
+  payload     jsonb not null,
+  expires_at  timestamptz not null,
+  updated_at  timestamptz not null default now()
+);
+create index if not exists api_cache_expires_idx on public.api_cache (expires_at);
+alter table public.api_cache enable row level security;
+revoke all on public.api_cache from anon, authenticated;
+
+-- Daily spend meter per SKU so a restart cannot reset MAPS_DAILY_BUDGET_USD.
+create table if not exists public.api_usage (
+  day         text not null,          -- YYYY-MM-DD, Toronto
+  provider    text not null,          -- google_maps
+  sku         text not null,          -- text_search_ent_atm, place_photo, ...
+  calls       integer not null default 0,
+  usd         numeric(10,4) not null default 0,
+  updated_at  timestamptz not null default now(),
+  primary key (day, provider, sku)
+);
+alter table public.api_usage enable row level security;
+revoke all on public.api_usage from anon, authenticated;
