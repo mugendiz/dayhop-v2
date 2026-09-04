@@ -95,7 +95,12 @@ const EVENT_TYPES = new Set([...CLIENT_EVENT_TYPES, ...SERVER_EVENT_TYPES]);
 // everything else dropped, never rejected.
 const ATTRIB_KEYS = [
   'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term',
-  'fbclid', 'gclid', 'landing_path'
+  'fbclid', 'gclid', 'landing_path',
+  // External referrer host on first touch (pixel.js) — the only source
+  // signal for untagged traffic (a Reddit thread, a friend's link, TikTok
+  // bio). Sept 2026: 0 of 973 events carried any source, so every traffic
+  // bump was unexplainable after the fact.
+  'referrer'
 ];
 
 function sanitizeAttrib(raw) {

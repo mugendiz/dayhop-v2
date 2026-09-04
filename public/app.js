@@ -4429,7 +4429,11 @@
             coords: coordsFresh ? state.coords : undefined,
             owner_id: getOwnerId(),
             seen: getSeenIdeas(),
-            corridors: getCorridors().map(p => ({ lat: p.lat, lng: p.lng, label: p.label }))
+            corridors: getCorridors().map(p => ({ lat: p.lat, lng: p.lng, label: p.label })),
+            // First-touch attribution (utm / referrer from pixel.js) so the
+            // browse_feed event — the first thing most visitors trigger —
+            // records where they came from.
+            attrib: (window.dayhopAttrib && window.dayhopAttrib()) || undefined
           },
           getDatePayload()
         )),

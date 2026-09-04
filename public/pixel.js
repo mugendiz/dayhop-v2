@@ -43,6 +43,15 @@
       var v = params.get(KEYS[i]);
       if (v) { found[KEYS[i]] = String(v).slice(0, 120); any = true; }
     }
+    // Untagged arrivals still have a source: the external referrer host
+    // (reddit.com, l.instagram.com, t.co, a school newsletter). Recorded
+    // as first touch too, so a traffic bump can be traced afterwards.
+    if (!any && document.referrer) {
+      try {
+        var refHost = new URL(document.referrer).hostname.replace(/^www\./, '');
+        if (refHost && refHost !== location.hostname) { found.referrer = refHost.slice(0, 80); any = true; }
+      } catch (e2) { /* malformed referrer — ignore */ }
+    }
     if (any && !readStored()) {
       found.landed_at = new Date().toISOString();
       found.landing_path = location.pathname.slice(0, 120);

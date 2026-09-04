@@ -239,12 +239,14 @@ function recordBrowse(req, payload, cached, mode) {
   // Sponsor impression: which placement (if any) this feed carried — the
   // denominator of the sponsor's monthly performance report.
   const sponsorIdea = payload.ideas.find(i => i.sponsored);
+  const utm = analytics.sanitizeAttrib(req.body && req.body.attrib);
   analytics.recordEvent({
     type: 'browse_feed',
     ownerKey,
     meta: Object.assign(
       { city: payload.city, near: payload.near, mode, ideas: payload.ideas.length, cached, shelves },
-      sponsorIdea ? { sponsor: sponsorIdea.id } : null)
+      sponsorIdea ? { sponsor: sponsorIdea.id } : null,
+      utm ? { utm } : null)
   });
 }
 
