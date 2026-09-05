@@ -16,7 +16,9 @@ const router = express.Router();
 
 const MAX_SOURCE_BYTES = 8 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 8000;
-const WIDTHS = new Set([320, 480, 640, 960]); // fixed menu → cacheable URLs
+// Fixed menu → cacheable URLs. 240/360/720 are the mobile tile + modal
+// sizes (Sept 2026); before, they silently normalized to 640.
+const WIDTHS = new Set([240, 320, 360, 480, 640, 720, 960]);
 
 // In-process LRU on top of HTTP caching — repeat cards within one instance
 // lifetime skip the refetch entirely.

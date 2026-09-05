@@ -580,7 +580,9 @@ require('./services/apiCache').loadUsage().catch(() => {});
       timeZone: 'America/Toronto', hour: '2-digit', hour12: false
     }).format(new Date());
     setInterval(() => {
-      if (torontoHourNow() === '03' && Date.now() - lastIndexRun > 20 * 60 * 60 * 1000) {
+      // Any hour 03–05 Toronto (the 20-min tick can miss a single hour after
+      // a restart); the 20h guard keeps it to once a night.
+      if (['03', '04', '05'].includes(torontoHourNow()) && Date.now() - lastIndexRun > 20 * 60 * 60 * 1000) {
         lastIndexRun = Date.now();
         require('./services/heartbeat').record('venue_index_refresh');
         const maxCalls = Number(process.env.VENUE_INDEX_DAILY_CALLS) || 30;

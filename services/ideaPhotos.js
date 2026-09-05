@@ -9,7 +9,11 @@
 const maps = require('./googleMaps');
 
 const CONCURRENCY = 5;
-const MAX_LOOKUPS = 16; // bound worst-case latency/spend per request
+// Bound worst-case latency/spend per request. 16 → 6 (Sept 5 2026): each
+// lookup is a $0.032 Pro text search, and 16 of them in one cold browse
+// drained the whole $1 daily pot before a single $0.007 tile photo could
+// resolve. Above-the-fold is six tiles on a phone; the tail stays stock.
+const MAX_LOOKUPS = 6;
 
 async function enrichIdeaImages(ideas, { city, coords } = {}) {
   if (!process.env.GOOGLE_MAPS_API_KEY || !Array.isArray(ideas)) return ideas;

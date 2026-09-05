@@ -116,10 +116,13 @@ router.post('/', async (req, res) => {
     // Real venue photos for curated/open-data cards. Personalized feeds are
     // built per request, but findPhotoUrl caches per venue for 24 h, so the
     // lookups are still paid roughly once per cache window.
-    await Promise.all([
-      enrichIdeaImages(ideas, { city: resolvedCity || city, coords }),
-      enrichIdeaImages(featured, { city: resolvedCity || city, coords })
-    ]);
+    // One pass over ideas + featured (they draw from the same pool, so two
+    // passes mostly bought the same lookups twice against the daily budget).
+    {
+      const seen = new Set();
+      const both = ideas.concat(featured).filter(i => i && !seen.has(i.id) && seen.add(i.id));
+      await enrichIdeaImages(both, { city: resolvedCity || city, coords });
+    }
     const payload = {
       ideas,
       weather: weather || null,
@@ -326,7 +329,12 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   const ideas = [];
   const take = (label, list, n) => {
     let added = 0;
-    for (const c of list) {
+    // Photo-bearing candidates first (stable, so rank order holds within
+    // each group): the mobile tile grid is a wall of pictures, and a
+    // placeholder tile costs more attention than a slightly lower-ranked
+    // place with a real photo. Same rule pickFeatured already applies.
+    const ordered = list.slice().sort((a, b) => (b.image_url ? 1 : 0) - (a.image_url ? 1 : 0));
+    for (const c of ordered) {
       if (added >= n) break;
       if (used.has(c.id)) continue;
       used.add(c.id);

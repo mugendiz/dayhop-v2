@@ -463,7 +463,7 @@ async function getPhotoUri(photoName, { maxWidthPx = 800 } = {}) {
     key: `maps:photo-uri:${photoName}|${maxWidthPx}`,
     ttlMs: 7 * DAY,
     fetch: async () => {
-      apiCache.spend('place_photo');
+      apiCache.spend('place_photo', { bucket: 'photo' });
       const res = await axios.get(`${PLACES_BASE}/${photoName}/media`, {
         params: { maxWidthPx, skipHttpRedirect: true, key: process.env.GOOGLE_MAPS_API_KEY },
         timeout: 8000

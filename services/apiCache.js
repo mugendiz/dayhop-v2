@@ -144,19 +144,29 @@ const budgetUsd = () => {
   // is $0 and the worst case is a few dollars.
   return Number.isFinite(n) && n >= 0 ? n : 1;
 };
+// Photo resolves ($0.007) get their own reserved slice so a stored, already
+// paid-for photo ref always renders even after searches ($0.040) and
+// speculative photo lookups ($0.032) have drained the main pot. Sept 5 2026:
+// the shared pot is why mobile tiles showed "mostly placeholders" — the
+// cheap resolves ran after the page painted and always lost the race.
+const photoBudgetUsd = () => {
+  const n = Number(process.env.PHOTO_DAILY_BUDGET_USD);
+  return Number.isFinite(n) && n >= 0 ? n : 0.35; // ≈ 50 fresh photos/day, 7-day cached
+};
 
-// Two buckets: 'live' (user-triggered, governed by the USD cap) and 'index'
-// (the scheduled venue-index refresh — services/venueIndex.js — exempt from
-// the cap because it has its own row cap, but still counted and persisted
-// under provider google_maps_index so /health shows the real total).
-let usage = { day: TORONTO_DAY.format(new Date()), calls: {}, usd: 0, blocked: 0, index: {}, loaded: false };
+// Three buckets: 'live' (user-triggered, governed by the USD cap), 'photo'
+// (place_photo resolves, governed by their own small cap) and 'index' (the
+// scheduled venue-index refresh — services/venueIndex.js — exempt from the
+// cap because it has its own row cap, but still counted and persisted under
+// provider google_maps_index so /health shows the real total).
+let usage = { day: TORONTO_DAY.format(new Date()), calls: {}, usd: 0, photoUsd: 0, blocked: 0, index: {}, loaded: false };
 const persistTimers = new Map(); // `${provider}|${sku}` -> timeout
 const PROVIDER = { live: 'google_maps', index: 'google_maps_index' };
 
 function rollDay() {
   const today = TORONTO_DAY.format(new Date());
   if (usage.day !== today) {
-    usage = { day: today, calls: {}, usd: 0, blocked: 0, index: {}, loaded: true };
+    usage = { day: today, calls: {}, usd: 0, photoUsd: 0, blocked: 0, index: {}, loaded: true };
   }
 }
 
@@ -176,7 +186,8 @@ async function loadUsage() {
       }
       const have = usage.calls[row.sku] || 0;
       if (row.calls > have) {
-        usage.usd += (row.calls - have) * (COST_USD[row.sku] || 0);
+        const delta = (row.calls - have) * (COST_USD[row.sku] || 0);
+        if (row.sku === 'place_photo') usage.photoUsd += delta; else usage.usd += delta;
         usage.calls[row.sku] = row.calls;
       }
     }
@@ -221,6 +232,18 @@ function spend(sku, { bucket = 'live' } = {}) {
     persistUsage(sku, 'index');
     return;
   }
+  if (bucket === 'photo') {
+    const pcap = photoBudgetUsd();
+    if (usage.photoUsd + cost > pcap) {
+      const err = new Error(`Daily photo budget ($${pcap}) exhausted`);
+      err.code = 'BUDGET_EXCEEDED';
+      throw err;
+    }
+    usage.photoUsd += cost;
+    usage.calls[sku] = (usage.calls[sku] || 0) + 1;
+    persistUsage(sku);
+    return;
+  }
   const cap = budgetUsd();
   if (usage.usd + cost > cap) {
     usage.blocked++;
@@ -242,6 +265,9 @@ function usageStatus() {
     day: usage.day,
     budget_usd: budgetUsd(),
     spent_usd: Number(usage.usd.toFixed(3)),
+    // Reserved photo slice (place_photo resolves), separate from the main pot.
+    photo_budget_usd: photoBudgetUsd(),
+    photo_spent_usd: Number(usage.photoUsd.toFixed(3)),
     calls: { ...usage.calls },
     blocked: usage.blocked,
     // Scheduled venue-index refresh calls today (not under the cap).
@@ -254,7 +280,7 @@ function usageStatus() {
 // Test hooks — not for production callers.
 function _reset() {
   l1.clear(); inflight.clear();
-  usage = { day: TORONTO_DAY.format(new Date()), calls: {}, usd: 0, blocked: 0, index: {}, loaded: true };
+  usage = { day: TORONTO_DAY.format(new Date()), calls: {}, usd: 0, photoUsd: 0, blocked: 0, index: {}, loaded: true };
 }
 
 module.exports = { cached, spend, usageStatus, loadUsage, COST_USD, _reset };
