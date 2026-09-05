@@ -31,7 +31,7 @@ async function main() {
   }
 
   const rows = new Map(); // key -> counts
-  const row = k => { if (!rows.has(k)) rows.set(k, { key: k, sessions: new Set(), checkouts: 0, subs: 0, signups: 0, prompts: 0 }); return rows.get(k); };
+  const row = k => { if (!rows.has(k)) rows.set(k, { key: k, sessions: new Set(), taps: 0, checkouts: 0, subs: 0, signups: 0, prompts: 0 }); return rows.get(k); };
   for (const e of events) {
     if (internal.has(e.owner_key)) continue;
     const m = e.meta && typeof e.meta === 'object' ? e.meta : {};
@@ -40,6 +40,9 @@ async function main() {
     if (!key) continue;
     if (keyPrefix && !String(key).startsWith(keyPrefix)) continue;
     const r = row(String(key));
+    // Bio/story taps (routes/go.js) are anonymous — count them, don't let
+    // the shared 'anon' owner inflate people.
+    if (e.type === 'link_click') { r.taps++; continue; }
     r.sessions.add(e.owner_key);
     if (e.type === 'guide_checkout_started') r.checkouts++;
     if (e.type === 'newsletter_subscribe' || e.type === 'newsletter_confirmed') r.subs++;
@@ -61,10 +64,10 @@ async function main() {
   }
 
   const out = [...rows.values()].map(r => ({
-    key: r.key, people: r.sessions.size, checkouts: r.checkouts, sales_usd: ((salesByKey[r.key] || 0) / 100).toFixed(2),
+    key: r.key, taps: r.taps, people: r.sessions.size, checkouts: r.checkouts, sales_usd: ((salesByKey[r.key] || 0) / 100).toFixed(2),
     newsletter: r.subs, signups: r.signups, prompts: r.prompts
   }));
-  for (const k of Object.keys(salesByKey)) if (!rows.has(k)) out.push({ key: k, people: 0, checkouts: 0, sales_usd: (salesByKey[k] / 100).toFixed(2), newsletter: 0, signups: 0, prompts: 0 });
+  for (const k of Object.keys(salesByKey)) if (!rows.has(k)) out.push({ key: k, taps: 0, people: 0, checkouts: 0, sales_usd: (salesByKey[k] / 100).toFixed(2), newsletter: 0, signups: 0, prompts: 0 });
   out.sort((a, b) => Number(b.sales_usd) - Number(a.sales_usd) || b.checkouts - a.checkouts || b.people - a.people);
   console.log(`Keyed conversions since ${since}${keyPrefix ? ` (keys starting "${keyPrefix}")` : ''}, internal owners excluded:`);
   if (!out.length) console.log('  (no keyed traffic yet)');

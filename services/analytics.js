@@ -83,7 +83,11 @@ const SERVER_EVENT_TYPES = new Set([
   'digest_opened', 'digest_clicked',
   // Sponsorship funnel (routes/advertise.js): a venue asked about placements.
   // The event IS the CRM until real sponsor management exists.
-  'sponsor_inquiry'
+  'sponsor_inquiry',
+  // Keyed profile links (routes/go.js): a bio/story/ad link was tapped.
+  // meta.src is the channel key — taps per 1,000 views is the middle-of-
+  // funnel number the Friday check-day reads.
+  'link_click'
 ]);
 
 const EVENT_TYPES = new Set([...CLIENT_EVENT_TYPES, ...SERVER_EVENT_TYPES]);

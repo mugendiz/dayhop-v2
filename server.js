@@ -458,6 +458,10 @@ app.get('/guides/richmond-hill/thanks', (req, res) => {
 // fallback or /blog would 200 with the shell and index as an empty page.
 const blog = require('./routes/blog');
 app.use('/blog', blog.router);
+// Keyed profile links (/go/tiktok, /go/ig, …): log the tap, bounce to the
+// keyed page. GETs from social apps — no limiter, a bounced bio link is a
+// lost visitor.
+app.use('/go', require('./routes/go'));
 app.get('/sitemap.xml', blog.sitemap);
 
 // Lead magnet: The GTA Family Weekend Playbook (token-gated full version,
