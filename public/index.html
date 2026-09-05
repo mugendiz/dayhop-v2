@@ -342,6 +342,41 @@
   </div>
 </div>
 
+<!-- My Favs: mobile-only photo-tile lists (app.js favsGridActive). Opened by
+     the shortlist button on phones when /api/config.favsGrid is on. -->
+<div id="favs-panel" class="panel favs-panel" hidden>
+  <div class="panel-backdrop" data-close-panel></div>
+  <div class="panel-sheet panel-sheet--full" role="dialog" aria-modal="true" aria-labelledby="favs-title">
+    <div class="panel-header">
+      <h2 id="favs-title">My Favs</h2>
+      <div class="panel-header-tools">
+        <button class="panel-close" data-close-panel aria-label="Close">✕</button>
+      </div>
+    </div>
+    <div id="favs-chips" class="favs-chips" role="tablist" aria-label="Your lists"></div>
+    <p id="favs-sub" class="favs-sub"></p>
+    <div id="favs-grid" class="favs-grid" role="list"></div>
+    <div id="favs-empty" class="favs-empty" hidden>
+      <p>Save a few places from the feed and they show up here.</p>
+    </div>
+    <div class="panel-footer favs-footer">
+      <button id="favs-build-btn" class="primary-btn" type="button" disabled>
+        <span class="btn-label">⚡ Make my day from this list</span>
+        <span class="btn-spinner" aria-hidden="true"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Tile mini modal: photo, three facts, weather, slide-to-plan. -->
+<div id="tile-modal" class="panel tile-modal" hidden>
+  <div class="panel-backdrop" data-close-panel></div>
+  <div class="panel-sheet panel-sheet--bottom" role="dialog" aria-modal="true" aria-labelledby="tile-title">
+    <button class="panel-close tile-close" data-close-panel aria-label="Close">✕</button>
+    <div id="tile-content" class="tile-content"></div>
+  </div>
+</div>
+
 <!-- Day plan result panel -->
 <div id="dayplan-panel" class="panel" hidden>
   <div class="panel-backdrop" data-close-panel></div>

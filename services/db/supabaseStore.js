@@ -21,7 +21,8 @@ function fail(error, where) {
 }
 
 const adventureFromRow = (r) => r && ({ id: r.id, ownerId: r.owner_id, plan: r.plan, created_at: r.created_at });
-const shortlistFromRow = (r) => r && ({ id: r.id, ownerId: r.owner_id, idea_id: r.idea_id, idea: r.idea, created_at: r.created_at });
+const shortlistFromRow = (r) => r && ({ id: r.id, ownerId: r.owner_id, idea_id: r.idea_id, shortlist_id: r.shortlist_id || null, idea: r.idea, created_at: r.created_at });
+const listFromRow = (r, count = 0) => r && ({ id: r.id, ownerId: r.owner_id, name: r.name, city: r.city, mood: r.mood, created_at: r.created_at, updated_at: r.updated_at, count });
 const submissionFromRow = (r) => r && ({
   id: r.id, title: r.title, location: r.location, date: r.event_date,
   description: r.description, submittedBy: r.submitted_by,
@@ -59,7 +60,7 @@ async function deleteAdventure(id, ctx) {
 }
 
 // ---------- shortlist ----------
-async function addShortlistItem({ ownerId, idea }, ctx) {
+async function addShortlistItem({ ownerId, idea, listId = null }, ctx) {
   const client = clientFor(ctx);
   const ideaId = String(idea.id);
   // INSERT first — the common case, one round trip. A unique-constraint hit
@@ -67,35 +68,127 @@ async function addShortlistItem({ ownerId, idea }, ctx) {
   // through to UPDATE, which keeps the original row's primary key (matches
   // memoryStore). The old select-then-write version had a race window
   // between the SELECT and the INSERT.
-  const row = { id: genId('sl'), owner_id: ownerId, idea_id: ideaId, idea };
+  const row = { id: genId('sl'), owner_id: ownerId, idea_id: ideaId, idea, shortlist_id: listId || null };
   const ins = await client.from('shortlist_items').insert(row).select().single();
   if (!ins.error) return shortlistFromRow(ins.data);
   if (ins.error.code !== '23505') throw fail(ins.error, 'addShortlistItem');
-  const { data, error } = await client
-    .from('shortlist_items').update({ idea }).eq('owner_id', ownerId).eq('idea_id', ideaId).select().single();
+  let q = client.from('shortlist_items').update({ idea }).eq('owner_id', ownerId).eq('idea_id', ideaId);
+  q = listId ? q.eq('shortlist_id', listId) : q.is('shortlist_id', null);
+  const { data, error } = await q.select().single();
   if (error) throw fail(error, 'addShortlistItem');
   return shortlistFromRow(data);
 }
 
-async function listShortlist(ownerId, ctx) {
-  const { data, error } = await clientFor(ctx)
-    .from('shortlist_items').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false });
+// opts.listId: undefined = every item; null = legacy un-listed items only;
+// string = that list only.
+async function listShortlist(ownerId, ctx, opts = {}) {
+  let q = clientFor(ctx).from('shortlist_items').select('*').eq('owner_id', ownerId);
+  if (opts.listId === null) q = q.is('shortlist_id', null);
+  else if (opts.listId !== undefined) q = q.eq('shortlist_id', opts.listId);
+  const { data, error } = await q.order('created_at', { ascending: false });
   if (error) throw fail(error, 'listShortlist');
   return (data || []).map(shortlistFromRow);
 }
 
-async function removeShortlistItem({ ownerId, ideaId }, ctx) {
-  const { data, error } = await clientFor(ctx)
-    .from('shortlist_items').delete().eq('owner_id', ownerId).eq('idea_id', String(ideaId)).select('id');
+// listId undefined = remove the idea from every list (legacy DELETE /:ideaId).
+async function removeShortlistItem({ ownerId, ideaId, listId }, ctx) {
+  let q = clientFor(ctx).from('shortlist_items').delete().eq('owner_id', ownerId).eq('idea_id', String(ideaId));
+  if (listId === null) q = q.is('shortlist_id', null);
+  else if (listId !== undefined) q = q.eq('shortlist_id', listId);
+  const { data, error } = await q.select('id');
   if (error) throw fail(error, 'removeShortlistItem');
   return Array.isArray(data) && data.length > 0;
 }
 
-async function clearShortlist(ownerId, ctx) {
-  const { data, error } = await clientFor(ctx)
-    .from('shortlist_items').delete().eq('owner_id', ownerId).select('id');
+async function clearShortlist(ownerId, ctx, opts = {}) {
+  let q = clientFor(ctx).from('shortlist_items').delete().eq('owner_id', ownerId);
+  if (opts.listId === null) q = q.is('shortlist_id', null);
+  else if (opts.listId !== undefined) q = q.eq('shortlist_id', opts.listId);
+  const { data, error } = await q.select('id');
   if (error) throw fail(error, 'clearShortlist');
   return Array.isArray(data) ? data.length : 0;
+}
+
+// Move the idea's first row into toListId. If the target list already holds
+// it, drop the source row instead (never two of one place in one list).
+async function moveShortlistItem({ ownerId, ideaId, toListId }, ctx) {
+  const client = clientFor(ctx);
+  const { data: rows, error } = await client.from('shortlist_items').select('*')
+    .eq('owner_id', ownerId).eq('idea_id', String(ideaId)).order('created_at', { ascending: true });
+  if (error) throw fail(error, 'moveShortlistItem');
+  if (!rows || !rows.length) return null;
+  const target = rows.find(r => (r.shortlist_id || null) === (toListId || null));
+  const src = rows.find(r => (r.shortlist_id || null) !== (toListId || null));
+  if (target) {
+    if (src) await client.from('shortlist_items').delete().eq('id', src.id);
+    return shortlistFromRow(target);
+  }
+  const upd = await client.from('shortlist_items').update({ shortlist_id: toListId || null }).eq('id', src.id).select().single();
+  if (upd.error) throw fail(upd.error, 'moveShortlistItem');
+  return shortlistFromRow(upd.data);
+}
+
+// ---------- shortlists (named lists) ----------
+async function countsByList(ownerId, ctx) {
+  const { data, error } = await clientFor(ctx).from('shortlist_items').select('shortlist_id').eq('owner_id', ownerId);
+  if (error) throw fail(error, 'countsByList');
+  const counts = {};
+  for (const r of data || []) if (r.shortlist_id) counts[r.shortlist_id] = (counts[r.shortlist_id] || 0) + 1;
+  return counts;
+}
+
+async function createShortlist({ ownerId, name, city = null, mood = null }, ctx) {
+  const row = { id: genId('sl'), owner_id: ownerId, name, city, mood };
+  const { data, error } = await clientFor(ctx).from('shortlists').insert(row).select().single();
+  if (error) throw fail(error, 'createShortlist');
+  return listFromRow(data, 0);
+}
+
+async function listShortlists(ownerId, ctx) {
+  const { data, error } = await clientFor(ctx)
+    .from('shortlists').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false });
+  if (error) throw fail(error, 'listShortlists');
+  const counts = await countsByList(ownerId, ctx);
+  return (data || []).map(r => listFromRow(r, counts[r.id] || 0));
+}
+
+async function getShortlist(id, ownerId, ctx) {
+  const { data, error } = await clientFor(ctx)
+    .from('shortlists').select('*').eq('id', id).eq('owner_id', ownerId).maybeSingle();
+  if (error) throw fail(error, 'getShortlist');
+  if (!data) return null;
+  const counts = await countsByList(ownerId, ctx);
+  return listFromRow(data, counts[data.id] || 0);
+}
+
+async function renameShortlist(id, ownerId, name, ctx) {
+  const { data, error } = await clientFor(ctx)
+    .from('shortlists').update({ name, updated_at: new Date().toISOString() })
+    .eq('id', id).eq('owner_id', ownerId).select().maybeSingle();
+  if (error) throw fail(error, 'renameShortlist');
+  if (!data) return null;
+  const counts = await countsByList(ownerId, ctx);
+  return listFromRow(data, counts[data.id] || 0);
+}
+
+async function deleteShortlist(id, ownerId, ctx) {
+  const client = clientFor(ctx);
+  await client.from('shortlist_items').delete().eq('owner_id', ownerId).eq('shortlist_id', id);
+  const { data, error } = await client.from('shortlists').delete().eq('id', id).eq('owner_id', ownerId).select('id');
+  if (error) throw fail(error, 'deleteShortlist');
+  return Array.isArray(data) && data.length > 0;
+}
+
+async function findShortlistByCityMood(ownerId, city, mood, sinceIso, ctx) {
+  let q = clientFor(ctx).from('shortlists').select('*').eq('owner_id', ownerId);
+  q = city ? q.eq('city', city) : q.is('city', null);
+  q = mood ? q.eq('mood', mood) : q.is('mood', null);
+  if (sinceIso) q = q.gte('created_at', sinceIso);
+  const { data, error } = await q.order('created_at', { ascending: false }).limit(1);
+  if (error) throw fail(error, 'findShortlistByCityMood');
+  if (!data || !data.length) return null;
+  const counts = await countsByList(ownerId, ctx);
+  return listFromRow(data[0], counts[data[0].id] || 0);
 }
 
 // ---------- community submissions ----------
@@ -226,7 +319,8 @@ async function upsertUser({ id, email }, ctx) {
 
 module.exports = {
   createAdventure, listAdventures, getAdventure, deleteAdventure,
-  addShortlistItem, listShortlist, removeShortlistItem, clearShortlist,
+  addShortlistItem, listShortlist, removeShortlistItem, clearShortlist, moveShortlistItem,
+  createShortlist, listShortlists, getShortlist, renameShortlist, deleteShortlist, findShortlistByCityMood,
   createSubmission, listPendingSubmissions, setSubmissionStatus,
   createGuide, countGuides, listGuides, getGuideById, updateGuide, deleteGuide, getGuideByShareId,
   upsertUser,

@@ -252,6 +252,14 @@
 
   const COORDS_FRESH_MS = 30 * 60 * 1000;
 
+  // Named "My Favs" lists (mobile Favs grid, Sept 2026). state.shortlist stays
+  // the flat store every existing path reads; a list is just a name plus the
+  // ids it holds. Guests keep these in localStorage, signed-in users mirror
+  // them to /api/shortlists (best-effort). Empty until the favsGrid flag is on.
+  state.lists = [];          // [{ id, serverId?, name, city, mood, created_at, itemIds: [] }]
+  state.activeListId = null;
+  state.favsGridFlag = false; // /api/config.favsGrid
+
   // ---------- Persistence (survive refresh) ----------
   const STORAGE_KEY = 'dayhop_state_v2';
 
@@ -261,6 +269,8 @@
       if (!raw) return;
       const saved = JSON.parse(raw);
       state.shortlist = saved.shortlist || [];
+      state.lists = Array.isArray(saved.lists) ? saved.lists.filter(l => l && l.id && Array.isArray(l.itemIds)) : [];
+      state.activeListId = saved.activeListId || null;
       state.pendingRemovals = new Set((saved.pendingRemovals || []).map(String));
       if (saved.visited && typeof saved.visited === 'object') state.visited = saved.visited;
       if (saved.city) state.city = saved.city;
@@ -285,6 +295,8 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         shortlist: state.shortlist,
+        lists: state.lists,
+        activeListId: state.activeListId,
         pendingRemovals: [...state.pendingRemovals],
         visited: state.visited,
         mode: state.mode,
@@ -1305,12 +1317,16 @@
   // Returns a promise resolving to true on success, false on failure. It never
   // rejects, so existing fire-and-forget callers stay safe; the sign-in
   // migration awaits the result to detect partial failures.
-  function serverShortlistAdd(idea) {
+  function serverShortlistAdd(idea, listId) {
     if (!isLoggedIn()) return Promise.resolve(true);
+    // Named lists: the active list's server id rides along when known, so
+    // the row lands in the right list. Legacy callers pass nothing.
+    const list = listId === undefined ? favsActiveList() : null;
+    const serverList = listId || (list && list.serverId) || undefined;
     return fetch('/api/shortlist', {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ idea })
+      body: JSON.stringify(serverList ? { idea, list_id: serverList } : { idea })
     }).then(res => res.ok).catch(() => false);
   }
 
@@ -1711,7 +1727,10 @@
         // Remember which shelf this render put the card on — engagement
         // events attribute to it (a server section, when present, wins).
         idea.shelf_label = label;
-        feed.appendChild(createIdeaCard(idea, stopIndex++, animate, Boolean(bestIds && bestIds.has(idea.id))));
+        const best = Boolean(bestIds && bestIds.has(idea.id));
+        feed.appendChild(favsGridActive()
+          ? createIdeaTile(idea, stopIndex++, best)
+          : createIdeaCard(idea, stopIndex++, animate, best));
       });
     };
 
@@ -1720,8 +1739,12 @@
     // evidence for why it won. Only when there's a real field to beat.
     // Sectioned cards ("Next" pages ride in with idea.section) are ignored
     // here so an append can't retroactively kill the hero.
+    // Mobile Favs grid: square tiles instead of cards, no hero (the first
+    // tile carries the best-match badge). Desktop / flag-off is untouched.
+    const grid = favsGridActive();
+    feed.classList.toggle('feed--grid', grid);
     let heroIdea = null;
-    if (!state.browseMode && state.sortBy !== 'distance') {
+    if (!grid && !state.browseMode && state.sortBy !== 'distance') {
       const onTargetAll = ideas.filter(i => !i.section && !i.wow_reason && !i.more_find);
       if (onTargetAll.length >= 3) heroIdea = onTargetAll[0];
     }
@@ -1782,6 +1805,7 @@
     }
 
     updateFeedChrome(ideas);
+    if (grid && ideas.length) favsCoachMark(); // once per device, first tile feed
   }
 
   // The feed's supporting cast — empty/no-results states, the idea-count
@@ -1879,7 +1903,7 @@
     // A section whose last card just left takes its header with it.
     feed.querySelectorAll('.feed-section-header').forEach(h => {
       const next = h.nextElementSibling;
-      if (!next || !next.classList.contains('idea-card')) h.remove();
+      if (!next || !(next.classList.contains('idea-card') || next.classList.contains('idea-tile'))) h.remove();
     });
     // Keep the trail's STOP numbers contiguous.
     feed.querySelectorAll('.idea-card').forEach((c, i) => {
@@ -2243,6 +2267,7 @@
     // A re-add cancels any unconfirmed earlier removal of the same idea —
     // otherwise the retry would delete it right back off the server.
     state.pendingRemovals.delete(String(idea.id));
+    favsAssign(idea); // named lists (no-op until the Favs grid is on)
     persist();
     serverShortlistAdd(idea);
     track('shortlist_add', idea);
@@ -2668,19 +2693,27 @@
     renderFeed(true);
   }
 
-  async function handleBuildDay() {
-    if (state.isBuildingPlan || state.shortlist.length === 0) return;
+  // opts (Favs grid): { items, btnId, footerSel, closeIds } — build from a
+  // named list instead of the whole shortlist. A bare click event (the
+  // desktop button) takes the defaults.
+  async function handleBuildDay(opts) {
+    const o = opts && Array.isArray(opts.items) ? opts : null;
+    const items = o ? o.items : state.shortlist;
+    if (state.isBuildingPlan || items.length === 0) return;
     state.isBuildingPlan = true;
-    const btn = document.getElementById('build-day-btn');
+    const btn = document.getElementById(o && o.btnId ? o.btnId : 'build-day-btn');
     btn.classList.add('is-loading');
     btn.disabled = true;
-    const progress = startProgress('plan', document.querySelector('#shortlist-panel .panel-footer'));
+    const progress = startProgress('plan', document.querySelector(o && o.footerSel ? o.footerSel : '#shortlist-panel .panel-footer'));
 
     try {
-      const plan = await apiBuildPlan(state.shortlist, state.planDays);
+      const plan = await apiBuildPlan(items, state.planDays);
       progress.finish();
       renderDayPlan(plan);
-      closePanel(document.getElementById('shortlist-panel'));
+      (o && o.closeIds ? o.closeIds : ['shortlist-panel']).forEach(id => {
+        const p = document.getElementById(id);
+        if (p && !p.hidden) closePanel(p);
+      });
       openPanel('dayplan-panel');
 
       // Persist the built plan server-side for signed-in users (best-effort).
@@ -2701,7 +2734,7 @@
     } finally {
       state.isBuildingPlan = false;
       btn.classList.remove('is-loading');
-      btn.disabled = state.shortlist.length === 0;
+      btn.disabled = items.length === 0;
     }
   }
 
@@ -3930,6 +3963,7 @@
     renderWeatherStrip(data.weather);
     renderAdvisoryStrip();
     renderResultsHeader();
+    favsEnsureListForFeed();
     renderFeed(true);
     renderFeaturedEvent(data.ideas || []);
   }
@@ -4546,6 +4580,7 @@
       renderWeatherStrip(data.weather);
       renderAdvisoryStrip();
       renderResultsHeader();
+      favsEnsureListForFeed();
       renderFeed(true);
       bumpGeneratesUsed();
       // Snap, don't glide: a long smooth scroll through the page reads as a
@@ -5479,6 +5514,7 @@
     } catch (e) {
       // Network/DB hiccup — keep the local shortlist; never block the UI.
     }
+    if (favsGridActive()) await favsSyncFromServer();
     updateShortlistCount();
     renderShortlistPanel();
     renderFeed();
@@ -5488,6 +5524,8 @@
   // into the next anonymous session on a shared device.
   function onSignedOut() {
     state.shortlist = [];
+    state.lists = [];
+    state.activeListId = null;
     state.pendingRemovals = new Set(); // account-scoped intents don't outlive the session
     state.myGuides = [];
     state.currentGuide = null;
@@ -5499,6 +5537,631 @@
     renderShortlistPanel();
     renderFeed();
     showToast('Signed out');
+  }
+
+  // ---------- Favs grid (mobile-only, /api/config.favsGrid) ----------
+  // The shortlist as a discovery tool: named lists of photo tiles ("My
+  // Favs"), a tap-to-peek mini modal with a slide-to-plan control, and a
+  // square-tile feed with swipe-to-save. Everything below is gated by
+  // favsGridActive(): desktop and flag-off never enter these paths.
+  const FAVS_MQ = '(max-width: 640px)';
+  const FAVS_LIST_CAP = 20;
+  const FAVS_NAME_MAX = 40;
+  const FAVS_COACH_KEY = 'dayhop_favs_coach_v1';
+
+  // ?favsqa=1 forces the mobile layout on a wide viewport — QA only (the
+  // Chrome automation window can't shrink below ~830 px), never linked.
+  const FAVS_QA = /[?&]favsqa=1/.test(window.location.search);
+  function favsGridActive() {
+    return Boolean(state.favsGridFlag) && (FAVS_QA || (window.matchMedia && window.matchMedia(FAVS_MQ).matches));
+  }
+
+  function favsId() { return 'local-' + Math.random().toString(36).slice(2, 10); }
+  function favsCityLabel() {
+    return (!state.locationChosen || !state.city || state.city === GTA_WIDE) ? 'GTA' : state.city;
+  }
+  function favsMoodLabel(mode) { return mode === 'adventure' ? 'Adventure' : 'R&R'; }
+  function favsListById(id) { return state.lists.find(l => l.id === id) || null; }
+  function favsActiveList() {
+    return favsListById(state.activeListId) || state.lists[0] || null;
+  }
+  function favsListItems(list) {
+    if (!list) return [];
+    const wanted = new Set(list.itemIds.map(String));
+    return state.shortlist.filter(i => i && wanted.has(String(i.id)));
+  }
+  function favsListsHolding(ideaId) {
+    const id = String(ideaId);
+    return state.lists.filter(l => l.itemIds.some(x => String(x) === id));
+  }
+
+  // First run on a phone with the flag on: today's flat shortlist becomes
+  // one "My Favs" list so nothing a guest saved disappears.
+  function favsMigrate() {
+    if (state.lists.length === 0) {
+      if (state.shortlist.length) {
+        favsCreateList({ name: 'My Favs', itemIds: state.shortlist.map(i => i.id), sync: true });
+      }
+      return;
+    }
+    favsAdoptStrays();
+  }
+
+  // Items saved outside a list (desktop, older sessions) join the active list.
+  function favsAdoptStrays() {
+    const active = favsActiveList();
+    if (!active) return;
+    const held = new Set();
+    state.lists.forEach(l => l.itemIds.forEach(id => held.add(String(id))));
+    let changed = false;
+    state.shortlist.forEach(i => {
+      if (i && i.id != null && !held.has(String(i.id))) { active.itemIds.push(i.id); changed = true; }
+    });
+    if (changed) persist();
+  }
+
+  function favsCreateList({ name, city = null, mood = null, itemIds = [], sync = true }) {
+    if (state.lists.length >= FAVS_LIST_CAP) {
+      showToast(`That's ${FAVS_LIST_CAP} lists — rename or delete one to make room`);
+      return favsActiveList();
+    }
+    const list = {
+      id: favsId(),
+      name: String(name || 'New list').slice(0, FAVS_NAME_MAX),
+      city, mood,
+      created_at: new Date().toISOString(),
+      itemIds: [...itemIds]
+    };
+    state.lists.unshift(list);
+    state.activeListId = list.id;
+    persist();
+    if (sync) favsServerCreate(list);
+    return list;
+  }
+
+  // Every successful generate/browse gets a list named "<City> · <Mood>";
+  // the same city + mood on the same Toronto day reuses it.
+  function favsEnsureListForFeed() {
+    if (!favsGridActive()) return null;
+    const city = favsCityLabel();
+    const mood = state.mode;
+    const today = torontoToday();
+    const existing = state.lists.find(l => l.city === city && l.mood === mood &&
+      String(l.created_at || '').slice(0, 10) === today);
+    if (existing) {
+      state.activeListId = existing.id;
+      persist();
+      return existing;
+    }
+    // Over the cap: reuse the newest same-city list rather than refuse.
+    if (state.lists.length >= FAVS_LIST_CAP) {
+      const fallback = state.lists.find(l => l.city === city) || state.lists[0];
+      state.activeListId = fallback.id;
+      persist();
+      return fallback;
+    }
+    return favsCreateList({ name: `${city} · ${favsMoodLabel(mood)}`, city, mood });
+  }
+
+  function favsAssign(idea) {
+    if (!state.lists.length || !idea || idea.id == null) return;
+    const list = favsActiveList();
+    if (!list) return;
+    if (!list.itemIds.some(x => String(x) === String(idea.id))) list.itemIds.push(idea.id);
+  }
+
+  function favsRenameList(list, name) {
+    const clean = String(name || '').trim().slice(0, FAVS_NAME_MAX);
+    if (!clean || clean === list.name) return;
+    list.name = clean;
+    persist();
+    if (isLoggedIn() && list.serverId) {
+      fetch(`/api/shortlists/${encodeURIComponent(list.serverId)}`, {
+        method: 'PATCH',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ name: clean })
+      }).catch(() => {});
+    }
+  }
+
+  function favsDeleteList(list) {
+    const items = favsListItems(list);
+    state.lists = state.lists.filter(l => l.id !== list.id);
+    // Ideas that lived only in this list leave the shortlist too.
+    items.forEach(idea => {
+      if (favsListsHolding(idea.id).length === 0) {
+        state.shortlist = state.shortlist.filter(i => i.id !== idea.id);
+        serverShortlistRemove(idea.id);
+      }
+    });
+    if (state.activeListId === list.id) state.activeListId = state.lists[0] ? state.lists[0].id : null;
+    persist();
+    if (isLoggedIn() && list.serverId) {
+      fetch(`/api/shortlists/${encodeURIComponent(list.serverId)}`, { method: 'DELETE', headers: authHeaders() }).catch(() => {});
+    }
+    updateShortlistCount();
+  }
+
+  function favsRemoveFromList(list, idea) {
+    list.itemIds = list.itemIds.filter(x => String(x) !== String(idea.id));
+    if (favsListsHolding(idea.id).length === 0) {
+      state.shortlist = state.shortlist.filter(i => i.id !== idea.id);
+      serverShortlistRemove(idea.id);
+    }
+    persist();
+    updateShortlistCount();
+  }
+
+  function favsMoveItem(from, to, idea) {
+    if (!to || from === to) return;
+    from.itemIds = from.itemIds.filter(x => String(x) !== String(idea.id));
+    if (!to.itemIds.some(x => String(x) === String(idea.id))) to.itemIds.push(idea.id);
+    persist();
+    if (isLoggedIn() && to.serverId) {
+      fetch(`/api/shortlist/${encodeURIComponent(idea.id)}/move`, {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ list_id: to.serverId })
+      }).catch(() => {});
+    }
+  }
+
+  // ---- server mirror (signed-in only, best-effort, never blocks) ----
+  function favsServerCreate(list) {
+    if (!isLoggedIn() || list.serverId) return Promise.resolve();
+    return fetch('/api/shortlists', {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ name: list.name, city: list.city, mood: list.mood })
+    }).then(r => r.ok ? r.json() : null).then(data => {
+      if (data && data.list && data.list.id) { list.serverId = data.list.id; persist(); }
+    }).catch(() => {});
+  }
+
+  async function favsSyncFromServer() {
+    if (!isLoggedIn()) return;
+    try {
+      // Local-only lists go up first so their ids exist server-side.
+      for (const l of state.lists) if (!l.serverId) await favsServerCreate(l);
+      const res = await fetch('/api/shortlists', { headers: authHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      const byIdea = new Map(state.shortlist.map(i => [String(i.id), i]));
+      for (const sl of (data.lists || [])) {
+        let local = state.lists.find(l => l.serverId === sl.id);
+        if (!local) {
+          local = { id: favsId(), serverId: sl.id, name: sl.name || 'My Favs', city: sl.city || null, mood: sl.mood || null, created_at: sl.created_at || new Date().toISOString(), itemIds: [] };
+          state.lists.push(local);
+        }
+        const ir = await fetch('/api/shortlist?list=' + encodeURIComponent(sl.id), { headers: authHeaders() });
+        if (!ir.ok) continue;
+        const items = ((await ir.json()).items || []).map(i => i.idea).filter(i => i && i.id != null);
+        items.forEach(idea => {
+          if (state.pendingRemovals.has(String(idea.id))) return;
+          if (!byIdea.has(String(idea.id))) { state.shortlist.push(idea); byIdea.set(String(idea.id), idea); }
+          if (!local.itemIds.some(x => String(x) === String(idea.id))) local.itemIds.push(idea.id);
+        });
+      }
+      if (!favsListById(state.activeListId) && state.lists[0]) state.activeListId = state.lists[0].id;
+      favsAdoptStrays();
+      persist();
+    } catch (e) { /* offline or endpoint missing — local lists stand */ }
+  }
+
+  // ---- images ----
+  // Tile art: the idea's own photo through the resize proxy, sized to ~2× the
+  // tile; the category stock shot when there is none; a moss glyph tile if
+  // even that fails to load (never a grey box).
+  function tileImageUrl(idea, w) {
+    return proxiedImage(idea.image_url || categoryImage(idea.category, w), w);
+  }
+  function tileGlyph(category) {
+    const label = CATEGORY_LABELS[category] || CATEGORY_LABELS.general;
+    return label.split(' ')[0];
+  }
+  function wireTileImage(tile, idea, w) {
+    const img = tile.querySelector('img');
+    if (!img) return;
+    img.addEventListener('error', () => {
+      if (img.dataset.fallback === '1') {
+        tile.classList.add('tile--glyph');
+        tile.querySelector('.tile-glyph').textContent = tileGlyph(idea.category) + ' ' + String(idea.title || '').split(' ')[0];
+        img.remove();
+        return;
+      }
+      img.dataset.fallback = '1';
+      img.src = categoryImage(idea.category, w);
+    });
+  }
+
+  // ---- My Favs page ----
+  function openFavs() {
+    if (!state.lists.length) favsMigrate();
+    if (!state.lists.length) favsCreateList({ name: 'My Favs' });
+    favsAdoptStrays();
+    renderFavs();
+    openPanel('favs-panel');
+  }
+
+  let favsRenaming = null; // list id being renamed inline
+
+  function renderFavs() {
+    const chips = document.getElementById('favs-chips');
+    const grid = document.getElementById('favs-grid');
+    const empty = document.getElementById('favs-empty');
+    const sub = document.getElementById('favs-sub');
+    const buildBtn = document.getElementById('favs-build-btn');
+    if (!chips || !grid) return;
+    const active = favsActiveList();
+    chips.innerHTML = '';
+
+    state.lists.forEach(list => {
+      const isActive = active && list.id === active.id;
+      const chip = document.createElement('div');
+      chip.className = 'favs-chip' + (isActive ? ' is-active' : '');
+      chip.setAttribute('role', 'presentation');
+      if (isActive && favsRenaming === list.id) {
+        chip.classList.add('is-renaming');
+        chip.innerHTML = `<input class="favs-rename" type="text" maxlength="${FAVS_NAME_MAX}" aria-label="List name" value="${escapeAttr(list.name)}">` +
+          `<button class="favs-chip-del" type="button" aria-label="Delete list">🗑</button>`;
+        const input = chip.querySelector('.favs-rename');
+        const commit = () => { favsRenaming = null; favsRenameList(list, input.value); renderFavs(); };
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); commit(); }
+          if (e.key === 'Escape') { e.preventDefault(); favsRenaming = null; renderFavs(); }
+        });
+        input.addEventListener('blur', () => { if (favsRenaming === list.id) commit(); });
+        chip.querySelector('.favs-chip-del').addEventListener('mousedown', (e) => e.preventDefault());
+        chip.querySelector('.favs-chip-del').addEventListener('click', () => {
+          const n = favsListItems(list).length;
+          if (n && !window.confirm(`Delete "${list.name}" and its ${n} place${n === 1 ? '' : 's'}?`)) return;
+          favsRenaming = null;
+          favsDeleteList(list);
+          renderFavs();
+        });
+        chips.appendChild(chip);
+        requestAnimationFrame(() => { input.focus(); input.select(); });
+        return;
+      }
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'favs-chip-btn';
+      btn.setAttribute('role', 'tab');
+      btn.setAttribute('aria-selected', String(Boolean(isActive)));
+      const n = favsListItems(list).length;
+      btn.innerHTML = `<span class="favs-chip-name">${escapeHtml(list.name)}</span><span class="favs-chip-n">${n}</span>`;
+      btn.addEventListener('click', () => {
+        if (isActive) { favsRenaming = list.id; renderFavs(); return; }
+        state.activeListId = list.id;
+        favsRenaming = null;
+        persist();
+        renderFavs();
+      });
+      // Long-press = rename (same as tapping the active chip).
+      let pressTimer = null;
+      btn.addEventListener('touchstart', () => { pressTimer = setTimeout(() => { state.activeListId = list.id; favsRenaming = list.id; persist(); renderFavs(); }, 550); }, { passive: true });
+      ['touchend', 'touchmove', 'touchcancel'].forEach(ev => btn.addEventListener(ev, () => clearTimeout(pressTimer), { passive: true }));
+      chip.appendChild(btn);
+      if (isActive) {
+        const pen = document.createElement('button');
+        pen.type = 'button';
+        pen.className = 'favs-chip-pen';
+        pen.setAttribute('aria-label', 'Rename list');
+        pen.textContent = '✎';
+        pen.addEventListener('click', () => { favsRenaming = list.id; renderFavs(); });
+        chip.appendChild(pen);
+      }
+      chips.appendChild(chip);
+    });
+
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'favs-chip-btn favs-chip-new';
+    add.textContent = '+ New';
+    add.addEventListener('click', () => {
+      const list = favsCreateList({ name: 'New list' });
+      if (list && list.name === 'New list') favsRenaming = list.id;
+      renderFavs();
+    });
+    chips.appendChild(add);
+
+    const items = favsListItems(active);
+    grid.innerHTML = '';
+    items.forEach((idea, i) => grid.appendChild(createFavTile(idea, active, i)));
+    if (empty) empty.hidden = items.length > 0;
+    if (sub) sub.textContent = items.length
+      ? `${items.length} place${items.length === 1 ? '' : 's'} · tap to peek · slide to plan`
+      : 'Tap a tile to peek. Slide right to put it in your day.';
+    if (buildBtn) buildBtn.disabled = items.length === 0;
+  }
+
+  function createFavTile(idea, list, index) {
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'favs-tile';
+    tile.setAttribute('role', 'listitem');
+    tile.setAttribute('aria-label', idea.title || 'Saved place');
+    tile.style.setProperty('--i', index);
+    tile.innerHTML = `<img src="${escapeAttr(tileImageUrl(idea, 240))}" alt="" loading="lazy" decoding="async"><span class="tile-glyph" aria-hidden="true"></span>`;
+    wireTileImage(tile, idea, 240);
+    tile.addEventListener('click', () => openTileModal(idea, { surface: 'favs', list }));
+    // Long-press = move sheet (the modal's ⋯ opens the same options).
+    let pressTimer = null;
+    tile.addEventListener('touchstart', () => { pressTimer = setTimeout(() => openTileModal(idea, { surface: 'favs', list, more: true }), 550); }, { passive: true });
+    ['touchend', 'touchmove', 'touchcancel'].forEach(ev => tile.addEventListener(ev, () => clearTimeout(pressTimer), { passive: true }));
+    return tile;
+  }
+
+  // ---- feed tiles ----
+  function createIdeaTile(idea, index, bestMatch) {
+    const tile = document.createElement('div');
+    tile.className = 'idea-tile';
+    tile.dataset.ideaId = idea.id;
+    const shelf = idea.section || idea.shelf_label;
+    if (shelf) tile.dataset.section = shelf;
+    if (shelfSeenObserver) shelfSeenObserver.observe(tile);
+    tile.tabIndex = 0;
+    tile.setAttribute('role', 'group');
+    tile.setAttribute('aria-label', idea.title);
+    tile.style.setProperty('--stop-index', index);
+    const cost = idea.cost_tier ? String(idea.cost_tier) : '';
+    tile.innerHTML = `
+      <img src="${escapeAttr(tileImageUrl(idea, 360))}" alt="" loading="lazy" decoding="async">
+      <span class="tile-glyph" aria-hidden="true"></span>
+      ${bestMatch ? '<span class="tile-badge">🎯</span>' : (idea.sponsored ? '<span class="tile-badge">⭐</span>' : (idea.wow_reason ? '<span class="tile-badge">✨</span>' : ''))}
+      ${cost ? `<span class="tile-cost">${escapeHtml(cost)}</span>` : ''}
+      <span class="tile-name">${escapeHtml(idea.title || '')}</span>
+      <button class="tile-save" type="button" aria-label="Save to my favs">♥</button>
+    `;
+    wireTileImage(tile, idea, 360);
+    tile.querySelector('.tile-save').addEventListener('click', (e) => {
+      e.stopPropagation();
+      favsSaveFromFeed(idea, tile, 'button');
+    });
+    tile.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      if (tile.dataset.swiped === '1') { delete tile.dataset.swiped; return; }
+      track('card_open', idea);
+      openTileModal(idea, { surface: 'feed', tile });
+    });
+    tile.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target === tile) {
+        e.preventDefault();
+        track('card_open', idea);
+        openTileModal(idea, { surface: 'feed', tile });
+      }
+    });
+    addTileSwipe(tile, idea);
+    return tile;
+  }
+
+  // Left swipe = save. Horizontal intent is claimed only past 24 px with the
+  // horizontal component clearly winning, so vertical scrolling never fights.
+  function addTileSwipe(tile, idea) {
+    let sx = 0, sy = 0, dx = 0, claimed = false, live = false;
+    tile.addEventListener('touchstart', (e) => {
+      if (e.target.closest('button')) { live = false; return; }
+      live = true; claimed = false; dx = 0;
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+      tile.style.transition = 'none';
+    }, { passive: true });
+    tile.addEventListener('touchmove', (e) => {
+      if (!live) return;
+      dx = e.touches[0].clientX - sx;
+      const dy = e.touches[0].clientY - sy;
+      if (!claimed) {
+        if (Math.abs(dx) > 24 && Math.abs(dx) > 1.5 * Math.abs(dy)) claimed = true;
+        else if (Math.abs(dy) > 12) { live = false; return; }
+        else return;
+      }
+      tile.style.transform = `translateX(${Math.max(-90, Math.min(30, dx))}px)`;
+      tile.classList.toggle('tile--saving', dx < -60);
+    }, { passive: true });
+    const end = () => {
+      if (!live) return;
+      live = false;
+      tile.style.transition = '';
+      tile.classList.remove('tile--saving');
+      if (claimed) tile.dataset.swiped = '1';
+      if (claimed && dx < -60) { favsSaveFromFeed(idea, tile, 'swipe'); return; }
+      tile.style.transform = '';
+    };
+    tile.addEventListener('touchend', end);
+    tile.addEventListener('touchcancel', end);
+  }
+
+  function favsSaveFromFeed(idea, tile, via) {
+    const list = favsActiveList() || favsEnsureListForFeed() || favsCreateList({ name: 'My Favs' });
+    if (state.shortlist.find(i => i.id === idea.id)) { favsAssign(idea); persist(); }
+    else addToShortlist(idea, tile, { silent: true });
+    if (via === 'swipe') track('feed_swipe_shortlist', idea);
+    if (navigator.vibrate) navigator.vibrate(12);
+    showToast(`Saved to ${list ? list.name : 'My Favs'}`, {
+      duration: 4000,
+      actionLabel: 'Undo',
+      onAction: () => {
+        if (list) favsRemoveFromList(list, idea);
+        else {
+          state.shortlist = state.shortlist.filter(i => i.id !== idea.id);
+          persist();
+          serverShortlistRemove(idea.id);
+          updateShortlistCount();
+        }
+        renderFeed();
+      }
+    });
+  }
+
+  function favsCoachMark() {
+    try {
+      if (localStorage.getItem(FAVS_COACH_KEY)) return;
+      localStorage.setItem(FAVS_COACH_KEY, '1');
+    } catch (e) { return; }
+    const feed = document.getElementById('discovery-feed');
+    if (!feed || !feed.querySelector('.idea-tile')) return;
+    const mark = document.createElement('div');
+    mark.className = 'favs-coach';
+    mark.setAttribute('role', 'status');
+    mark.textContent = '← swipe a tile to save it · tap to peek';
+    feed.insertBefore(mark, feed.firstChild);
+    setTimeout(() => mark.remove(), 6000);
+  }
+
+  // ---- tile mini modal ----
+  let tileModalCtx = null;
+
+  function favsWeatherLine(idea) {
+    const chip = document.getElementById('tile-weather');
+    if (!chip) return;
+    const lat = Number(idea.lat), lng = Number(idea.lng);
+    const fallback = state.lastWeather && state.lastWeather.temp_c != null
+      ? `${state.lastWeather.temp_c}°C · ${state.lastWeather.description || state.lastWeather.condition || ''}`.replace(/ · $/, '')
+      : '';
+    chip.hidden = !fallback;
+    chip.textContent = fallback ? `🌤 ${fallback} now` : '';
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    fetch(`/api/weather?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(w => {
+        if (!w || w.temp_c == null || !tileModalCtx || tileModalCtx.idea !== idea) return;
+        chip.hidden = false;
+        chip.textContent = `🌤 ${w.temp_c}°C · ${w.description || w.condition || ''} there now`.replace(/ ·  there/, ' there');
+      })
+      .catch(() => {});
+  }
+
+  function openTileModal(idea, ctx) {
+    tileModalCtx = Object.assign({ idea }, ctx);
+    const isFavs = ctx.surface === 'favs';
+    const list = isFavs ? ctx.list : favsActiveList();
+    const content = document.getElementById('tile-content');
+    if (!content) return;
+    const location = [idea.venue, idea.location].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · ');
+    const facts = [];
+    if (idea.distance_km != null) facts.push(`📍 ${idea.distance_km} km`);
+    if (idea.cost_tier) facts.push(String(idea.cost_tier) === 'free' ? 'free' : escapeHtml(idea.cost_tier));
+    if (idea.duration_minutes) facts.push(formatDuration(idea.duration_minutes));
+    const others = isFavs ? state.lists.filter(l => l.id !== list.id) : [];
+    content.innerHTML = `
+      <div class="tile-modal-photo"><img src="${escapeAttr(tileImageUrl(idea, 720))}" alt="" decoding="async"></div>
+      <h3 id="tile-title" class="tile-modal-title">${escapeHtml(idea.title || '')}</h3>
+      ${location ? `<p class="tile-modal-loc">${escapeHtml(location)}</p>` : ''}
+      <div class="tile-modal-facts">${facts.map(f => `<span>${f}</span>`).join('')}<span id="tile-weather" class="tile-weather" hidden></span></div>
+      ${idea.why ? `<p class="tile-modal-why">${escapeHtml(idea.why)}</p>` : ''}
+      <div class="tile-slider" id="tile-slider" role="group" aria-label="${isFavs ? 'Slide to plan my day' : 'Slide to add to my day'}">
+        <span class="tile-slider-label">${isFavs ? 'Slide to plan my day →' : 'Slide to add to my day →'}</span>
+        <button class="tile-slider-knob" id="tile-knob" type="button" aria-label="${isFavs ? 'Plan my day from this list' : 'Add to my day'}">→</button>
+      </div>
+      <div class="tile-modal-actions">
+        <button class="primary-btn tile-primary" id="tile-primary" type="button">${isFavs ? '⚡ Plan my day' : 'Add to my day →'}</button>
+        ${isFavs
+          ? `${others.length ? `<label class="tile-move">Move to <select id="tile-move" aria-label="Move to list"><option value="">…</option>${others.map(l => `<option value="${escapeAttr(l.id)}">${escapeHtml(l.name)}</option>`).join('')}</select></label>` : ''}
+             ${idea.maps_url ? `<a class="ghost-btn tile-ghost" href="${escapeAttr(idea.maps_url)}" target="_blank" rel="noopener noreferrer">Map ↗</a>` : ''}
+             <button class="linklike tile-remove" id="tile-remove" type="button">Remove from list</button>`
+          : `<button class="ghost-btn tile-ghost" id="tile-details" type="button">Details</button>
+             <button class="linklike tile-remove" id="tile-skip" type="button">Skip this one</button>`}
+      </div>`;
+    favsWeatherLine(idea);
+    track('tile_open', idea);
+
+    const modal = document.getElementById('tile-modal');
+    const close = () => { if (!modal.hidden) closePanel(modal); tileModalCtx = null; if (favsPanelOpen()) document.body.style.overflow = 'hidden'; };
+    const act = (via) => {
+      if (isFavs) {
+        const items = favsListItems(list);
+        const first = items.filter(i => i.id === idea.id);
+        const rest = items.filter(i => i.id !== idea.id);
+        track('tile_swipe_plan', idea);
+        if (navigator.vibrate) navigator.vibrate(12);
+        close();
+        handleBuildDay({ items: first.concat(rest), btnId: 'favs-build-btn', footerSel: '#favs-panel .favs-footer', closeIds: ['tile-modal', 'favs-panel'] });
+      } else {
+        track('tile_swipe_plan', idea);
+        close();
+        favsSaveFromFeed(idea, ctx.tile, via === 'swipe' ? 'swipe' : 'button');
+      }
+    };
+    wireTileSlider(document.getElementById('tile-slider'), document.getElementById('tile-knob'), () => act('swipe'), () => act('button'));
+    document.getElementById('tile-primary').addEventListener('click', () => act('button'));
+    if (isFavs) {
+      const mv = document.getElementById('tile-move');
+      if (mv) mv.addEventListener('change', () => {
+        const to = favsListById(mv.value);
+        if (!to) return;
+        favsMoveItem(list, to, idea);
+        showToast(`Moved to ${to.name}`);
+        close();
+        renderFavs();
+      });
+      document.getElementById('tile-remove').addEventListener('click', () => {
+        favsRemoveFromList(list, idea);
+        showToast(`Removed from ${list.name}`);
+        close();
+        renderFavs();
+        renderFeed();
+      });
+    } else {
+      document.getElementById('tile-details').addEventListener('click', () => { close(); openDetail(idea); });
+      document.getElementById('tile-skip').addEventListener('click', () => {
+        close();
+        if (ctx.tile) dismissIdea(idea, ctx.tile);
+      });
+    }
+    openPanel('tile-modal');
+  }
+
+  function favsPanelOpen() {
+    const p = document.getElementById('favs-panel');
+    return Boolean(p && !p.hidden);
+  }
+
+  // A knob dragged ≥70% across its track commits; a plain tap on the knob
+  // (or the button under it) does the same without the gesture.
+  function wireTileSlider(track, knob, onSwipe, onTap) {
+    if (!track || !knob) return;
+    let startX = 0, dragging = false, moved = 0;
+    const max = () => Math.max(1, track.clientWidth - knob.offsetWidth - 8);
+    knob.addEventListener('pointerdown', (e) => {
+      dragging = true; moved = 0; startX = e.clientX;
+      knob.setPointerCapture && knob.setPointerCapture(e.pointerId);
+      knob.style.transition = 'none';
+    });
+    knob.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      moved = Math.max(0, Math.min(max(), e.clientX - startX));
+      knob.style.transform = `translateX(${moved}px)`;
+      track.classList.toggle('is-armed', moved >= 0.7 * max());
+    });
+    const finish = () => {
+      if (!dragging) return;
+      dragging = false;
+      knob.style.transition = '';
+      const done = moved >= 0.7 * max();
+      track.classList.remove('is-armed');
+      if (done) { knob.style.transform = `translateX(${max()}px)`; onSwipe(); return; }
+      knob.style.transform = '';
+      if (moved < 6) onTap();
+    };
+    knob.addEventListener('pointerup', finish);
+    knob.addEventListener('pointercancel', finish);
+    knob.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTap(); }
+    });
+  }
+
+  function wireFavsGrid() {
+    const buildBtn = document.getElementById('favs-build-btn');
+    if (buildBtn) buildBtn.addEventListener('click', () => {
+      const list = favsActiveList();
+      handleBuildDay({ items: favsListItems(list), btnId: 'favs-build-btn', footerSel: '#favs-panel .favs-footer', closeIds: ['favs-panel'] });
+    });
+    // Re-evaluate the mobile gate on rotation / resize so a tablet flipping
+    // past the breakpoint gets the matching feed.
+    if (window.matchMedia) {
+      const mq = window.matchMedia(FAVS_MQ);
+      const onChange = () => { window.__dayhopFavsGrid = favsGridActive(); if (state.favsGridFlag && state.allIdeas.length) renderFeed(); };
+      if (mq.addEventListener) mq.addEventListener('change', onChange); else if (mq.addListener) mq.addListener(onChange);
+    }
   }
 
   // ---------- Init ----------
@@ -5636,7 +6299,17 @@
       if (!r.ok) throw new Error('config ' + r.status);
       return r.json();
     })))
-      .then(cfg => applySpotlight(cfg && cfg.spotlight))
+      .then(cfg => {
+        applySpotlight(cfg && cfg.spotlight);
+        // Mobile Favs grid flag: once known, migrate the guest shortlist into
+        // a first list and repaint any feed that already rendered as cards.
+        state.favsGridFlag = Boolean(cfg && cfg.favsGrid);
+        window.__dayhopFavsGrid = favsGridActive();
+        if (favsGridActive()) {
+          favsMigrate();
+          if (state.allIdeas.length) renderFeed();
+        }
+      })
       .catch(() => {});
 
     // Zero-state sample plan — one tap to see a finished plan.
@@ -5706,10 +6379,12 @@
     document.getElementById('reset-filter-btn').addEventListener('click', () => setFilter('all'));
 
     document.getElementById('shortlist-btn').addEventListener('click', () => {
+      if (favsGridActive()) { openFavs(); return; } // mobile: the My Favs grid
       exitShortlistSelect(); // each visit starts in browse mode
       renderShortlistPanel();
       openPanel('shortlist-panel');
     });
+    wireFavsGrid();
 
     document.getElementById('build-day-btn').addEventListener('click', handleBuildDay);
     document.getElementById('surprise-me-btn').addEventListener('click', handleSurpriseMe);

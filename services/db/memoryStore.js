@@ -55,40 +55,132 @@ async function deleteAdventure(id) {
 }
 
 // ---------- shortlist ----------
+// Items are keyed by `${listId||''}|${ideaId}` so one place can live in two
+// named lists but never twice in the same list (mirrors the Supabase unique
+// index on owner + coalesce(shortlist_id,'') + idea).
 function ownerMap(ownerId) {
   if (!shortlist.has(ownerId)) shortlist.set(ownerId, new Map());
   return shortlist.get(ownerId);
 }
+const itemKey = (listId, ideaId) => `${listId || ''}|${String(ideaId)}`;
 
-async function addShortlistItem({ ownerId, idea }) {
+async function addShortlistItem({ ownerId, idea, listId = null }) {
   const map = ownerMap(ownerId);
   const ideaId = String(idea.id);
+  const key = itemKey(listId, ideaId);
   // Upsert: keep the original created_at if it already exists.
-  const existing = map.get(ideaId);
-  const record = existing || { id: genId('sl'), ownerId, idea_id: ideaId, idea, created_at: new Date().toISOString() };
+  const existing = map.get(key);
+  const record = existing || { id: genId('sl'), ownerId, idea_id: ideaId, shortlist_id: listId || null, idea, created_at: new Date().toISOString() };
   record.idea = idea;
-  map.set(ideaId, record);
+  map.set(key, record);
   return record;
 }
 
-async function listShortlist(ownerId) {
+// opts.listId: undefined = every item; null = legacy un-listed items only;
+// string = that list only.
+async function listShortlist(ownerId, ctx, opts = {}) {
   const map = shortlist.get(ownerId);
   if (!map) return [];
-  return [...map.values()].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const listId = opts.listId;
+  return [...map.values()]
+    .filter(r => listId === undefined ? true : (r.shortlist_id || null) === (listId || null))
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
-async function removeShortlistItem({ ownerId, ideaId }) {
+// listId undefined = remove the idea from every list (legacy DELETE /:ideaId).
+async function removeShortlistItem({ ownerId, ideaId, listId }) {
   const map = shortlist.get(ownerId);
   if (!map) return false;
-  return map.delete(String(ideaId));
+  if (listId !== undefined) return map.delete(itemKey(listId, ideaId));
+  let removed = false;
+  for (const [k, r] of map) if (r.idea_id === String(ideaId)) { map.delete(k); removed = true; }
+  return removed;
 }
 
-async function clearShortlist(ownerId) {
+async function clearShortlist(ownerId, ctx, opts = {}) {
   const map = shortlist.get(ownerId);
   if (!map) return 0;
+  if (opts.listId !== undefined) {
+    let n = 0;
+    for (const [k, r] of map) if ((r.shortlist_id || null) === (opts.listId || null)) { map.delete(k); n++; }
+    return n;
+  }
   const n = map.size;
   shortlist.delete(ownerId);
   return n;
+}
+
+async function moveShortlistItem({ ownerId, ideaId, toListId }) {
+  const map = shortlist.get(ownerId);
+  if (!map) return null;
+  const sources = [...map.entries()].filter(([, r]) => r.idea_id === String(ideaId));
+  if (!sources.length) return null;
+  const [srcKey, src] = sources[0];
+  const targetKey = itemKey(toListId, ideaId);
+  if (map.has(targetKey)) { map.delete(srcKey); return map.get(targetKey); }
+  map.delete(srcKey);
+  src.shortlist_id = toListId || null;
+  map.set(targetKey, src);
+  return src;
+}
+
+// ---------- shortlists (named lists) ----------
+const shortlists = new Map(); // ownerId -> Map(listId -> list)
+function listMap(ownerId) {
+  if (!shortlists.has(ownerId)) shortlists.set(ownerId, new Map());
+  return shortlists.get(ownerId);
+}
+function withCount(ownerId, list) {
+  const map = shortlist.get(ownerId);
+  const count = map ? [...map.values()].filter(r => r.shortlist_id === list.id).length : 0;
+  return Object.assign({}, list, { count });
+}
+
+async function createShortlist({ ownerId, name, city = null, mood = null }) {
+  const now = new Date().toISOString();
+  const list = { id: genId('sl'), ownerId, name, city, mood, created_at: now, updated_at: now };
+  listMap(ownerId).set(list.id, list);
+  return withCount(ownerId, list);
+}
+
+async function listShortlists(ownerId) {
+  const map = shortlists.get(ownerId);
+  if (!map) return [];
+  return [...map.values()]
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .map(l => withCount(ownerId, l));
+}
+
+async function getShortlist(id, ownerId) {
+  const map = shortlists.get(ownerId);
+  const list = map && map.get(id);
+  return list ? withCount(ownerId, list) : null;
+}
+
+async function renameShortlist(id, ownerId, name) {
+  const map = shortlists.get(ownerId);
+  const list = map && map.get(id);
+  if (!list) return null;
+  list.name = name;
+  list.updated_at = new Date().toISOString();
+  return withCount(ownerId, list);
+}
+
+async function deleteShortlist(id, ownerId) {
+  const map = shortlists.get(ownerId);
+  if (!map || !map.has(id)) return false;
+  map.delete(id);
+  await clearShortlist(ownerId, undefined, { listId: id });
+  return true;
+}
+
+async function findShortlistByCityMood(ownerId, city, mood, sinceIso) {
+  const map = shortlists.get(ownerId);
+  if (!map) return null;
+  const hit = [...map.values()]
+    .filter(l => (l.city || '') === (city || '') && (l.mood || '') === (mood || '') && (!sinceIso || l.created_at >= sinceIso))
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+  return hit ? withCount(ownerId, hit) : null;
 }
 
 // ---------- community submissions ----------
@@ -181,7 +273,8 @@ async function upsertUser({ id, email }) {
 
 module.exports = {
   createAdventure, listAdventures, getAdventure, deleteAdventure,
-  addShortlistItem, listShortlist, removeShortlistItem, clearShortlist,
+  addShortlistItem, listShortlist, removeShortlistItem, clearShortlist, moveShortlistItem,
+  createShortlist, listShortlists, getShortlist, renameShortlist, deleteShortlist, findShortlistByCityMood,
   createSubmission, listPendingSubmissions, setSubmissionStatus,
   createGuide, countGuides, listGuides, getGuideById, updateGuide, deleteGuide, getGuideByShareId,
   upsertUser,

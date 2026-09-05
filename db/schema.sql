@@ -67,6 +67,43 @@ create table if not exists public.shortlist_items (
 );
 create index if not exists shortlist_owner_idx on public.shortlist_items (owner_id, created_at desc);
 
+-- ---------- shortlists (named "My Favs" lists, Sept 2026) ----------
+-- MIGRATION BLOCK — paste this whole section into the Supabase SQL editor.
+-- A shortlist_items row now belongs to a named list. Lists are auto-created
+-- per generate ("Markham · R&R") and renamable; guests keep the same shape
+-- in localStorage. Additive and idempotent: old rows keep shortlist_id NULL
+-- until the backfill below points them at one "My Favs" list per owner.
+create table if not exists public.shortlists (
+  id          text primary key,
+  owner_id    text not null,
+  name        text not null,
+  city        text,
+  mood        text,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+create index if not exists shortlists_owner_idx on public.shortlists (owner_id, created_at desc);
+
+alter table public.shortlist_items add column if not exists shortlist_id text;
+create index if not exists shortlist_items_list_idx on public.shortlist_items (shortlist_id);
+-- Uniqueness moves from (owner, idea) to (owner, list, idea) so the same
+-- place can sit in two lists. NULL list ids collapse to '' so legacy rows
+-- still can't duplicate.
+alter table public.shortlist_items drop constraint if exists shortlist_items_owner_id_idea_id_key;
+create unique index if not exists shortlist_items_owner_list_idea_uidx
+  on public.shortlist_items (owner_id, coalesce(shortlist_id, ''), idea_id);
+
+-- Backfill: one "My Favs" list per owner who has un-listed items.
+insert into public.shortlists (id, owner_id, name)
+select 'sl_' || substr(md5(owner_id), 1, 12), owner_id, 'My Favs'
+from public.shortlist_items
+where shortlist_id is null
+group by owner_id
+on conflict (id) do nothing;
+update public.shortlist_items i
+set shortlist_id = 'sl_' || substr(md5(i.owner_id), 1, 12)
+where i.shortlist_id is null;
+
 -- ---------- community_submissions (moderation queue) ----------
 create table if not exists public.community_submissions (
   id            text primary key,
@@ -111,6 +148,12 @@ create policy "own adventures" on public.adventures
   using (owner_id = auth.uid()::text) with check (owner_id = auth.uid()::text);
 
 create policy "own shortlist" on public.shortlist_items
+  for all to authenticated
+  using (owner_id = auth.uid()::text) with check (owner_id = auth.uid()::text);
+
+alter table public.shortlists enable row level security;
+drop policy if exists "own shortlists" on public.shortlists;
+create policy "own shortlists" on public.shortlists
   for all to authenticated
   using (owner_id = auth.uid()::text) with check (owner_id = auth.uid()::text);
 

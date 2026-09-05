@@ -49,7 +49,12 @@ const CLIENT_EVENT_TYPES = new Set([
   'shelf_seen',
   // City-guide sales funnel: the feed promo card was tapped (checkout start
   // and purchase are server-recorded by their own routes).
-  'guide_promo_click'
+  'guide_promo_click',
+  // Mobile Favs grid (Sept 2026): a tile was opened (meta.surface favs|feed),
+  // swiped into the plan (meta.via swipe|button), or a feed tile was swiped
+  // into a list (meta.list_id). feed_swipe_shortlist runs beside
+  // shortlist_add for a week so the two can be compared.
+  'tile_open', 'tile_swipe_plan', 'feed_swipe_shortlist'
 ]);
 
 // Server-truth events, recorded by their own routes.
@@ -90,7 +95,10 @@ const SERVER_EVENT_TYPES = new Set([
   'link_click',
   // Social vote MVP (routes/guides.js, SOCIAL_VOTE=on): a 👍/👎/"I'm in" tap
   // on a shared guide. idea_id = share_id, meta.stop / meta.vote.
-  'plan_vote'
+  'plan_vote',
+  // Named shortlists (routes/shortlists.js): a list was created (meta.auto
+  // says whether a generate made it or a person did) or renamed.
+  'favs_list_created', 'favs_list_renamed'
 ]);
 
 const EVENT_TYPES = new Set([...CLIENT_EVENT_TYPES, ...SERVER_EVENT_TYPES]);

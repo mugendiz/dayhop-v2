@@ -45,6 +45,17 @@ router.post('/', (req, res) => {
       typeof section === 'string' && section.trim()) {
     meta = Object.assign(meta || {}, { section: section.trim().slice(0, 60) });
   }
+  // Favs-grid events (Sept 2026): tile_open carries the surface it was
+  // opened from, tile_swipe_plan how the plan add happened, and
+  // feed_swipe_shortlist the destination list. Enumerated / length-capped.
+  if (type === 'tile_open' || type === 'tile_swipe_plan' || type === 'feed_swipe_shortlist') {
+    const b = req.body || {};
+    const extra = {};
+    if (b.surface === 'favs' || b.surface === 'feed') extra.surface = b.surface;
+    if (b.via === 'swipe' || b.via === 'button') extra.via = b.via;
+    if (typeof b.list_id === 'string' && b.list_id.trim()) extra.list_id = b.list_id.trim().slice(0, 40);
+    if (Object.keys(extra).length) meta = Object.assign(meta || {}, extra);
+  }
   // Viewport-truth shelf impressions: the client batches "cards actually
   // seen" per shelf into one event. Sanitized hard — bounded shelf count,
   // capped label length and per-shelf count — so meta can't balloon.

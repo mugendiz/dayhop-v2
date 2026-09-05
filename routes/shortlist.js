@@ -12,9 +12,17 @@ const { requireUser } = require('../middleware/auth');
 
 router.use(requireUser);
 
+// ?list=<id> narrows to one named list; ?list=none = legacy un-listed items;
+// no param = everything (what the pre-lists client expects).
+function listFilter(q) {
+  if (q === undefined || q === null || q === '') return {};
+  if (String(q) === 'none') return { listId: null };
+  return { listId: String(q).slice(0, 40) };
+}
+
 router.get('/', async (req, res, next) => {
   try {
-    const items = await store.listShortlist(req.ownerId, req.dbCtx);
+    const items = await store.listShortlist(req.ownerId, req.dbCtx, listFilter(req.query.list));
     res.json({ items });
   } catch (err) { next(err); }
 });
@@ -27,17 +35,22 @@ const MAX_IDEA_BYTES = 8 * 1024;
 const MAX_ITEMS = 100;
 
 router.post('/', async (req, res, next) => {
-  const { idea } = req.body || {};
+  const { idea, list_id } = req.body || {};
   if (!idea || idea.id == null) {
     return res.status(400).json({ error: 'INVALID_INPUT', message: 'An idea with an id is required.' });
   }
   if (JSON.stringify(idea).length > MAX_IDEA_BYTES) {
     return res.status(400).json({ error: 'INVALID_INPUT', message: 'That idea payload is too large.' });
   }
+  const listId = list_id ? String(list_id).slice(0, 40) : null;
   try {
+    if (listId) {
+      const list = await store.getShortlist(listId, req.ownerId, req.dbCtx);
+      if (!list) return res.status(404).json({ error: 'NOT_FOUND', message: 'No such list.' });
+    }
     // Updating an existing item is always allowed; only NEW items count
-    // against the cap.
-    const items = await store.listShortlist(req.ownerId, req.dbCtx);
+    // against the cap. With named lists the cap is per list.
+    const items = await store.listShortlist(req.ownerId, req.dbCtx, { listId });
     const exists = items.some(i =>
       String(i.idea_id != null ? i.idea_id : (i.idea && i.idea.id)) === String(idea.id));
     if (!exists && items.length >= MAX_ITEMS) {
@@ -46,14 +59,30 @@ router.post('/', async (req, res, next) => {
         message: `Shortlists cap at ${MAX_ITEMS} places — remove a few before adding more.`
       });
     }
-    const item = await store.addShortlistItem({ ownerId: req.ownerId, idea }, req.dbCtx);
+    const item = await store.addShortlistItem({ ownerId: req.ownerId, idea, listId }, req.dbCtx);
     res.status(201).json({ item });
   } catch (err) { next(err); }
 });
 
+// Move a saved place into another list (long-press → "Move to…").
+router.post('/:ideaId/move', async (req, res, next) => {
+  const toListId = req.body && req.body.list_id ? String(req.body.list_id).slice(0, 40) : null;
+  try {
+    if (toListId) {
+      const list = await store.getShortlist(toListId, req.ownerId, req.dbCtx);
+      if (!list) return res.status(404).json({ error: 'NOT_FOUND', message: 'No such list.' });
+    }
+    const item = await store.moveShortlistItem({ ownerId: req.ownerId, ideaId: req.params.ideaId, toListId }, req.dbCtx);
+    if (!item) return res.status(404).json({ error: 'NOT_FOUND', message: 'Item not on the shortlist.' });
+    res.json({ item });
+  } catch (err) { next(err); }
+});
+
+// DELETE /:ideaId removes the place from every list; ?list=<id> from one.
 router.delete('/:ideaId', async (req, res, next) => {
   try {
-    const existed = await store.removeShortlistItem({ ownerId: req.ownerId, ideaId: req.params.ideaId }, req.dbCtx);
+    const existed = await store.removeShortlistItem(
+      Object.assign({ ownerId: req.ownerId, ideaId: req.params.ideaId }, listFilter(req.query.list)), req.dbCtx);
     if (!existed) return res.status(404).json({ error: 'NOT_FOUND', message: 'Item not on the shortlist.' });
     res.status(204).send();
   } catch (err) { next(err); }
@@ -61,7 +90,7 @@ router.delete('/:ideaId', async (req, res, next) => {
 
 router.delete('/', async (req, res, next) => {
   try {
-    const removed = await store.clearShortlist(req.ownerId, req.dbCtx);
+    const removed = await store.clearShortlist(req.ownerId, req.dbCtx, listFilter(req.query.list));
     res.json({ removed });
   } catch (err) { next(err); }
 });

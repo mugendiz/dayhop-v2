@@ -29,7 +29,10 @@ router.get('/', (req, res) => {
     spotlight: getSpotlight(),
     // Social vote MVP on shared guide pages (/g/<id>): off until the
     // post-revenue launch. guide.html hides every vote control when false.
-    socialVote: String(process.env.SOCIAL_VOTE || '').toLowerCase() === 'on'
+    socialVote: String(process.env.SOCIAL_VOTE || '').toLowerCase() === 'on',
+    // Mobile Favs grid (named shortlists as photo-tile pages, tile modal,
+    // square-tile feed). Mobile-only in the client; desktop ignores it.
+    favsGrid: String(process.env.FAVS_GRID || '').toLowerCase() === 'on'
   });
 });
 

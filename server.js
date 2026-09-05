@@ -257,6 +257,19 @@ app.use('/api/config', require('./routes/config'));
 app.use('/api/adventures', require('./routes/adventures'));
 app.use('/api/community', require('./routes/community'));
 app.use('/api/shortlist', require('./routes/shortlist'));
+// Named shortlists ("My Favs" pages) — same auth gate as /api/shortlist.
+app.use('/api/shortlists', require('./routes/shortlists'));
+// Per-place weather chip for the tile modal. Served from the 10-minute
+// ~11 km cache in services/weather, so a whole grid costs one upstream call;
+// the limiter keeps a scripted client from draining the OpenWeather tier.
+const weatherLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'RATE_LIMITED', message: 'Slow down a little.' }
+});
+app.use('/api/weather', weatherLimiter, require('./routes/weather'));
 // Checkout/portal POSTs each hit Stripe's API — cheap, but not free to spam.
 const billingLimiter = rateLimit({
   windowMs: 60 * 1000,
