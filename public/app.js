@@ -5507,18 +5507,21 @@
   function initHolidayStrip() {
     const strip = document.getElementById('holiday-strip');
     if (!strip) return;
-    const CAMPAIGN = 'labourday-2026';
-    const END = new Date('2026-09-08T04:00:00Z'); // Sep 8, Toronto midnight
-    const HOLIDAY = new Date('2026-09-05T04:00:00Z');
+    // FALL75 (founder, Sep 5 2026): 75% off every guide and Pro until two
+    // weeks after Labour Day. Stripe promo FALL75 expires Sep 21 23:59:59
+    // Toronto — the strip dies at the same instant, never after.
+    const CAMPAIGN = 'fall75-2026';
+    const END = new Date('2026-09-22T04:00:00Z'); // Sep 22, Toronto midnight
     const now = new Date();
     let dismissed = false;
     try { dismissed = localStorage.getItem('dayhop_strip_dismissed') === CAMPAIGN; } catch (e) { /* private mode */ }
+    // The Pro upgrade sheet carries the same offer line, on the same clock.
+    const proPromo = document.getElementById('upgrade-promo');
+    if (proPromo && now < END) proPromo.hidden = false;
     if (now >= END || dismissed) return;
-    const days = Math.max(0, Math.ceil((HOLIDAY - now) / 86400000));
+    const daysLeft = Math.max(1, Math.ceil((END - now) / 86400000));
     document.getElementById('holiday-strip-text').textContent =
-      days > 0
-        ? `🍁 Labour Day is ${days} day${days === 1 ? '' : 's'} away. Richmond Hill Nature Guide — 21 places, $20. Code LABOURDAY = $15 until Sep 8.`
-        : '🍁 It\'s the long weekend — Richmond Hill Nature Guide, 21 places, $20. Code LABOURDAY = $15 until Sep 8.';
+      `🍁 75% off until Sep 21: every nature guide $5 (was $20), Pro $1.25/mo for 3 months. Code FALL75 at checkout · ${daysLeft} day${daysLeft === 1 ? '' : 's'} left.`;
     strip.hidden = false;
     document.getElementById('holiday-strip-close').addEventListener('click', () => {
       strip.hidden = true;

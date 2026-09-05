@@ -144,7 +144,11 @@
     <path d="M-10 50 Q 68 41, 135 50 T 272 48 T 409 52 T 546 47 T 683 51 T 950 49" fill="none" stroke="#E1502F" stroke-width="1.6"/>
   </svg>
   <main>
-    <div class="lday-strip">🍁 <b>Labour Day is Sep 5–7.</b> Code <b>LABOURDAY</b> takes 25% off any guide until Sep 8 — and every future edition is free, forever.</div>
+    <div class="lday-strip" id="fall75-strip">🍁 <b>75% off until Sep 21.</b> Code <b>FALL75</b> at checkout takes any guide to $5 (the six-guide collection to $14.75) — and every future edition is free, forever.</div>
+    <script>
+      // FALL75 dies with the Stripe code: Sep 21 23:59:59 Toronto (= Sep 22 04:00 UTC).
+      if (Date.now() >= Date.parse('2026-09-22T04:00:00Z')) document.getElementById('fall75-strip').hidden = true;
+    </script>
     <span class="kicker">DayHop · Field Guides</span>
     <h1>City Guides</h1>
     <p class="lede">Field-checked nature guides for Ontario cities: trails with distances and surfaces, the lookouts, waterways, legal fishing spots — and the parking, washroom, and footing notes on every single entry that decide whether a day actually works.</p>
