@@ -191,7 +191,17 @@
 
   /* ---------- print: the keepable trip companion ---------- */
   @page { margin: 13mm; }
-  @media print {
+  /* Social vote MVP (shown only when /api/config.socialVote is true) */
+.vote-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 14px 0 22px; padding: 14px 16px; background: #fff; border: 1px solid var(--line, #e6dfd0); border-radius: 14px; }
+.vote-bar .vote-going { font: inherit; font-weight: 700; background: var(--coral, #FF6B4A); color: #fff; border: 0; border-radius: 999px; padding: 9px 16px; cursor: pointer; }
+.vote-bar .vote-going.on { background: var(--moss, #3F6F5C); }
+.vote-bar .vote-hint { font-size: 13.5px; color: #5c6664; flex: 1 1 220px; }
+.stop-vote { display: flex; gap: 8px; margin-top: 10px; }
+.stop-vote button { font: inherit; font-size: 14px; background: #fff; border: 1px solid var(--line, #e6dfd0); border-radius: 999px; padding: 6px 12px; cursor: pointer; color: inherit; }
+.stop-vote button.on { border-color: var(--moss, #3F6F5C); background: #e9f1ec; }
+.stop-vote button.on.down { border-color: var(--coral, #FF6B4A); background: #ffe6df; }
+@media print {
+  .vote-bar, .stop-vote { display: none !important; }
     .export-bar, .footer-cta, .toast { display: none !important; }
     body { background: white; font-size: 12.5px; line-height: 1.45; }
     .wrap { padding: 0; max-width: none; }
@@ -633,12 +643,90 @@
       '<p><a href="/">Plan your own day with DayHop →</a></p></div>';
   }
 
+  // ---------- social vote MVP (flag: /api/config.socialVote) ----------
+  // Whoever opens the link taps 👍/👎 per stop and "I'm in"; the owner sees
+  // the tallies without a group chat. One vote per browser per stop (the
+  // same guest id app.js uses). Everything here is additive: with the flag
+  // off, none of it renders.
+  function voterId() {
+    try {
+      var id = localStorage.getItem('dayhop_owner_id');
+      if (!id) { id = 'guest-' + Math.random().toString(36).slice(2, 10); localStorage.setItem('dayhop_owner_id', id); }
+      return id;
+    } catch (e) { return 'guest-' + Math.random().toString(36).slice(2, 10); }
+  }
+
+  function initVotes() {
+    var voter = voterId();
+    var head = document.querySelector('.guide-head');
+    if (!head) return;
+    var bar = document.createElement('div');
+    bar.className = 'vote-bar';
+    bar.innerHTML = '<button class="vote-going" type="button">✋ I\'m in</button>' +
+      '<span class="vote-count"></span>' +
+      '<span class="vote-hint">Send this link to whoever\'s coming. They tap what they like, you decide.</span>';
+    head.insertAdjacentElement('afterend', bar);
+    document.querySelectorAll('.stop[data-gi]').forEach(function (stopEl) {
+      var links = stopEl.querySelector('.stop-links');
+      if (!links) return;
+      var v = document.createElement('div');
+      v.className = 'stop-vote';
+      v.innerHTML = '<button type="button" data-v="1">👍 <span>0</span></button>' +
+        '<button type="button" class="down" data-v="-1">👎 <span>0</span></button>';
+      links.insertAdjacentElement('afterend', v);
+    });
+
+    function paint(t) {
+      var goingBtn = bar.querySelector('.vote-going');
+      goingBtn.classList.toggle('on', Boolean(t.mine && t.mine.going));
+      goingBtn.textContent = t.mine && t.mine.going ? '✋ You\'re in' : '✋ I\'m in';
+      bar.querySelector('.vote-count').textContent = t.going ? t.going + (t.going === 1 ? ' person is in' : ' people are in') : '';
+      document.querySelectorAll('.stop[data-gi]').forEach(function (stopEl) {
+        var gi = String(stopEl.dataset.gi);
+        var s = (t.stops && t.stops[gi]) || { up: 0, down: 0 };
+        var mine = t.mine && t.mine.stops ? t.mine.stops[gi] : undefined;
+        stopEl.querySelectorAll('.stop-vote button').forEach(function (b) {
+          var val = Number(b.dataset.v);
+          b.querySelector('span').textContent = val === 1 ? s.up : s.down;
+          b.classList.toggle('on', mine === val);
+        });
+      });
+    }
+
+    function send(stop, vote) {
+      return fetch('/api/guides/shared/' + encodeURIComponent(shareId) + '/vote', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ stop: stop, vote: vote, voter: voter })
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (t) { if (t) paint(t); });
+    }
+
+    bar.querySelector('.vote-going').addEventListener('click', function () {
+      send('going', this.classList.contains('on') ? 0 : 1);
+    });
+    document.querySelectorAll('.stop-vote button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var gi = Number(b.closest('.stop').dataset.gi);
+        send(gi, b.classList.contains('on') ? 0 : Number(b.dataset.v));
+      });
+    });
+
+    fetch('/api/guides/shared/' + encodeURIComponent(shareId) + '/votes?v=' + encodeURIComponent(voter))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (t) { if (t) paint(t); })
+      .catch(function () {});
+  }
+
+  var configReq = fetch('/api/config').then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; });
+
   fetch('/api/guides/shared/' + encodeURIComponent(shareId))
     .then(function (res) {
       if (!res.ok) throw new Error(res.status === 404 ? 'This guide does not exist or is no longer shared.' : 'Could not load this guide right now.');
       return res.json();
     })
-    .then(render)
+    .then(function (data) {
+      render(data);
+      configReq.then(function (cfg) { if (cfg && cfg.socialVote) initVotes(); });
+    })
     .catch(function (err) { showError(err.message); });
 })();
 </script>

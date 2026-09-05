@@ -225,6 +225,25 @@ create policy "own guides" on public.guides
 create policy "guides shared read" on public.guides
   for select to anon, authenticated using (is_public);
 
+-- ---------- plan_votes (social vote MVP, behind SOCIAL_VOTE=on) ----------
+-- A shared guide (/g/<share_id>) becomes the unit people forward: whoever
+-- opens the link can tap 👍/👎 on each stop and "I'm in". stop_key is the
+-- stop's global index ('0'..'19') or 'going'. voter_key is a guest id or a
+-- user id; one row per (guide, stop, voter), vote = 1 / -1. Clearing a vote
+-- deletes the row. NO anon/authenticated policies on purpose: routes/guides.js
+-- reads and writes exclusively server-side with SUPABASE_SERVICE_KEY, keyed
+-- on a share_id nobody can enumerate.
+create table if not exists public.plan_votes (
+  share_id    text not null,
+  stop_key    text not null,
+  voter_key   text not null,
+  vote        smallint not null check (vote in (1, -1)),
+  updated_at  timestamptz not null default now(),
+  primary key (share_id, stop_key, voter_key)
+);
+create index if not exists plan_votes_share_idx on public.plan_votes (share_id);
+alter table public.plan_votes enable row level security;
+
 -- ---------- banned_users (admin moderation) ----------
 -- Keyed the same way events are: a user id, a guest id, or "ip-<addr>".
 -- NO anon/authenticated policies on purpose: rows are read and written

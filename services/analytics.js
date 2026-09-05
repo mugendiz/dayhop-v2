@@ -87,7 +87,10 @@ const SERVER_EVENT_TYPES = new Set([
   // Keyed profile links (routes/go.js): a bio/story/ad link was tapped.
   // meta.src is the channel key — taps per 1,000 views is the middle-of-
   // funnel number the Friday check-day reads.
-  'link_click'
+  'link_click',
+  // Social vote MVP (routes/guides.js, SOCIAL_VOTE=on): a 👍/👎/"I'm in" tap
+  // on a shared guide. idea_id = share_id, meta.stop / meta.vote.
+  'plan_vote'
 ]);
 
 const EVENT_TYPES = new Set([...CLIENT_EVENT_TYPES, ...SERVER_EVENT_TYPES]);

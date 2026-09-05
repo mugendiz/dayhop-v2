@@ -410,4 +410,58 @@ router.get('/shared/:shareId', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ---------- social vote MVP (SOCIAL_VOTE=on; launches post-revenue) ----------
+// Whoever holds the share link can tap 👍/👎 per stop and "I'm in". Both
+// endpoints 404 while the flag is off so the feature is invisible until launch.
+const planVotes = require('../services/planVotes');
+
+async function sharedGuideExists(shareId) {
+  let record = null;
+  try { record = await store.getGuideByShareId(shareId); } catch (err) { /* fall through */ }
+  if (!record) record = await memoryStore.getGuideByShareId(shareId);
+  return Boolean(record);
+}
+
+router.get('/shared/:shareId/votes', async (req, res, next) => {
+  if (!planVotes.enabled()) return res.status(404).json({ error: 'NOT_FOUND', message: 'No such API endpoint.' });
+  try {
+    const shareId = String(req.params.shareId).slice(0, 40);
+    if (!(await sharedGuideExists(shareId))) {
+      return res.status(404).json({ error: 'NOT_FOUND', message: 'This guide does not exist or is no longer shared.' });
+    }
+    const rows = await store.listPlanVotes(shareId);
+    res.set('Cache-Control', 'no-store');
+    res.json(planVotes.tally(rows, planVotes.voterKeyFor(req)));
+  } catch (err) { next(err); }
+});
+
+router.post('/shared/:shareId/vote', async (req, res, next) => {
+  if (!planVotes.enabled()) return res.status(404).json({ error: 'NOT_FOUND', message: 'No such API endpoint.' });
+  try {
+    const shareId = String(req.params.shareId).slice(0, 40);
+    const stopKey = planVotes.normalizeStopKey(req.body && req.body.stop);
+    const vote = planVotes.normalizeVote(req.body && req.body.vote, stopKey);
+    const voterKey = planVotes.voterKeyFor(req);
+    if (!stopKey || vote === null) {
+      return res.status(400).json({ error: 'INVALID_INPUT', message: 'stop must be "going" or a stop index; vote must be 1, -1 or 0.' });
+    }
+    if (!voterKey) {
+      return res.status(400).json({ error: 'INVALID_INPUT', message: 'A voter id is required.' });
+    }
+    if (!(await sharedGuideExists(shareId))) {
+      return res.status(404).json({ error: 'NOT_FOUND', message: 'This guide does not exist or is no longer shared.' });
+    }
+    await store.upsertPlanVote({ shareId, stopKey, voterKey, vote });
+    analytics.recordEvent({
+      type: 'plan_vote',
+      ownerKey: voterKey,
+      ideaId: shareId,
+      meta: { stop: stopKey, vote }
+    });
+    const rows = await store.listPlanVotes(shareId);
+    res.set('Cache-Control', 'no-store');
+    res.json(planVotes.tally(rows, voterKey));
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

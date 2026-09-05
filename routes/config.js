@@ -26,7 +26,10 @@ router.get('/', (req, res) => {
     ga4MeasurementId: process.env.GA4_MEASUREMENT_ID || null,
     // Seasonal spotlight: drives the hero eyebrow and holiday chrome
     // client-side (World Cup while live, then the next stat holiday).
-    spotlight: getSpotlight()
+    spotlight: getSpotlight(),
+    // Social vote MVP on shared guide pages (/g/<id>): off until the
+    // post-revenue launch. guide.html hides every vote control when false.
+    socialVote: String(process.env.SOCIAL_VOTE || '').toLowerCase() === 'on'
   });
 });
 

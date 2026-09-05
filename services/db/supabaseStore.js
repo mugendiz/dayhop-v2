@@ -191,6 +191,30 @@ async function getGuideByShareId(shareId) {
   return guideFromRow(data);
 }
 
+// ---------- plan votes (social vote MVP) ----------
+// Server-only table (no RLS policies): always the shared service client,
+// keyed on a share_id that is unguessable by construction.
+async function upsertPlanVote({ shareId, stopKey, voterKey, vote }) {
+  const client = getClient();
+  if (vote === 0) {
+    const { error } = await client.from('plan_votes').delete()
+      .eq('share_id', shareId).eq('stop_key', stopKey).eq('voter_key', voterKey);
+    if (error) throw fail(error, 'upsertPlanVote:delete');
+    return true;
+  }
+  const row = { share_id: shareId, stop_key: stopKey, voter_key: voterKey, vote, updated_at: new Date().toISOString() };
+  const { error } = await client.from('plan_votes').upsert(row, { onConflict: 'share_id,stop_key,voter_key' });
+  if (error) throw fail(error, 'upsertPlanVote');
+  return true;
+}
+
+async function listPlanVotes(shareId) {
+  const { data, error } = await getClient()
+    .from('plan_votes').select('stop_key, voter_key, vote').eq('share_id', shareId).limit(5000);
+  if (error) throw fail(error, 'listPlanVotes');
+  return data || [];
+}
+
 // ---------- users ----------
 async function upsertUser({ id, email }, ctx) {
   const row = id ? { id, email } : { email };
@@ -205,5 +229,6 @@ module.exports = {
   addShortlistItem, listShortlist, removeShortlistItem, clearShortlist,
   createSubmission, listPendingSubmissions, setSubmissionStatus,
   createGuide, countGuides, listGuides, getGuideById, updateGuide, deleteGuide, getGuideByShareId,
-  upsertUser
+  upsertUser,
+  upsertPlanVote, listPlanVotes
 };

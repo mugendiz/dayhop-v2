@@ -10,6 +10,25 @@ const adventures = new Map();        // id -> record
 const shortlist = new Map();         // ownerId -> Map(ideaId -> item)
 const submissions = [];              // array of submission records
 const users = new Map();             // id -> user
+const planVotes = new Map();         // shareId -> Map(`${stopKey}|${voterKey}` -> vote)
+
+// ---------- plan votes (social vote MVP) ----------
+async function upsertPlanVote({ shareId, stopKey, voterKey, vote }) {
+  if (!planVotes.has(shareId)) planVotes.set(shareId, new Map());
+  const m = planVotes.get(shareId);
+  const k = `${stopKey}|${voterKey}`;
+  if (vote === 0) m.delete(k); else m.set(k, vote);
+  return true;
+}
+
+async function listPlanVotes(shareId) {
+  const m = planVotes.get(shareId);
+  if (!m) return [];
+  return [...m.entries()].map(([k, vote]) => {
+    const i = k.indexOf('|');
+    return { stop_key: k.slice(0, i), voter_key: k.slice(i + 1), vote };
+  });
+}
 
 // ---------- adventures ----------
 async function createAdventure({ ownerId, plan }) {
@@ -165,5 +184,6 @@ module.exports = {
   addShortlistItem, listShortlist, removeShortlistItem, clearShortlist,
   createSubmission, listPendingSubmissions, setSubmissionStatus,
   createGuide, countGuides, listGuides, getGuideById, updateGuide, deleteGuide, getGuideByShareId,
-  upsertUser
+  upsertUser,
+  upsertPlanVote, listPlanVotes
 };
