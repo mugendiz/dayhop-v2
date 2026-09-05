@@ -5897,6 +5897,7 @@
     const tile = document.createElement('div');
     tile.className = 'idea-tile';
     tile.dataset.ideaId = idea.id;
+    tile.__idea = idea; // deck mode reads the idea back off the DOM order
     const shelf = idea.section || idea.shelf_label;
     if (shelf) tile.dataset.section = shelf;
     if (shelfSeenObserver) shelfSeenObserver.observe(tile);
@@ -6030,12 +6031,69 @@
       .catch(() => {});
   }
 
+  // Feed modal runs as a deck: opening one tile queues every other tile still
+  // in the feed (DOM order, starting after the tapped one). Save or skip
+  // advances straight to the next place; when the deck is empty the modal
+  // says "list complete" and jumps to the Favs grid. Founder ask, Sep 5.
+  function favsFeedQueueFrom(tile) {
+    const tiles = Array.from(document.querySelectorAll('#discovery-feed .idea-tile, .card-feed .idea-tile'));
+    const i = tiles.indexOf(tile);
+    const ordered = i >= 0 ? tiles.slice(i + 1).concat(tiles.slice(0, i)) : tiles.filter(t => t !== tile);
+    return ordered.map(t => ({ tile: t, idea: t.__idea })).filter(q => q.idea);
+  }
+
+  // The feed re-renders after a save, so queued tile elements go stale —
+  // re-find each tile by idea id at advance time and skip what's been
+  // processed meanwhile (saved, skipped, or no longer in the feed).
+  function favsNextInQueue(queue) {
+    while (queue && queue.length) {
+      const next = queue.shift();
+      const id = next.idea && next.idea.id;
+      if (!id) continue;
+      if (state.dismissedIds.has(id)) continue;
+      if (state.shortlist.find(i => i.id === id)) continue;
+      const live = next.tile.isConnected ? next.tile
+        : document.querySelector(`.feed--grid .idea-tile[data-idea-id="${CSS.escape(String(id))}"]`);
+      if (!live) continue;
+      return { idea: next.idea, tile: live };
+    }
+    return null;
+  }
+
+  function favsDeckComplete(ctx) {
+    const content = document.getElementById('tile-content');
+    const modal = document.getElementById('tile-modal');
+    if (!content || !modal) return;
+    const list = favsActiveList();
+    const saved = (ctx.deck && ctx.deck.saved) || 0;
+    const skipped = (ctx.deck && ctx.deck.skipped) || 0;
+    content.innerHTML = `
+      <div class="tile-complete" role="status">
+        <div class="tile-complete-mark">✓</div>
+        <h3 id="tile-title" class="tile-modal-title">List complete</h3>
+        <p class="tile-modal-loc">${saved} saved${list ? ` to ${escapeHtml(list.name)}` : ''} · ${skipped} skipped</p>
+        <p class="tile-complete-hint">Opening your Favs…</p>
+      </div>`;
+    if (navigator.vibrate) navigator.vibrate([12, 40, 12]);
+    tileModalCtx = null;
+    setTimeout(() => {
+      if (!modal.hidden) closePanel(modal);
+      openFavs();
+    }, 1400);
+  }
+
   function openTileModal(idea, ctx) {
+    if (ctx.surface === 'feed' && !ctx.queue && ctx.tile) {
+      ctx.queue = favsFeedQueueFrom(ctx.tile);
+      ctx.deck = { saved: 0, skipped: 0, total: ctx.queue.length + 1 };
+    }
     tileModalCtx = Object.assign({ idea }, ctx);
     const isFavs = ctx.surface === 'favs';
     const list = isFavs ? ctx.list : favsActiveList();
     const content = document.getElementById('tile-content');
     if (!content) return;
+    const deck = !isFavs && ctx.deck ? ctx.deck : null;
+    const left = deck ? ctx.queue.filter(q => q.idea && !state.dismissedIds.has(q.idea.id) && !state.shortlist.find(i => i.id === q.idea.id)).length : 0;
     const location = [idea.venue, idea.location].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · ');
     const facts = [];
     if (idea.distance_km != null) facts.push(`📍 ${idea.distance_km} km`);
@@ -6043,6 +6101,7 @@
     if (idea.duration_minutes) facts.push(formatDuration(idea.duration_minutes));
     const others = isFavs ? state.lists.filter(l => l.id !== list.id) : [];
     content.innerHTML = `
+      ${deck ? `<p class="tile-progress">${left === 0 ? 'Last one' : `${left} more after this`} · ${deck.saved} saved</p>` : ''}
       <div class="tile-modal-photo"><img src="${escapeAttr(tileImageUrl(idea, 720))}" alt="" decoding="async"></div>
       <h3 id="tile-title" class="tile-modal-title">${escapeHtml(idea.title || '')}</h3>
       ${location ? `<p class="tile-modal-loc">${escapeHtml(location)}</p>` : ''}
@@ -6059,8 +6118,11 @@
              ${idea.maps_url ? `<a class="ghost-btn tile-ghost" href="${escapeAttr(idea.maps_url)}" target="_blank" rel="noopener noreferrer">Map ↗</a>` : ''}
              <button class="linklike tile-remove" id="tile-remove" type="button">Remove from list</button>`
           : `<button class="ghost-btn tile-ghost" id="tile-details" type="button">Details</button>
-             <button class="linklike tile-remove" id="tile-skip" type="button">Skip this one</button>`}
+             <button class="ghost-btn tile-ghost tile-skip" id="tile-skip" type="button">✕ Skip this one</button>`}
       </div>`;
+    content.classList.remove('tile-content--in');
+    void content.offsetWidth; // restart the slide-in on every deck advance
+    content.classList.add('tile-content--in');
     favsWeatherLine(idea);
     track('tile_open', idea);
 
@@ -6077,9 +6139,17 @@
         handleBuildDay({ items: first.concat(rest), btnId: 'favs-build-btn', footerSel: '#favs-panel .favs-footer', closeIds: ['tile-modal', 'favs-panel'] });
       } else {
         track('tile_swipe_plan', idea);
-        close();
         favsSaveFromFeed(idea, ctx.tile, via === 'swipe' ? 'swipe' : 'button');
+        if (ctx.deck) ctx.deck.saved++;
+        advance();
       }
+    };
+    // Deck mode: hand the modal the next feed tile instead of closing.
+    const advance = () => {
+      if (!ctx.deck) { close(); return; }
+      const next = favsNextInQueue(ctx.queue);
+      if (next) openTileModal(next.idea, { surface: 'feed', tile: next.tile, queue: ctx.queue, deck: ctx.deck });
+      else favsDeckComplete(ctx);
     };
     wireTileSlider(document.getElementById('tile-slider'), document.getElementById('tile-knob'), () => act('swipe'), () => act('button'));
     document.getElementById('tile-primary').addEventListener('click', () => act('button'));
@@ -6103,11 +6173,18 @@
     } else {
       document.getElementById('tile-details').addEventListener('click', () => { close(); openDetail(idea); });
       document.getElementById('tile-skip').addEventListener('click', () => {
-        close();
         if (ctx.tile) dismissIdea(idea, ctx.tile);
+        if (ctx.deck) ctx.deck.skipped++;
+        advance();
       });
     }
-    openPanel('tile-modal');
+    if (modal.hidden || !modal.classList.contains('panel--open')) openPanel('tile-modal');
+    else {
+      const sheet = modal.querySelector('.panel-sheet');
+      if (sheet) sheet.scrollTop = 0;
+      const knob = document.getElementById('tile-knob');
+      if (knob) knob.focus({ preventScroll: true });
+    }
   }
 
   function favsPanelOpen() {

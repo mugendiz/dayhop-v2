@@ -4186,7 +4186,27 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
   .tile-move { font-size: 13px; color: var(--ink-soft); display: inline-flex; align-items: center; gap: 6px; }
   .tile-move select { font: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: #fff; color: var(--ink); }
   .tile-remove { margin-left: auto; color: var(--ink-soft); font-size: 13px; }
+  /* Skip is a real button now (same size as Details), coral-outlined so
+     "no" is as easy to hit as "yes". */
+  .tile-modal-actions .tile-skip {
+    border-color: rgba(225,80,47,0.45); color: var(--coral-dark, #C7482B);
+    font-weight: 700; min-height: 46px; font-size: 15px;
+  }
+  .tile-modal-actions .tile-skip:active { background: rgba(225,80,47,0.1); }
+  .tile-progress { margin: 0 0 8px; font: 600 12px/1 var(--mono); letter-spacing: .04em; color: var(--ink-soft); text-transform: uppercase; }
+  .tile-content--in { animation: tile-slide-in 0.28s var(--ease); }
+  @keyframes tile-slide-in { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+  .tile-complete { text-align: center; padding: 28px 8px 36px; }
+  .tile-complete-mark {
+    width: 72px; height: 72px; margin: 0 auto 14px; border-radius: 50%;
+    background: var(--moss); color: #fff; font-size: 38px; line-height: 72px; font-weight: 700;
+    box-shadow: 0 8px 22px rgba(63,111,92,0.35);
+    animation: tile-pop 0.35s var(--ease);
+  }
+  .tile-complete .tile-modal-title { margin: 0 0 6px; font-size: 24px; }
+  .tile-complete-hint { margin: 10px 0 0; color: var(--ink-soft); font-size: 13px; }
+  @keyframes tile-pop { from { transform: scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
   @media (prefers-reduced-motion: reduce) {
-    .favs-tile, .favs-coach { animation: none; }
+    .favs-tile, .favs-coach, .tile-content--in, .tile-complete-mark { animation: none; }
   }
 }
