@@ -2949,6 +2949,9 @@ body[data-mode="adventure"] .mode-thumb { transform: translateX(100%); }
 }
 
 .footer-links {
+  /* 320px phones: five links do not fit on one line — wrap, never overflow. */
+  flex-wrap: wrap;
+  justify-content: center;
   display: flex;
   justify-content: center;
   gap: 10px;
@@ -4141,7 +4144,10 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
   /* --- tile mini modal: bottom sheet ~70% --- */
   .tile-modal .panel-sheet--bottom {
     top: auto; left: 0; right: 0; bottom: 0;
-    width: 100%; max-height: 78vh;
+    /* Tall enough that photo → slider → Details/Skip fit without scrolling
+       on a phone with browser chrome (390×664): 92% of the *dynamic* viewport. */
+    width: 100%; max-height: 92vh; max-height: 92dvh;
+    overflow-x: hidden; /* the content slide-in translates 28px; never a sideways scroll */
     border-left: 0; border-top: 1px solid var(--glass-border);
     border-radius: 22px 22px 0 0;
     padding: 12px 16px calc(18px + env(safe-area-inset-bottom));
@@ -4152,7 +4158,7 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
   .tile-modal.panel--open .panel-sheet--bottom { transform: translateY(0); }
   .tile-close { position: absolute; top: 10px; right: 10px; z-index: 2; }
   .tile-modal-photo {
-    border-radius: 16px; overflow: hidden; aspect-ratio: 16 / 10; background: var(--moss);
+    border-radius: 16px; overflow: hidden; aspect-ratio: 16 / 9; max-height: 30vh; background: var(--moss);
     box-shadow: var(--shadow-soft);
   }
   .tile-modal-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -4196,6 +4202,17 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
     font-weight: 700; min-height: 46px; font-size: 15px;
   }
   .tile-modal-actions .tile-skip:active { background: rgba(225,80,47,0.1); }
+  /* Short viewports (iPhone SE, landscape): trim the photo and the blurb so
+     the whole sheet still lands above the fold. */
+  @media (max-height: 640px) {
+    .tile-modal .panel-sheet--bottom { padding-top: 8px; }
+    .tile-modal-photo { max-height: 22vh; }
+    .tile-modal-title { font-size: 18px; margin-top: 8px; }
+    .tile-modal-why { -webkit-line-clamp: 2; margin-bottom: 8px; }
+    .tile-slider { height: 50px; margin-bottom: 8px; }
+    .tile-slider-knob { width: 42px; height: 42px; font-size: 18px; }
+    .tile-modal-actions .tile-skip, .tile-modal-actions .tile-ghost { min-height: 40px; }
+  }
   .tile-progress { margin: 0 0 8px; font: 600 12px/1 var(--mono); letter-spacing: .04em; color: var(--ink-soft); text-transform: uppercase; }
   .tile-content--in { animation: tile-slide-in 0.28s var(--ease); }
   @keyframes tile-slide-in { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }

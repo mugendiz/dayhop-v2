@@ -66,7 +66,7 @@ h1{font-family:var(--display);font-weight:700;letter-spacing:-0.02em;line-height
 .cta-panel a.btn{display:inline-block;margin-top:12px;font-family:var(--display);font-weight:700;color:#fff;background:var(--coral);text-decoration:none;padding:11px 20px;border-radius:8px}
 .cta-panel a.btn:hover{background:var(--coral-dark)}
 footer{border-top:1px solid var(--line);padding:26px 0 40px;margin-top:20px;color:var(--ink-soft);font-size:13.5px}
-footer nav{display:flex;gap:14px;margin-top:6px}
+footer nav{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:6px}
 footer a{color:var(--ink-soft)}
 .subscribe-panel{margin:10px 0 34px;padding:24px 26px;background:#fff;border:1px solid var(--line);border-radius:var(--radius) 0 0 var(--radius);box-shadow:0 4px 14px rgba(16,42,46,0.08)}
 .subscribe-panel strong{font-family:var(--display);font-size:19px;display:block;margin-bottom:4px}

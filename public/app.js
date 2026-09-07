@@ -6161,7 +6161,6 @@
         <button class="tile-slider-knob" id="tile-knob" type="button" aria-label="${isFavs ? 'Plan my day from this list' : 'Add to my day'}">→</button>
       </div>
       <div class="tile-modal-actions">
-        <button class="primary-btn tile-primary" id="tile-primary" type="button">${isFavs ? '⚡ Plan my day' : 'Add to my day →'}</button>
         ${isFavs
           ? `${others.length ? `<label class="tile-move">Move to <select id="tile-move" aria-label="Move to list"><option value="">…</option>${others.map(l => `<option value="${escapeAttr(l.id)}">${escapeHtml(l.name)}</option>`).join('')}</select></label>` : ''}
              ${idea.maps_url ? `<a class="ghost-btn tile-ghost" href="${escapeAttr(idea.maps_url)}" target="_blank" rel="noopener noreferrer">Map ↗</a>` : ''}
@@ -6201,7 +6200,10 @@
       else favsDeckComplete(ctx);
     };
     wireTileSlider(document.getElementById('tile-slider'), document.getElementById('tile-knob'), () => act('swipe'), () => act('button'));
-    document.getElementById('tile-primary').addEventListener('click', () => act('button'));
+    // The slider is the one primary action (2026-09-07: the duplicate
+    // "Add to my day" button pushed Details/Skip below the fold on phones).
+    const primaryBtn = document.getElementById('tile-primary');
+    if (primaryBtn) primaryBtn.addEventListener('click', () => act('button'));
     if (isFavs) {
       const mv = document.getElementById('tile-move');
       if (mv) mv.addEventListener('change', () => {
