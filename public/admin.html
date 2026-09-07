@@ -408,6 +408,39 @@
       <button id="discovery-scan" type="button">Scan feeds</button>
       <div id="discovery-list" style="margin-top:12px"></div>
     </div>
+
+    <div class="card" id="tott-card">
+      <h2>Talk of the town — this week's outdoor picks</h2>
+      <p class="rate" style="margin:0 0 10px">
+        Every Sunday at midnight (Toronto) Grok searches the live web and X for the outdoor
+        happenings people are flocking to this week, per region hub; each pick is verified
+        (Google Places, ≤ ~2 h from the hub, dates, outdoors, <strong>no restaurant without a
+        patio, nothing drinking-only</strong>) before it reaches the shelf. Toronto refreshes
+        weekly; other hubs the first time someone browses from there. Pin a pick to carry it
+        into next week; retire one to pull it now; add your own — it runs the same checks.
+      </p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+        <select id="tott-hub"></select>
+        <button id="tott-refresh" type="button">Refresh this hub now</button>
+        <span class="rate" id="tott-meta"></span>
+      </div>
+      <div id="tott-list" style="margin-top:12px"></div>
+      <details style="margin-top:12px">
+        <summary>Add a pick by hand</summary>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:8px; margin-top:8px">
+          <input id="tott-title" placeholder="Title (e.g. Cabbagetown Festival)">
+          <input id="tott-venue" placeholder="Venue / street">
+          <input id="tott-city" placeholder="City">
+          <input id="tott-start" placeholder="Start YYYY-MM-DD">
+          <input id="tott-end" placeholder="End YYYY-MM-DD">
+          <input id="tott-url" placeholder="Official URL">
+          <input id="tott-why" placeholder="Why people are going (one line)">
+          <input id="tott-price" placeholder="free / $ / $$">
+        </div>
+        <button id="tott-add" type="button" style="margin-top:8px">Verify &amp; add</button>
+        <span class="rate" id="tott-add-msg"></span>
+      </details>
+    </div>
     </section>
 
     <section class="tab-panel" id="tab-crm">
@@ -1059,7 +1092,7 @@
       const h = await res.json();
       const s = h.schedulers || {};
       const runs = s.last_runs || {};
-      const names = ['outreach_cadence', 'operator_report', 'social_batch', 'weekly_digest', 'discovery_scan', 'accounting_recurring'];
+      const names = ['outreach_cadence', 'operator_report', 'social_batch', 'weekly_digest', 'discovery_scan', 'tott_refresh', 'accounting_recurring'];
       $('ops-schedulers').innerHTML =
         'Process up ' + (s.process_uptime_hours != null ? s.process_uptime_hours + 'h' : '?') + ' · ' +
         names.map(n => '<b>' + esc(n.replace(/_/g, ' ')) + '</b>: ' +
@@ -1417,6 +1450,111 @@
     } catch (e) { /* the Scan button still works */ }
   }
 
+  // ---------- Talk of the town ----------
+  let tottState = null;
+  async function tottCall(path, body) {
+    const res = await fetch('/api/admin/tott' + path, {
+      method: body === undefined ? 'GET' : 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, lastAuth.headers),
+      body: body === undefined ? undefined : JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || ('Error ' + res.status));
+    return data;
+  }
+  async function loadTott() {
+    if (!lastAuth) return;
+    try {
+      tottState = await tottCall('');
+      renderTott();
+    } catch (e) {
+      $('tott-list').innerHTML = '<p class="rate">' + esc(e.message) + '</p>';
+    }
+  }
+  function renderTott() {
+    const st = tottState;
+    if (!st) return;
+    const sel = $('tott-hub');
+    const current = sel.value || 'toronto';
+    sel.innerHTML = st.hubs.map(h => '<option value="' + esc(h.id) + '"' + (h.id === current ? ' selected' : '') + '>' +
+      esc(h.name) + ((st.rows[h.id] || []).length ? ' (' + (st.rows[h.id] || []).filter(r => r.live).length + ' live)' : '') + '</option>').join('');
+    const hub = sel.value || 'toronto';
+    const rows = (st.rows[hub] || []).filter(r => r.live);
+    const run = st.last_runs && st.last_runs[hub];
+    $('tott-meta').textContent = 'week of ' + st.week_start + ' · on the weekly schedule: ' + st.due.join(', ') +
+      (run ? ' · last run ' + new Date(run.at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) +
+        ' (' + run.reason + '): ' + fmt(run.published) + ' published, ' + fmt((run.dropped || []).length) + ' dropped' + (run.error ? ' · ' + run.error : '') : '') +
+      (st.refreshing.includes(hub) ? ' · refreshing…' : '');
+    if (!rows.length) {
+      $('tott-list').innerHTML = '<p class="rate">No live picks for this hub yet — Refresh, or add one by hand.</p>' + tottDropped(run);
+      return;
+    }
+    $('tott-list').innerHTML = rows.map(r =>
+      '<div style="border-top:1px solid var(--line, #ddd); padding:10px 0">' +
+        '<strong>' + (r.pinned ? '★ ' : '') + esc(r.title) + '</strong>' +
+        ' <span class="rate">· ' + esc([r.venue, r.city].filter(Boolean).join(', ')) + ' · ' + esc(r.date) +
+          (r.date_end && r.date_end !== r.date ? ' → ' + esc(r.date_end) : '') +
+          (r.km_from_hub != null ? ' · ' + fmt(r.km_from_hub) + ' km from hub' : '') +
+          (r.verified ? ' · ✓ verified' : '') + (r.manual ? ' · manual' : '') + '</span>' +
+        (r.url ? ' <a href="' + esc(r.url) + '" target="_blank" rel="noopener">site</a>' : '') +
+        '<div style="margin-top:6px">' +
+          '<button type="button" data-tott-pin="' + esc(r.id) + '" data-pinned="' + (r.pinned ? '1' : '0') + '">' + (r.pinned ? 'Unpin' : 'Pin for next week') + '</button> ' +
+          '<button type="button" data-tott-retire="' + esc(r.id) + '">Retire</button>' +
+        '</div>' +
+      '</div>').join('') + tottDropped(run);
+    $('tott-list').querySelectorAll('[data-tott-pin]').forEach(b => b.addEventListener('click', async () => {
+      b.disabled = true;
+      try { tottState = await tottCall('/' + encodeURIComponent(b.dataset.tottPin) + '/pin', { pinned: b.dataset.pinned !== '1' }); renderTott(); }
+      catch (e) { alert(e.message); b.disabled = false; }
+    }));
+    $('tott-list').querySelectorAll('[data-tott-retire]').forEach(b => b.addEventListener('click', async () => {
+      b.disabled = true;
+      try { tottState = await tottCall('/' + encodeURIComponent(b.dataset.tottRetire) + '/retire', {}); renderTott(); }
+      catch (e) { alert(e.message); b.disabled = false; }
+    }));
+  }
+  function tottDropped(run) {
+    if (!run || !(run.dropped || []).length) return '';
+    return '<details class="rate" style="margin-top:8px"><summary>' + fmt(run.dropped.length) + ' dropped by verification last run</summary><ul style="margin:6px 0 0">' +
+      run.dropped.map(d => '<li>' + esc(d.title) + ' — ' + esc(d.reason) + '</li>').join('') + '</ul></details>';
+  }
+  $('tott-hub').addEventListener('change', renderTott);
+  $('tott-refresh').addEventListener('click', async () => {
+    if (!lastAuth) return;
+    const btn = $('tott-refresh');
+    btn.disabled = true;
+    btn.textContent = 'Searching + verifying… (~30-60s)';
+    try {
+      const data = await tottCall('/refresh', { hub: $('tott-hub').value || 'toronto' });
+      tottState = data.peek;
+      renderTott();
+    } catch (e) {
+      $('tott-list').innerHTML = '<p class="rate">' + esc(e.message) + '</p>';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Refresh this hub now';
+    }
+  });
+  $('tott-add').addEventListener('click', async () => {
+    if (!lastAuth) return;
+    const msg = $('tott-add-msg');
+    msg.textContent = 'Verifying…';
+    try {
+      const data = await tottCall('/manual', {
+        hub: $('tott-hub').value || 'toronto',
+        title: $('tott-title').value, venue: $('tott-venue').value, city: $('tott-city').value,
+        start_date: $('tott-start').value, end_date: $('tott-end').value,
+        official_url: $('tott-url').value, why: $('tott-why').value, price: $('tott-price').value
+      });
+      tottState = data.peek;
+      renderTott();
+      msg.textContent = 'Added ✓ (pinned)';
+      ['tott-title', 'tott-venue', 'tott-city', 'tott-start', 'tott-end', 'tott-url', 'tott-why', 'tott-price'].forEach(id => { $(id).value = ''; });
+    } catch (e) {
+      msg.textContent = e.message;
+    }
+  });
+
   // ---------- Newsletter / weekly digest ----------
   async function loadNewsletter() {
     if (!lastAuth) return;
@@ -1576,6 +1714,7 @@
       updateTabVisibility();
       restoreTab();
       peekDiscovery();
+      loadTott();
       loadNewsletter();
       loadSubscriptions(headers);
       loadCrm();

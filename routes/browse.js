@@ -21,6 +21,16 @@ const { getSkyTonight } = require('../services/skyConditions');
 const venueIndex = require('../services/venueIndex');
 const { MODE_PROMPTS, CORRIDOR_QUERY } = require('../data/feedPrompts');
 const sponsors = require('../services/sponsors');
+const talkOfTown = require('../services/talkOfTown');
+
+// Home-feed layout. 'top5' (TOP5_FEED=on): Top 5 picks → one sponsor /
+// spotlight slot → Talk of the town, then every other shelf flagged
+// fold:true for the client to hide behind "More ideas". 'full' is the
+// classic shelf feed (Talk of the town still appears, third shelf down).
+function feedLayout() {
+  return String(process.env.TOP5_FEED || '').toLowerCase() === 'on' ? 'top5' : 'full';
+}
+const normTitleKey = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 // Sky checks anchor to the user's point when shared, else metro Toronto —
 // close enough for a "clear tonight?" answer anywhere in the GTA.
@@ -93,7 +103,18 @@ router.post('/', async (req, res) => {
       month: Number(String((dateWindow && dateWindow.start) || torontoToday()).slice(5, 7)) || null
     });
 
-    const ideas = buildSections(pool, { near: Boolean(coords), weather, part, mode, advisories, spotlight, dateWindow, sponsor: sponsorPick }).slice(0, FEED_CAP);
+    // Talk of the town (services/talkOfTown.js): this week's verified outdoor
+    // happenings for the hub nearest the user — a pure read of the weekly
+    // store, never a live search. One extra pick is fetched so the slot-6
+    // spotlight (when no sponsor is active) leaves a full five on the shelf.
+    // noteBrowse() arms a one-off background refresh for a hub that has
+    // never been browsed from; it never delays this response.
+    const point = coords || (geo && geo.lat != null && geo.lng != null ? { lat: geo.lat, lng: geo.lng } : null);
+    const tott = talkOfTown.active({ point, limit: 6 });
+    talkOfTown.noteBrowse(point);
+    const layout = feedLayout();
+
+    const ideas = buildSections(pool, { near: Boolean(coords), weather, part, mode, advisories, spotlight, dateWindow, sponsor: sponsorPick, tott, layout }).slice(0, FEED_CAP + 6);
 
     // Corridor radar: the client remembers spots this user regularly browses
     // from ("my end of Yonge Street") and sends them along — high-rated
@@ -125,6 +146,7 @@ router.post('/', async (req, res) => {
     }
     const payload = {
       ideas,
+      layout,
       weather: weather || null,
       advisories: advisories || [],
       advisories_status: advisoriesStatus || 'unavailable',
@@ -313,7 +335,7 @@ function cacheKey(city, coords, mode, dateWindow) {
 
 // Assign ranked candidates to named sections, first match wins (a card never
 // repeats across sections). Section order is the display order.
-function buildSections(candidates, { near, weather, part, mode, advisories, spotlight, dateWindow, sponsor }) {
+function buildSections(candidates, { near, weather, part, mode, advisories, spotlight, dateWindow, sponsor, tott, layout = 'full' }) {
   // The "date aware" picker relabels the dated-events shelf so it reads
   // right whether the user is browsing "any day" or a specific date/range.
   const datedLabel = dateWindow
@@ -371,7 +393,15 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   // ordering (relative rank preserved within each half), so the whole feed
   // leans into the active mode without discarding anything.
   const prefer = mode === 'adventure' ? isThrill : isCalm;
-  const pool = [...candidates.filter(prefer), ...candidates.filter(c => !prefer(c))];
+  let pool = [...candidates.filter(prefer), ...candidates.filter(c => !prefer(c))];
+  // Talk of the town picks own their titles: a candidate for the same event
+  // from another source (the city calendar, Ticketmaster) leaves the pool so
+  // the CNE can't sit on Top 5 AND on the shelf.
+  const tottList = Array.isArray(tott) ? tott : [];
+  if (tottList.length) {
+    const owned = new Set(tottList.map(t => normTitleKey(t.title)));
+    pool = pool.filter(c => !owned.has(normTitleKey(c.title)));
+  }
   // Genuinely sheltered: indoor markers AND no outdoor ones — a "music
   // garden" matching an indoor word is still an outdoor place.
   const isSheltered = c => isIndoor(c) && !isOutdoor(c);
@@ -395,6 +425,18 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   // pick — and suppressed entirely under a shelter advisory.
   const takeSponsor = () => {
     if (sponsor && !shelter) take('Partner pick · Sponsored ⭐', [sponsor], 1);
+  };
+
+  // "Talk of the town" (services/talkOfTown.js): this week's verified outdoor
+  // happenings near the user. Its own shelf in every layout; the picks are
+  // already ordered pinned → rank.
+  // Taken once per feed: the layout head and the branch both call it; the
+  // second call must not top the shelf up with the spare sixth pick.
+  let tottTaken = false;
+  const takeTalkOfTown = () => {
+    if (tottTaken) return;
+    tottTaken = true;
+    take('Talk of the town 🔥', tottList, 5);
   };
 
   // Season shelf: spring through fall it's trails ("push trails forward" is
@@ -424,6 +466,24 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     if (seasonCtx.season === 'summer') take('Worth the drive 🚗', pool.filter(isWorthDrive), n);
   };
 
+  // ---------- Top-5 layout head (TOP5_FEED=on) ----------
+  // Card 1-5: the ranked pool's top, filtered exactly like the lead shelf
+  // (indoor under rain or a shelter advisory). Card 6: the sponsor slot — a
+  // paid partner when one is active, else this week's most talked-about
+  // outdoor event as "In the spotlight" (never dressed as sponsored). Then
+  // Talk of the town. Everything the branches below add after this point is
+  // flagged fold:true; the client hides it behind "More ideas".
+  let foldFrom = null;
+  if (layout === 'top5') {
+    const top = shelter ? pool.filter(isSheltered)
+      : (weather && weather.is_rainy) ? pool.filter(isIndoor) : pool;
+    take('Top 5 picks 🏆', top, 5);
+    if (sponsor && !shelter) take('Partner pick · Sponsored ⭐', [sponsor], 1);
+    else if (tottList.length) take('In the spotlight 📣', [tottList[0]], 1);
+    takeTalkOfTown();
+    foldFrom = ideas.length;
+  }
+
   if (near) {
     // The pool is already ranked against the daypart+mode prompt, so "right
     // now" is simply its top — filtered to indoor picks when it's raining
@@ -432,6 +492,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
       : (weather && weather.is_rainy) ? pool.filter(isIndoor) : pool;
     take(rightNowLabel(part, weather, shelter), rightNow, 6);
     takeJustOpened();
+    takeTalkOfTown();
     takeSponsor();
     take('Within 15 minutes 📍',
       pool.filter(c => c.distance_km != null && c.distance_km <= 10)
@@ -446,6 +507,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     if (shelter) take('Indoor thrills right now 😷', pool.filter(isSheltered), 5);
     take('Top thrills ⚡', pool, 6);
     takeJustOpened();
+    takeTalkOfTown();
     takeSponsor();
     if (!shelter) take('Get outside 🌊', pool.filter(isOutdoor), 5);
     takeSeasonOutside(4);
@@ -459,6 +521,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     if (shelter) take('Sheltered picks right now 😷', pool.filter(isSheltered), 5);
     take('Restorative picks 🌿', pool, 5);
     takeJustOpened();
+    takeTalkOfTown();
     takeSponsor();
     takeSeasonOutside(5);
     if (!shelter) take('Outdoors & nature 🌳', pool.filter(isOutdoor), 4);
@@ -495,6 +558,9 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
         .sort((a, b) => (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity));
       slots.forEach((slot, k) => { ideas[slot] = sorted[k]; });
     }
+  }
+  if (foldFrom != null) {
+    for (let i = foldFrom; i < ideas.length; i++) ideas[i].fold = true;
   }
   return ideas;
 }
@@ -570,6 +636,8 @@ function toBrowseIdea(c) {
     currency: c.currency || null,
     image_url: c.image_url || null,
     date: c.date || null,
+    date_end: c.date_end && c.date_end !== c.date ? c.date_end : undefined,
+    tott: c.tott === true || undefined,
     venue: c.venue || null,
     civic: c.civic === true || undefined,
     also_from: c.also_from || undefined,

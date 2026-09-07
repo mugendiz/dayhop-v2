@@ -1503,6 +1503,9 @@ button.date-clear-btn { padding: 13px 4px; }
   justify-content: center;
   margin-top: 28px;
 }
+/* Top-5 layout: folded shelves stay in the DOM (hidden) until "More ideas". */
+.feed-more { margin-top: 20px; }
+.card-feed .is-folded { display: none; }
 .feed-next-btn {
   position: relative;
   margin-top: 0;

@@ -126,6 +126,69 @@ router.get('/catalog', requireAdmin, async (req, res) => {
   }
 });
 
+// "Talk of the town" (services/talkOfTown.js): the weekly verified outdoor
+// picks per hub. Peek, refresh one hub now (one Grok live-search call +
+// a few Places lookups), pin/retire a pick, add one by hand (same
+// verification chain). Owner-only like the catalog.
+let _tott = null;
+function tottSvc() {
+  if (!_tott) _tott = require('../services/talkOfTown');
+  return _tott;
+}
+router.get('/tott', requireAdmin, async (req, res) => {
+  try {
+    res.json(await tottSvc().peek());
+  } catch (err) {
+    console.error('[admin] tott peek failed:', err.message);
+    res.status(500).json({ error: 'TOTT_FAILED', message: 'Could not read Talk of the town.' });
+  }
+});
+router.post('/tott/refresh', requireAdmin, async (req, res) => {
+  try {
+    const hubId = String((req.body && req.body.hub) || 'toronto').slice(0, 40);
+    const run = await tottSvc().refresh({ hubId, reason: 'admin' });
+    res.json({ run, peek: await tottSvc().peek() });
+  } catch (err) {
+    console.error('[admin] tott refresh failed:', err.message);
+    res.status(500).json({ error: 'TOTT_REFRESH_FAILED', message: err.message });
+  }
+});
+router.post('/tott/:id/pin', requireAdmin, async (req, res) => {
+  try {
+    await tottSvc().pin(String(req.params.id).slice(0, 160), req.body && req.body.pinned !== false);
+    res.json(await tottSvc().peek());
+  } catch (err) {
+    res.status(400).json({ error: 'TOTT_PIN_FAILED', message: err.message });
+  }
+});
+router.post('/tott/:id/retire', requireAdmin, async (req, res) => {
+  try {
+    await tottSvc().retire(String(req.params.id).slice(0, 160));
+    res.json(await tottSvc().peek());
+  } catch (err) {
+    res.status(400).json({ error: 'TOTT_RETIRE_FAILED', message: err.message });
+  }
+});
+router.post('/tott/manual', requireAdmin, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const row = await tottSvc().addManual({
+      hubId: String(b.hub || 'toronto').slice(0, 40),
+      title: String(b.title || '').slice(0, 120),
+      venue: String(b.venue || '').slice(0, 120),
+      city: String(b.city || '').slice(0, 80),
+      start_date: String(b.start_date || '').slice(0, 10),
+      end_date: String(b.end_date || b.start_date || '').slice(0, 10),
+      official_url: String(b.official_url || '').slice(0, 300),
+      why: String(b.why || '').slice(0, 200),
+      price: String(b.price || '').slice(0, 20)
+    });
+    res.json({ row, peek: await tottSvc().peek() });
+  } catch (err) {
+    res.status(400).json({ error: 'TOTT_ADD_FAILED', message: err.message });
+  }
+});
+
 // Sponsored placements: list (+30d performance), add/update, pause/resume.
 // The monthly-report numbers sponsors are paying for come from stats().
 router.get('/sponsors', requireAdmin, async (req, res) => {

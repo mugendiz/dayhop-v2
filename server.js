@@ -670,6 +670,48 @@ if (process.env.GROK_API_KEY && process.env.DISCOVERY_AUTO !== 'off') {
   }, 20 * 60 * 1000).unref();
 }
 
+// "Talk of the town" (services/talkOfTown.js): every SUNDAY AT MIDNIGHT
+// (Toronto), right after the discovery autopilot, refresh the week's verified
+// outdoor picks for Toronto plus every hub that saw browse traffic in the
+// last two weeks (one Grok live-search call + a few Places lookups per hub).
+// On boot, a Toronto shelf with no rows for this week refreshes once (the DB
+// is checked first, so a redeploy never re-buys a run). TOTT_AUTO=off
+// disables both; the admin panel's Refresh button still works.
+if (process.env.GROK_API_KEY && process.env.TOTT_AUTO !== 'off') {
+  const tott = require('./services/talkOfTown');
+  // Boot, then hourly: a Toronto shelf with no rows this week (or a run the
+  // Maps budget cut short yesterday) refreshes, at most once per 3 h.
+  setTimeout(() => {
+    tott.checkStaleOnBoot().catch(err => console.warn('[talk-of-town] boot check failed:', err.message));
+  }, isProd ? 90 * 1000 : 15 * 1000).unref();
+  setInterval(() => {
+    tott.checkStale({ reason: 'stale-hourly' }).catch(err => console.warn('[talk-of-town] stale check failed:', err.message));
+  }, 60 * 60 * 1000).unref();
+  let lastTottRun = 0;
+  const isSundayMidnightToronto = () => {
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Toronto', weekday: 'short', hour: '2-digit', hour12: false
+      }).formatToParts(new Date()).map(p => [p.type, p.value])
+    );
+    return parts.weekday === 'Sun' && (parts.hour === '00' || parts.hour === '24');
+  };
+  setInterval(() => {
+    if (isSundayMidnightToronto() && Date.now() - lastTottRun > 12 * 60 * 60 * 1000) {
+      lastTottRun = Date.now();
+      require('./services/heartbeat').record('tott_refresh');
+      console.log('[talk-of-town] Sunday refresh starting');
+      tott.refreshDue({ reason: 'weekly' })
+        .then(runs => console.log(`[talk-of-town] weekly: ${runs.map(r => `${r.hub}=${r.published}`).join(', ')}`))
+        .catch(err => console.warn('[talk-of-town] weekly refresh failed:', err.message));
+    }
+  }, 20 * 60 * 1000).unref();
+  console.log('[talk-of-town] weekly schedule armed: Sundays 00:xx Toronto' + (feedLayoutNote()));
+}
+function feedLayoutNote() {
+  return String(process.env.TOP5_FEED || '').toLowerCase() === 'on' ? ' · home feed layout: top5' : ' · home feed layout: full';
+}
+
 // Weekly digest: every THURSDAY MORNING (Toronto time) — the moment GTA
 // families start asking "what are we doing this weekend?", and the send slot
 // the local-newsletter evidence (Mommy Poppins' Wednesday weekend-picks,

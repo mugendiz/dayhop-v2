@@ -618,3 +618,21 @@ create table if not exists public.venue_index (
 create index if not exists venue_index_fetched_idx on public.venue_index (fetched_at);
 alter table public.venue_index enable row level security;
 revoke all on public.venue_index from anon, authenticated;
+
+-- ---------- talk_of_town (services/talkOfTown.js) ----------
+-- The "Talk of the town" shelf: a weekly, Google-verified pick of the 5
+-- outdoor happenings people are flocking to this week, per region hub
+-- (data/tottHubs.js). Written by the Sunday refresh + the admin panel;
+-- read into process memory on boot. Server-side only - no anon policies.
+create table if not exists public.talk_of_town (
+  id          text primary key,             -- tott-<hub>-<slug>-<week>
+  hub         text not null,                -- data/tottHubs.js id
+  entry       jsonb not null,               -- candidate-shaped pick (title, venue, dates, url, lat/lng, why...)
+  week_start  date not null,                -- Toronto Monday of the refresh week
+  status      text not null default 'active' check (status in ('active','retired')),
+  pinned      boolean not null default false,
+  created_at  timestamptz not null default now()
+);
+create index if not exists talk_of_town_hub_status_idx on public.talk_of_town (hub, status, week_start desc);
+alter table public.talk_of_town enable row level security;
+revoke all on public.talk_of_town from anon, authenticated;

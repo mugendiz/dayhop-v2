@@ -656,7 +656,55 @@ JSON shape to return:
   };
 }
 
+// ---------- Live-search completion (xAI Responses API) ----------
+// The chat-completions client above never searches: every request-path call
+// is grounded by OUR candidate pool. This one is for the weekly jobs that
+// need to know what is happening in the world right now (the "Talk of the
+// town" picker): xAI's server-side web_search + x_search tools run inside
+// the call and the answer comes back with citations. Same model, same key,
+// same health accounting; a separate 90 s timeout because tool calls take
+// 10-30 s. Verified 2026-09-07: grok-4.20-0309-non-reasoning accepts both
+// tools on /v1/responses (13 tool calls, ~13 s, ~US$0.12 per run).
+// GROK_SEARCH_MODEL overrides the model for these calls only.
+const GROK_RESPONSES_URL = process.env.GROK_RESPONSES_URL ||
+  GROK_API_URL.replace(/\/v1\/chat\/completions\/?$/, '/v1/responses');
+
+async function callGrokSearch(input, { instructions, tools, temperature = 0.2, timeoutMs = 90000 } = {}) {
+  assertConfigured();
+  let response;
+  try {
+    response = await axios.post(GROK_RESPONSES_URL, {
+      model: process.env.GROK_SEARCH_MODEL || GROK_MODEL,
+      input,
+      instructions,
+      temperature,
+      tools: tools || [{ type: 'web_search' }, { type: 'x_search' }]
+    }, {
+      timeout: timeoutMs,
+      headers: { Authorization: `Bearer ${process.env.GROK_API_KEY}`, 'Content-Type': 'application/json' }
+    });
+  } catch (err) {
+    markFailure(err);
+    alertOperator(err);
+    throw err;
+  }
+  markSuccess();
+  const d = response && response.data ? response.data : {};
+  const text = (Array.isArray(d.output) ? d.output : [])
+    .flatMap(o => Array.isArray(o.content) ? o.content : [])
+    .filter(c => c && c.type === 'output_text' && typeof c.text === 'string')
+    .map(c => c.text).join('\n') || d.output_text || '';
+  // The model narrates around the JSON and appends [[n]](url) citations —
+  // pull the outermost object out of the prose before parsing.
+  const first = text.indexOf('{');
+  const last = text.lastIndexOf('}');
+  const jsonText = first >= 0 && last > first ? text.slice(first, last + 1) : text;
+  const citations = [...new Set((text.match(/https?:\/\/[^\s)\]"']+/g) || []))].slice(0, 40);
+  return { data: extractJson(jsonText), citations, usage: d.usage || null, raw_text: text };
+}
+
 module.exports = {
+  callGrokSearch, // live web/X search via /v1/responses (services/talkOfTown.js)
   normalizeMode,
   generateIdeas,
   generateGroundedIdeas,

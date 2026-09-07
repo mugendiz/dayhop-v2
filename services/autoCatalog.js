@@ -21,6 +21,7 @@
 const maps = require('./googleMaps');
 const { callGrok } = require('./grok');
 const { regionVerdict } = require('./regionGate');
+const { venueGateVerdict, looksLikeBarOrRestaurant } = require('./venueGates');
 const dbClient = require('./db/client');
 const curatedCatalog = require('../data/curatedCatalog');
 
@@ -131,6 +132,37 @@ async function googleVerdict(item) {
   }
 }
 
+// ---------- verifier 1b: venue gates (founder rule, 2026-09-07) ----------
+// A restaurant or bar find needs a patio and a food identity to publish —
+// the same two rules the live feed applies (services/venueGates.js). The
+// lite Places search above carries no types/patio flag, so a bar/restaurant-
+// looking find buys ONE full Places record (Enterprise + Atmosphere SKU,
+// ~US$0.04) to learn them; anything else skips the call. Unknown = no patio.
+async function venueVerdict(item, place) {
+  const draft = item.draft || {};
+  const c = {
+    title: item.name, description: [item.summary, draft.description].filter(Boolean).join(' '),
+    kind: item.kind, category: draft.category,
+    tags: Array.isArray(draft.tags) ? draft.tags : [],
+    types: [], outdoor_seating: null
+  };
+  if (!looksLikeBarOrRestaurant(c)) return { pass: true, note: 'not a bar/restaurant' };
+  if (process.env.GOOGLE_MAPS_API_KEY) {
+    try {
+      const found = await maps.searchPlaces({
+        query: `${item.name}, ${item.area || 'Ontario'}`,
+        lat: place && place.lat, lng: place && place.lng, radiusMeters: 30000, maxResults: 1
+      });
+      const full = (found || [])[0];
+      if (full) { c.types = full.types || []; c.outdoor_seating = full.outdoor_seating; }
+    } catch (err) { /* fall through — unknown counts as no patio */ }
+  }
+  const verdict = venueGateVerdict(c);
+  return verdict.pass
+    ? { pass: true, note: c.outdoor_seating === true ? 'patio confirmed by Google' : 'outdoor space in the copy' }
+    : { pass: false, reason: verdict.reason };
+}
+
 // ---------- editorial prompt ----------
 function verdictPrompt(item, place) {
   return `You are verifying a candidate entry for DayHop, a Canadian day-planning app. Only real, open (or imminently opening), physical, visitable attractions, venues, parks, or experiences belong — something a person would genuinely put on a day out. REJECT: ordinary retail or services (hair salons, phone shops, clinics), one-off or single-night events, closures, rumours or vague plans, real-estate/transit news, and anything outside Canada. Be conservative: when unsure, reject.
@@ -225,6 +257,13 @@ async function verifyAndAdd(item) {
     return { added: false, status: 'rejected', checks: { google: 'ok', region: region.reason } };
   }
 
+  // Venue gates: no restaurant without a patio, nothing drinking-only.
+  // Before the Grok verdict so a rejected bar never costs an LLM call.
+  const venue = await venueVerdict(item, google.place);
+  if (!venue.pass) {
+    return { added: false, status: 'rejected', checks: { google: 'ok', region: 'ok', venue: venue.reason } };
+  }
+
   const grok = await grokVerdict(item, google.place);
   if (!grok.pass) {
     return { added: false, status: 'rejected', checks: { google: 'ok', grok: grok.reason } };
@@ -233,6 +272,7 @@ async function verifyAndAdd(item) {
   const entry = buildEntry(item, google.place);
   const verification = {
     google: google.place || google.note || 'ok',
+    venue: venue.note || 'ok',
     grok: grok.reason || 'ok',
     verified_at: new Date().toISOString()
   };

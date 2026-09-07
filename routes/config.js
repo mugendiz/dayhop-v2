@@ -32,7 +32,12 @@ router.get('/', (req, res) => {
     socialVote: String(process.env.SOCIAL_VOTE || '').toLowerCase() === 'on',
     // Mobile Favs grid (named shortlists as photo-tile pages, tile modal,
     // square-tile feed). Mobile-only in the client; desktop ignores it.
-    favsGrid: String(process.env.FAVS_GRID || '').toLowerCase() === 'on'
+    favsGrid: String(process.env.FAVS_GRID || '').toLowerCase() === 'on',
+    // Home feed layout: Top 5 picks → sponsor / spotlight slot → Talk of the
+    // town, with every other shelf folded behind a "More" button. The server
+    // decides the layout per response (routes/browse.js); this mirror is
+    // informational for the client.
+    top5Feed: String(process.env.TOP5_FEED || '').toLowerCase() === 'on'
   });
 });
 

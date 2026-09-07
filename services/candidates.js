@@ -524,29 +524,10 @@ function normTitle(s) {
 }
 
 // ---------- outdoor-space gate for bars & restaurants ----------
-// Drinking-first Google place types; restaurants match on the type substring
-// ('restaurant', 'brunch_restaurant', …). Cafés, bakeries, dessert shops,
-// and markets deliberately stay outside the gate — "bars and restaurants"
-// is the product rule, not "anywhere food exists".
-const BAR_TYPES = new Set(['bar', 'pub', 'night_club', 'wine_bar', 'bar_and_grill', 'brewery', 'winery']);
-// Textual read for sources without Google types (curated catalog, partners).
-const BAR_RESTO_TEXT_RE = /\b(bars?|pub|brewery|taproom|gastropub|restaurants?|bistro|eatery|steakhouse|izakaya|brasserie|cantina)\b/i;
-// Outdoor evidence in the copy rescues an entry the flag doesn't cover.
-const OUTDOOR_RE = /\b(patios?|terrace|terrasse|rooftop|roof\s?top|beer\s?garden|biergarten|al\s?fresco|outdoor\s(seating|dining|bar|tables?|patio))\b/i;
-
-function isIndoorOnlyBarOrRestaurant(c) {
-  // Dated events are experiences that happen AT venues (comedy night,
-  // tasting) — the rule is about the venues themselves.
-  if (c.date) return false;
-  const types = Array.isArray(c.types) ? c.types : [];
-  const typed = types.some(t => BAR_TYPES.has(t) || String(t).includes('restaurant'));
-  const text = [c.title, c.description, Array.isArray(c.tags) ? c.tags.join(' ') : '']
-    .filter(Boolean).join(' ');
-  if (!typed && !BAR_RESTO_TEXT_RE.test(text)) return false; // not a bar/restaurant
-  if (c.outdoor_seating === true) return false;              // Google vouches for the patio
-  if (OUTDOOR_RE.test(text)) return false;                   // the copy promises outdoor space
-  return true;                                               // indoor-only → out of the feed
-}
+// Lives in services/venueGates.js since 2026-09-07 so the discovery
+// autopilot and the "Talk of the town" picker apply the exact same rules
+// (plus the drinking-only gate) at publish time. Re-exported below.
+const { isIndoorOnlyBarOrRestaurant } = require('./venueGates');
 
 // Coordinates from the browser (already rounded client-side). Anything
 // malformed is silently ignored — the request proceeds city-based.

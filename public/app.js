@@ -259,6 +259,10 @@
   state.lists = [];          // [{ id, serverId?, name, city, mood, created_at, itemIds: [] }]
   state.activeListId = null;
   state.favsGridFlag = false; // /api/config.favsGrid
+  // Home feed layout, per browse response (routes/browse.js): 'top5' folds
+  // every shelf past Top 5 → slot 6 → Talk of the town behind "More ideas".
+  state.browseLayout = 'full';
+  state.feedUnfolded = false;
 
   // ---------- Persistence (survive refresh) ----------
   const STORAGE_KEY = 'dayhop_state_v2';
@@ -1715,12 +1719,17 @@
     const ideas = visibleIdeas();
 
     let stopIndex = 0;
+    // Top-5 layout: server-flagged fold:true ideas (and a header whose whole
+    // shelf is folded) render hidden until "More ideas" (unfoldFeed). They
+    // stay in the DOM so unfolding is instant and STOP numbers hold.
+    const folded = state.browseMode && state.browseLayout === 'top5' && !state.feedUnfolded;
     const appendSection = (label, group, showHeaders, bestIds) => {
       if (group.length === 0) return;
       if (showHeaders) {
         const header = document.createElement('h3');
         header.className = 'feed-section-header';
         header.textContent = label;
+        if (folded && group.every(i => i.fold)) header.classList.add('is-folded');
         feed.appendChild(header);
       }
       group.forEach(idea => {
@@ -1731,6 +1740,7 @@
         feed.appendChild(favsGridActive()
           ? createIdeaTile(idea, stopIndex++, best)
           : createIdeaCard(idea, stopIndex++, animate, best));
+        if (folded && idea.fold) feed.lastElementChild.classList.add('is-folded');
       });
     };
 
@@ -1774,7 +1784,8 @@
         groups.get(label).push(idea);
       });
       order.forEach(label => appendSection(label, groups.get(label), order.length > 1));
-      insertFeedBreakCards(feed);
+      // Break cards slot into the folded run; they arrive with unfoldFeed().
+      if (!(folded && ideas.some(i => i.fold))) insertFeedBreakCards(feed);
     } else {
       // Prompt results: the direct answers first (minus the hero, which is
       // already on stage), then the "didn't know you could do that" picks,
@@ -1829,8 +1840,14 @@
     // "Next" lives under every non-empty feed (browse, prompt, surprise) —
     // it always means "more unrelated-but-awesome, wider out" — until the
     // surprise well runs dry for this feed.
+    // Top-5 layout: while shelves are folded, "More ideas" stands in for
+    // "Next" — one control at the bottom, never two.
+    const foldedNow = state.browseMode && state.browseLayout === 'top5' && !state.feedUnfolded &&
+      ideas.some(i => i.fold);
+    const feedMore = document.getElementById('feed-more');
+    if (feedMore) feedMore.hidden = !foldedNow || state.isGenerating;
     const feedNext = document.getElementById('feed-next');
-    if (feedNext) feedNext.hidden = !hasIdeas || state.isGenerating || state.nextExhausted;
+    if (feedNext) feedNext.hidden = !hasIdeas || state.isGenerating || state.nextExhausted || foldedNow;
 
     // The nearest-first toggle only earns its spot when there are distances
     // to sort by (feeds without coords would just dump everything under
@@ -1839,6 +1856,23 @@
     if (sortChip) sortChip.hidden = !hasIdeas || !state.allIdeas.some(i => i.distance_km != null);
 
     renderCollections();
+  }
+
+  // "More ideas": reveal the folded shelves in place (Top-5 layout). The
+  // cards are already built and observed; unhiding them is all it takes.
+  // Break cards (newsletter capture, guide promo) join the feed now that
+  // there is a run long enough to host them.
+  function unfoldFeed() {
+    if (state.feedUnfolded) return;
+    state.feedUnfolded = true;
+    const feed = document.getElementById('discovery-feed');
+    const first = feed.querySelector('.is-folded');
+    feed.querySelectorAll('.is-folded').forEach(el => el.classList.remove('is-folded'));
+    insertFeedBreakCards(feed);
+    updateFeedChrome();
+    if (first && first.scrollIntoView) {
+      first.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+    }
   }
 
   // Append-only page growth for "Next" pages: renderFeed used to wipe the
@@ -2127,7 +2161,7 @@
     const conflict = advisoryConflictChip(idea);
     if (conflict) chips.push(`<span class="card-chip card-chip--advisory" title="An advisory is in effect for this area">⚠️ Outdoors — ${escapeHtml(conflict)}</span>`);
     if (idea.distance_km != null) chips.push(`<span class="card-chip card-chip--near">📍 ${escapeHtml(String(idea.distance_km))} km</span>`);
-    if (idea.date) chips.push(`<span class="card-chip card-chip--date">📅 ${escapeHtml(formatEventDate(idea.date))}</span>`);
+    if (idea.date) chips.push(`<span class="card-chip card-chip--date">📅 ${escapeHtml(formatEventRange(idea.date, idea.date_end))}</span>`);
     if (idea.newly_opened) chips.push('<span class="card-chip card-chip--new" title="Recently opened">✨ Just opened</span>');
     if (idea.rating != null) chips.push(`<span class="card-chip">★ ${escapeHtml(String(idea.rating))}</span>`);
     if (idea.price_from != null) chips.push(`<span class="card-chip">from ${escapeHtml(String(idea.price_from))}${idea.currency ? ' ' + escapeHtml(idea.currency) : ''}</span>`);
@@ -2188,6 +2222,19 @@
     const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr + 'T12:00:00' : dateStr);
     if (Number.isNaN(d.getTime())) return dateStr;
     return d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+
+  // Multi-day happenings (Talk of the town): "Sep 10 – 13", or "Sep 28 – Oct 4"
+  // across a month boundary; a single day falls back to formatEventDate.
+  function formatEventRange(startStr, endStr) {
+    if (!endStr || endStr === startStr) return formatEventDate(startStr);
+    const parse = s => new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? s + 'T12:00:00' : s);
+    const a = parse(startStr), b = parse(endStr);
+    if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return formatEventDate(startStr);
+    const sameMonth = a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+    const left = a.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+    const right = b.toLocaleDateString('en-CA', sameMonth ? { day: 'numeric' } : { month: 'short', day: 'numeric' });
+    return `${left} – ${right}`;
   }
 
   // Regex escape, not a DOM round trip: the old createElement version
@@ -3952,6 +3999,8 @@
     state.surpriseMode = opts.surprise === true;
     state.nextExhausted = opts.exhausted === true;
     state.nextPages = 0;
+    state.browseLayout = data.layout === 'top5' ? 'top5' : 'full';
+    state.feedUnfolded = false;
     state.dismissedIds = new Set();
     state.lastPrompt = '';
     state.lastWeather = data.weather || null;
@@ -6438,6 +6487,7 @@
     // Next: append more unrelated-but-awesome (and wider-out) picks below
     // whatever feed is showing.
     document.getElementById('feed-next-btn').addEventListener('click', handleNext);
+    document.getElementById('feed-more-btn').addEventListener('click', unfoldFeed);
 
     // No infinite scroll (removed 2026-09-03): auto-loading fired a wider
     // server gather every ~1.5 viewports of scrolling, which was the one

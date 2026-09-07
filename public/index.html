@@ -288,6 +288,11 @@
     <!-- Bottom-of-feed "Next": appends unrelated-but-awesome picks (wider
          radius included) from /api/surprise. Shown whenever the feed has
          cards; hidden once the well runs dry. -->
+    <!-- Top-5 layout (TOP5_FEED=on): everything past Top 5 → sponsor slot →
+         Talk of the town is folded; this reveals it in place. -->
+    <div class="feed-next feed-more" id="feed-more" hidden>
+      <button class="ghost-btn feed-next-btn" id="feed-more-btn" type="button">More ideas ↓</button>
+    </div>
     <div class="feed-next" id="feed-next" hidden>
       <button class="ghost-btn feed-next-btn" id="feed-next-btn" type="button">
         <span class="btn-label">Next — more awesome stuff →</span>

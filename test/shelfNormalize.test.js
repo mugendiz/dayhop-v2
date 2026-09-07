@@ -31,3 +31,9 @@ test('browse and surprise use of the same words agree', () => {
   // they must roll up together.
   assert.equal(normalizeShelf('Worth the drive 🚗'), normalizeShelf('Worth the drive'));
 });
+
+test('the Top-5 layout shelves normalize to stable keys', () => {
+  assert.equal(normalizeShelf('Top 5 picks 🏆'), 'Top 5 picks');
+  assert.equal(normalizeShelf('Talk of the town 🔥'), 'Talk of the town');
+  assert.equal(normalizeShelf('In the spotlight 📣'), 'In the spotlight');
+});
