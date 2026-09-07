@@ -70,7 +70,13 @@
   .overview .ov-day { font-weight: 600; font-size: 13.5px; margin: 8px 0 2px; }
   .overview ol { list-style: none; }
   .overview li { display: flex; gap: 12px; font-size: 13.5px; padding: 2.5px 0; }
-  .overview .ov-time { font-family: var(--mono); font-size: 12px; color: var(--coral-dark); min-width: 74px; white-space: nowrap; }
+  /* flex: none — a full range ("10:00 AM - 12:30 PM") is wider than the 74px
+     column, and a shrinkable nowrap item spills its text over the title
+     beside it instead of widening. min-width still aligns short times. */
+  .overview .ov-time {
+    font-family: var(--mono); font-size: 12px; color: var(--coral-dark);
+    min-width: 74px; white-space: nowrap; flex: none;
+  }
 
   .stops { margin-top: 26px; display: flex; flex-direction: column; gap: 22px; }
   .stop {
@@ -292,6 +298,17 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  // Stop photos are raw hotlinks from partner sites and Google place photos —
+  // some refuse cross-site referrers, some expire. /api/img refetches them
+  // server-side (resized, cached), the same path the main app uses, so the
+  // guide isn't at the mercy of the original host. Own assets pass through.
+  function proxiedImage(url, w) {
+    if (!url || typeof url !== 'string') return url;
+    if (url.startsWith('/') || url.startsWith('data:')) return url;
+    if (!url.startsWith('https://')) return url;
+    return '/api/img?u=' + encodeURIComponent(url) + '&w=' + (w || 640);
+  }
+
   function toast(msg) {
     var el = document.getElementById('toast');
     el.textContent = msg;
@@ -369,7 +386,8 @@
         (stop.suggested_time ? '<span class="stop-time">' + esc(stop.suggested_time) + '</span>' : '') +
         '<h2>' + esc(stop.title) + '</h2>' +
         (address ? '<p class="stop-address">📍 ' + esc(address) + '</p>' : '') +
-        (idea.image_url ? '<div class="stop-photo"><img src="' + esc(idea.image_url) + '" alt="" loading="lazy"></div>' : '') +
+        (idea.image_url ? '<div class="stop-photo"><img src="' + esc(proxiedImage(idea.image_url, 720)) +
+          '" data-src-original="' + esc(idea.image_url) + '" alt="" loading="lazy"></div>' : '') +
         (idea.why ? '<p class="stop-why">' + esc(idea.why) + '</p>' : '') +
         (idea.wow_reason ? '<p class="stop-wow">✨ ' + esc(idea.wow_reason) + '</p>' : '') +
         (stop.note ? '<p class="stop-note">📝 ' + esc(stop.note) + '</p>' : '') +
@@ -510,6 +528,23 @@
       '<div class="print-footer"><div class="qr">' + qrSvg(pageUrl) + '</div>' +
         '<div>Scan to reopen this guide with live maps &amp; booking links.<br>' + esc(pageUrl) +
         '<br>Made with DayHop — plan your perfect day in one sentence.</div></div>';
+
+    // A stop photo that never loads used to leave a tall bordered box with the
+    // browser's broken-image glyph in it. Try the original host once (in case
+    // the proxy, not the photo, is what failed), then drop the frame — the
+    // stop still reads fine without a picture.
+    document.querySelectorAll('.stop-photo img').forEach(function (img) {
+      img.addEventListener('error', function () {
+        var original = img.dataset.srcOriginal;
+        if (original && img.dataset.retried !== '1' && img.src !== original) {
+          img.dataset.retried = '1';
+          img.src = original;
+          return;
+        }
+        var frame = img.closest('.stop-photo');
+        if (frame) frame.remove();
+      });
+    });
 
     // Done-checkboxes: tap to tick off a stop; survives reloads on this device.
     document.querySelectorAll('.stop-check').forEach(function (btn) {
