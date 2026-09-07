@@ -19,6 +19,39 @@ const isProd = process.env.NODE_ENV === 'production';
 // bucket (and express-rate-limit v7 flags the mismatch as an error).
 app.set('trust proxy', 1);
 
+// Canonical host. The Render hostname (and www) served the whole site as a
+// second copy — Search Console flagged it "Duplicate without user-selected
+// canonical" (2026-09-07). Aliases 301 to dayhop.quest; /health stays put so
+// Render's health check (which hits the onrender host) keeps passing.
+// GET/HEAD only: a redirected POST would drop its body.
+const CANONICAL_HOST = 'dayhop.quest';
+const ALIAS_HOSTS = new Set(['www.dayhop.quest', 'dayhop-v2.onrender.com', 'dayhop.onrender.com']);
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  if (req.path === '/health') return next();
+  const host = (req.hostname || '').toLowerCase();
+  if (ALIAS_HOSTS.has(host)) {
+    return res.redirect(301, `https://${CANONICAL_HOST}${req.originalUrl}`);
+  }
+  next();
+});
+
+// Static-file aliases of routed pages (/guides.html vs /guides, /index.html
+// vs /) are the same duplicate problem one level down. Redirect the file
+// name to the route so only one URL per page exists.
+const PAGE_ALIASES = {
+  '/index.html': '/',
+  '/guides.html': '/guides',
+  '/guide-richmond-hill.html': '/guides/richmond-hill',
+  '/guide-richmond-hill-thanks.html': '/guides/richmond-hill/thanks'
+};
+app.use((req, res, next) => {
+  const to = PAGE_ALIASES[req.path];
+  if (!to || req.method !== 'GET') return next();
+  const q = req.originalUrl.slice(req.path.length);
+  res.redirect(301, to + q);
+});
+
 app.use(helmet({
   // CSP ships REPORT-ONLY first (2026-08-30): the allowlist below is built
   // from a live audit of every host the app actually touches. Watch
@@ -450,6 +483,8 @@ app.use('/api', (req, res) => {
 // Public shared-guide page: /g/<share_id> — the page itself fetches the
 // guide JSON from /api/guides/shared/<share_id>.
 app.get('/g/:shareId', (req, res) => {
+  // guide.html is shared by every share id, so the canonical rides a header.
+  res.setHeader('Link', `<https://${CANONICAL_HOST}/g/${encodeURIComponent(req.params.shareId)}>; rel="canonical"`);
   res.sendFile(path.join(__dirname, 'public', 'guide.html'));
 });
 
