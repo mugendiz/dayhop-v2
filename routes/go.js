@@ -29,6 +29,12 @@ const PAGES = {
   rh: '/guides/richmond-hill'
 };
 
+// Creator keys: c-<instagram handle>, one per person in the creator roster
+// (social/creators/). Taps per creator land in the Friday report's taps
+// column without a deploy each time someone new says yes.
+const CREATOR_KEY = /^c-[a-z0-9_.]{2,24}$/;
+const isKey = (key) => KEYS.has(key) || CREATOR_KEY.test(key);
+
 const clean = (v) => String(v || '').trim().toLowerCase().slice(0, 32);
 
 function destination(key, page) {
@@ -45,7 +51,7 @@ function destination(key, page) {
 router.get('/:key/:page?', (req, res) => {
   const key = clean(req.params.key);
   const page = clean(req.params.page) || 'plan';
-  if (!KEYS.has(key)) return res.status(404).send('Unknown link.');
+  if (!isKey(key)) return res.status(404).send('Unknown link.');
   analytics.recordEvent({
     type: 'link_click',
     ownerKey: 'anon',
@@ -61,5 +67,6 @@ router.get('/:key/:page?', (req, res) => {
 
 module.exports = router;
 module.exports.KEYS = KEYS;
+module.exports.isKey = isKey;
 module.exports.PAGES = PAGES;
 module.exports.destination = destination;
