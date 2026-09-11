@@ -67,6 +67,11 @@ app.use(helmet({
         'https://cdn.jsdelivr.net',
         'https://www.googletagmanager.com',
         'https://connect.facebook.net'],
+      // Inline handlers exist (font media-swap onload in index.html, feed
+      // image onerror fallback in app.js, playbook print button). helmet's
+      // default script-src-attr 'none' would kill them on enforce; script-src
+      // already allows inline, so this adds no new exposure.
+      'script-src-attr': ["'unsafe-inline'"],
       'style-src': ["'self'", "'unsafe-inline'",
         'https://fonts.googleapis.com',
         'https://api.fontshare.com'],
@@ -76,14 +81,23 @@ app.use(helmet({
       // Feed card images are hotlinked from arbitrary partner/place hosts —
       // https: stays until the image proxy narrows this to 'self'.
       'img-src': ["'self'", 'data:', 'blob:', 'https:'],
+      // The service worker re-fetches fonts + the supabase client with
+      // fetch(), which connect-src governs (the 2026-09-11 audit saw these
+      // hosts refused once the SW was installed). GA4 collects on
+      // region-specific *.google-analytics.com / *.googletagmanager.com hosts.
       'connect-src': ["'self'",
         'https://*.supabase.co',
         'wss://*.supabase.co',
-        'https://www.google-analytics.com',
+        'https://*.google-analytics.com',
         'https://*.analytics.google.com',
+        'https://*.googletagmanager.com',
         'https://stats.g.doubleclick.net',
         'https://www.facebook.com',
-        'https://cdn.jsdelivr.net'],
+        'https://cdn.jsdelivr.net',
+        'https://fonts.googleapis.com',
+        'https://fonts.gstatic.com',
+        'https://api.fontshare.com',
+        'https://cdn.fontshare.com'],
       'frame-ancestors': ["'self'"],
       'base-uri': ["'self'"],
       'form-action': ["'self'", 'https://checkout.stripe.com'],

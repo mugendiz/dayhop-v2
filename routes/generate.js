@@ -387,7 +387,7 @@ router.post('/plan', async (req, res) => {
     require('../services/metaPixel').sendEvent('PlanGenerated', {
       ip: req.ip,
       userAgent: req.get('user-agent'),
-      sourceUrl: 'https://dayhop-v2.onrender.com/',
+      sourceUrl: 'https://dayhop.quest/',
       customData: { city: city || undefined, mode }
     });
     res.json(plan);

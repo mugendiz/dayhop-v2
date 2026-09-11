@@ -192,6 +192,11 @@
   </footer>
 
   <script>
+    // FALL75 dies with the Stripe code: Sep 21 23:59:59 Toronto (= Sep 22 04:00 UTC).
+    // Same clock as the guides-page strip, so no dead offer outlives the code.
+    if (Date.now() >= Date.parse('2026-09-22T04:00:00Z')) {
+      document.querySelectorAll('.promo-line').forEach(function (el) { el.hidden = true; });
+    }
     const banner = document.getElementById('banner');
     function ownerId() {
       try { return localStorage.getItem('dayhop_owner_id') || undefined; } catch (e) { return undefined; }
