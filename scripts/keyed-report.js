@@ -11,8 +11,8 @@
 //   --taps also lists every tap with its user agent and verdict.
 //
 // Taps are anonymous (routes/go.js), so internal-owner exclusion cannot reach
-// them. Audit of Sep 5-11: of 37 taps, Meta's link-preview crawler made 16,
-// our own curl checks 8, and scanner-style browsers several more. A caption or
+// them. Audit of Sep 5-11: of 37 taps, Meta's link-preview crawler made 14,
+// our own curl checks 10, and scanner-style browsers or crawler echoes 8. A caption or
 // DM containing a link triggers a burst of facebookexternalhit fetches plus a
 // few browser-looking follow-ups within seconds. `human_taps` drops all of
 // those; gate math uses human taps only.
