@@ -18,15 +18,18 @@ const KEYS = new Set([
   'reddit',   // comment links (rare, value-first protocol)
   'email',    // Thursday digest footer
   'zv-e',     // Meta Ad A (planner demo)
-  'zv-a'      // Meta Ad B (guide)
+  'zv-a',     // Meta Ad B (guide)
+  'igdm'      // Instagram keyword-comment auto-DMs (Business Suite automations)
 ]);
 
 // Destinations. Default is the planner (the product sample); "rh" is the
-// Richmond Hill sales letter; "guides" the gallery.
+// Richmond Hill sales letter; "guides" the gallery; "playbook" the lead
+// magnet (teaser + consent-based subscribe form) that keyword DMs point at.
 const PAGES = {
   plan: '/',
   guides: '/guides',
-  rh: '/guides/richmond-hill'
+  rh: '/guides/richmond-hill',
+  playbook: '/playbook'
 };
 
 // Creator keys: c-<instagram handle>, one per person in the creator roster

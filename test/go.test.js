@@ -49,3 +49,9 @@ test('GET /go/<key> redirects known keys and 404s the rest', async () => {
     srv.close();
   }
 });
+
+test('Instagram keyword DMs land on the Playbook and the guides', () => {
+  assert.equal(go.isKey('igdm'), true);
+  assert.equal(go.destination('igdm', 'playbook'), '/playbook?src=igdm&utm_source=igdm&utm_medium=social&utm_campaign=go-playbook');
+  assert.equal(go.destination('igdm', 'guides'), '/guides?src=igdm&utm_source=igdm&utm_medium=social&utm_campaign=go-guides');
+});

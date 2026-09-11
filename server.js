@@ -56,11 +56,13 @@ app.use(helmet({
   // CSP ships REPORT-ONLY first (2026-08-30): the allowlist below is built
   // from a live audit of every host the app actually touches. Watch
   // /api/csp-report noise for a week, then flip reportOnly to false.
+  // ENFORCED 2026-09-11 (founder-approved) after a live 10-visit audit found
+  // 0 violations. Roll back by setting reportOnly: true.
   // 'unsafe-inline' stays for now — index.html runs inline <script> blocks;
   // removing it needs build-time hashes (planned with asset hashing).
   contentSecurityPolicy: {
     useDefaults: true,
-    reportOnly: true,
+    reportOnly: false,
     directives: {
       'default-src': ["'self'"],
       'script-src': ["'self'", "'unsafe-inline'",

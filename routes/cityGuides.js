@@ -64,6 +64,24 @@ const RETURN_PATHS = {
   }
 };
 
+// FALL75 (75% off, expires Mon Sep 21 23:59:59 Toronto) is applied for the
+// buyer instead of waiting to be typed: all 7 guide checkouts opened between
+// Aug 24 and Sep 8 were abandoned on a full-price screen. Stripe accepts
+// either `discounts` or `allow_promotion_codes`, never both, so the code box
+// returns by itself once the promo window closes. GUIDE_AUTO_PROMO=off
+// disables it; GUIDE_AUTO_PROMO_ID / _UNTIL retarget a later promo.
+const AUTO_PROMO = {
+  id: process.env.GUIDE_AUTO_PROMO_ID || 'promo_1UCHI2PtAVtoCYbZiubt3mcy',
+  until: Date.parse(process.env.GUIDE_AUTO_PROMO_UNTIL || '2026-09-22T03:59:59Z')
+};
+function promoParams(now = Date.now(), env = process.env) {
+  if (env.GUIDE_AUTO_PROMO !== 'off' && AUTO_PROMO.id && now < AUTO_PROMO.until) {
+    return { discounts: [{ promotion_code: AUTO_PROMO.id }] };
+  }
+  return { allow_promotion_codes: true };
+}
+router.promoParams = promoParams;
+
 router.post('/checkout', checkoutLimiter, async (req, res) => {
   const stripe = getStripe();
   if (!stripe) return res.status(503).json({ error: 'NOT_CONFIGURED', message: 'Purchases are not available right now.' });
@@ -84,7 +102,7 @@ router.post('/checkout', checkoutLimiter, async (req, res) => {
     // Keyed-ad tracking: each channel sends its own src so conversions are
     // attributable per channel in analytics and in Stripe metadata.
     const src = /^[a-z0-9_-]{1,32}$/.test(String((req.body && req.body.src) || '')) ? req.body.src : undefined;
-    const session = await stripe.checkout.sessions.create({
+    const params = {
       mode: 'payment',
       line_items: [{
         quantity: 1,
@@ -105,10 +123,21 @@ router.post('/checkout', checkoutLimiter, async (req, res) => {
       // The invoice carries the guide slug so billing.js books this sale to
       // 'other_income' in the ledger instead of 'uncategorized'.
       invoice_creation: { enabled: true, invoice_data: { metadata: { guide: guide.slug } } },
-      allow_promotion_codes: true,
+      ...promoParams(),
       success_url: origin + (ret ? ret.success : '/guides?purchase=success&session_id={CHECKOUT_SESSION_ID}'),
       cancel_url: origin + (ret ? ret.cancel : '/guides?purchase=cancelled')
-    });
+    };
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create(params);
+    } catch (err) {
+      if (!params.discounts) throw err;
+      // A deactivated or expired promo must never block a sale.
+      console.warn('[city-guides] auto promo rejected, retrying without it:', err.message);
+      delete params.discounts;
+      params.allow_promotion_codes = true;
+      session = await stripe.checkout.sessions.create(params);
+    }
     analytics.recordEvent({ type: 'guide_checkout_started', ownerKey: ownerId || 'anon', meta: Object.assign({ guide: guide.slug }, src ? { src } : {}) });
     res.json({ url: session.url });
   } catch (err) {
