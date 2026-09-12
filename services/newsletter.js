@@ -296,6 +296,17 @@ async function listSubscribed() {
   return [...subscribers.values()].filter(r => r.status === 'subscribed');
 }
 
+// Pending rows older than minAgeDays: people who asked for the newsletter and
+// never clicked confirm, so they receive nothing. Half the list sat here.
+// Used by scripts/newsletter-remind.js to send ONE confirmation reminder.
+async function listPending({ minAgeDays = 2 } = {}) {
+  await syncFromDb(true);
+  const cutoff = Date.now() - minAgeDays * 86400000;
+  return [...subscribers.values()]
+    .filter(r => r.status === 'pending' && Date.parse(r.created_at) < cutoff)
+    .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+}
+
 async function markSent(emails) {
   const now = new Date().toISOString();
   for (const email of emails) {
@@ -334,4 +345,4 @@ async function getByToken(token) {
   return findByToken(token);
 }
 
-module.exports = { subscribe, confirm, unsubscribe, listSubscribed, markSent, stats, unsubscribeUrl, baseUrl, getByToken };
+module.exports = { subscribe, confirm, unsubscribe, listSubscribed, listPending, markSent, stats, unsubscribeUrl, baseUrl, getByToken, confirmUrl };
