@@ -54,7 +54,10 @@ const CLIENT_EVENT_TYPES = new Set([
   // swiped into the plan (meta.via swipe|button), or a feed tile was swiped
   // into a list (meta.list_id). feed_swipe_shortlist runs beside
   // shortlist_add for a week so the two can be compared.
-  'tile_open', 'tile_swipe_plan', 'feed_swipe_shortlist'
+  'tile_open', 'tile_swipe_plan', 'feed_swipe_shortlist',
+  // Voice prompt (Sept 2026): the mic was opened, and a session that put
+  // text in the box. The gap between the two is how often speech fails.
+  'voice_prompt_started', 'voice_prompt_committed'
 ]);
 
 // Server-truth events, recorded by their own routes.

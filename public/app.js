@@ -4572,6 +4572,279 @@
     }
   }
 
+  // ---------- Voice prompt ----------
+  // Talk a whole day request into the prompt box. On-device Web Speech API
+  // only: nothing is uploaded, there is no per-minute cost, and it already
+  // ships in Chrome, Edge and Safari. Firefox has no implementation, so the
+  // button disables itself there instead of pretending.
+  //
+  // Three rules hold the whole thing together:
+  //   1. Never auto-submit. Speech lands in the textarea; the user reads it
+  //      and taps Plan my day. A misheard word must never cost a generation.
+  //   2. Never wipe what they typed. Only the span this voice session added
+  //      is rewritten as interim results firm up.
+  //   3. Never open a modal. A blocked mic is one line under the box.
+  const VOICE_SILENCE_MS = 2500;  // stop this long after they stop speaking
+  const VOICE_MAX_MS = 90000;     // hard cap on a single session
+  const VOICE_MAX_RESTARTS = 6;   // Chrome ends continuous sessions on its own
+
+  // Web Speech hears generic English for GTA place names. Each fix is anchored
+  // on word boundaries so it can only ever swap a whole word, and the list is
+  // deliberately short — only mishearings that are unambiguous in a GTA
+  // day-trip sentence. Applied to final transcripts only, never to interim
+  // text (which would make words visibly flip while the user is still talking).
+  const VOICE_FIXES = [
+    [/\bcourt\s?right\b/gi, 'Kortright'],
+    [/\bcort\s?right\b/gi, 'Kortright'],
+    [/\bkort\s?right\b/gi, 'Kortright'],
+    [/\bvaughn\b/gi, 'Vaughan'],
+    [/\bkleinberg\b/gi, 'Kleinburg'],
+    [/\boak\s?ridge\b(?!s)/gi, 'Oak Ridges'],
+    [/\bbonn?d\s?lake\b/gi, 'Bond Lake'],
+    [/\bscarboro\b/gi, 'Scarborough'],
+    [/\bsplash\s?pat\b/gi, 'splash pad']
+  ];
+  function applyVoiceFixes(text) {
+    return VOICE_FIXES.reduce((acc, [re, to]) => acc.replace(re, to), text);
+  }
+
+  function initVoicePrompt() {
+    const btn = document.getElementById('mic-btn');
+    const statusEl = document.getElementById('voice-status');
+    const textarea = document.getElementById('grok-prompt');
+    if (!btn || !statusEl || !textarea) return;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      // Spec'd fallback: keep it visible but inert, so the capability is
+      // discoverable and the reason is one hover away.
+      btn.disabled = true;
+      btn.title = 'Voice works in Chrome, Edge, Safari.';
+      btn.setAttribute('aria-label', 'Voice input is not supported in this browser. Voice works in Chrome, Edge, Safari.');
+      return;
+    }
+
+    let recognition = null;
+    let listening = false;     // a session is open (mic live)
+    let stopping = false;      // user/timer asked to stop; waiting for onend
+    let baseText = '';         // textarea content this session must preserve
+    let sessionFinal = '';     // finalised speech for this session
+    let lastWritten = null;    // exact string we last assigned, for edit detection
+    let restarts = 0;
+    let startedAt = 0;
+    let silenceTimer = null;
+    let maxTimer = null;
+    let tickTimer = null;
+    let heardSpeech = false;
+
+    const setStatus = (text, isError) => {
+      statusEl.textContent = text || '';
+      statusEl.classList.toggle('is-error', Boolean(isError));
+      statusEl.hidden = !text;
+    };
+
+    const mmss = (ms) => {
+      const s = Math.floor(ms / 1000);
+      return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+    };
+
+    const setButtonState = (mode) => {
+      btn.classList.toggle('is-listening', mode === 'listening');
+      btn.classList.toggle('is-busy', mode === 'busy');
+      btn.setAttribute('aria-pressed', mode === 'listening' ? 'true' : 'false');
+      btn.setAttribute('aria-label', mode === 'listening' ? 'Stop listening' : 'Speak your day');
+    };
+
+    const clearTimers = () => {
+      clearTimeout(silenceTimer); silenceTimer = null;
+      clearTimeout(maxTimer); maxTimer = null;
+      clearInterval(tickTimer); tickTimer = null;
+    };
+
+    // Compose = what they had + what this session has said. If the user edited
+    // the box mid-session, re-baseline onto their edit and keep appending from
+    // there: their change survives and nothing already transcribed is lost,
+    // because it is already part of the value we are re-baselining onto.
+    const render = (interim) => {
+      if (lastWritten !== null && textarea.value !== lastWritten) {
+        baseText = textarea.value;
+        sessionFinal = '';
+      }
+      const spoken = (sessionFinal + interim).replace(/\s+/g, ' ').trimStart();
+      const gap = baseText && !/\s$/.test(baseText) && spoken ? ' ' : '';
+      const next = (baseText + gap + spoken).slice(0, textarea.maxLength > 0 ? textarea.maxLength : undefined);
+      textarea.value = next;
+      lastWritten = next;
+      // Let the rest of the page react exactly as it does to typing (the
+      // Surprise-me button hides itself on input).
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    const armSilence = () => {
+      clearTimeout(silenceTimer);
+      if (!heardSpeech) return; // the 2.5s rule starts only once they've spoken
+      silenceTimer = setTimeout(() => stop('silence'), VOICE_SILENCE_MS);
+    };
+
+    function stop(reason) {
+      if (!listening || stopping) return;
+      stopping = true;
+      clearTimers();
+      setButtonState('busy');
+      setStatus('Finishing…');
+      try { recognition.stop(); } catch (e) { /* already stopping */ }
+      if (reason === 'max') setStatus('That’s the 90-second limit — edit if needed, then plan your day.');
+    }
+
+    function finish() {
+      listening = false;
+      stopping = false;
+      clearTimers();
+      setButtonState('idle');
+      render('');                       // drop any trailing interim text
+      const added = sessionFinal.trim();
+      if (added) {
+        setStatus('Edit if needed, then tap Plan my day.');
+        track('voice_prompt_committed');
+      } else if (heardSpeech) {
+        setStatus('Nothing came through — tap the mic to try again.');
+      } else {
+        setStatus('Didn’t catch anything — tap the mic and speak.');
+      }
+      // Focus stays in the box so the next thing they do is read and edit.
+      textarea.focus();
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+      lastWritten = null;
+    }
+
+    function buildRecognition() {
+      const r = new SpeechRecognition();
+      r.continuous = true;
+      r.interimResults = true;
+      r.lang = navigator.language || 'en-CA';
+      r.maxAlternatives = 1;
+      // Phrase biasing is in the spec and in the standard, but Chrome treats
+      // SpeechGrammarList as a no-op and Safari does not ship it at all — so
+      // it is attempted for the browsers that may honour it one day, and
+      // VOICE_FIXES above is what actually corrects the place names today.
+      try {
+        const GrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList;
+        if (GrammarList) {
+          const terms = ['Richmond Hill', 'Vaughan', 'Bond Lake', 'Kortright', 'Oak Ridges', 'trail', 'lookout', 'splash pad'];
+          const list = new GrammarList();
+          list.addFromString('#JSGF V1.0; grammar places; public <place> = ' + terms.join(' | ') + ' ;', 1);
+          r.grammars = list;
+        }
+      } catch (e) { /* no grammar support; the fix pass covers it */ }
+
+      r.onstart = () => {
+        listening = true;
+        setButtonState('listening');
+        tick();
+      };
+      r.onspeechstart = () => { heardSpeech = true; };
+      r.onresult = (event) => {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const res = event.results[i];
+          const text = res[0] ? res[0].transcript : '';
+          if (res.isFinal) {
+            heardSpeech = true;
+            sessionFinal += applyVoiceFixes(text);
+            if (!/\s$/.test(sessionFinal)) sessionFinal += ' ';
+          } else {
+            interim += text;
+          }
+        }
+        render(interim);
+        armSilence();
+      };
+      r.onerror = (event) => {
+        const code = event.error;
+        if (code === 'aborted') return;            // our own stop()
+        if (code === 'no-speech') return;          // handled in finish()
+        listening = false;
+        stopping = false;
+        clearTimers();
+        setButtonState('idle');
+        restarts = VOICE_MAX_RESTARTS;             // don't fight a hard failure
+        if (code === 'not-allowed' || code === 'service-not-allowed') {
+          setStatus('Microphone is blocked. Allow it in your browser’s address-bar icon, then tap the mic again.', true);
+        } else if (code === 'audio-capture') {
+          setStatus('No microphone found — you can still type your day.', true);
+        } else if (code === 'network') {
+          setStatus('Voice needs a connection. Check it and tap the mic again.', true);
+        } else {
+          setStatus('Voice didn’t work that time — you can still type your day.', true);
+        }
+      };
+      r.onend = () => {
+        // Chrome ends a continuous session on its own after a pause. If the
+        // user hasn't stopped and we're inside the 90s cap, pick it back up so
+        // a long, rambling request survives their thinking pauses.
+        if (!stopping && listening && restarts < VOICE_MAX_RESTARTS && Date.now() - startedAt < VOICE_MAX_MS) {
+          restarts++;
+          try { r.start(); return; } catch (e) { /* fall through to finish */ }
+        }
+        finish();
+      };
+      return r;
+    }
+
+    function tick() {
+      clearInterval(tickTimer);
+      const paint = () => setStatus('Listening… ' + mmss(Date.now() - startedAt) + '  ·  tap the mic to stop');
+      paint();
+      tickTimer = setInterval(paint, 1000);
+    }
+
+    async function start() {
+      baseText = textarea.value;
+      sessionFinal = '';
+      lastWritten = null;
+      restarts = 0;
+      heardSpeech = false;
+      stopping = false;
+      startedAt = Date.now();
+      setButtonState('busy');
+      setStatus('Checking microphone…');
+
+      // A pre-check turns the common "blocked from a previous visit" case into
+      // one honest line instead of a silent no-op when start() never fires.
+      try {
+        if (navigator.permissions && navigator.permissions.query) {
+          const st = await navigator.permissions.query({ name: 'microphone' });
+          if (st.state === 'denied') {
+            setButtonState('idle');
+            setStatus('Microphone is blocked. Allow it in your browser’s address-bar icon, then tap the mic again.', true);
+            return;
+          }
+        }
+      } catch (e) { /* Safari/Firefox reject this name — carry on and let start() ask */ }
+
+      recognition = buildRecognition();
+      try {
+        recognition.start();
+      } catch (e) {
+        setButtonState('idle');
+        setStatus('Voice didn’t start — you can still type your day.', true);
+        return;
+      }
+      maxTimer = setTimeout(() => stop('max'), VOICE_MAX_MS);
+      track('voice_prompt_started');
+    }
+
+    btn.addEventListener('click', () => {
+      if (listening || stopping) stop('tap');
+      else start();
+    });
+
+    // A submit while the mic is live would send half a sentence.
+    document.getElementById('prompt-form').addEventListener('submit', () => {
+      if (listening) stop('submit');
+    }, true);
+  }
+
   // ---------- Generate flow ----------
   async function handleGenerate(e) {
     e.preventDefault();
@@ -6462,6 +6735,10 @@
     surpriseBtn.addEventListener('click', handleSurprise);
     const syncSurpriseVisibility = () => { surpriseBtn.hidden = promptArea.value.trim().length > 0; };
     promptArea.addEventListener('input', syncSurpriseVisibility);
+
+    // Voice: talk the request instead of typing it. Bound after the
+    // Surprise-me wiring because it dispatches input events that rely on it.
+    initVoicePrompt();
     syncSurpriseVisibility();
 
     // Campaign → product loop: /?plan=<text> arrives from the playbook and

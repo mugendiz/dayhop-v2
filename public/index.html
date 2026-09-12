@@ -189,6 +189,15 @@
            type="button" is load-bearing on Surprise — anything else inside
            the form submits and trips the textarea's `required`. -->
       <div class="prompt-actions">
+        <!-- Talk the whole request. Sits at the left of the action row (so
+             it's under the thumb on mobile) and never auto-submits: speech
+             lands in the textarea and the user still taps Plan my day.
+             JS disables it with a tooltip where the Web Speech API is absent. -->
+        <button type="button" class="mic-btn" id="mic-btn" aria-pressed="false" aria-describedby="voice-status">
+          <span class="mic-btn-dot" aria-hidden="true"></span>
+          <span class="mic-btn-glyph" aria-hidden="true">🎤</span>
+          <span class="sr-only" id="mic-btn-label">Speak your day</span>
+        </button>
         <button type="button" class="ghost-btn prompt-surprise-btn" id="prompt-surprise-btn">
           <span class="btn-label">🎲 Surprise me</span>
           <span class="btn-spinner" aria-hidden="true"></span>
@@ -198,6 +207,9 @@
           <span class="btn-spinner" aria-hidden="true"></span>
         </button>
       </div>
+      <!-- Voice state line: permission, "Listening 0:07", "Edit if needed",
+           and the one-line help when the mic is blocked. Never a modal. -->
+      <p class="voice-status" id="voice-status" role="status" aria-live="polite" hidden></p>
     </form>
     <p class="prompt-hint" id="prompt-error" role="alert" aria-live="polite"></p>
     <p class="proof-strip">Built for the GTA · every plan checked against today's weather · 3 free plans a day</p>

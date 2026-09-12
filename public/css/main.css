@@ -1485,6 +1485,70 @@ button.date-clear-btn { padding: 13px 4px; }
 }
 .prompt-actions .primary-btn { align-self: auto; }
 
+/* ---------- Voice prompt (mic) ----------
+   Circular control at the LEFT of the prompt action row: thumb-reachable on
+   mobile, and visually separate from the two commit buttons so nobody taps it
+   expecting a search. margin-right:auto pushes Surprise/Plan to the right
+   edge without changing their layout. */
+.mic-btn {
+  position: relative;
+  margin-right: auto;
+  flex: 0 0 auto;
+  width: 44px;               /* 44px: the minimum comfortable touch target */
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--glass-strong);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+.mic-btn:hover:not(:disabled) { background: var(--paper-dim); }
+.mic-btn:active:not(:disabled) { transform: scale(0.95); }
+.mic-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.mic-btn-glyph { font-size: 19px; line-height: 1; }
+
+/* Listening: the button fills coral and a ring pulses out of it. The dot is a
+   separate element so the pulse never scales the glyph (which would make the
+   emoji jitter). */
+.mic-btn.is-listening {
+  background: var(--coral-btn);
+  border-color: var(--coral-btn);
+}
+.mic-btn.is-listening .mic-btn-dot {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 2px solid var(--coral-btn);
+  animation: mic-pulse 1.6s ease-out infinite;
+}
+@keyframes mic-pulse {
+  0%   { transform: scale(1);    opacity: 0.7; }
+  100% { transform: scale(1.65); opacity: 0; }
+}
+/* Requesting permission / transcribing: a quiet breathing state, no ring. */
+.mic-btn.is-busy { opacity: 0.7; }
+@media (prefers-reduced-motion: reduce) {
+  .mic-btn.is-listening .mic-btn-dot { animation: none; opacity: 0.55; }
+  .mic-btn:active:not(:disabled) { transform: none; }
+}
+
+/* State line under the action row. Reuses the prompt-hint rhythm so it does
+   not introduce a new type size. */
+.voice-status {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  text-align: right;
+}
+.voice-status.is-error { color: var(--coral-dark); }
+.voice-status .voice-elapsed { font-variant-numeric: tabular-nums; }
+
 /* "Surprise me" — the promptless path. Ghost look, but sized exactly like
    the in-box primary CTA (see `.prompt-box .primary-btn`) so the pair reads
    as one control. Hidden by JS the moment the textarea has text. */
