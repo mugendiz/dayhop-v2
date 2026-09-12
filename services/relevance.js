@@ -240,6 +240,29 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
 // exactly zero feeds. getyourguide keeps the exclusion until it rotates too.
 const NO_FLOOR_SOURCES = new Set(['getyourguide']);
 
+// Feed order bands, in km from the chosen location. WHICH candidates make the
+// pool is still decided by relevance alone (below) — this only decides the
+// order they are shown in, and closer always comes first.
+//
+// A weight could not do this job. The proximity term in scoreCandidates spans
+// +6 to −6, but it separates 5 km from 25 km by only ~3.2 points, while a
+// single well-tagged candidate can pick up +3 theme, +3 filter, +4 newly
+// opened, +3 free and +2 mode words. That is how a Richmond Hill search ended
+// up featuring Ward's Island: the Islands entry genuinely was more relevant to
+// the words, and proximity could not out-vote it. Banding makes "near" a sort
+// key rather than one opinion among ten, which is what "prioritize nearby,
+// others later" actually means. Far ideas are never dropped — they queue up
+// behind the close ones.
+const DISTANCE_BANDS_KM = [15, 35, 70];
+const UNKNOWN_DISTANCE_BAND = 1; // no coords: don't crowd the close band, don't bury it either
+function distanceBand(km) {
+  if (km == null) return UNKNOWN_DISTANCE_BAND;
+  for (let i = 0; i < DISTANCE_BANDS_KM.length; i++) {
+    if (km <= DISTANCE_BANDS_KM[i]) return i;
+  }
+  return DISTANCE_BANDS_KM.length;
+}
+
 function selectTop(scored, cap = 60) {
   const sorted = [...scored].sort((a, b) => b.score - a.score);
   const picked = new Set();
@@ -263,7 +286,19 @@ function selectTop(scored, cap = 60) {
     picked.add(entry);
   }
 
-  return sorted.filter(e => picked.has(e)).map(e => e.candidate);
+  const chosen = sorted.filter(e => picked.has(e));
+
+  // No location shared, or nothing geocoded: leave the order exactly as it was.
+  if (!chosen.some(e => e.candidate.distance_km != null)) {
+    return chosen.map(e => e.candidate);
+  }
+
+  // Nearest band first; relevance still decides the order inside a band, and
+  // the original index breaks exact ties so the sort stays deterministic.
+  return chosen
+    .map((entry, index) => ({ entry, index, band: distanceBand(entry.candidate.distance_km) }))
+    .sort((a, b) => (a.band - b.band) || (b.entry.score - a.entry.score) || (a.index - b.index))
+    .map(x => Object.assign(x.entry.candidate, { distance_band: x.band }));
 }
 
 // Great-circle distance in km, one decimal.
@@ -277,4 +312,4 @@ function haversineKm(a, b) {
   return Math.round(R * 2 * Math.asin(Math.sqrt(h)) * 10) / 10;
 }
 
-module.exports = { scoreCandidates, selectTop, tokenize, haversineKm };
+module.exports = { scoreCandidates, selectTop, tokenize, haversineKm, distanceBand, DISTANCE_BANDS_KM };

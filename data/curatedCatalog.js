@@ -308,6 +308,28 @@ module.exports = [
     maps_url: mapsSearch('Treetop Trekking Stouffville'),
     wow: true, seasonal: 'summer'
   },
+  // Verified 2026-09-12 via Google Places: "Uplå Stouffville", 3291 Stouffville
+  // Rd, Whitchurch-Stouffville L4A 3W9, OPERATIONAL, 4.3★ (101), 9-5 daily.
+  // Its own site describes it as "a suspended world high up in the trees…
+  // designed and created by Treetop Trekking" — so it shares a site with
+  // cur-treetop-trekking but is a different experience, not a duplicate.
+  // Coordinates inline so it ranks by distance from day one instead of
+  // waiting for the next geocode pass. Left unseasoned (not 'summer'): it is
+  // open and keeping full hours in September.
+  {
+    id: 'cur-upla-stouffville',
+    title: "Uplå — a suspended world in the treetops",
+    category: 'adventures',
+    tags: ['treetop', 'aerial', 'nets', 'canopy', 'forest', 'climbing', 'kids', 'family', 'stouffville', 'york region', 'outdoor'],
+    location: "Stouffville Rd, Whitchurch-Stouffville",
+    venue: "Uplå Stouffville",
+    description: "Walkways and suspended nets strung high through the forest canopy — you climb up and stay up, moving from tree to tree. Built by the Treetop Trekking crew.",
+    cost_tier: '$$', good_for_ages: 'families',
+    maps_url: mapsSearch('Uplå Stouffville 3291 Stouffville Rd'),
+    booking_url: 'https://on.upla.ca/',
+    lat: 43.94394, lng: -79.34443,
+    wow: true, seasonal: null
+  },
   {
     id: 'cur-ifly-indoor-skydiving',
     title: "iFLY indoor skydiving",
