@@ -62,3 +62,42 @@ test('catalog season eligibility: summer serves Apr–Oct, winter Nov–Mar', ()
   assert.ok(!seasons.isCatalogSeasonEligible('winter', 7));
   assert.ok(seasons.isCatalogSeasonEligible(null, 1));
 });
+
+// ---------- Indoor bench (Sept 2026) ----------
+// The catalog is outdoor-first and the outdoors is seasonal. Until now nothing
+// ever lifted indoor: spring-to-fall a trail gained +3 and indoor gained 0, and
+// the only winter rule was a penalty on warm-weather ideas — so indoor sat three
+// points behind a trail in January too, and the feed had nothing to offer once
+// the trails went cold.
+const indoorPlay = {
+  title: 'OceanLoop — indoor playground in Aurora',
+  description: 'Ocean-themed indoor playground open late into the evening.',
+  tags: ['indoor', 'play centre', 'kids'],
+  category: 'kids'
+};
+const trail = { title: 'Kortright Centre conservation trails', description: 'forest trail loops', tags: ['trail'], category: 'general' };
+const skating = { title: 'Outdoor skating rink', description: 'skate the loop under the lights', tags: ['skating'], category: 'general' };
+
+test('indoor play is promoted in winter, but never above getting outside', () => {
+  const jan = seasons.getSeasonContext('2026-01-15');
+  assert.equal(jan.season, 'winter');
+  const indoor = seasons.seasonAdjustment(indoorPlay, jan);
+  const skate = seasons.seasonAdjustment(skating, jan);
+  assert.ok(indoor > 0, 'indoor gets a winter lift');
+  assert.ok(skate > indoor, 'outdoor winter still leads a crisp Saturday');
+});
+
+test('indoor stays on the bench spring through fall — the app is outdoor-first', () => {
+  for (const day of ['2026-05-15', '2026-07-15', '2026-09-15']) {
+    const ctx = seasons.getSeasonContext(day);
+    assert.equal(seasons.seasonAdjustment(indoorPlay, ctx), 0, `${day}: no indoor lift`);
+    assert.ok(seasons.seasonAdjustment(trail, ctx) >= 3, `${day}: trails lead`);
+  }
+});
+
+test('the indoor rule does not fire on ordinary outdoor wording', () => {
+  const jan = seasons.getSeasonContext('2026-01-15');
+  const outdoorPlayground = { title: 'Mill Pond Park playground', description: 'swings and a big field', tags: ['park'], category: 'kids' };
+  assert.equal(seasons.seasonAdjustment(outdoorPlayground, jan), 0,
+    '"playground" alone must not read as indoor — most playgrounds are outside');
+});

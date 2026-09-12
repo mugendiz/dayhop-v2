@@ -89,6 +89,70 @@ module.exports = [
     booking_url: 'https://rcparadise.ca/experiences/',
     wow: true, seasonal: null
   },
+  // ---------- Indoor play, York Region (verified 2026-09-12, Google Places) ----------
+  // The catalog is outdoor-first and the outdoors is seasonal, so these are the
+  // wet-Saturday and February bench. All four: OPERATIONAL, coords inline so they
+  // rank by distance immediately. seasonal:null on purpose — an indoor playground
+  // is not a winter-only idea, it is the answer to a bad day in any month; what
+  // lifts them in winter is the indoor season rule in data/seasons.js, not a tag
+  // that would hide them April–October. No rating field: the quality gate reads
+  // rating when present and 4.2 would fail it, so these pass as hand-picked.
+  {
+    id: 'cur-lol-playlab',
+    title: "LOL PlayLab — indoor playground & edutainment",
+    category: 'kids',
+    tags: ['indoor', 'playground', 'rainy', 'kids', 'toddler', 'soft play', 'play centre', 'stouffville', 'york region', 'birthday', 'winter'],
+    location: "Innovator Ave, Whitchurch-Stouffville",
+    venue: "LOL PlayLab",
+    description: "A big indoor play space for burning off a rainy afternoon — climbing, slides and structured play, with room for a parent to sit down with a coffee.",
+    cost_tier: '$', good_for_ages: 'toddlers to 10',
+    maps_url: mapsSearch('LOL PlayLab 50 Innovator Ave Whitchurch-Stouffville'),
+    booking_url: 'https://lolplaylab.ca/',
+    lat: 43.96269, lng: -79.26669,
+    wow: false, seasonal: null
+  },
+  {
+    id: 'cur-oceanloop-aurora',
+    title: "OceanLoop — indoor playground in Aurora",
+    category: 'kids',
+    tags: ['indoor', 'playground', 'rainy', 'kids', 'toddler', 'soft play', 'play centre', 'aurora', 'york region', 'winter'],
+    location: "Don Hillock Dr, Aurora",
+    venue: "OceanLoop",
+    description: "Ocean-themed indoor playground open late into the evening — the reliable answer when the forecast turns and everyone still has energy to spend.",
+    cost_tier: '$', good_for_ages: 'toddlers to 10',
+    maps_url: mapsSearch('OceanLoop 32 Don Hillock Dr Aurora'),
+    booking_url: 'http://oceanloopca.com/',
+    lat: 44.00904, lng: -79.41637,
+    wow: false, seasonal: null
+  },
+  {
+    id: 'cur-lil-play-cafe',
+    title: "Lil Play Cafe — play space and coffee, Newmarket",
+    category: 'kids',
+    tags: ['indoor', 'playground', 'play cafe', 'rainy', 'kids', 'toddler', 'coffee', 'newmarket', 'york region', 'winter'],
+    location: "Davis Dr, Newmarket",
+    venue: "Lil Play Cafe",
+    description: "A small, calm play cafe for little ones with real coffee for the adult — the sane version of an indoor play day. Closed early in the week, so check first.",
+    cost_tier: '$', good_for_ages: 'under 6',
+    maps_url: mapsSearch('Lil Play Cafe 17817 Yonge Street Newmarket'),
+    booking_url: 'https://www.lilplaycafe.ca/',
+    lat: 44.07367, lng: -79.43301,
+    wow: false, seasonal: null
+  },
+  {
+    id: 'cur-kids-cuckoos-nest-bradford',
+    title: "Kids Cuckoos Nest — indoor play, Bradford",
+    category: 'kids',
+    tags: ['indoor', 'playground', 'rainy', 'kids', 'toddler', 'soft play', 'play centre', 'bradford', 'winter'],
+    location: "Stirling Cres, Bradford",
+    venue: "Kids Cuckoos Nest Bradford",
+    description: "Indoor play centre north of Newmarket, open 10 to 8 most days and bookable ahead — worth the extra minutes when the closer places are full on a wet weekend.",
+    cost_tier: '$', good_for_ages: 'toddlers to 10',
+    maps_url: mapsSearch('Kids Cuckoos Nest 202 Stirling Cres Bradford'),
+    booking_url: 'https://bradford.kidscuckoosnest.com/booking/',
+    lat: 44.09570, lng: -79.63256,
+    wow: false, seasonal: null
+  },
   // ---------- Water & paddling (the "swimming → whole lake" pack) ----------
   {
     id: 'cur-harbourfront-kayak',

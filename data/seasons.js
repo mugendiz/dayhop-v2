@@ -25,6 +25,16 @@ const TRAIL_OUTDOOR_RE = /\b(trail|hik(e|ing)|conservation|lookout|viewpoint|esc
 // Warm-weather-only: fine June–September, a broken promise in January.
 const WARM_ONLY_RE = /\b(beach|splash pad|outdoor pool|wading|swim pond|paddleboard|paddle ?boat|kayak|canoe|river tubing|water ?park|wave pool|sandcastle|patio season|pick.?your.?own strawberr)\b/i;
 
+// Indoor family destinations. The catalog is outdoor-first and the outdoors is
+// seasonal, so from December these have to carry the weekend — but until now
+// nothing lifted them: spring through fall TRAIL_OUTDOOR_RE gained +3 while
+// indoor gained nothing, and in winter the only rule was a penalty on
+// warm-weather ideas. So indoor sat three points behind a trail in January too.
+// Deliberately narrower than "playground" on its own (most playgrounds are
+// outdoor) and weaker than the snow-and-ice window, so "get outside" still
+// leads a clear winter day and this is the answer for the other kind.
+const INDOOR_FAMILY_RE = /\b(indoor|museum|gallery|aquarium|science cent(re|er)|planetarium|arcade|trampoline|climbing gym|boulder(ing)?|play ?caf[eé]|play ?cent(re|er)|soft play|bowling|conservatory|greenhouse|escape room|pottery|library|swimming pool)\b/i;
+
 // Outdoor winter: what "get outside" means December–February.
 const WINTER_OUTDOOR_RE = /\b(skat(e|ing)|ice rink|ice trail|toboggan|sledding|snow ?tub(e|ing)|snowshoe|cross.?country ski|xc ski|ski hill|ski resort|snowboard|winter (village|festival|lights?)|light (festival|trail|show)|ice fishing|winter hik(e|ing))\b/i;
 
@@ -89,8 +99,11 @@ function seasonAdjustment(candidate, ctx) {
 
   if (ctx.season === 'winter') {
     // Winter: outdoor-winter first (via the snow-and-ice window below),
-    // warm-only ideas out of the way.
+    // warm-only ideas out of the way, and indoor promoted to the bench it
+    // has to be — at +2.5 it sits just under the +3 snow-and-ice window, so
+    // skating still leads a crisp Saturday and this leads the other kind.
     if (WARM_ONLY_RE.test(text)) delta -= 3;
+    if (INDOOR_FAMILY_RE.test(text)) delta += 2.5;
   } else {
     // Spring/summer/fall: trails and green outdoors lead.
     if (TRAIL_OUTDOOR_RE.test(text)) delta += 3;
