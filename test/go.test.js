@@ -55,3 +55,19 @@ test('Instagram keyword DMs land on the Playbook and the guides', () => {
   assert.equal(go.destination('igdm', 'playbook'), '/playbook?src=igdm&utm_source=igdm&utm_medium=social&utm_campaign=go-playbook');
   assert.equal(go.destination('igdm', 'guides'), '/guides?src=igdm&utm_source=igdm&utm_medium=social&utm_campaign=go-guides');
 });
+
+test('per-article blog keys resolve so BLG spend can be scored', () => {
+  // The content brief gives every article its own CTA key (blog-salmon-run,
+  // blog-fall-colours, …). These 404'd until Sep 12, which is why the
+  // acquisition card showed no blog rows at all.
+  assert.equal(go.isKey('blog'), true);
+  assert.equal(go.isKey('blog-salmon-run'), true);
+  assert.equal(go.isKey('blog-rouge-day'), true);
+  assert.equal(go.destination('blog-salmon-run', 'rh'),
+    '/guides/richmond-hill?src=blog-salmon-run&utm_source=blog-salmon-run&utm_medium=social&utm_campaign=go-rh');
+  // Still a closed shape: no empty slug, no uppercase, no double dash, no path.
+  assert.equal(go.isKey('blog-'), false);
+  assert.equal(go.isKey('blog-A'), false);
+  assert.equal(go.isKey('blog--x'), false);
+  assert.equal(go.isKey('blog-../etc'), false);
+});

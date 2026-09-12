@@ -36,7 +36,15 @@ const PAGES = {
 // (social/creators/). Taps per creator land in the Friday report's taps
 // column without a deploy each time someone new says yes.
 const CREATOR_KEY = /^c-[a-z0-9_.]{2,24}$/;
-const isKey = (key) => KEYS.has(key) || CREATOR_KEY.test(key);
+
+// Per-article blog keys: blog-<slug>, one per BabyLoveGrowth article (the
+// content brief assigns them: blog-salmon-run, blog-fall-colours, …). Without
+// this every article CTA 404'd and the acquisition card showed no blog rows at
+// all, so the BLG spend was being judged against a scoreboard that could only
+// ever read zero. Same open-list reasoning as CREATOR_KEY — a new article must
+// not need a deploy.
+const BLOG_KEY = /^blog-[a-z0-9][a-z0-9-]{1,39}$/;
+const isKey = (key) => KEYS.has(key) || CREATOR_KEY.test(key) || BLOG_KEY.test(key);
 
 const clean = (v) => String(v || '').trim().toLowerCase().slice(0, 32);
 
