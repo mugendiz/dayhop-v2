@@ -46,7 +46,7 @@ let warnedUnconfigured = false;
  *   attachments    — optional [{ filename, content: Buffer }] (kept small:
  *                    Resend caps messages at 40MB but inboxes punish bulk)
  *   from           — optional sender override (must stay on the verified
- *                    domain), e.g. outreach sends as "Andrew at DayHop <…>"
+ *                    domain), e.g. outreach sends as "Mugendi (Andrew) at DayHop <…>"
  */
 /*
  *   inReplyTo      — optional Message-ID of the email being answered (with

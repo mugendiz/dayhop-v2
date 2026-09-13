@@ -23,7 +23,13 @@
 const dbClient = require('./db/client');
 const { sendEmail } = require('./email');
 
-const OUTREACH_FROM = process.env.OUTREACH_FROM || 'Andrew at DayHop <hello@dayhop.quest>';
+// One identity across the portfolio (founder decision 2026-09-13). Outreach
+// signed "Andrew" here and on YardRule while the LinkedIn profile a recipient
+// looks up reads "Mugendi Zoka". CASL wants the sender identified accurately;
+// the parenthetical is accurate and still matches everything already sent.
+// Overridable by OUTREACH_FROM in the environment.
+const OUTREACH_FROM =
+  process.env.OUTREACH_FROM || 'Mugendi (Andrew) at DayHop <hello@dayhop.quest>';
 const BUMP_AFTER_DAYS = 4;
 const CLOSE_AFTER_DAYS = 6; // after the bump (day ~10 overall)
 const ACTIVE_STAGES = new Set(['queued', 'sent', 'bumped']);
