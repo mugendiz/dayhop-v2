@@ -28,13 +28,31 @@ const norm = s => String(s || '').trim().toLowerCase();
 // The vocabulary, normalized. Order matters for refresh priority: feed
 // prompts first (every browse pays them), then dining/refuge/corridor, then
 // theme queries.
-const VOCABULARY = [...new Set([
-  ...Object.values(P.MODE_PROMPTS),
-  P.DINING_QUERY, P.INDOOR_REFUGE_QUERY, P.CORRIDOR_QUERY,
-  ...Object.values(P.SURPRISE_PROMPTS).flat(),
-  ...THEMES.flatMap(t => t.placesQueries || [])
-].map(norm))];
-const VOCAB_SET = new Set(VOCABULARY);
+// Seasonal: only the CURRENT and NEXT period's mode prompts are ever included
+// (data/feedPrompts.js). All nine periods at once would add 18 × 18 = 324 rows
+// and push the index past the 1,000 free monthly searches; rotating instead
+// costs 4 strings where there were 2. Recomputed when the Toronto day changes,
+// because this process can stay up for weeks and would otherwise keep buying
+// last month's questions.
+const torontoDay = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', dateStyle: 'short' }).format(new Date());
+let vocabDay = null;
+let vocabList = [];
+let vocabSet = new Set();
+function buildVocabulary() {
+  const day = torontoDay();
+  if (day === vocabDay) return;
+  vocabList = [...new Set([
+    ...Object.values(P.MODE_PROMPTS),
+    ...P.activeSeasonalPrompts(day),
+    P.DINING_QUERY, P.INDOOR_REFUGE_QUERY, P.CORRIDOR_QUERY,
+    ...Object.values(P.SURPRISE_PROMPTS).flat(),
+    ...THEMES.flatMap(t => t.placesQueries || [])
+  ].map(norm))];
+  vocabSet = new Set(vocabList);
+  vocabDay = day;
+}
+function vocabulary() { buildVocabulary(); return vocabList; }
+function vocabSetNow() { buildVocabulary(); return vocabSet; }
 
 const rows = new Map(); // `${cellId}|${query}` -> { places, fetched_at }
 let loaded = false;
@@ -67,7 +85,7 @@ async function load() {
       for (const [k, v] of fresh) rows.set(k, v);
       loaded = true;
       loadedAt = Date.now();
-      console.log(`[venue-index] loaded ${rows.size} rows (${CELLS.length} cells × ${VOCABULARY.length} queries = ${CELLS.length * VOCABULARY.length} possible)`);
+      console.log(`[venue-index] loaded ${rows.size} rows (${CELLS.length} cells × ${vocabulary().length} queries = ${CELLS.length * vocabulary().length} possible)`);
     } catch (err) {
       console.warn('[venue-index] load failed (live searches will be used):', err.message);
       loaded = true; // don't retry on every request; the hourly reload will
@@ -82,7 +100,7 @@ function ensureFresh() {
 }
 
 function inVocabulary(q) {
-  return VOCAB_SET.has(norm(q));
+  return vocabSetNow().has(norm(q));
 }
 
 // Cells whose coverage circle reaches the point (nearest first).
@@ -151,7 +169,7 @@ function staleTargets({ cellIds = null, now = Date.now() } = {}) {
   const targets = [];
   for (const cell of CELLS) {
     if (cellIds && !cellIds.includes(cell.id)) continue;
-    for (const q of VOCABULARY) {
+    for (const q of vocabulary()) {
       const r = rows.get(key(cell.id, q));
       const age = r ? now - Date.parse(r.fetched_at) : Infinity;
       if (age > MAX_AGE_MS) targets.push({ cell, query: q, age, missing: !r });
@@ -194,18 +212,18 @@ async function refreshStale({ maxCalls = 30, cellIds = null, onRow = null } = {}
       if (err.code === 'MAPS_NOT_CONFIGURED' || err.code === 'BUDGET_EXCEEDED') break;
     }
   }
-  return { fetched, failed, remaining: targets.length - fetched, total: CELLS.length * VOCABULARY.length };
+  return { fetched, failed, remaining: targets.length - fetched, total: CELLS.length * vocabulary().length };
 }
 
 function status() {
   const now = Date.now();
   let stale = 0;
   for (const r of rows.values()) if (now - Date.parse(r.fetched_at) > MAX_AGE_MS) stale++;
-  const total = CELLS.length * VOCABULARY.length;
+  const total = CELLS.length * vocabulary().length;
   return {
     loaded, rows: rows.size, total, stale,
     coverage_pct: total ? Math.round(100 * rows.size / total) : 0,
-    cells: CELLS.length, vocabulary: VOCABULARY.length,
+    cells: CELLS.length, vocabulary: vocabulary().length,
     l2: hasServiceKey()
   };
 }
@@ -217,4 +235,4 @@ function _setRows(entries) {
   loaded = true; loadedAt = Date.now();
 }
 
-module.exports = { load, lookup, covers, inVocabulary, cellsNear, refreshStale, staleTargets, status, VOCABULARY, MAX_AGE_MS, _setRows };
+module.exports = { load, lookup, covers, inVocabulary, cellsNear, refreshStale, staleTargets, status, vocabulary, MAX_AGE_MS, _setRows };

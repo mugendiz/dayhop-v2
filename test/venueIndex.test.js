@@ -17,8 +17,31 @@ test('the vocabulary is the feed prompts + theme queries, normalized, deduped', 
   assert.ok(idx.inVocabulary(DINING_QUERY.toUpperCase() + '  '));
   assert.ok(idx.inVocabulary('splash pad'));
   assert.ok(!idx.inVocabulary('rainy saturday with a 6 year old'));
-  assert.equal(new Set(idx.VOCABULARY).size, idx.VOCABULARY.length);
-  assert.ok(idx.VOCABULARY.length >= 40 && idx.VOCABULARY.length <= 60, `vocabulary size ${idx.VOCABULARY.length}`);
+  const vocab = idx.vocabulary();
+  assert.equal(new Set(vocab).size, vocab.length);
+  assert.ok(vocab.length >= 40 && vocab.length <= 60, `vocabulary size ${vocab.length}`);
+});
+
+test('the vocabulary carries this period and the next, and only those', () => {
+  // Every distinct query is one Places search per cell per 30-day refresh, so
+  // all nine periods at once would be 324 extra rows and would break the free
+  // tier. The set rotates instead — and the next period is pre-warmed so the
+  // feed is not cold on the day it turns.
+  const P = require('../data/feedPrompts');
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', dateStyle: 'short' }).format(new Date());
+  const cur = P.periodFor(today);
+  const nxt = P.nextPeriod(cur);
+  const vocab = idx.vocabulary().map(q => q.toLowerCase());
+  for (const q of [cur.rr, cur.adventure, nxt.rr, nxt.adventure]) {
+    assert.ok(vocab.includes(q.toLowerCase()), `active period query missing: ${q.slice(0, 40)}`);
+  }
+  const inactive = P.PERIODS.filter(p => p !== cur && p !== nxt);
+  for (const p of inactive) {
+    assert.ok(!vocab.includes(p.rr.toLowerCase()), `${p.id} must not be bought out of season`);
+    assert.ok(!vocab.includes(p.adventure.toLowerCase()), `${p.id} must not be bought out of season`);
+  }
+  // The evergreen spine stays, so rows already paid for keep working.
+  assert.ok(vocab.includes(P.MODE_PROMPTS.rr.toLowerCase()));
 });
 
 test('lookup unions covering cells, dedupes by place_id, keeps within radius', () => {
@@ -59,7 +82,7 @@ test('stale targets: missing rows first, core cells before the rest, then oldest
     { cell: 'hamilton', query: DINING_QUERY, places: [], fetched_at: older }
   ]);
   const t = idx.staleTargets({ cellIds: ['richmond-hill', 'hamilton'] });
-  assert.equal(t.length, idx.VOCABULARY.length * 2);
+  assert.equal(t.length, idx.vocabulary().length * 2);
   assert.ok(t[0].missing && t[0].cell.core, 'first target is a missing row in a core cell');
   const refreshes = t.filter(x => !x.missing);
   assert.deepEqual(refreshes.map(x => x.cell.id), ['hamilton', 'richmond-hill'], 'oldest existing row first');

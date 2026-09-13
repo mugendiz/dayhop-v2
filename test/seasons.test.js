@@ -183,3 +183,46 @@ test('an explicit outdoor ask overrides both the winter and the wet rules', () =
   assert.equal(seasons.seasonAdjustment(greenTrail, sep, { outdoorAsk: true, wet: false }),
     seasons.seasonAdjustment(greenTrail, sep, {}));
 });
+
+// ---------- Nine periods, not four seasons (Sept 2026) ----------
+// Ranking can only reorder what was fetched. The evergreen feed prompt asks
+// Google for "beaches, kayaking" in January, so no seasonal scoring could ever
+// surface a toboggan hill — it was never searched for.
+const prompts = require('../data/feedPrompts');
+
+test('every day of a leap year falls in exactly one period', () => {
+  const seen = new Set();
+  for (let m = 1; m <= 12; m++) {
+    for (let d = 1; d <= 31; d++) {
+      const ymd = `2028-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      if (new Date(`${ymd}T12:00:00Z`).getUTCMonth() + 1 !== m) continue; // skip Feb 30 etc
+      const p = prompts.periodFor(ymd);
+      const md = ymd.slice(5);
+      assert.ok(md >= p.from && md <= p.to, `${ymd} fell outside ${p.id}`);
+      seen.add(p.id);
+    }
+  }
+  assert.equal(seen.size, prompts.PERIODS.length, 'every period is reachable');
+});
+
+test('the period asks the season\'s own question', () => {
+  assert.match(prompts.seasonalPrompt('adventure', '2027-01-16'), /toboggan|sled/i);
+  assert.match(prompts.seasonalPrompt('rr', '2027-01-16'), /skating/i);
+  assert.match(prompts.seasonalPrompt('rr', '2027-03-15'), /maple|sugar bush/i);
+  assert.match(prompts.seasonalPrompt('rr', '2027-05-01'), /blossom|garden/i);
+  assert.match(prompts.seasonalPrompt('rr', '2027-07-15'), /beach|splash/i);
+  assert.match(prompts.seasonalPrompt('rr', '2026-10-01'), /apple|pumpkin/i);
+  assert.match(prompts.seasonalPrompt('rr', '2026-12-10'), /holiday|lights/i);
+  // The January feed must never be asking for beaches.
+  assert.doesNotMatch(prompts.seasonalPrompt('rr', '2027-01-16'), /\bbeach|kayak/i);
+  assert.doesNotMatch(prompts.seasonalPrompt('adventure', '2027-01-16'), /\bbeach|kayak|paddleboard/i);
+});
+
+test('only four seasonal strings are ever live at once', () => {
+  for (const day of ['2027-01-16', '2027-05-01', '2026-10-01', '2026-12-31']) {
+    assert.equal(prompts.activeSeasonalPrompts(day).length, 4, `${day}`);
+  }
+  // Wrapping the year end must not crash or duplicate.
+  const dec = prompts.periodFor('2026-12-31');
+  assert.equal(prompts.nextPeriod(dec).id, 'deep-winter');
+});

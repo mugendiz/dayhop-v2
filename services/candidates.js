@@ -37,7 +37,7 @@ try { catalogPhotos = require('../data/catalogPhotos.json'); }
 catch { console.warn('[candidates] data/catalogPhotos.json missing — run scripts/photo-catalog.js'); }
 const autoCatalog = require('./autoCatalog');
 const venueIndex = require('./venueIndex');
-const { DINING_QUERY, INDOOR_REFUGE_QUERY } = require('../data/feedPrompts');
+const { DINING_QUERY, INDOOR_REFUGE_QUERY, seasonalPrompt } = require('../data/feedPrompts');
 const { matchThemes } = require('../data/themes');
 const seasons = require('../data/seasons');
 const relevance = require('./relevance');
@@ -245,6 +245,30 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   // Capped at 3 (was 4): each theme query is a metered Text Search, and the
   // 4th theme's results overlapped the first three almost entirely.
   const themeQueries = themes.flatMap(t => t.placesQueries).slice(0, 3);
+
+  // The season's own question, asked alongside the prompt. Ranking can only
+  // reorder what was fetched, and the evergreen feed prompt asks for beaches
+  // and kayaking in January — so no seasonal scoring could ever surface a
+  // toboggan hill that was never searched for. Nine periods, not four seasons
+  // (data/feedPrompts.js), keyed to the PLANNED day so a date-picked February
+  // Saturday asks February's question.
+  //
+  // Added here rather than replacing the feed prompt so the evergreen rows the
+  // index has already paid for keep working: on the day a period turns, its
+  // rows may not be filled yet and this would otherwise go cold.
+  // unshift, not push: the google_places pool is trimmed with a blind
+  // slice(0, 36) in source order, so a query appended after the prompt search
+  // and three theme searches lands past the cut and never reaches the pool.
+  // Appending it is exactly what I did first, and the January feed came back
+  // with 41 candidates and zero winter ones while the same query run directly
+  // against Places returned six toboggan hills. The season's question outranks
+  // generic theme expansion anyway — same reason the indoor-refuge query below
+  // unshifts.
+  {
+    const planned = (dateWindow && dateWindow.start) || torontoToday();
+    const seasonQuery = seasonalPrompt(mode === 'adventure' ? 'adventure' : 'rr', planned);
+    if (seasonQuery && !themeQueries.includes(seasonQuery)) themeQueries.unshift(seasonQuery);
+  }
 
   // Under a warning+ "stay out of the open air" advisory (smoke, dangerous
   // heat/wind), a nature-first prompt would fill the pool with exactly the
