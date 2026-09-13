@@ -35,8 +35,15 @@ const WARM_ONLY_RE = /\b(beach|splash pad|outdoor pool|wading|swim pond|paddlebo
 // leads a clear winter day and this is the answer for the other kind.
 const INDOOR_FAMILY_RE = /\b(indoor|museum|gallery|aquarium|science cent(re|er)|planetarium|arcade|trampoline|climbing gym|boulder(ing)?|play ?caf[eé]|play ?cent(re|er)|soft play|bowling|conservatory|greenhouse|escape room|pottery|library|swimming pool)\b/i;
 
-// Outdoor winter: what "get outside" means December–February.
-const WINTER_OUTDOOR_RE = /\b(skat(e|ing)|ice rink|ice trail|toboggan|sledding|snow ?tub(e|ing)|snowshoe|cross.?country ski|xc ski|ski hill|ski resort|snowboard|winter (village|festival|lights?)|light (festival|trail|show)|ice fishing|winter hik(e|ing))\b/i;
+// Neighbourhood winter play: the communal, free, walk-to things a snowy
+// Saturday is actually for. Held separately from the destination vocabulary
+// because these are the ones that must surface CLOSE — a toboggan hill 40 km
+// away is not a plan, it is the same hill with a drive attached.
+const WINTER_LOCAL_RE = /\b(toboggan(ing)?|sled(ding|ging)?|sliding hill|snow ?man|snow ?fort|snow ?ball|snow ?play|snow ?maze|winter playground|skating rink|community rink|outdoor rink|ice rink|skating trail|skating path)\b/i;
+
+// Outdoor winter: what "get outside" means December–February. Superset of the
+// local play above plus the things you travel for (ski hills, Nordic centres).
+const WINTER_OUTDOOR_RE = /\b(skat(e|ing)|ice rink|ice trail|toboggan(ing)?|sled(ding|ging)?|sliding hill|snow ?man|snow ?fort|snow ?ball|snow ?play|snow ?maze|winter playground|snow ?tub(e|ing)|snowshoe|cross.?country ski|xc ski|ski hill|ski resort|snowboard|winter (village|festival|lights?)|light (festival|trail|show)|ice fishing|winter hik(e|ing))\b/i;
 
 // ---------- dated Ontario windows (MM-DD, inclusive; may wrap the year) ----------
 const WINDOWS = [
@@ -91,10 +98,19 @@ function getSeasonContext(ymd) {
  * relevance.js; a nudge of ±3 per signal, capped so stacked windows can't
  * drown relevance entirely.
  */
-function seasonAdjustment(candidate, ctx) {
-  if (!ctx) return 0;
-  const text = `${candidate.title || ''} ${candidate.description || ''} ` +
+function seasonText(candidate) {
+  return `${candidate.title || ''} ${candidate.description || ''} ` +
     `${(candidate.tags || []).join(' ')} ${candidate.category || ''}`;
+}
+
+// opts.wet — today's forecast is rain or deep cold (relevance.js only sets it
+// when the plan is for today).
+// opts.outdoorAsk — the user explicitly asked for a hike/trail/walk in the
+// woods. Then the winter demotion is simply wrong: they know it is February and
+// they want the trail anyway. Seasonal steering is for people who did not say.
+function seasonAdjustment(candidate, ctx, opts = {}) {
+  if (!ctx) return 0;
+  const text = seasonText(candidate);
   let delta = 0;
 
   if (ctx.season === 'winter') {
@@ -114,10 +130,16 @@ function seasonAdjustment(candidate, ctx) {
     // Bike both match the trail vocabulary and would otherwise be demoted in
     // the one season they are best. Skating, tubing, snowshoe and ski still
     // gain +3 from the snow-and-ice window on top.
-    if (TRAIL_OUTDOOR_RE.test(text) && !WINTER_OUTDOOR_RE.test(text)) delta -= 2.5;
+    if (!opts.outdoorAsk && TRAIL_OUTDOOR_RE.test(text) && !WINTER_OUTDOOR_RE.test(text)) delta -= 2.5;
+    // Tobogganing, snow forts, the outdoor rink: free, communal and close.
+    // On top of the +3 snow-and-ice window, so on a snowy weekend the local
+    // hill outranks both the indoor bench and the two-hour ski drive.
+    if (WINTER_LOCAL_RE.test(text)) delta += 2;
   } else {
     // Spring/summer/fall: trails and green outdoors lead.
-    if (TRAIL_OUTDOOR_RE.test(text)) delta += 3;
+    // ...unless it is raining on the day itself. A trail boost in the rain is
+    // the feed arguing with the forecast it prints two lines above.
+    if (!opts.wet && TRAIL_OUTDOOR_RE.test(text)) delta += 3;
     // Warm-only ideas belong to summer (and late spring), not November.
     if (ctx.season === 'fall' && WARM_ONLY_RE.test(text)) delta -= 2;
   }
@@ -157,9 +179,17 @@ function isCatalogSeasonEligible(tag, month) {
  */
 function isSeasonalDestination(candidate, ctx) {
   if (!ctx || ctx.season !== 'winter') return false;
-  const text = `${candidate.title || ''} ${candidate.description || ''} ` +
-    `${(candidate.tags || []).join(' ')} ${candidate.category || ''}`;
-  return WINTER_OUTDOOR_RE.test(text);
+  return WINTER_OUTDOOR_RE.test(seasonText(candidate));
 }
 
-module.exports = { seasonOf, getSeasonContext, seasonAdjustment, isCatalogSeasonEligible, isSeasonalDestination, WINDOWS };
+/**
+ * The communal, walk-to half of winter: tobogganing, snow forts, the outdoor
+ * rink. These are what "get people outdoors in winter" actually means for most
+ * families — free, close, no booking — so they are boosted on top of the
+ * snow-and-ice window and are never allowed to justify a long drive.
+ */
+function isLocalWinterPlay(candidate) {
+  return WINTER_LOCAL_RE.test(seasonText(candidate));
+}
+
+module.exports = { seasonOf, getSeasonContext, seasonAdjustment, isCatalogSeasonEligible, isSeasonalDestination, isLocalWinterPlay, WINDOWS };

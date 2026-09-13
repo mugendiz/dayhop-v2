@@ -495,7 +495,10 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   // Quality gate BEFORE the cap, so the pool fills with excellent
   // candidates instead of capping first and filtering what's left.
   const gated = qualityGate(relevance.scoreCandidates(pool, {
-    prompt, themes, filter, mode, advisoryPressure, spotlight, dateWindow
+    prompt, themes, filter, mode, advisoryPressure, spotlight, dateWindow,
+    // Only set when the plan is for today (weatherApplies above) — steering a
+    // future date by this morning's forecast would be a quiet lie.
+    weather
   }));
   const candidates = relevance.selectTop(gated, CANDIDATE_POOL_CAP);
 

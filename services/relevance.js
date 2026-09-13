@@ -89,7 +89,18 @@ function readIntent(prompt) {
     budget: /\b(free|cheap|budget|no money|broke|inexpensive|affordable)\b/.test(p),
     kids: /\b(kid|kids|toddler|child|children|family|baby|stroller|year[- ]old)\b/.test(p),
     indoor: /\b(rain|raining|rainy|indoor|indoors|inside|snow|cold day)\b/.test(p),
-    romantic: /\b(date|romantic|anniversary|partner|couple)\b/.test(p)
+    romantic: /\b(date|romantic|anniversary|partner|couple)\b/.test(p),
+    // They asked for the outdoors in so many words. Seasonal and bad-weather
+    // steering exists for people who did NOT say — once someone types "hike",
+    // demoting trails in February is just refusing the request.
+    outdoorAsk: /\b(hik(e|ing)|trail|trails|walk in the woods|forest|nature walk|outdoors|outside|ski|skiing|snowshoe|toboggan|sled|skat(e|ing)|fresh air)\b/.test(p),
+    // A drive is the point, not a cost — the only case where something far
+    // should outrank what is close.
+    worthTrip: /\b(road ?trip|worth the drive|day ?trip|far|further|drive out|out of town|weekend away|worth a trip)\b/.test(p),
+    // Narrower than outdoorAsk on purpose. outdoorAsk lifts the winter and
+    // wet demotions — reasonable for "a hike". Earning a 58 km drive is a
+    // bigger claim, and only asking for the winter activity itself makes it.
+    winterAsk: /\b(ski|skiing|snowboard|snowshoe|toboggan(ing)?|sled(ding|ging)?|tubing|snow|winter)\b/.test(p)
   };
 }
 
@@ -98,7 +109,7 @@ function readIntent(prompt) {
  * shapes), the active category filter, and the R&R/Adventure mode.
  * Returns [{ candidate, score }].
  */
-function scoreCandidates(candidates, { prompt, themes = [], filter, mode, advisoryPressure, spotlight, dateWindow } = {}) {
+function scoreCandidates(candidates, { prompt, themes = [], filter, mode, advisoryPressure, spotlight, dateWindow, weather } = {}) {
   const tokens = tokenize(prompt);
   const intent = readIntent(prompt);
   // Seasonal pressure follows the PLANNED day when the date picker is set —
@@ -122,7 +133,18 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
     // A place the season itself is the reason to drive to (winter: ski hills,
     // tubing, skating and ice trails). Computed up front because both the
     // proximity term and the feed ordering have to agree about it.
-    const seasonalDestination = seasons.isSeasonalDestination(candidate, seasonCtx);
+    // A winter outing is exempt from the distance rules — but only up to a
+    // point. "Take people skiing" and "no need to surface results 40+ km away"
+    // are both true, and WORTH_TRIP_KM is where they meet: a toboggan hill or
+    // rink within 40 km rides in the nearest band because the whole idea is to
+    // get outside nearby, while a 58 km ski hill has to be asked for. A hill
+    // 40 km away is not a plan, it is the same hill with a drive attached.
+    const seasonalDestination = seasons.isSeasonalDestination(candidate, seasonCtx)
+      && (candidate.distance_km == null
+        || candidate.distance_km <= WORTH_TRIP_KM
+        || intent.worthTrip
+        || intent.winterAsk
+        || candidate.worth_trip === true);
     if (seasonalDestination) candidate.seasonal_destination = true;
 
     // Freshness: a newly-opened attraction gets a lift so it survives the
@@ -227,7 +249,31 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
     // spring through fall (fall-colour weeks especially), outdoor winter
     // activities lead December–February, and warm-weather-only ideas sink
     // out of season. Applied to EVERY source — the feed follows the year.
-    score += seasons.seasonAdjustment(candidate, seasonCtx);
+    // Wet = the forecast argues against being outside at all. Passed into the
+    // seasonal pass so a rainy day does not also collect the +3 green-outdoors
+    // boost — without that the penalty below only cancels part of a lift the
+    // feed should never have given, and the trail still leads in the rain.
+    const wet = Boolean(weather && (weather.is_rainy || weather.is_extreme_cold)) && !intent.outdoorAsk;
+    score += seasons.seasonAdjustment(candidate, seasonCtx, { outdoorAsk: intent.outdoorAsk, wet });
+
+    // Today's weather, when the plan IS for today (candidates.js only passes
+    // it then — applying it to a future date would be a quiet lie). Advisories
+    // already handle smoke, extreme heat and high wind; this is the ordinary
+    // case they never fire for: it is raining, so do not send anyone up a
+    // trail. Skipped entirely when they asked for the outdoors anyway.
+    if (weather && !intent.outdoorAsk) {
+      // Deep cold is the element of a toboggan hill, not a reason to avoid it.
+      // Rain is bad for everything outside, the hill included.
+      const localPlay = seasons.isLocalWinterPlay(candidate);
+      if (weather.is_rainy || (weather.is_extreme_cold && !localPlay)) {
+        const text = `${candidate.title || ''} ${candidate.description || ''} ${candidate.category || ''}`;
+        if (OUTDOOR_WORDS.test(text)) score -= 3;
+        if (INDOOR_REFUGE_WORDS.test(text)) score += 2.5;
+      }
+      // Snow is the one "bad" forecast that makes an outing better: it ruins a
+      // hike and it is the entire point of a toboggan hill.
+      if (weather.condition === 'Snow' && localPlay) score += 3;
+    }
 
     // Active advisories (smoke, extreme heat/cold, high wind) push the day
     // indoors: exposed candidates sink, indoor refuges rise.
@@ -249,6 +295,10 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
 // the standard floor back. Without it, generic tour copy never out-scored
 // local venues and Viator (the only commission-bearing source) appeared in
 // exactly zero feeds. getyourguide keeps the exclusion until it rotates too.
+// Past this, "nearby" stops being a courtesy and starts being the product.
+// Only an explicit ask ("worth the drive", "ski") or a flagged entry earns it.
+const WORTH_TRIP_KM = 40;
+
 const NO_FLOOR_SOURCES = new Set(['getyourguide']);
 
 // Feed order bands, in km from the chosen location. WHICH candidates make the

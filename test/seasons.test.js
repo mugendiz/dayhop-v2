@@ -146,3 +146,40 @@ test('the winter penalty does not leak into the other three seasons', () => {
     assert.ok(seasons.seasonAdjustment(greenTrail, ctx) >= 3, `${day}: trails still lead`);
   }
 });
+
+// ---------- Local winter play + bad weather (Sept 2026) ----------
+// "As winter approaches we want NEARBY winter activities to surface — sledding,
+// tobogganing, snowmen, forts — where these are done communally, get people
+// outdoors." And: don't take people hiking in winter or in bad weather, unless
+// they ask for it.
+const toboggan = { title: 'Riverdale Park toboggan hill', description: 'sledding and snow forts all winter', tags: ['toboggan'], category: 'general' };
+const rinkLocal = { title: 'Community outdoor rink', description: 'free skating', tags: ['skating'], category: 'general' };
+
+test('local winter play outranks both the indoor bench and the ski drive', () => {
+  const jan = seasons.getSeasonContext('2027-01-16');
+  const sled = seasons.seasonAdjustment(toboggan, jan);
+  const ski = seasons.seasonAdjustment(skiHill, jan);
+  const inside = seasons.seasonAdjustment(indoorPlay, jan);
+  assert.ok(sled > ski, 'the local hill beats the two-hour ski drive');
+  assert.ok(sled > inside, 'and beats staying indoors');
+  assert.equal(seasons.isLocalWinterPlay(toboggan), true);
+  assert.equal(seasons.isLocalWinterPlay(rinkLocal), true);
+  assert.equal(seasons.isLocalWinterPlay(skiHill), false, 'a ski hill is a destination, not neighbourhood play');
+});
+
+test('rain cancels the green-outdoors boost, not just offsets it', () => {
+  const sep = seasons.getSeasonContext('2026-09-15');
+  const dry = seasons.seasonAdjustment(greenTrail, sep, {});
+  const wet = seasons.seasonAdjustment(greenTrail, sep, { wet: true });
+  assert.ok(dry >= 3, 'a dry September trail still leads');
+  assert.ok(wet < dry, 'a wet one does not collect the boost');
+});
+
+test('an explicit outdoor ask overrides both the winter and the wet rules', () => {
+  const jan = seasons.getSeasonContext('2027-01-16');
+  assert.ok(seasons.seasonAdjustment(greenTrail, jan, { outdoorAsk: true }) >
+    seasons.seasonAdjustment(greenTrail, jan, {}), 'they said hike, so stop arguing');
+  const sep = seasons.getSeasonContext('2026-09-15');
+  assert.equal(seasons.seasonAdjustment(greenTrail, sep, { outdoorAsk: true, wet: false }),
+    seasons.seasonAdjustment(greenTrail, sep, {}));
+});

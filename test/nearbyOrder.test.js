@@ -106,19 +106,51 @@ test('isSeasonalDestination only fires on winter outdoors, in winter', () => {
   assert.equal(seasons.isSeasonalDestination(cafe(), jan), false);
 });
 
-test('a winter ski hill rides in the nearest band despite being 58 km away', () => {
-  const scored = relevance.scoreCandidates([skiHill(), cafe()], { prompt: 'a day out', mode: 'rr', dateWindow: winter });
-  const out = relevance.selectTop(scored, 60);
-  const ski = out.find(c => c.id === 'ski');
-  assert.equal(ski.distance_band, 0, 'the drive is the plan, so it is not filed behind the coffee shops');
-  assert.equal(ski.seasonal_destination, true);
+// The exemption is capped at WORTH_TRIP_KM (40). "Take people skiing" and "no
+// need to surface results 40+ km away" are both true; 40 km is where they meet.
+const tobogganHill = () => mk('sled', 'Riverdale Park toboggan hill', 'sledding and snow forts', 5, 'general', ['toboggan']);
+const rink = () => mk('rink', 'Community outdoor rink', 'free skating', 22, 'general', ['skating']);
+
+test('nearby winter play rides in the nearest band — that is the point of winter', () => {
+  const out = relevance.selectTop(
+    relevance.scoreCandidates([tobogganHill(), rink(), cafe()], { prompt: 'a day out', mode: 'rr', dateWindow: winter }), 60);
+  assert.equal(out[0].id, 'sled', 'the local hill leads a January feed');
+  assert.equal(out.find(c => c.id === 'rink').distance_band, 0, 'a rink at 22 km is still a local outing');
+  assert.equal(out.find(c => c.id === 'rink').seasonal_destination, true);
 });
 
-test('the far-distance penalty is waived for a winter destination, not for others', () => {
-  const janSki = relevance.scoreCandidates([skiHill()], { prompt: 'a day out', mode: 'rr', dateWindow: winter })[0].score;
-  const sepSki = relevance.scoreCandidates([skiHill()], { prompt: 'a day out', mode: 'rr', dateWindow: summerish })[0].score;
-  assert.ok(janSki > sepSki + 3, `January ski (${janSki}) must clear September ski (${sepSki}) by a wide margin`);
-  assert.ok(sepSki < 0, 'out of season the 58 km drive is still penalised');
+test('a 58 km ski hill is NOT surfaced unless it was asked for', () => {
+  const unprompted = relevance.selectTop(
+    relevance.scoreCandidates([skiHill(), cafe()], { prompt: 'a day out', mode: 'rr', dateWindow: winter }), 60);
+  const ski = unprompted.find(c => c.id === 'ski');
+  assert.equal(ski.distance_band, 2, 'past 40 km the drive is not assumed');
+  assert.notEqual(ski.seasonal_destination, true);
+  assert.equal(unprompted[0].id, 'cafe', 'what is close still leads');
+
+  for (const prompt of ['somewhere to ski', 'a day trip worth the drive']) {
+    const asked = relevance.selectTop(
+      relevance.scoreCandidates([skiHill(), cafe()], { prompt, mode: 'rr', dateWindow: winter }), 60);
+    assert.equal(asked.find(c => c.id === 'ski').distance_band, 0, `"${prompt}" earns the drive`);
+  }
+});
+
+test('the far-distance penalty is waived only for an earned winter drive', () => {
+  const ask = { prompt: 'somewhere to ski', mode: 'rr', dateWindow: winter };
+  const janAsked = relevance.scoreCandidates([skiHill()], ask)[0];
+  const sepAsked = relevance.scoreCandidates([skiHill()], { ...ask, dateWindow: summerish })[0];
+  // Same prompt both times, so the only difference is the season: in January
+  // the 58 km is forgiven, in September it is charged in full.
+  assert.equal(janAsked.candidate.seasonal_destination, true);
+  assert.notEqual(sepAsked.candidate.seasonal_destination, true, 'a ski hill is not a September destination');
+  assert.ok(janAsked.score > sepAsked.score + 1.5,
+    `January ski (${janAsked.score}) must clear September ski (${sepAsked.score}) by the waived penalty`);
+});
+
+test('asking for "a hike" does not unlock a 58 km ski hill', () => {
+  // outdoorAsk lifts the winter trail demotion; it must not also buy a drive.
+  const out = relevance.selectTop(
+    relevance.scoreCandidates([skiHill(), cafe()], { prompt: 'a long hike', mode: 'rr', dateWindow: winter }), 60);
+  assert.equal(out.find(c => c.id === 'ski').distance_band, 2);
 });
 
 test('outside winter nothing is exempt — bands behave exactly as before', () => {
