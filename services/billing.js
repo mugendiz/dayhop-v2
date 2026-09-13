@@ -419,41 +419,78 @@ async function handleWebhook(rawBody, signature) {
   return outcome;
 }
 
+// Fulfillment for one completed checkout, at most once, whichever path
+// reaches it first.
+//
+// Two paths do now. The webhook is one. The other is the thank-you page,
+// which calls this directly after Stripe redirects the buyer back — because
+// the webhook is not reliable enough to be the only way a paid guide gets
+// delivered. This service runs on Render's free plan, which spins down after
+// roughly 15 minutes idle, and a cold start takes longer than Stripe's
+// delivery timeout, so a webhook aimed at a sleeping instance fails at the
+// connection level. That is what Stripe reported on 2026-09-10: "2 requests
+// had other errors" — a connection failure, not a status code. With zero
+// completed checkouts it cost nothing. On the first real sale it would have
+// meant a customer paying and getting no PDF until a retry happened to catch
+// the instance awake.
+//
+// The dedupe key is the SESSION id, not the event id, so the two paths block
+// each other. The event-id guard in handleWebhook only stops Stripe
+// redelivering the same event; it would not have stopped a second email.
+//
+// Check-then-process-then-record, matching handleWebhook's choice above: a
+// crash mid-fulfillment leaves the session unclaimed so a retry can still
+// deliver it. The cost is that a genuinely simultaneous webhook and page load
+// could both send. That window is milliseconds, the two paths are normally
+// seconds to minutes apart, and a duplicate email is a much better failure
+// than a paying customer with no guide.
+async function fulfillCheckoutSessionOnce(session, source) {
+  const key = `cs:${session.id}`;
+  if (await wasProcessed(key)) {
+    return `checkout ${session.id} already fulfilled (${source} skipped)`;
+  }
+  const outcome = await fulfillCheckoutSession(session);
+  await markProcessed(key, `checkout.session.completed:${source}`);
+  return outcome;
+}
+
+async function fulfillCheckoutSession(session) {
+  // One-time purchases (city guide PDFs) share this event with Pro
+  // signups — branch BEFORE the subscription path, or a $20 guide would
+  // activate a Pro membership. The ledger entry rides invoice.paid.
+  if (session.mode === 'payment' && session.metadata && session.metadata.guide) {
+    return require('./cityGuides').fulfillPurchase(session);
+  }
+  const ownerId = session.client_reference_id;
+  if (!ownerId) return 'checkout completed with no client_reference_id (ignored)';
+  await upsertSubscription({
+    owner_id: ownerId,
+    stripe_customer_id: session.customer || null,
+    stripe_subscription_id: session.subscription || null,
+    status: 'active',
+    current_period_end: null
+  });
+  // The conversion ads ultimately optimize toward. Trial checkouts have
+  // amount_total 0 — report the subscription's real monthly value so
+  // Meta's value optimization isn't fed zeros. Fail-soft: no email or no
+  // META_* config → silent no-op.
+  const price = await getPriceInfo().catch(() => null);
+  require('./metaPixel').sendEvent('StartTrial', {
+    email: (session.customer_details && session.customer_details.email) || session.customer_email,
+    customData: {
+      currency: (price && price.currency) || 'CAD',
+      value: (price && price.amount) || 0,
+      ...(session.metadata && session.metadata.utm_campaign
+        ? { content_name: session.metadata.utm_campaign } : {})
+    }
+  });
+  return `activated pro for ${ownerId}`;
+}
+
 async function dispatchWebhookEvent(event) {
   switch (event.type) {
-    case 'checkout.session.completed': {
-      const session = event.data.object;
-      // One-time purchases (city guide PDFs) share this event with Pro
-      // signups — branch BEFORE the subscription path, or a $20 guide would
-      // activate a Pro membership. The ledger entry rides invoice.paid.
-      if (session.mode === 'payment' && session.metadata && session.metadata.guide) {
-        return require('./cityGuides').fulfillPurchase(session);
-      }
-      const ownerId = session.client_reference_id;
-      if (!ownerId) return 'checkout completed with no client_reference_id (ignored)';
-      await upsertSubscription({
-        owner_id: ownerId,
-        stripe_customer_id: session.customer || null,
-        stripe_subscription_id: session.subscription || null,
-        status: 'active',
-        current_period_end: null
-      });
-      // The conversion ads ultimately optimize toward. Trial checkouts have
-      // amount_total 0 — report the subscription's real monthly value so
-      // Meta's value optimization isn't fed zeros. Fail-soft: no email or no
-      // META_* config → silent no-op.
-      const price = await getPriceInfo().catch(() => null);
-      require('./metaPixel').sendEvent('StartTrial', {
-        email: (session.customer_details && session.customer_details.email) || session.customer_email,
-        customData: {
-          currency: (price && price.currency) || 'CAD',
-          value: (price && price.amount) || 0,
-          ...(session.metadata && session.metadata.utm_campaign
-            ? { content_name: session.metadata.utm_campaign } : {})
-        }
-      });
-      return `activated pro for ${ownerId}`;
-    }
+    case 'checkout.session.completed':
+      return fulfillCheckoutSessionOnce(event.data.object, 'webhook');
     case 'customer.subscription.updated':
     case 'customer.subscription.deleted': {
       const sub = event.data.object;
@@ -527,4 +564,4 @@ async function dispatchWebhookEvent(event) {
   }
 }
 
-module.exports = { isConfigured, status, isPro, getSubscription, getPriceInfo, createCheckoutSession, setCancelAtPeriodEnd, handleWebhook, adminSubscriptions, summarizeSubscription };
+module.exports = { isConfigured, status, isPro, getSubscription, getPriceInfo, createCheckoutSession, setCancelAtPeriodEnd, handleWebhook, fulfillCheckoutSessionOnce, adminSubscriptions, summarizeSubscription };

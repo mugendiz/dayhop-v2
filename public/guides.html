@@ -389,6 +389,17 @@
       if (q.get('purchase') === 'success' && q.get('session_id')) {
         banner.className = 'banner banner--ok';
         banner.textContent = 'Payment received — preparing your download… (a copy is on its way to your inbox too)';
+        // Send the guide email from here rather than waiting on the Stripe
+        // webhook, which misses when the free-plan service is asleep. Deduped
+        // server side against the webhook, so at most one email goes out.
+        // Fire and forget on purpose: the download below must not wait on an
+        // email send, and a failure is recoverable (the webhook may still
+        // land, and reloading this URL retries).
+        fetch('/api/cityguides/fulfill', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: q.get('session_id') })
+        }).catch(function () {});
         try {
           const res = await fetch('/api/cityguides/claim?session_id=' + encodeURIComponent(q.get('session_id')));
           const data = await res.json();

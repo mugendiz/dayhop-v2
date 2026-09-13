@@ -5,11 +5,15 @@
 //   POST /api/cityguides/checkout        → { slug } → Stripe Checkout URL (guests welcome)
 //   GET  /api/cityguides/claim?session_id= → paid session → { token, slug } for
 //                                          instant download on the success page
-//                                          (email fulfillment is the backup)
+//   POST /api/cityguides/fulfill         → { session_id } → send the email now
 //   GET  /api/cityguides/download?t=     → signed token → the PDF itself
 //
-// Fulfillment (email + ledger) rides the Stripe webhook — see
-// services/cityGuides.fulfillPurchase and services/billing.handleWebhook.
+// Fulfillment (email + ledger) used to ride the Stripe webhook alone. It no
+// longer does: the thank-you page calls /fulfill on the way back from Stripe,
+// and whichever path arrives first wins — deduped on the session id inside
+// services/billing.fulfillCheckoutSessionOnce. A webhook cannot be the only
+// delivery path for a paid product on a free-plan Render service that sleeps;
+// see the comment on that function for what Stripe reported on 2026-09-10.
 
 const crypto = require('crypto');
 const express = require('express');
@@ -17,6 +21,7 @@ const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const cityGuides = require('../services/cityGuides');
 const analytics = require('../services/analytics');
+const billing = require('../services/billing');
 const { isAdmin } = require('../services/entitlements');
 
 // Admins get every guide unlocked: the signed-in admin account (attachUser
@@ -173,6 +178,40 @@ router.get('/claim', async (req, res) => {
   } catch (err) {
     console.warn('[city-guides] claim failed:', err.message);
     res.status(404).json({ error: 'UNKNOWN_SESSION' });
+  }
+});
+
+// The thank-you page's half of fulfillment: deliver the guide email now,
+// rather than hoping the Stripe webhook reaches a service that may be asleep.
+//
+// The session id is the authorization. It is unguessable, Stripe hands it only
+// to the buyer through success_url, and every fact used to fulfill is read back
+// from Stripe rather than taken from the request — so the worst a stranger with
+// a valid session id can do is re-trigger an email to the address that already
+// bought the guide, once, which the dedupe then blocks anyway.
+//
+// POST, not GET, because it sends mail: a prefetcher or link scanner must not
+// be able to trigger it by following a URL.
+router.post('/fulfill', checkoutLimiter, async (req, res) => {
+  const stripe = getStripe();
+  if (!stripe) return res.status(503).json({ error: 'NOT_CONFIGURED' });
+  const sid = typeof (req.body && req.body.session_id) === 'string' ? req.body.session_id.trim() : '';
+  if (!/^cs_[A-Za-z0-9_]+$/.test(sid)) return res.status(400).json({ error: 'BAD_SESSION' });
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sid);
+    // Same settled test as /claim: 'no_payment_required' is a completed
+    // checkout a 100%-off promo zeroed, which is still a real purchase.
+    const settled = session.payment_status === 'paid' || session.payment_status === 'no_payment_required';
+    if (!settled) return res.status(402).json({ error: 'NOT_PAID', message: 'This purchase has not completed.' });
+    const outcome = await billing.fulfillCheckoutSessionOnce(session, 'thanks-page');
+    console.log('[city-guides] fulfill via thanks page:', outcome);
+    res.json({ fulfilled: true });
+  } catch (err) {
+    // Never fail the buyer's page over this. They already have the download
+    // link from /claim; the email is the durable copy, and the webhook (or a
+    // reload of this page) can still deliver it.
+    console.error('[city-guides] thanks-page fulfill failed:', err.message);
+    res.status(502).json({ error: 'FULFILL_FAILED' });
   }
 });
 

@@ -51,6 +51,15 @@
     (async () => {
       const sid = new URLSearchParams(location.search).get('session_id') || '';
       if (!/^cs_[A-Za-z0-9_]+$/.test(sid)) { statusEl.textContent = FALLBACK; return; }
+      // Send the guide email from here rather than waiting on the Stripe
+      // webhook, which misses when the free-plan service is asleep. Deduped
+      // server side against the webhook, so at most one email goes out. Fire
+      // and forget: the download link below must not wait on an email send.
+      fetch('/api/cityguides/fulfill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sid })
+      }).catch(function () {});
       try {
         const res = await fetch('/api/cityguides/claim?session_id=' + encodeURIComponent(sid));
         const data = await res.json();
