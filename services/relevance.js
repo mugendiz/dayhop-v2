@@ -119,6 +119,12 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
   return candidates.map(candidate => {
     let score = 0;
 
+    // A place the season itself is the reason to drive to (winter: ski hills,
+    // tubing, skating and ice trails). Computed up front because both the
+    // proximity term and the feed ordering have to agree about it.
+    const seasonalDestination = seasons.isSeasonalDestination(candidate, seasonCtx);
+    if (seasonalDestination) candidate.seasonal_destination = true;
+
     // Freshness: a newly-opened attraction gets a lift so it survives the
     // pool cap and shows up while it's the thing everyone's talking about.
     // The flag itself decays (candidates.js), so the boost self-expires.
@@ -209,7 +215,12 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
     // boosts the way it could against a flat −2.
     if (candidate.distance_km != null) {
       const d = candidate.distance_km;
-      score += 6 * Math.exp(-d / 12) - Math.min(6, Math.max(0, (d - 35) / 15));
+      // The far penalty is what "too far for a Tuesday" means — but it is
+      // nonsense applied to a ski hill, where the drive is the plan. Exempting
+      // banding without exempting this would have left the skiing marked
+      // near-band and still scored 1.5 points under a coffee shop.
+      const far = seasonalDestination ? 0 : Math.min(6, Math.max(0, (d - 35) / 15));
+      score += 6 * Math.exp(-d / 12) - far;
     }
 
     // Seasonal pressure (data/seasons.js): trails and green outdoors lead
@@ -296,7 +307,12 @@ function selectTop(scored, cap = 60) {
   // Nearest band first; relevance still decides the order inside a band, and
   // the original index breaks exact ties so the sort stays deterministic.
   return chosen
-    .map((entry, index) => ({ entry, index, band: distanceBand(entry.candidate.distance_km) }))
+    .map((entry, index) => ({
+      entry,
+      index,
+      // Seasonal destinations ride in the nearest band: the drive is the plan.
+      band: entry.candidate.seasonal_destination ? 0 : distanceBand(entry.candidate.distance_km)
+    }))
     .sort((a, b) => (a.band - b.band) || (b.entry.score - a.entry.score) || (a.index - b.index))
     .map(x => Object.assign(x.entry.candidate, { distance_band: x.band }));
 }

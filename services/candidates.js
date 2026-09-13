@@ -366,7 +366,12 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
       name: 'curated_catalog',
       run: () => catalogCandidates(prompt, themes, SOURCE_CAPS.curated_catalog, {
         isGta,
-        localityText: String(localityText || (geo && geo.formatted_address) || '')
+        localityText: String(localityText || (geo && geo.formatted_address) || ''),
+        // The PLANNED month, not today's. relevance.js has always scored the
+        // season off the date picker, but this filter did not — so picking a
+        // January date in September dropped every ski, tubing and skating entry
+        // before scoring ever saw them, and "plan me a winter day" returned parks.
+        dateWindow
       })
     }
   ];
@@ -646,7 +651,8 @@ async function searchPlacesWithThemes(prompt, themeQueries, geo, hyperLocal = fa
 // Evergreen curated catalog entries, season-filtered and pre-ranked against
 // the prompt so only the most fitting slice of the catalog joins the pool.
 function catalogCandidates(prompt, themes, limit, regionOpts) {
-  const month = Number(torontoToday().slice(5, 7));
+  const plannedDay = (regionOpts && regionOpts.dateWindow && regionOpts.dateWindow.start) || torontoToday();
+  const month = Number(plannedDay.slice(5, 7));
   // Hand-curated entries plus the discovery autopilot's verified auto-adds
   // (services/autoCatalog) — same shape, same scoring, Canada-wide.
   // Coarse seasonal tags gate with shoulder months (data/seasons.js);

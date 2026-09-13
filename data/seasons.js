@@ -104,6 +104,17 @@ function seasonAdjustment(candidate, ctx) {
     // skating still leads a crisp Saturday and this leads the other kind.
     if (WARM_ONLY_RE.test(text)) delta -= 3;
     if (INDOOR_FAMILY_RE.test(text)) delta += 2.5;
+    // Green-season outdoors sink. Losing the +3 was not enough on its own —
+    // trails carry strong base scores, so a promptless January browse still
+    // opened on ravines and arboretums, which is a bleak recommendation in
+    // February and the reason winter had nothing to offer.
+    //
+    // The guard is the whole point: a place that is ALSO a winter destination
+    // keeps its footing. Durham Regional Forest (xc ski) and Hardwood Ski and
+    // Bike both match the trail vocabulary and would otherwise be demoted in
+    // the one season they are best. Skating, tubing, snowshoe and ski still
+    // gain +3 from the snow-and-ice window on top.
+    if (TRAIL_OUTDOOR_RE.test(text) && !WINTER_OUTDOOR_RE.test(text)) delta -= 2.5;
   } else {
     // Spring/summer/fall: trails and green outdoors lead.
     if (TRAIL_OUTDOOR_RE.test(text)) delta += 3;
@@ -133,4 +144,22 @@ function isCatalogSeasonEligible(tag, month) {
   return true;
 }
 
-module.exports = { seasonOf, getSeasonContext, seasonAdjustment, isCatalogSeasonEligible, WINDOWS };
+/**
+ * A place you drive to on purpose because of the season — right now that means
+ * winter outdoors: ski hills, tubing, skating trails, snowshoe, ice trails.
+ *
+ * This exists because two true rules collide. The feed shows nearest first, and
+ * in winter it should take people skiing — but from Richmond Hill every ski hill
+ * is 58 km and every rink 26 km, while a café is 800 m. Ranked on distance alone
+ * the skiing can never surface. Nobody means "nearby" to apply to a ski hill;
+ * the drive IS the plan. relevance.js lets these into the nearest band so they
+ * compete on merit instead of being filed behind the coffee shops.
+ */
+function isSeasonalDestination(candidate, ctx) {
+  if (!ctx || ctx.season !== 'winter') return false;
+  const text = `${candidate.title || ''} ${candidate.description || ''} ` +
+    `${(candidate.tags || []).join(' ')} ${candidate.category || ''}`;
+  return WINTER_OUTDOOR_RE.test(text);
+}
+
+module.exports = { seasonOf, getSeasonContext, seasonAdjustment, isCatalogSeasonEligible, isSeasonalDestination, WINDOWS };

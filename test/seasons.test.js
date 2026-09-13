@@ -101,3 +101,48 @@ test('the indoor rule does not fire on ordinary outdoor wording', () => {
   assert.equal(seasons.seasonAdjustment(outdoorPlayground, jan), 0,
     '"playground" alone must not read as indoor — most playgrounds are outside');
 });
+
+// ---------- Winter sends people to winter things (Sept 2026) ----------
+// Losing the +3 was not enough on its own: trails carry strong base scores, so
+// a promptless January browse still opened on ravines and arboretums. Green
+// outdoors now sink in winter — but only if the place is not ALSO a winter
+// destination, or the app would bury cross-country skiing for containing the
+// word "trail".
+const greenTrail = { title: 'Maple Nature Reserve Trail', description: 'forest trail and ravine loop', tags: ['trail'], category: 'general' };
+const arboretum = { title: 'Aurora Community Arboretum', description: 'gardens and paths', tags: ['garden'], category: 'general' };
+const skiHill = { title: 'Ski & snowboard day at Glen Eden', description: 'ski hill with rentals', tags: ['ski'], category: 'adventures' };
+const skatingTrail = { title: 'Colonel Sam Smith figure-8 skating trail', description: 'skate the loop', tags: ['skating'], category: 'general' };
+const xcInForest = { title: "Durham Regional Forest — the GTA's trail capital", description: 'trails, cross-country ski in winter', tags: ['trail', 'ski'], category: 'general' };
+
+test('winter demotes green parks and trails', () => {
+  const jan = seasons.getSeasonContext('2027-01-16');
+  assert.ok(seasons.seasonAdjustment(greenTrail, jan) < 0, 'a ravine trail sinks in January');
+  assert.ok(seasons.seasonAdjustment(arboretum, jan) < 0, 'an arboretum sinks in January');
+});
+
+test('winter leads with skiing, skating and tubing', () => {
+  const jan = seasons.getSeasonContext('2027-01-16');
+  const green = seasons.seasonAdjustment(greenTrail, jan);
+  for (const c of [skiHill, skatingTrail]) {
+    const d = seasons.seasonAdjustment(c, jan);
+    assert.ok(d >= 3, 'winter outdoor keeps the top boost');
+    assert.ok(d > green + 5, 'and clears a green trail by a wide margin');
+  }
+  // The order the founder asked for: outside-in-winter, then indoor, then green.
+  const indoor = seasons.seasonAdjustment(
+    { title: 'OceanLoop indoor playground', description: 'indoor play centre', tags: ['indoor'], category: 'kids' }, jan);
+  assert.ok(seasons.seasonAdjustment(skiHill, jan) > indoor && indoor > green);
+});
+
+test('a trail that is also a winter destination is not demoted', () => {
+  const jan = seasons.getSeasonContext('2027-01-16');
+  assert.ok(seasons.seasonAdjustment(xcInForest, jan) > 0,
+    'cross-country skiing must not sink for containing the word "trail"');
+});
+
+test('the winter penalty does not leak into the other three seasons', () => {
+  for (const day of ['2026-05-15', '2026-07-15', '2026-09-15']) {
+    const ctx = seasons.getSeasonContext(day);
+    assert.ok(seasons.seasonAdjustment(greenTrail, ctx) >= 3, `${day}: trails still lead`);
+  }
+});

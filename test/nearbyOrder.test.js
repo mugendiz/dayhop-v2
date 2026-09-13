@@ -82,3 +82,48 @@ test('ties are broken deterministically, not by sort implementation', () => {
   assert.deepEqual(ids(relevance.selectTop(input, 60)), ['first', 'second', 'third']);
   assert.deepEqual(ids(relevance.selectTop(input, 60)), ['first', 'second', 'third']);
 });
+
+// ---------- Seasonal destinations beat the nearby rule (Sept 2026) ----------
+// Two true rules collide in winter. The feed shows nearest first, and winter
+// should take people skiing — but from Richmond Hill every ski hill is ~58 km
+// and every rink ~26 km, while a café is 800 m. Ranked on distance alone the
+// skiing can never surface, so a place the season itself is the reason to drive
+// to rides in the nearest band and is spared the far-distance penalty.
+const seasons = require('../data/seasons');
+
+const winter = { start: '2027-01-16' };
+const summerish = { start: '2026-09-15' };
+const mk = (id, title, description, km, category, tags) =>
+  ({ id, title, description, tags: tags || [], category, distance_km: km, source: 'curated' });
+const skiHill = () => mk('ski', 'Ski & snowboard day at Glen Eden', 'ski hill with rentals', 58.3, 'adventures', ['ski']);
+const cafe = () => mk('cafe', 'Gate Cafe', 'coffee', 0.8, 'food', []);
+
+test('isSeasonalDestination only fires on winter outdoors, in winter', () => {
+  const jan = seasons.getSeasonContext('2027-01-16');
+  const sep = seasons.getSeasonContext('2026-09-15');
+  assert.equal(seasons.isSeasonalDestination(skiHill(), jan), true);
+  assert.equal(seasons.isSeasonalDestination(skiHill(), sep), false, 'a ski hill is not a September destination');
+  assert.equal(seasons.isSeasonalDestination(cafe(), jan), false);
+});
+
+test('a winter ski hill rides in the nearest band despite being 58 km away', () => {
+  const scored = relevance.scoreCandidates([skiHill(), cafe()], { prompt: 'a day out', mode: 'rr', dateWindow: winter });
+  const out = relevance.selectTop(scored, 60);
+  const ski = out.find(c => c.id === 'ski');
+  assert.equal(ski.distance_band, 0, 'the drive is the plan, so it is not filed behind the coffee shops');
+  assert.equal(ski.seasonal_destination, true);
+});
+
+test('the far-distance penalty is waived for a winter destination, not for others', () => {
+  const janSki = relevance.scoreCandidates([skiHill()], { prompt: 'a day out', mode: 'rr', dateWindow: winter })[0].score;
+  const sepSki = relevance.scoreCandidates([skiHill()], { prompt: 'a day out', mode: 'rr', dateWindow: summerish })[0].score;
+  assert.ok(janSki > sepSki + 3, `January ski (${janSki}) must clear September ski (${sepSki}) by a wide margin`);
+  assert.ok(sepSki < 0, 'out of season the 58 km drive is still penalised');
+});
+
+test('outside winter nothing is exempt — bands behave exactly as before', () => {
+  const out = relevance.selectTop(
+    relevance.scoreCandidates([skiHill(), cafe()], { prompt: 'a day out', mode: 'rr', dateWindow: summerish }), 60);
+  assert.equal(out.find(c => c.id === 'ski').distance_band, 2);
+  assert.equal(out[0].id, 'cafe');
+});
