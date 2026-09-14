@@ -459,11 +459,26 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   // far entries rank low under the distance penalty, so genuine
   // worth-the-drive picks get a named home BELOW every local shelf instead
   // of vanishing. Label matches the surprise page's wider-radius band.
-  const isWorthDrive = c => c.distance_km != null && c.distance_km > 40 &&
-    (c.wow === true || (c.rating != null && c.rating >= 4.5 && (c.rating_count || 0) >= 50));
+  // A day trip is up to about three hours each way — roughly 250 km in
+  // Ontario, which is the same ceiling discovery already crawls
+  // (DISCOVERY_MAX_KM). Under 40 km is not a trip, it is the local shelf with
+  // a drive attached; past the ceiling it stops being a day out and becomes a
+  // weekend. worth_trip on an entry earns the shelf regardless of rating,
+  // which is how a hand-added place gets in (relevance.js uses the same flag).
+  const DAY_TRIP_MIN_KM = 40;
+  const DAY_TRIP_MAX_KM = Number(process.env.DAY_TRIP_MAX_KM) > 0 ? Number(process.env.DAY_TRIP_MAX_KM) : 250;
+  const isWorthDrive = c => c.distance_km != null &&
+    c.distance_km > DAY_TRIP_MIN_KM && c.distance_km <= DAY_TRIP_MAX_KM &&
+    (c.worth_trip === true || c.wow === true ||
+      (c.rating != null && c.rating >= 4.5 && (c.rating_count || 0) >= 50));
   const takeWorthDrive = n => {
     if (shelter) return;
-    if (seasonCtx.season === 'summer') take('Worth the drive 🚗', pool.filter(isWorthDrive), n);
+    // This was summer-only, so the shelf went dark at Labour Day — through
+    // exactly the season Ontario drives for: colour, orchards, the salmon
+    // run, the escarpment. Winter stays out on purpose (54b37aa: local play
+    // first, and past 40 km the drive has to be asked for).
+    if (seasonCtx.season === 'winter') return;
+    take('Worth the drive 🚗', pool.filter(isWorthDrive), n);
   };
 
   // ---------- Top-5 layout head (TOP5_FEED=on) ----------
