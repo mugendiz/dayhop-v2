@@ -69,22 +69,11 @@ const RETURN_PATHS = {
   }
 };
 
-// FALL75 (75% off, expires Mon Sep 21 23:59:59 Toronto) is applied for the
-// buyer instead of waiting to be typed: all 7 guide checkouts opened between
-// Aug 24 and Sep 8 were abandoned on a full-price screen. Stripe accepts
-// either `discounts` or `allow_promotion_codes`, never both, so the code box
-// returns by itself once the promo window closes. GUIDE_AUTO_PROMO=off
-// disables it; GUIDE_AUTO_PROMO_ID / _UNTIL retarget a later promo.
-const AUTO_PROMO = {
-  id: process.env.GUIDE_AUTO_PROMO_ID || 'promo_1UCHI2PtAVtoCYbZiubt3mcy',
-  until: Date.parse(process.env.GUIDE_AUTO_PROMO_UNTIL || '2026-09-22T03:59:59Z')
-};
-function promoParams(now = Date.now(), env = process.env) {
-  if (env.GUIDE_AUTO_PROMO !== 'off' && AUTO_PROMO.id && now < AUTO_PROMO.until) {
-    return { discounts: [{ promotion_code: AUTO_PROMO.id }] };
-  }
-  return { allow_promotion_codes: true };
-}
+// The running promo is pre-applied for the buyer instead of waiting to be
+// typed: every guide checkout opened between Aug 24 and Sep 8 was abandoned
+// on a full-price screen. The window itself lives in services/promo.js —
+// see the header there for why it is no longer written out in six places.
+const { promoParams } = require('../services/promo');
 router.promoParams = promoParams;
 
 router.post('/checkout', checkoutLimiter, async (req, res) => {

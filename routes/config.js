@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 
 const { getSpotlight } = require('../services/spotlight');
+const promo = require('../services/promo');
 
 router.get('/', (req, res) => {
   const supabaseUrl = process.env.SUPABASE_URL || null;
@@ -37,7 +38,12 @@ router.get('/', (req, res) => {
     // town, with every other shelf folded behind a "More" button. The server
     // decides the layout per response (routes/browse.js); this mirror is
     // informational for the client.
-    top5Feed: String(process.env.TOP5_FEED || '').toLowerCase() === 'on'
+    top5Feed: String(process.env.TOP5_FEED || '').toLowerCase() === 'on',
+    // The running discount, from the one place that knows it
+    // (services/promo.js). Every offer strip reads this instead of carrying
+    // its own copy of the end date — the drift between those copies is what
+    // quoted one customer $20 on a page promising $5.
+    promo: promo.publicConfig()
   });
 });
 

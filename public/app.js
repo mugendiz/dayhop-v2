@@ -6571,26 +6571,38 @@
   function initHolidayStrip() {
     const strip = document.getElementById('holiday-strip');
     if (!strip) return;
-    // FALL75 (founder, Sep 5 2026): 75% off every guide and Pro until two
-    // weeks after Labour Day. Stripe promo FALL75 expires Sep 21 23:59:59
-    // Toronto — the strip dies at the same instant, never after.
-    const CAMPAIGN = 'fall75-2026';
-    const END = new Date('2026-09-22T04:00:00Z'); // Sep 22, Toronto midnight
-    const now = new Date();
-    let dismissed = false;
-    try { dismissed = localStorage.getItem('dayhop_strip_dismissed') === CAMPAIGN; } catch (e) { /* private mode */ }
-    // The Pro upgrade sheet carries the same offer line, on the same clock.
-    const proPromo = document.getElementById('upgrade-promo');
-    if (proPromo && now < END) proPromo.hidden = false;
-    if (now >= END || dismissed) return;
-    const daysLeft = Math.max(1, Math.ceil((END - now) / 86400000));
-    document.getElementById('holiday-strip-text').textContent =
-      `🍁 75% off until Sep 21: every nature guide $5 (was $20), Pro $1.25/mo for 3 months. Code FALL75 at checkout · ${daysLeft} day${daysLeft === 1 ? '' : 's'} left.`;
-    strip.hidden = false;
-    document.getElementById('holiday-strip-close').addEventListener('click', () => {
-      strip.hidden = true;
-      try { localStorage.setItem('dayhop_strip_dismissed', CAMPAIGN); } catch (e) { /* fine */ }
-    });
+    // The offer window comes from /api/config (services/promo.js), never
+    // from a date written here. When a strip and the checkout disagreed the
+    // page won and the customer was billed the other number.
+    (window.DayHopConfig || (window.DayHopConfig = fetch('/api/config').then(r => {
+      if (!r.ok) throw new Error('config ' + r.status);
+      return r.json();
+    }))).then(cfg => {
+      const promo = cfg && cfg.promo;
+      if (!promo || !promo.active || !promo.endsUtc) return;
+      const CAMPAIGN = 'promo-' + promo.code.toLowerCase() + '-' + promo.endsUtc.slice(0, 10);
+      const END = new Date(promo.endsUtc);
+      const now = new Date();
+      if (now >= END) return;
+      // The Pro upgrade sheet carries the same offer, on the same clock.
+      const proPromo = document.getElementById('upgrade-promo');
+      if (proPromo) {
+        proPromo.innerHTML = '<b>Code ' + promo.code + '</b> at checkout: ' + promo.percentOff +
+          '% off your first 3 months ($1.25/mo instead of $5) · ends ' + promo.label + '.';
+        proPromo.hidden = false;
+      }
+      let dismissed = false;
+      try { dismissed = localStorage.getItem('dayhop_strip_dismissed') === CAMPAIGN; } catch (e) { /* private mode */ }
+      if (dismissed) return;
+      const daysLeft = Math.max(1, Math.ceil((END - now) / 86400000));
+      document.getElementById('holiday-strip-text').textContent =
+        `🍁 ${promo.percentOff}% off until ${promo.label}: every nature guide $5 (was $20), Pro $1.25/mo for 3 months. Code ${promo.code} at checkout · ${daysLeft} day${daysLeft === 1 ? '' : 's'} left.`;
+      strip.hidden = false;
+      document.getElementById('holiday-strip-close').addEventListener('click', () => {
+        strip.hidden = true;
+        try { localStorage.setItem('dayhop_strip_dismissed', CAMPAIGN); } catch (e) { /* fine */ }
+      });
+    }).catch(() => { /* no strip beats a wrong strip */ });
   }
 
   // ---------- Install prompt (PWA) ----------

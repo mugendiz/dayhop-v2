@@ -105,7 +105,7 @@
     <p class="subhead">21 field-checked Richmond Hill places. Ranked tables. Live map links. August 2026 edition.</p>
     <div class="cta-wrap">
       <button class="buy js-buy" type="button">Get the guide — $20</button>
-      <p class="promo-line">Code FALL75 takes it to $5 until Sep 21.</p>
+      <p class="promo-line" hidden></p>
       <a class="sample-link" href="#sample">Read one free sample day ↓</a>
     </div>
     <div class="banner" id="banner"></div>
@@ -181,7 +181,7 @@
       <p class="price-line">$20 CAD. 14-day refund — email <a href="mailto:admin@dayhop.quest">admin@dayhop.quest</a>.</p>
       <div class="cta-wrap">
         <button class="buy js-buy" type="button">Get the guide — $20</button>
-        <p class="promo-line">Code FALL75 takes it to $5 until Sep 21.</p>
+        <p class="promo-line" hidden></p>
       </div>
       <p class="planner-line">Need a day from a sentence instead? <a href="/">Free planner →</a></p>
     </section>
@@ -192,11 +192,16 @@
   </footer>
 
   <script>
-    // FALL75 dies with the Stripe code: Sep 21 23:59:59 Toronto (= Sep 22 04:00 UTC).
-    // Same clock as the guides-page strip, so no dead offer outlives the code.
-    if (Date.now() >= Date.parse('2026-09-22T04:00:00Z')) {
-      document.querySelectorAll('.promo-line').forEach(function (el) { el.hidden = true; });
-    }
+    // The offer line comes from /api/config (services/promo.js) — the same
+    // clock checkout uses, so a dead or changed offer can never outlive it here.
+    fetch('/api/config').then(function (r) { return r.json(); }).then(function (cfg) {
+      var p = cfg && cfg.promo;
+      if (!p || !p.active) return;
+      document.querySelectorAll('.promo-line').forEach(function (el) {
+        el.textContent = 'Code ' + p.code + ' takes it to $5 until ' + p.label + '.';
+        el.hidden = false;
+      });
+    }).catch(function () { /* no offer line beats a wrong one */ });
     const banner = document.getElementById('banner');
     function ownerId() {
       try { return localStorage.getItem('dayhop_owner_id') || undefined; } catch (e) { return undefined; }
