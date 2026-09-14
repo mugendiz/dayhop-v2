@@ -38,6 +38,27 @@ function isoDaysAgo(n) {
   return new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
 }
 
+// Dated commitments that cost money or close a decision. These were living in
+// a plan document and in Claude session reminders, both of which evaporate;
+// a renewal that quietly bills because nobody was reminded is the most
+// expensive kind of forgotten task. Past dates drop off by themselves.
+const DEADLINES = [
+  { on: '2026-09-19', what: 'Gate 1 — is there an external dollar yet?', act: 'If not, the Oct 3 rule is live.' },
+  { on: '2026-09-21', what: 'FALL75 ends 23:59 Toronto', act: 'Extend it or replace it — do not let the $5 price expire untested.' },
+  { on: '2026-09-27', what: 'BabyLoveGrowth renews US$99', act: 'Cancel and claim the 90-day refund (window closes ~Oct 22).' },
+  { on: '2026-10-01', what: 'SuperGrok renews US$30', act: 'Cancel — the product runs on API credits, not a SuperGrok seat.' },
+  { on: '2026-10-03', what: 'Gate 2 — day-30 maintenance-mode decision', act: 'On zero revenue, take the rule at its word.' }
+];
+
+function deadlineLines(today = new Date()) {
+  const t = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  return DEADLINES
+    .map(d => ({ ...d, days: Math.round((Date.parse(d.on + 'T00:00:00Z') - t) / 864e5) }))
+    .filter(d => d.days >= 0)
+    .sort((a, b) => a.days - b.days)
+    .map(d => `  ${d.on}  ${d.days === 0 ? 'TODAY' : `${d.days}d`.padStart(5)}  ${d.what}\n           ${d.act}`);
+}
+
 async function buildReport() {
   const monthStart = new Date().toISOString().slice(0, 7) + '-01';
   const [metrics, pipeline, money7, monthToDate, lifetime] = await Promise.all([
@@ -151,6 +172,13 @@ async function buildReport() {
   if (aff && aff.clicks_30d === 0) {
     actions.push('Viator has produced 0 clicks in 30 days — stop counting on affiliate income this quarter.');
   }
+  const due = deadlineLines();
+  if (due.length) {
+    lines.push('DEADLINES (money and decisions, nearest first)');
+    due.forEach(l => lines.push(l));
+    lines.push('');
+  }
+
   lines.push('THIS WEEK, IN ORDER:');
   actions.forEach((a, i) => lines.push(`  ${i + 1}. ${a}`));
   lines.push('');
