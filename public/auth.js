@@ -234,8 +234,23 @@
         if (error) throw error;
         maybeSubscribeNewsletter(email);
         if (!data.session) {
-          // Email confirmation is enabled on the project.
-          setError('Check your email to confirm your account, then sign in.');
+          // Email confirmation is enabled on the project, so a genuine new
+          // signup gets no session and an email instead.
+          //
+          // An address that ALREADY has an account looks identical from here:
+          // Supabase deliberately refuses to confirm the address exists, so it
+          // returns the same 200 with a user object, creates nothing, and
+          // sends nothing. The one signal it leaves is an empty `identities`
+          // array. Without this branch everyone was told to check an inbox,
+          // and the person who already had an account was sent to wait for an
+          // email that is never coming — which is exactly how this was found
+          // on 2026-09-13.
+          const identities = data.user && data.user.identities;
+          const alreadyRegistered = Array.isArray(identities) && identities.length === 0;
+          // No password-reset flow exists yet, so this must not point at one.
+          setError(alreadyRegistered
+            ? 'That email already has an account — signing you over to sign in. Forgotten the password? Email admin@dayhop.quest.'
+            : 'Check your email to confirm your account, then sign in.');
           setMode('signin');
           return;
         }
