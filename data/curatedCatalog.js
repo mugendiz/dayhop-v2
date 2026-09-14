@@ -697,6 +697,28 @@ module.exports = [
     wow: false, seasonal: 'summer'
   },
   {
+    // The first entry added for the day-trip band rather than the GTA: about
+    // 120 km and an hour and a half west of Toronto, so it can only ever
+    // surface on the "Worth the drive" shelf. worth_trip earns that shelf on
+    // the flag alone. Coordinates are inline (Google Places, Sep 2026) because
+    // catalogCoords.json is generated and this entry must not wait for a run —
+    // without coords distance_km is null and the shelf would never show it.
+    // Note the address: Instagram tags it "Kitchener", but it is in
+    // Blandford-Blenheim, Oxford County, ~25 minutes west of Kitchener.
+    id: 'cur-snyders-family-farm',
+    title: "Snyder's Family Farm — corn maze, pumpkins & campfire pods",
+    category: 'kids',
+    tags: ['farm', 'pumpkin', 'corn maze', 'hayride', 'kids', 'outdoor', 'fall',
+      'day trip', 'worth the drive', 'campfire', 'bakery'],
+    location: "Blandford-Blenheim, west of Kitchener",
+    venue: "Snyder's Family Farm",
+    description: "Pumpkin patch, the annual corn maze, hayrides, a big play area and bookable campfire pods — 25+ attractions on one farm. Ticketed.",
+    cost_tier: '$$', good_for_ages: 'all ages',
+    maps_url: mapsSearch("Snyder's Family Farm Blandford-Blenheim Ontario"),
+    lat: 43.3139303, lng: -80.5376178,
+    wow: false, seasonal: 'summer', worth_trip: true
+  },
+  {
     id: 'cur-riverdale-farm',
     title: "Riverdale Farm — a free farm inside the city",
     category: 'kids',
