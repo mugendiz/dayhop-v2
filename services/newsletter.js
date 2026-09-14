@@ -345,4 +345,4 @@ async function getByToken(token) {
   return findByToken(token);
 }
 
-module.exports = { subscribe, confirm, unsubscribe, listSubscribed, listPending, markSent, stats, unsubscribeUrl, baseUrl, getByToken, confirmUrl };
+module.exports = { subscribe, confirm, unsubscribe, listSubscribed, listPending, markSent, stats, unsubscribeUrl, baseUrl, getByToken, confirmUrl, complianceFooter };

@@ -21,3 +21,4 @@ android/sim-screenshot.png
 
 # Local-only engineering reports (security findings stay out of the repo)
 engineering-sweep-*.html
+social/ops/offer-email-sent.json
