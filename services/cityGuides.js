@@ -2383,10 +2383,22 @@ async function fulfillPurchase(session) {
   if (!isBundle && !guide) return `guide purchase with unknown slug "${slug}" (ignored)`;
   const to = (session.customer_details && session.customer_details.email) || session.customer_email || null;
 
+  // amount_total is authoritative — including 0, which is a 100%-off coupon
+  // or a fulfilment test. The old `||` fallback treated 0 as "missing" and
+  // booked those at list price, so two CA$0 founder tests (Aug 27, Sep 14)
+  // recorded as $20 each and read as DayHop's first revenue. Only fall back
+  // when Stripe genuinely sent no total, and mark free sessions so revenue
+  // counts can exclude them.
+  const paidCents = Number.isFinite(session.amount_total) ? session.amount_total : null;
   analytics.recordEvent({
     type: 'guide_purchase',
     ownerKey: session.client_reference_id || 'anon',
-    meta: { guide: slug, amount_cents: session.amount_total || (isBundle ? BUNDLE.price_cents : PRICE_CENTS) }
+    meta: {
+      guide: slug,
+      amount_cents: paidCents == null ? (isBundle ? BUNDLE.price_cents : PRICE_CENTS) : paidCents,
+      currency: session.currency || 'cad',
+      ...(paidCents === 0 ? { free: true } : {})
+    }
   });
 
   if (!to) return `guide ${slug} purchased but session has no email (claim link still works)`;

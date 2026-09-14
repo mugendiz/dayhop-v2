@@ -8,16 +8,44 @@
 
 const analytics = require('./analytics');
 const outreach = require('./outreach');
+const accounting = require('./accounting');
 const { sendEmail } = require('./email');
 
 const REPORT_TO = process.env.OPERATOR_REPORT_TO || 'dayhopadmin@gmail.com';
 
 function pct(n) { return n == null ? 'n/a' : `${n}%`; }
 
+function money(cents, cur) {
+  const v = (Math.abs(cents) / 100).toFixed(2);
+  return `${cents < 0 ? '-' : ''}${String(cur).toUpperCase() === 'USD' ? 'US$' : 'CA$'}${v}`;
+}
+
+// Ledger totals are Stripe-backed, so they are the only revenue number in
+// this report that cannot be inflated by a test session or a bot.
+function ledgerLine(summary) {
+  const cur = summary && summary.by_currency ? summary.by_currency : {};
+  const parts = Object.entries(cur).map(([code, b]) =>
+    `${money(b.income_cents, code)} in / ${money(b.expense_cents, code)} out / net ${money(b.net_cents, code)}`);
+  return parts.length ? parts.join('  ·  ') : 'no ledger rows';
+}
+
+function incomeCents(summary) {
+  const cur = summary && summary.by_currency ? summary.by_currency : {};
+  return Object.values(cur).reduce((a, b) => a + (b.income_cents || 0), 0);
+}
+
+function isoDaysAgo(n) {
+  return new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+}
+
 async function buildReport() {
-  const [metrics, pipeline] = await Promise.all([
+  const monthStart = new Date().toISOString().slice(0, 7) + '-01';
+  const [metrics, pipeline, money7, monthToDate, lifetime] = await Promise.all([
     analytics.metrics({ excludeInternal: true }).catch(() => ({})),
-    outreach.summary().catch(() => null)
+    outreach.summary().catch(() => null),
+    accounting.summary({ from: isoDaysAgo(7) }).catch(() => null),
+    accounting.summary({ from: monthStart }).catch(() => null),
+    accounting.summary({}).catch(() => null)
   ]);
 
   const daily = metrics.daily || [];
@@ -41,10 +69,31 @@ async function buildReport() {
     lines.push('!! WARNING: the outreach cadence has not fired in over a day — check /health schedulers.');
     lines.push('');
   }
+  // Money first. Every other number in this email is a means to this one,
+  // and for months the report had no revenue line at all — so a week with
+  // CA$0 could still read as a busy week.
+  const lifetimeIncome = incomeCents(lifetime);
+  lines.push('MONEY (ledger, Stripe-backed — the only number that cannot be faked)');
+  lines.push(`  Last 7 days:   ${ledgerLine(money7)}`);
+  lines.push(`  Month to date: ${ledgerLine(monthToDate)}`);
+  lines.push(`  Lifetime:      ${ledgerLine(lifetime)}`);
+  if (!lifetimeIncome) {
+    lines.push('  >> No external dollar has ever landed. Nothing below matters until one does.');
+  }
+  lines.push('');
+
   lines.push('TRAFFIC (external only, last 7 days vs prior 7)');
   lines.push(`  Active users: ${activeCur} (${wow(activeCur, activePrev)})   New users: ${newCur}`);
   lines.push(`  Prompts: ${promptsCur} (${wow(promptsCur, promptsPrev)})   Browses: ${sum(last7, 'browses')}`);
   lines.push(`  Shortlist adds: ${sum(last7, 'shortlist_adds')}   Booking clicks: ${sum(last7, 'booking_clicks')}   Plans built: ${sum(last7, 'plans_built')}`);
+  // Raw event counts include crawlers and founder QA; user counts do not.
+  // Without this line a 589-browse month reads as 589 human visits.
+  const tr = metrics.traffic;
+  if (tr && tr.internal && tr.external) {
+    const total = tr.internal.events + tr.external.events;
+    const share = total ? Math.round((tr.internal.events / total) * 100) : 0;
+    lines.push(`  Reality check: ${share}% of all events are founder/internal; bot filter also drops ${(metrics.bots && metrics.bots.events) || 0} crawler events.`);
+  }
   lines.push('');
 
   if (metrics.retention && metrics.retention.week4_avg != null) {
@@ -80,11 +129,30 @@ async function buildReport() {
     lines.push('');
   }
 
+  // This list used to be four hardcoded lines that never changed, still
+  // named the retired FOUNDING50 code, still claimed TikTok had no posts,
+  // and skipped "2." whenever there were no drafts to approve. An action
+  // list that cannot react to the numbers above it is just decoration —
+  // these are derived, ranked by how close each one sits to a dollar.
+  const actions = [];
+  if (pipeline && pipeline.replied) {
+    actions.push(`Answer the ${pipeline.replied} outreach repl${pipeline.replied === 1 ? 'y' : 'ies'} at admin@dayhop.quest — a warm reply is the shortest path to the first dollar (Spotlight is CA$99/mo, code FOUNDING).`);
+  }
+  if (!lifetimeIncome) {
+    actions.push('Put the working $5 guide offer in front of every human you can name — confirmed subscribers, creators, past signups. The offer only became correct end-to-end on Sep 11; nobody has been shown it yet.');
+  }
+  if (pipeline && pipeline.awaiting_approval) {
+    actions.push(`Approve the ${pipeline.awaiting_approval} queued opener draft${pipeline.awaiting_approval === 1 ? '' : 's'} in the CRM tab.`);
+  }
+  const lastIssue = metrics.digest && metrics.digest.issues && metrics.digest.issues[0];
+  if (lastIssue && lastIssue.ctr_pct != null) {
+    actions.push(`Email is the only channel with real engagement (last issue: ${pct(lastIssue.open_rate_pct)} open, ${pct(lastIssue.ctr_pct)} CTR on ${lastIssue.sent} sent). Grow that list before anything else.`);
+  }
+  if (aff && aff.clicks_30d === 0) {
+    actions.push('Viator has produced 0 clicks in 30 days — stop counting on affiliate income this quarter.');
+  }
   lines.push('THIS WEEK, IN ORDER:');
-  lines.push('  1. Reply to any outreach responses (CRM tab has one-click FOUNDING50 send).');
-  if (pipeline && pipeline.awaiting_approval) lines.push('  2. Approve the queued opener drafts.');
-  lines.push('  3. Post the social batch (TikTok still needs its first post).');
-  lines.push('  4. 10 minutes of IG/TikTok comment replies.');
+  actions.forEach((a, i) => lines.push(`  ${i + 1}. ${a}`));
   lines.push('');
   lines.push('Dashboard: https://dayhop.quest/admin.html');
 
