@@ -45,7 +45,6 @@ function isoDaysAgo(n) {
 const DEADLINES = [
   { on: '2026-09-19', what: 'Gate 1 — is there an external dollar yet?', act: 'If not, the Oct 3 rule is live.' },
   { on: '2026-09-21', what: 'FALL75 ends 23:59 Toronto', act: 'Extend it or replace it — do not let the $5 price expire untested.' },
-  { on: '2026-09-27', what: 'BabyLoveGrowth renews US$99', act: 'Cancel and claim the 90-day refund (window closes ~Oct 22).' },
   { on: '2026-10-01', what: 'SuperGrok renews US$30', act: 'Cancel — the product runs on API credits, not a SuperGrok seat.' },
   { on: '2026-10-03', what: 'Gate 2 — day-30 maintenance-mode decision', act: 'On zero revenue, take the rule at its word.' }
 ];
