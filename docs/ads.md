@@ -158,3 +158,58 @@ for hand-entry (founder or Claude-in-Chrome, already logged in). Rows 13,
 16, 19 are the Snyder's giveaway (see reply-to-Snyder's-email thread,
 Sep 2026) and should use the `-giveaway` UTM campaign suffix instead of
 `fall26-spots`.
+
+## Creative strategy benchmarks (source: Motion Creative Benchmarks 2026)
+
+Reference for checking future ad/content batches against, not a one-time
+read. Source: Motion's aggregated, anonymized analysis of 578,750 Meta/IG
+ad creatives, 6,015 advertiser accounts, $1.29B spend, Sep 2025–Jan 2026
+(uploaded 2026-09-19, files in the founder's own records — not stored in
+this repo). Findings are **associations, not causal claims** — the source
+report is explicit that "more testing volume is associated with more
+winners" is not the same as "causes." Treat this section the same way.
+
+**Scope: this is paid Meta/Instagram ad-spend data.** It's directly
+applicable to Zeely/Meta campaigns. It says nothing about organic TikTok
+reach — don't cite it for organic-only decisions.
+
+### Calibrate expectations, don't promise outcomes
+
+DayHop's ad spend puts it in the report's "Micro" tier (<$10K/mo). At that
+tier: average hit rate (an ad reaching ≥10× the account's median spend and
+≥$500) is **4.0%**, and only **~3.7% of creatives ever become "winners."**
+Even top-quartile Micro accounts only push hit rate up modestly by shipping
+more volume (4.8 creatives/week vs. 2.8 average), not by picking better
+ideas. Translation: no single post — however well-crafted — should be
+expected to reliably hit a specific views/likes target. Volume of
+attempts is the lever that actually correlates with getting winners, not
+any one "perfect" creative.
+
+### Formats/hooks/assets to weight toward (validated, not guessed)
+
+From the report's format leaderboards (Meta/IG, hit rate + spend-use ratio):
+
+- **Giveaway** hooks show a strong spend-use ratio (punch above their
+  weight) — validates making the Snyder's Family Farm giveaway the
+  flagship post of its week, not a side item.
+- **Offer-First Banner** and **Demo** formats lead hit rate (8.6% and
+  8.1%) — maps directly to the giveaway graphics (offer-first) and any
+  screen-recorded product demo (swipe → shortlist → day plan).
+- **Text only** and **Product image with text** assets rank among the top
+  formats on *both* hit rate and spend-use ratio — cheap, zero-production
+  creative is not disadvantaged against expensive video. Validates the
+  text-forward listicle and meme posts already in the calendar.
+- **Testimonial** is a top-hit-rate format (6.5%) DayHop has zero
+  inventory for (no paying customers yet) — flag as a gap to fill the
+  moment real user feedback exists.
+- **Curiosity/confession-style hooks** ("doesn't feel like Toronto
+  anymore," "we fact-checked it") show up on the hit-rate leaderboard —
+  lean further into this angle in future batches.
+
+### Using this for future batches
+
+Before finalizing a new content/ad batch, check it against this section:
+does it include at least one offer-first/giveaway post, at least one
+demo, and is it not entirely reliant on expensive-to-produce assets? If a
+batch skews away from these validated formats, that's a deliberate choice
+to flag, not an oversight to repeat unknowingly.
