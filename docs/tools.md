@@ -11,7 +11,7 @@
 
 | Tool | $/mo (USD) | What it does for DayHop | Consolidation notes |
 |---|---|---|---|
-| Anthropic Claude Max 5x | 100.00 | All engineering, ops automation, research, content planning (Claude Code) | The consolidation *target* — see thesis below |
+| Anthropic Claude Pro | ~20.00 | All engineering, ops automation, research, content planning (Claude Code) | Downgraded from Max 5x (US$100) 2026-09-18 — confirm exact billed amount on next statement. Lower ceiling on usage/context than Max; watch for rate-limit friction during heavy sessions. Still the consolidation *target* — see thesis below |
 | BabyLoveGrowth (BLG) | 0.00 (paused) | Daily SEO article autopilot on /blog, Reddit/Quora opportunity feed, AI-visibility monitoring, backlink network | **Paused 2026-09-18 for 5 months (~2027-02-18), not cancelled** — founder took BLG's pause option instead of cancelling: no billing during the pause, no refund question (nothing was charged to refund), and the account/cadence resumes automatically around the date above unless cancelled before then. Add a reminder ~2 weeks before resume to decide cancel-vs-continue. In the meantime, article writing, keyword picks, and Reddit/Quora drafts can move into a Claude weekly content pipeline; /blog keeps serving existing seed/published articles either way |
 | Zeely Growth | 79.95 | Ad creative generation (image/video), brand DNA, Meta campaign launcher, social scheduling | Overlaps Claude+grok-imagine for creatives (the Hopper pipeline already does this). Zeely's moats: ad-format templates/gallery, one-click Meta launch. Verdict gate: if the zeely-ab-aug26 arm loses two Friday checks and no Meta campaigns launch, cancel before the Oct 10 renewal |
 | xAI SuperGrok | 30.00 | Founder's Grok subscription (research, imagine access in app) | Distinct from the API key; keep while imagine-driven content pipeline is active |
@@ -49,5 +49,7 @@ UTM arm winning slots or produce revenue-adjacent output by its verdict
 gate, or its job moves into a Claude pipeline (articles → weekly Claude
 batch; ad creatives → grok-imagine + canvas/Remotion; Reddit/Quora drafts →
 Claude with per-post review). The ledger's expense-by-category view is the
-scoreboard: today's stack costs ~$311/mo USD against $0 MRR — every line
-has to earn its slot.
+scoreboard: today's stack costs ~$132/mo USD (Claude Pro ~$20 + Zeely $79.95
++ SuperGrok $30 + Grok API usage ~$2.50; BLG paused at $0) against $0 MRR —
+down from ~$311/mo before the Claude Pro downgrade and BLG pause
+(2026-09-18) — every line still has to earn its slot.
