@@ -7,6 +7,15 @@ const router = express.Router();
 
 const { store } = require('../services/db');
 const { requireUser } = require('../middleware/auth');
+const { isAdmin } = require('../services/entitlements');
+
+// Curator/moderation actions are admin-only — any signed-in user must not
+// be able to see or decide other people's submissions. Mirrors the isAdmin
+// check services/moderation.js already uses to bypass the ban guard.
+function requireAdmin(req, res, next) {
+  if (isAdmin(req.user)) return next();
+  return res.status(403).json({ error: 'FORBIDDEN', message: 'Admin access required.' });
+}
 
 router.post('/submit', async (req, res, next) => {
   const { title, location, date, description, submittedBy } = req.body || {};
@@ -30,17 +39,17 @@ router.post('/submit', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// Curator-facing: list pending submissions. Gated to a signed-in user
-// (requireUser); tighten to an admin/curator claim before launch. The user's
-// JWT is forwarded via req.dbCtx so the per-user RLS policy applies.
-router.get('/queue', requireUser, async (req, res, next) => {
+// Curator-facing: list pending submissions and decide them. requireUser
+// first (sets req.dbCtx so the per-user RLS policy applies), then
+// requireAdmin — any signed-in user is no longer enough on its own.
+router.get('/queue', requireUser, requireAdmin, async (req, res, next) => {
   try {
     const pending = await store.listPendingSubmissions(req.dbCtx);
     res.json({ pending });
   } catch (err) { next(err); }
 });
 
-router.post('/:id/approve', requireUser, async (req, res, next) => {
+router.post('/:id/approve', requireUser, requireAdmin, async (req, res, next) => {
   try {
     const submission = await store.setSubmissionStatus(req.params.id, 'approved', req.dbCtx);
     if (!submission) return res.status(404).json({ error: 'NOT_FOUND', message: 'Submission not found.' });
@@ -48,7 +57,7 @@ router.post('/:id/approve', requireUser, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/:id/reject', requireUser, async (req, res, next) => {
+router.post('/:id/reject', requireUser, requireAdmin, async (req, res, next) => {
   try {
     const submission = await store.setSubmissionStatus(req.params.id, 'rejected', req.dbCtx);
     if (!submission) return res.status(404).json({ error: 'NOT_FOUND', message: 'Submission not found.' });
