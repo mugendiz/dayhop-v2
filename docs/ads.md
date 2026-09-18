@@ -102,3 +102,59 @@ Destination (keeps the whole UTM→Stripe attribution chain working):
   subscriber is the unit that makes Spotlight ($299/mo) sellable. Watch
   acquisition card (utm_source=zeely rows) + newsletter funnel on the admin
   dashboard; kill or iterate weekly, one variable at a time.
+
+## Zeely image-post calendar — 2026-09 batch (30 posts, Sep 20–Oct 19)
+
+30 image posts for Zeely's scheduler, spread ~6/week. Written for a
+strategist's overhaul standard (no generic filler — every post names a
+real place, a real product moment, or a real date) and produced with zero
+new photography: 24 of the 30 use spot photos already in `assets/photos/`
+(from the paid City Guides), so the only net-new asset need is for the
+6 "special" posts marked *(Zeely-generate)* below. Every post is a
+same-day cross-post candidate for Instagram (@dayhopofficial) feed; ones
+marked TT are also native fits for TikTok's photo-post mode. Where a
+published `/blog` article already covers the topic, it's linked — BLG is
+still fully active through the Sep 27 billing date, so this uses it while
+it's paid for; no reactivation needed.
+
+Destination for all: `dayhop.quest?utm_source=zeely&utm_medium=social&utm_campaign=fall26-spots` (append `-giveaway` for the 3 Snyder's posts).
+
+| # | Date | Post | Asset | Caption | Blog link | Social |
+|---|---|---|---|---|---|---|
+| 1 | Sep 20 | Snyder's hidden-gem reveal *(Zeely-generate: farm/pumpkin scene)* | — | "This farm is NOT in Kitchener. We checked before adding it to our day-trip catalogue — corn maze, pumpkins, campfire pods, ~1h15 from Toronto." | — | IG, TT |
+| 2 | Sep 20 | Lake Wilcox Park | rh-spot-wilcox.jpg | "Richmond Hill's lake you keep driving past. Full loop, real shade, zero crowds on a weekday." | — | IG |
+| 3 | Sep 21 | David Dunlap Observatory Park | rh-spot-ddo.jpg | "A working observatory inside Richmond Hill. Fall nights are when the sky actually cooperates." | /blog/stargazing-near-toronto | IG, TT |
+| 4 | Sep 21 | Milne Dam's great blue heron | markham-spot-heron.jpg | "Same heron, same spot, all season — herons hold territory. If you've seen 'the bird' at Milne before, it's probably this one." | — | IG |
+| 5 | Sep 22 | Toronto Islands | toronto-spot-islands.jpg | "A ferry ride and you're somewhere that doesn't feel like Toronto anymore." | /blog/toronto-hidden-gems-insiders | IG |
+| 6 | Sep 22 | Leslie Street Spit lighthouse | toronto-spot-spit.jpg | "Toronto's weirdest walk: 5km out into the lake on a man-made peninsula, to a lighthouse nobody expects." | /blog/toronto-hidden-gems-insiders | IG, TT |
+| 7 | Sep 23 | Fairy Lake, Newmarket | newmarket-spot-fairylake2.jpg | "Newmarket's postcard, and most GTA parents have never heard of it." | — | IG |
+| 8 | Sep 23 | Sharon Temple | newmarket-spot-sharon.jpg | "A 200-year-old temple, 45 minutes from downtown Toronto, that most of the GTA has never heard of." | — | IG |
+| 9 | Sep 24 | Webster Falls, Dundas | hamilton-spot-webster.jpg | "Hamilton's waterfalls are not a secret anymore — get there before 10am on a weekend or don't bother." | /blog/ontario-road-trip-new-openings | IG, TT |
+| 10 | Sep 24 | Dundas Peak | hamilton-spot-dundaspeak.jpg | "The view every Hamilton Instagram photo is secretly taken from." | — | IG |
+| 11 | Sep 25 | Sibbald Point, Lake Simcoe | lake-simcoe-spot-sibbald.jpg | "A real sand beach, 1 hour from Toronto, that isn't Wasaga." | /blog/free-toronto-days | IG |
+| 12 | Sep 25 | Rouge National Urban Park — Vista trails | markham-spot-vista.jpg | "Canada's biggest urban national park, and it's inside Markham." | — | IG, TT |
+| 13 | Sep 27 | **Giveaway announced** *(Zeely-generate: prize graphic)* | — | "GIVEAWAY: one family pass to Snyder's Family Farm — corn maze, pumpkin patch, hayride. Follow @dayhopofficial + tag 2 friends to enter. Winner drawn Sat Oct 3." | — | IG, TT |
+| 14 | Sep 28 | Rouge Carolinian forest (trillium fact) | markham-spot-trillium.jpg | "Less than 1% of Canada is this forest type. It's in Markham, and a trillium there takes 7 years just to bloom." | — | IG |
+| 15 | Sep 29 | Main Street Unionville | markham-spot-unionville.jpg | "A main street that looks like a movie set, and it's a GO Train away from downtown." | /blog/toronto-farmers-markets-guide | IG |
+| 16 | Sep 30 | **Giveaway reminder** *(Zeely-generate: countdown graphic)* | — | "3 days left to win a family pass to Snyder's Family Farm. Follow + tag 2 friends. Rules in bio." | — | IG, TT |
+| 17 | Oct 1 | Dundurn Castle | hamilton-spot-dundurn.jpg | "A real 19th-century castle you can tour, and it's inside Hamilton city limits." | — | IG |
+| 18 | Oct 2 | Princess Point, Cootes Paradise | hamilton-spot-cootes.jpg | "Paddle a marsh inside a city — Cootes Paradise doesn't get enough credit." | — | IG |
+| 19 | Oct 3 | **Giveaway winner announced** *(Zeely-generate: winner graphic)* | — | "Congrats to our Snyder's Family Farm pass winner! More local giveaways coming — follow @dayhopofficial so you don't miss the next one." | — | IG, TT |
+| 20 | Oct 4 | Scarborough Bluffs | toronto-spot-bluffs.jpg | "The cliffs everyone's seen in photos, and most GTA parents have never actually stood on." | /blog/first-timers-toronto-must-sees | IG |
+| 21 | Oct 5 | Distillery District | toronto-spot-distillery.jpg | "Cobblestones, no cars, and it's actually stroller-friendly — rare combo downtown." | /blog/new-in-toronto-2026 | IG |
+| 22 | Oct 6 | Kempenfelt Bay, Barrie | lake-simcoe-spot-barrie.jpg | "An hour north and the whole vibe changes — Barrie's waterfront on a fall afternoon." | — | IG |
+| 23 | Oct 7 | Jefferson Forest | rh-spot-jefferson.jpg | "The forest inside Richmond Hill most residents have never walked." | — | IG |
+| 24 | Oct 8 | Main Street Newmarket | newmarket-spot-mainst.jpg | "Small-town main street, big-city drive time — 40 minutes from downtown Toronto." | — | IG |
+| 25 | Oct 9 | **Thanksgiving countdown** *(Zeely-generate: fall/harvest graphic)* | — | "Thanksgiving long weekend is 3 days out and you have no plan. We do — dayhop.quest builds it in 12 seconds." | — | IG, TT |
+| 26 | Oct 10 | Rogers Reservoir | newmarket-spot-rogers.jpg | "A reservoir turned wetland trail — East Gwillimbury's best-kept walking secret." | — | IG |
+| 27 | Oct 11 | Burr House & artisans' guild | rh-spot-burr.jpg | "A heritage house full of working local artists, in the middle of Richmond Hill." | — | IG |
+| 28 | Oct 14 | Mara Provincial Park | lake-simcoe-spot-mara.jpg | "A provincial park most of the GTA drives past on the way to cottage country without stopping." | — | IG |
+| 29 | Oct 17 | Stephen Leacock Museum, Orillia | lake-simcoe-spot-leacock.jpg | "A humourist's actual lakeside house, preserved, and open for tours." | — | IG |
+| 30 | Oct 19 | **Rainy-day pain point** *(Zeely-generate: relatable meme graphic)* | — | "It's 9am Saturday, it's raining, and your kid is already bored. We built the app for this exact moment. dayhop.quest" | — | IG, TT |
+
+Zeely execution note: this session has no browser/API access to Zeely,
+Instagram, or TikTok — the table above is the content/schedule deliverable
+for hand-entry (founder or Claude-in-Chrome, already logged in). Rows 13,
+16, 19 are the Snyder's giveaway (see reply-to-Snyder's-email thread,
+Sep 2026) and should use the `-giveaway` UTM campaign suffix instead of
+`fall26-spots`.
