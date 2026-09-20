@@ -836,6 +836,31 @@ module.exports = [
     wow: false, seasonal: 'summer'
   },
   {
+    // Founder-flagged via Instagram, Sep 2026. Verified: City of
+    // St. Catharines heritage site, 2714 Decew Rd, free admission (donations
+    // welcome). Two gaps left open rather than guessed: (1) posted hours are
+    // limited (Tue/Thu/Sat/Sun 9am-2pm per multiple listings) and a 2024
+    // restoration closure (ended Nov 2024) shows the site does close for
+    // work sometimes — current 2026 hours not independently reconfirmed
+    // beyond the source reel's own comment, so the description says to
+    // check ahead rather than asserting daily hours; (2) lat/lng is an
+    // estimate near the adjoining Lake Gibson reservoir (DeCew Falls'
+    // water source), not a geocoded address match — close enough for
+    // day-trip distance banding (St. Catharines is unambiguously in band)
+    // but should be corrected to a precise Places geocode when convenient.
+    id: 'cur-morningstar-mill',
+    title: "Morningstar Mill — a working 1872 grist mill at DeCew Falls",
+    category: 'culture',
+    tags: ['history', 'mill', 'waterfall', 'hiking', 'free', 'heritage', 'niagara', 'day trip'],
+    location: "St. Catharines (Niagara Region)",
+    venue: "Morningstar Mill",
+    description: "A working 1872 grist mill on the Niagara Escarpment — waterwheel and millstones still run, free admission, backs onto the Bruce Trail at DeCew Falls. Limited hours — check ahead.",
+    cost_tier: 'free', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Morningstar Mill 2714 Decew Road St. Catharines'),
+    lat: 43.1017, lng: -79.2278,
+    wow: false, seasonal: null, worth_trip: true
+  },
+  {
     id: 'cur-graffiti-alley',
     title: "Graffiti Alley & Kensington Market walk",
     category: 'culture',
