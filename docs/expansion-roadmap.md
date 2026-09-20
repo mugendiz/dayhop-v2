@@ -77,26 +77,31 @@ month. Worth treating a Flare creator's own city as a signal for which
 city to prioritize next, rather than deciding the sequence purely by
 population rank.
 
-## Honest sequencing flag
+## Sequencing decision (confirmed 2026-09-20)
 
 Vancouver and Montreal buildouts are real, ongoing verification labor —
 the same kind of work behind every GTA catalog entry — not a one-time
 cost. That's a commitment of ongoing time/attention while DayHop is
 still at **$0 MRR** and actively cutting costs elsewhere (Claude Pro
-downgrade, BLG pause — see `docs/tools.md`). Recommend treating the
-*planning* here as free and worth doing now, but sequencing the actual
-**execution** (the verification labor itself) to start once the GTA
-market clears its own revenue gates (Gate 1/Gate 2 in
+downgrade, BLG pause — see `docs/tools.md`). **Confirmed: planning now,
+execution deferred.** Everything in this document — the sequence, the
+per-city buildout definition, the cadence tiers, the Flare-creator
+resourcing idea — is planning work and proceeds immediately, since it
+costs nothing. The actual verification labor (scouting and cataloguing
+real Vancouver/Montreal venues, building their city guides) does not
+start until GTA clears its own revenue gates (Gate 1/Gate 2 in
 `services/operatorReport.js`) — the same "every line has to earn its
 slot" discipline already governing every other tool/spend decision this
-quarter. Flagging this rather than silently assuming the buildout starts
-immediately; if the intent is to start Vancouver scouting now regardless
-of the revenue gates, that's a deliberate call worth making explicitly
-rather than by default.
+quarter. The opportunistic cross-Ontario layer above (e.g. Bonnechere
+Caves for Ottawa) is exempt from this — it's zero-cost, reactive to
+finds that surface during GTA's own scouring pass, not a dedicated
+effort.
 
 ## Status
 
-Planning only — no city guide, catalog entries, or scouring cadence
-change has been implemented yet. This doc records the decision so it
-survives past this conversation; execution starts when explicitly
-kicked off.
+**Planning phase — active.** Execution (city guides, catalog entries,
+scouring cadence for Vancouver/Montreal) is deferred until GTA clears
+its revenue gates, per the confirmed sequencing decision above. This doc
+is the living planning record; it should be extended (satellite city
+lists, city guide scoping, etc.) rather than replaced as planning
+continues.
