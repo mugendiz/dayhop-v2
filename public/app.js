@@ -2390,28 +2390,46 @@
     state.savedGuide = null; // shortlist changed → any saved export is stale
   }
 
+  // "At a glance" chips — the same facts the old <dl> listed, as compact
+  // pills instead of a label/value list. Rating and cost_tier lead (the two
+  // Gemini's rooftop list put first); duration/ages/date follow. Venue and
+  // location stay as text below — they're prose-length, not chip-shaped.
+  function detailChipsHtml(idea) {
+    const chips = [];
+    if (idea.rating != null) chips.push(`<span class="detail-chip detail-chip--rating">★ ${escapeHtml(String(idea.rating))}</span>`);
+    if (idea.cost_tier) {
+      const label = idea.cost_tier === 'free' ? 'Free' : escapeHtml(idea.cost_tier);
+      chips.push(`<span class="detail-chip">${label}${idea.price_from != null ? ` · from ${escapeHtml(String(idea.price_from))}${idea.currency ? ' ' + escapeHtml(idea.currency) : ''}` : ''}</span>`);
+    }
+    if (idea.distance_km != null) chips.push(`<span class="detail-chip">📍 ${escapeHtml(String(idea.distance_km))} km away</span>`);
+    if (idea.duration_minutes) chips.push(`<span class="detail-chip">⏱ ${formatDuration(idea.duration_minutes)}</span>`);
+    chips.push(`<span class="detail-chip">${escapeHtml(idea.good_for_ages || 'all ages')}</span>`);
+    if (idea.date) chips.push(`<span class="detail-chip detail-chip--date">📅 ${escapeHtml(formatEventDate(idea.date))}</span>`);
+    return chips.length ? `<div class="detail-chips">${chips.join('')}</div>` : '';
+  }
+
   function openDetail(idea) {
     document.getElementById('detail-title').textContent = idea.title;
     const categoryLabel = CATEGORY_LABELS[idea.category] || CATEGORY_LABELS.general;
     const onDay = Boolean(state.shortlist.find(i => i.id === idea.id));
+    // venue and location are often the same string for curated entries —
+    // de-duped so the line doesn't read "Edwards Gardens · Edwards Gardens".
+    const venueLine = [idea.venue, idea.location]
+      .filter(Boolean)
+      .filter((v, i, arr) => arr.findIndex(o => o.trim().toLowerCase() === v.trim().toLowerCase()) === i)
+      .join(' · ');
     document.getElementById('detail-content').innerHTML = `
-      <div class="detail-photo">
-        <img src="${escapeAttr(proxiedImage(idea.image_url || categoryImage(idea.category), 640))}" alt="" loading="lazy"
-          onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(idea.category))}'">
+      <div class="detail-hero">
+        <img class="detail-hero-img" src="${escapeAttr(proxiedImage(idea.image_url || categoryImage(idea.category, 900), 900))}" alt="" loading="lazy"
+          onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(idea.category, 900))}'">
+        <div class="detail-hero-gradient"></div>
+        <span class="detail-hero-category">${categoryLabel}</span>
+        ${idea.wow_reason ? '<span class="detail-hero-wow">✨ Unexpected find</span>' : ''}
       </div>
-      <span class="card-category">${categoryLabel}</span>
+      ${detailChipsHtml(idea)}
+      ${venueLine ? `<p class="detail-venue-line">${escapeHtml(venueLine)}</p>` : ''}
       <p class="detail-why">${escapeHtml(idea.why || '')}</p>
       ${idea.wow_reason ? `<p class="wow-line">✨ ${escapeHtml(idea.wow_reason)}</p>` : ''}
-      <dl class="detail-grid">
-        <dt>Location</dt><dd>${escapeHtml(idea.location || '—')}</dd>
-        ${idea.distance_km != null ? `<dt>Distance</dt><dd>📍 ${escapeHtml(String(idea.distance_km))} km from you</dd>` : ''}
-        ${idea.venue ? `<dt>Venue</dt><dd>${escapeHtml(idea.venue)}</dd>` : ''}
-        ${idea.date ? `<dt>Date</dt><dd>${escapeHtml(formatEventDate(idea.date))}</dd>` : ''}
-        <dt>Good for</dt><dd>${escapeHtml(idea.good_for_ages || 'all ages')}</dd>
-        <dt>Duration</dt><dd>${idea.duration_minutes ? formatDuration(idea.duration_minutes) : '—'}</dd>
-        <dt>Cost</dt><dd>${escapeHtml(idea.cost_tier || '—')}${idea.price_from != null ? ` · from ${escapeHtml(String(idea.price_from))}${idea.currency ? ' ' + escapeHtml(idea.currency) : ''}` : ''}</dd>
-        ${idea.rating != null ? `<dt>Rating</dt><dd>★ ${escapeHtml(String(idea.rating))}</dd>` : ''}
-      </dl>
       ${bookingLinksHtml(idea, 'detail')}
       <button type="button" class="primary-btn detail-add-btn" id="detail-add-btn"${onDay ? ' disabled' : ''}>
         ${onDay ? 'On your day ✓' : 'Add to my day →'}
