@@ -105,3 +105,48 @@ its revenue gates, per the confirmed sequencing decision above. This doc
 is the living planning record; it should be extended (satellite city
 lists, city guide scoping, etc.) rather than replaced as planning
 continues.
+
+---
+
+## Vancouver — structure (planning only, no venue research yet)
+
+Scoped 2026-09-20. Mirrors the Toronto-hub + satellite pattern in
+`data/cityGuides/` — structure and geography only, chosen from general
+knowledge of Metro Vancouver's layout, **not verified against any
+source yet**. No venue names, addresses, or ratings are asserted here;
+that verification work is explicitly part of execution, not planning.
+
+- **Hub city:** Vancouver.
+- **Candidate satellite cities** (Metro Vancouver — mirrors how
+  Richmond Hill/Markham/Newmarket sit around Toronto): Burnaby,
+  Richmond (BC), Surrey, North Vancouver, West Vancouver, New
+  Westminster, Coquitlam. Final satellite list to be narrowed when
+  execution starts — not every Metro Vancouver municipality needs its
+  own guide on day one, same as GTA didn't launch with every town in
+  `GTA_TOWNS` guided individually.
+- **Day-trip band candidates** (rough distance class only, to be
+  confirmed against the existing `DAY_TRIP_MAX_KM`/`distance_km`
+  mechanism once real coordinates are verified): Squamish, Whistler,
+  Chilliwack, Abbotsford, Harrison Hot Springs.
+- **Structural difference worth flagging now:** Victoria is a strong
+  "worth the drive" candidate but requires a ferry, not a drive — the
+  existing day-trip logic is purely distance-based
+  (`services/candidates.js`/`routes/browse.js`) and has no concept of
+  a ferry-access category. Worth a small product decision at execution
+  time (e.g. a "worth the ferry" variant of the shelf, or just noting
+  ferry time in the entry's description) rather than silently treating
+  ferry-access distance the same as a highway drive.
+- **Structural difference worth flagging now (holidays):**
+  `services/spotlight.js`'s Ontario holiday calendar (`ontarioHolidays`)
+  would need a BC equivalent (BC has its own stat holidays, e.g. BC
+  Day vs. Ontario's Civic Holiday) before the seasonal-spotlight
+  mechanism means anything for a Vancouver-origin visitor. Currently
+  hardcoded to Ontario only.
+
+## Montreal — not yet scoped
+
+Deliberately left unscoped until Vancouver's planning pass is further
+along — matches the "step-by-step" philosophy rather than planning
+every city at once. Known flag for whenever it is scoped: French-
+language guide copy and bilingual SEO (already noted above under
+Sequence).
