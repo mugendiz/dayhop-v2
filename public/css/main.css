@@ -2055,10 +2055,78 @@ button.date-clear-btn { padding: 13px 4px; }
 
 /* Detail panel */
 .detail-why { font-size: 15px; line-height: 1.6; margin: 14px 0 18px; color: var(--ink-soft); }
-.detail-grid { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 14px; }
-.detail-grid dt { font-family: var(--mono); font-size: 11px; text-transform: uppercase; color: var(--ink-soft); align-self: center; }
-/* Values can be pasted URLs/addresses — wrap anywhere, never stretch the panel. */
-.detail-grid dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+
+/* Hero: photo-forward, category + wow flag overlaid on a gradient rather
+   than sitting as separate text lines below a small thumbnail. */
+.detail-hero {
+  position: relative;
+  margin: 0 0 14px;
+  height: 220px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--paper-dim);
+}
+.detail-hero-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.detail-hero-gradient {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 60%;
+  background: linear-gradient(to top, rgba(16, 42, 46, 0.65), rgba(16, 42, 46, 0));
+  pointer-events: none;
+}
+.detail-hero-category {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.detail-hero-wow {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--glass-strong);
+  backdrop-filter: var(--blur);
+  color: var(--ink);
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-soft);
+}
+
+/* "At a glance" chips — rating/cost lead, matching what a Gemini-style
+   list leads with, in DayHop's own pill/paper visual language. */
+.detail-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.detail-chip {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--paper-dim);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  padding: 5px 11px;
+  white-space: nowrap;
+}
+.detail-chip--rating { color: var(--coral-dark); border-color: rgba(255, 107, 74, 0.35); background: rgba(255, 107, 74, 0.08); }
+.detail-chip--date { color: var(--moss); border-color: rgba(63, 111, 92, 0.3); background: rgba(63, 111, 92, 0.08); }
+
+.detail-venue-line {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
 
 /* Detail enrichment: photos strip, live status, facts, hours */
 .detail-more { margin-top: 18px; }
@@ -2080,10 +2148,11 @@ button.date-clear-btn { padding: 13px 4px; }
 }
 .detail-gallery img {
   flex: 0 0 auto;
-  width: 150px;
-  height: 104px;
+  width: 168px;
+  height: 118px;
   object-fit: cover;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
   scroll-snap-align: start;
 }
 
