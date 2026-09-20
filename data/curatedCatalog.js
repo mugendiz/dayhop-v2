@@ -539,6 +539,25 @@ module.exports = [
     wow: true, seasonal: 'summer'
   },
   {
+    // Founder-flagged via Instagram (@chasethewaterfalls), Sep 2026. Verified:
+    // Grand River Conservation Authority, 161 Fall St S, Rockwood ON N0B 2K0
+    // (Guelph/Eramosa). ~62km straight-line / ~85-95km driving from Toronto,
+    // similar band to neighbouring Elora Gorge. Caves close Oct 16-Mar 31 for
+    // bat hibernation, swimming is a summer activity — seasonal: 'summer'
+    // matches the April-October convention used elsewhere in this file.
+    id: 'cur-rockwood-conservation-area',
+    title: "Rockwood Conservation Area — swimming holes, caves & giant potholes",
+    category: 'adventures',
+    tags: ['swimming', 'caves', 'potholes', 'hiking', 'canoe', 'nature', 'water', 'day trip'],
+    location: "Rockwood (Guelph/Eramosa, ~1h west of the GTA)",
+    venue: "Rockwood Conservation Area",
+    description: "A swimming beach, 200+ glacial potholes (one among the world's largest), limestone caves, and canoe rentals along the Eramosa River — free to explore beyond admission.",
+    cost_tier: '$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Rockwood Conservation Area 161 Fall Street South'),
+    lat: 43.6119, lng: -80.1490,
+    wow: true, seasonal: 'summer'
+  },
+  {
     id: 'cur-humber-paddle',
     title: "Paddle the Humber River from Old Mill",
     category: 'water',
