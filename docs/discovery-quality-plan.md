@@ -5,9 +5,9 @@ search returned unrelated results (splash pads for a food-and-drinks
 outdoor query), rooftop coverage read weaker than a general-purpose
 Gemini search on the same query, and images/rendering had visible
 problems. Below is what's actually verified in the code (not guessed),
-plus a prioritized fix plan. The Gemini screenshot referenced wasn't
-attached — re-send it and I'll fold a direct comparison in, but the
-three issues below don't need it to act on.
+plus a prioritized fix plan. The Gemini screenshots were provided after
+the initial plan — see Issue 4 for the direct comparison and a concrete,
+buildable fix using infrastructure DayHop already has.
 
 ---
 
@@ -122,14 +122,70 @@ likely presentation and reliability, not missing data fields:
    info grid into a chip row, make the hero image larger/full-bleed,
    and give the photo gallery a proper grid instead of an inline strip.
 
+## Issue 4: direct Gemini comparison (screenshots reviewed 2026-09-20)
+
+Two Gemini exchanges were reviewed: (1) "find the prices" for Koré
+Rooftop, (2) a follow-up "find other rooftops in the GTA," returning a
+list (KŌST, Lavelle, The Rooftop, ...). Each list result showed: a
+photo, star rating (4.4, 3.7, 4.3), a price range where available
+(CA$30–CA$80), a category tag, **live open/closed status with the
+specific closing/opening time** ("Open · Closes 10:00 PM"), a
+descriptive paragraph, and bulleted "Highlights" and "Vibe" tags. The
+price query separately returned an itemized menu breakdown (appetizers
+$14–$22, mains $22–$45+, desserts/drinks $12–$22, private event
+packages $150–$350+) sourced from the venue's Facebook page and
+website.
+
+**What this actually reveals — verified against DayHop's own code, not
+assumed:** Gemini's per-result richness (rating, live hours, price tier)
+maps closely to fields DayHop's `routes/details.js` **already
+requests** from Google Place Details (`place.rating`, `place.open_now`,
+`place.open_hours` are already used in the detail panel, per Issue 3).
+The real gaps are two specific, fixable ones:
+
+1. **That richness only shows in the detail panel, one click deep — not
+   on the main feed cards**, where Gemini shows it immediately in the
+   list. `public/app.js`'s card markup (line ~1983) doesn't render
+   `idea.rating`/open-status/price at the card level at all, only in
+   the detail panel's `<dl>`. Surfacing rating + open-now + cost_tier
+   directly on the card (a small badge row, matching how Gemini's list
+   leads with them) would close this without needing new data sources.
+
+2. **The itemized price breakdown Gemini produced isn't something
+   Google Places data contains at all** — Places only exposes a coarse
+   1–4 `price_level`, never itemized menu ranges. Gemini got that by
+   doing a **live web search** (crawling the venue's Facebook post and
+   website) and synthesizing it, then citing sources. DayHop's
+   equivalent function, `services/grok.js`'s `placeFacts()` (line 608),
+   deliberately does **not** search the web — it calls `callGrok()` (a
+   plain completion) and is explicitly instructed to rely on general
+   knowledge and never invent specifics, which is why it returns generic
+   facts/tips rather than sourced pricing. DayHop already has the
+   infrastructure to close this gap: `callGrokSearch()` (`services/grok.js`
+   line 672, "live web/X search via /v1/responses") is already used in
+   production by `services/talkOfTown.js`. Extending `placeFacts()` — or
+   adding a sibling call — to use `callGrokSearch()` specifically for
+   `food`/`patios`-category places, asking for a real price-range
+   summary with the same no-fabrication discipline (only report what a
+   citation actually supports), would let DayHop match this specific
+   capability using a tool it already has in production, not a new
+   integration.
+
+**Fix, phased:**
+1. Card-level badges (rating, open-now, cost_tier) — cheap, uses data
+   already fetched for the detail panel, no new API cost.
+2. Search-grounded price summary for food/patios categories via
+   `callGrokSearch()` — real but bounded scope: one new prompt + one
+   category-gated call site, reusing existing search infrastructure.
+
 ## What I need from you to close the loop
 
-1. **The Gemini screenshot** — wasn't attached to the report. Once I see
-   it, I can check specifically what makes its rooftop coverage look
-   deeper (more results? better photos? richer per-result info?) and
-   fold that into Issue 3's visual pass.
-2. **Sign-off to implement Issues 1 and 2 now** — both are scoped, low-
+1. **Sign-off to implement Issues 1 and 2 now** — both are scoped, low-
    risk, and don't need a design decision (theme trigger fix + onerror
    fallback pattern already proven elsewhere in the file).
-3. **Direction on Issue 3's visual pass** — chip-row layout as described
+2. **Direction on Issue 3's visual pass** — chip-row layout as described
    above, or a different direction you have in mind.
+3. **Sign-off on Issue 4's two fixes** — card-level badges (cheap) and/or
+   the search-grounded price summary for food/patios (real but bounded
+   new cost: each `callGrokSearch()` call has its own usage cost, unlike
+   the plain `callGrok()` calls already budgeted for facts).
