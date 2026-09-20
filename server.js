@@ -557,13 +557,23 @@ app.get('/.well-known/assetlinks.json', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'));
 });
 
-// SPA fallback — must stay last. Serves the hash-rewritten shell when the
-// build produced one (production), the source shell otherwise (dev). Every
-// real page (/playbook, /guides, /blog/:slug, /g/:shareId, ...) has its own
-// explicit route above, so anything reaching here is a genuinely unknown
-// path — a typo, a dead link, a bot probe — and must answer 404, not 200
-// (a "soft 404": Google Search Console flags a 200-status unknown page as
-// an indexing problem, not a graceful catch-all).
+// The SPA's actual home — no dedicated route existed for this before, so it
+// was silently relying on the catch-all below. Must stay explicit and above
+// it: the catch-all now answers 404, and '/' is the one path this shell
+// legitimately serves with 200. In-page state (panels, filters) rides
+// pushState/replaceState on this same path (see public/app.js) rather than
+// routing to a different one, so this is the only entry point that needs it.
+app.get('/', (req, res) => {
+  res.sendFile(hasHashedShell ? hashedIndex : path.join(__dirname, 'public', 'index.html'));
+});
+
+// SPA fallback — must stay last. Every real page (/playbook, /guides,
+// /blog/:slug, /g/:shareId, the '/' route above, ...) has its own explicit
+// route, so anything reaching here is a genuinely unknown path — a typo, a
+// dead link, a bot probe — and must answer 404, not 200 (a "soft 404":
+// Google Search Console flags a 200-status unknown page as an indexing
+// problem, not a graceful catch-all). Still serves the shell so a client-
+// side deep link that only exists in app state doesn't dead-end visually.
 app.get('*', (req, res) => {
   res.status(404).sendFile(hasHashedShell ? hashedIndex : path.join(__dirname, 'public', 'index.html'));
 });
