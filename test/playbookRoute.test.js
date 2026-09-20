@@ -27,12 +27,16 @@ test('playbook: anonymous teaser is indexable, token view stays noindex', async 
     const teaser = await (await fetch(`${base}/playbook`)).text();
     assert.ok(!/noindex/i.test(teaser), 'anonymous /playbook must not carry a noindex tag');
     assert.match(teaser, /GTA Family Weekend Playbook/);
+    assert.match(teaser, new RegExp(`<link rel="canonical" href="http://127\\.0\\.0\\.1:${srv.address().port}/playbook">`),
+      'canonical must point at the bare /playbook URL');
 
     // No confirmed subscriber behind this token in memory mode, so it falls
     // back to the same teaser render path - but through the branch that
     // still must default to noindex once a real token IS confirmed.
     const withBadToken = await (await fetch(`${base}/playbook?t=not-a-real-token`)).text();
     assert.ok(!/noindex/i.test(withBadToken), 'an unconfirmed token still renders the public teaser, not noindex');
+    assert.doesNotMatch(withBadToken, /\/playbook\?t=/,
+      'the canonical must strip the ?t= token, never point at the per-subscriber URL');
   } finally {
     srv.close();
   }

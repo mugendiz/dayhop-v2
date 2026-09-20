@@ -558,9 +558,14 @@ app.get('/.well-known/assetlinks.json', (req, res) => {
 });
 
 // SPA fallback — must stay last. Serves the hash-rewritten shell when the
-// build produced one (production), the source shell otherwise (dev).
+// build produced one (production), the source shell otherwise (dev). Every
+// real page (/playbook, /guides, /blog/:slug, /g/:shareId, ...) has its own
+// explicit route above, so anything reaching here is a genuinely unknown
+// path — a typo, a dead link, a bot probe — and must answer 404, not 200
+// (a "soft 404": Google Search Console flags a 200-status unknown page as
+// an indexing problem, not a graceful catch-all).
 app.get('*', (req, res) => {
-  res.sendFile(hasHashedShell ? hashedIndex : path.join(__dirname, 'public', 'index.html'));
+  res.status(404).sendFile(hasHashedShell ? hashedIndex : path.join(__dirname, 'public', 'index.html'));
 });
 
 // Centralized error handler — catches anything thrown synchronously in routes.
