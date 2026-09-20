@@ -582,6 +582,45 @@ module.exports = [
     wow: false, seasonal: 'summer'
   },
   {
+    // Founder-flagged via Instagram (@jenzjourneys), Sep 2026. Verified:
+    // Conservation Halton, 5234 Kelso Rd, Milton. Same site as
+    // cur-kelso-mtb but a different bookable experience (chairlift, not
+    // biking) - not a duplicate, same logic as cur-upla-stouffville next to
+    // cur-treetop-trekking. seasonal:'summer' maps to Apr-Oct per
+    // data/seasons.js isCatalogSeasonEligible, which correctly covers the
+    // fall-foliage chairlift season (weekends, through Thanksgiving) without
+    // inventing an unsupported 'fall' literal.
+    id: 'cur-kelso-chairlift',
+    title: "Kelso's escarpment chairlift — fall foliage from above",
+    category: 'adventures',
+    tags: ['chairlift', 'fall colours', 'escarpment', 'views', 'scenic', 'day trip'],
+    location: "Milton",
+    venue: "Kelso Conservation Area",
+    description: "A 2-way chairlift up the Niagara Escarpment for fall-foliage views — weekends through Thanksgiving. ~$10.50/pp entrance + ~$8/pp chairlift (cheaper booked online).",
+    cost_tier: '$$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Kelso Conservation Area chairlift Milton'),
+    lat: 43.5067, lng: -79.9408,
+    wow: true, seasonal: 'summer'
+  },
+  {
+    // Same site, winter identity: Glen Eden Ski & Snowboard Centre operates
+    // on Kelso's escarpment hill mid-Dec to mid-March (weather/snow
+    // permitting). Ticket pricing not independently verified (source reel
+    // only priced the fall chairlift) - cost_tier is a category estimate for
+    // a ski hill, not a sourced figure; description avoids stating a price.
+    id: 'cur-glen-eden-skiing',
+    title: "Glen Eden — a family ski hill on Kelso's escarpment",
+    category: 'adventures',
+    tags: ['skiing', 'snowboarding', 'winter', 'chairlift', 'beginner', 'escarpment', 'family'],
+    location: "Milton",
+    venue: "Glen Eden Ski & Snowboard Centre (Kelso Conservation Area)",
+    description: "Kelso's hill becomes a family ski/snowboard centre in winter — 3 chairlifts plus carpet lifts for beginners. Open mid-December to mid-March, weather and snow permitting.",
+    cost_tier: '$$$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Glen Eden Ski and Snowboard Centre Milton'),
+    lat: 43.5067, lng: -79.9408,
+    wow: true, seasonal: 'winter'
+  },
+  {
     id: 'cur-rattlesnake-climbing',
     title: "Learn outdoor rock climbing at Rattlesnake Point",
     category: 'adventures',
