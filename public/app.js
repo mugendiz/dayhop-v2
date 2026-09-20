@@ -1980,7 +1980,8 @@
 
     card.innerHTML = `
       <div class="card-photo">
-        <img src="${escapeAttr(proxiedImage(idea.image_url || categoryImage(idea.category), 640))}" alt="" loading="lazy" decoding="async">
+        <img src="${escapeAttr(proxiedImage(idea.image_url || categoryImage(idea.category), 640))}" alt="" loading="lazy" decoding="async"
+          onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(idea.category))}'">
         <span class="card-stamp">STOP ${stopNumber}</span>
         ${bestMatch ? '<span class="card-badge card-badge--best">🎯 Best match for you</span>' : ''}
         ${idea.sponsored ? '<span class="card-badge card-badge--sponsored">⭐ Sponsored</span>' : ''}
@@ -2113,7 +2114,8 @@
     card.innerHTML = `
       <div class="best-match-inner">
         <div class="best-match-photo">
-          <img src="${escapeAttr(proxiedImage(idea.image_url || categoryImage(idea.category, 1200), 960))}" alt="" decoding="async" fetchpriority="high">
+          <img src="${escapeAttr(proxiedImage(idea.image_url || categoryImage(idea.category, 1200), 960))}" alt="" decoding="async" fetchpriority="high"
+            onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(idea.category, 1200))}'">
           <span class="best-match-flag">✦ Best match for you</span>
         </div>
         <div class="best-match-body">
@@ -2394,7 +2396,8 @@
     const onDay = Boolean(state.shortlist.find(i => i.id === idea.id));
     document.getElementById('detail-content').innerHTML = `
       <div class="detail-photo">
-        <img src="${escapeAttr(proxiedImage(idea.image_url || categoryImage(idea.category), 640))}" alt="" loading="lazy">
+        <img src="${escapeAttr(proxiedImage(idea.image_url || categoryImage(idea.category), 640))}" alt="" loading="lazy"
+          onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(idea.category))}'">
       </div>
       <span class="card-category">${categoryLabel}</span>
       <p class="detail-why">${escapeHtml(idea.why || '')}</p>
@@ -2481,14 +2484,17 @@
     current.innerHTML = data ? detailMoreHtml(data, idea) : '';
   }
 
-  function detailMoreHtml({ place, facts }, idea) {
+  function detailMoreHtml({ place, facts, priceDetail }, idea) {
     const parts = [];
 
     // More photos — skip when all we'd show is the hero image again.
     const photos = (place && place.photos || []).filter(u => u !== idea.image_url);
     if (photos.length > 1) {
+      // A failed gallery photo is removed rather than swapped for a category
+      // stock photo — unlike the hero, these are meant to be real venue
+      // photos, so a generic placeholder among them would be misleading.
       parts.push(`<div class="detail-gallery">${photos.map(u =>
-        `<img src="${escapeAttr(proxiedImage(u, 480))}" alt="" loading="lazy" decoding="async">`).join('')}</div>`);
+        `<img src="${escapeAttr(proxiedImage(u, 480))}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`).join('')}</div>`);
     }
 
     // Right now: live open state (Google) + typical crowd rhythm (Grok).
@@ -2501,6 +2507,19 @@
 
     if (place && place.editorial_summary) {
       parts.push(`<p class="detail-summary">${escapeHtml(place.editorial_summary)}</p>`);
+    }
+
+    // Search-grounded price detail (food/patios/couples only, real numbers
+    // with a source, never a guess) — shown only when the search actually
+    // found something; a missing section beats a fabricated one.
+    if (priceDetail && (priceDetail.summary || priceDetail.ranges.length)) {
+      parts.push(`<h4 class="detail-more-title">Menu &amp; pricing</h4>`);
+      if (priceDetail.summary) parts.push(`<p class="detail-price-summary">${escapeHtml(priceDetail.summary)}</p>`);
+      if (priceDetail.ranges.length) {
+        parts.push(`<ul class="detail-price-ranges">${priceDetail.ranges.map(r =>
+          `<li><span class="detail-price-label">${escapeHtml(r.label)}</span><span class="detail-price-range">${escapeHtml(r.range)}</span></li>`).join('')}</ul>`);
+      }
+      if (priceDetail.source_note) parts.push(`<p class="detail-price-source">Source: ${escapeHtml(priceDetail.source_note)}</p>`);
     }
 
     const factList = (facts && facts.facts || []).slice(0, 4);
@@ -2982,7 +3001,7 @@
           ${stop.changed ? '<span class="plan-changed-badge">✨ Updated</span>' : ''}
           ${timeHtml}
           <h3>${escapeHtml(stop.title || idea.title || '')}</h3>
-          ${idea.image_url && !state.editMode ? `<div class="plan-stop-photo"><img src="${escapeAttr(proxiedImage(idea.image_url, 480))}" alt="" loading="lazy"></div>` : ''}
+          ${idea.image_url && !state.editMode ? `<div class="plan-stop-photo"><img src="${escapeAttr(proxiedImage(idea.image_url, 480))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(idea.category))}'"></div>` : ''}
           ${idea.why && !state.editMode ? `<p class="plan-stop-why">${escapeHtml(idea.why)}</p>` : ''}
           ${facts.length && !state.editMode ? `<p class="plan-stop-facts">${facts.join(' · ')}</p>` : ''}
           ${!state.editMode ? bookingLinksHtml(idea, 'stop') : ''}
@@ -5511,7 +5530,7 @@
       card.type = 'button';
       card.className = 'collection-card';
       const thumbs = ideas.slice(0, 3).map(i =>
-        `<img src="${escapeAttr(i.image_url || categoryImage(i.category, 200))}" alt="" loading="lazy">`).join('');
+        `<img src="${escapeAttr(i.image_url || categoryImage(i.category, 200))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(i.category, 200))}'">`).join('');
       card.innerHTML = `
         <span class="collection-thumbs">${thumbs}</span>
         <span class="collection-text">
