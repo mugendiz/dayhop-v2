@@ -2162,6 +2162,10 @@
     const chips = [];
     const conflict = advisoryConflictChip(idea);
     if (conflict) chips.push(`<span class="card-chip card-chip--advisory" title="An advisory is in effect for this area">⚠️ Outdoors — ${escapeHtml(conflict)}</span>`);
+    // Live open/closed — the single highest-value "can I go right now" signal,
+    // so it leads the row rather than sitting behind a click into details.
+    if (idea.open_now === true) chips.push('<span class="card-chip card-chip--open">● Open now</span>');
+    else if (idea.open_now === false) chips.push('<span class="card-chip card-chip--closed">● Closed now</span>');
     if (idea.distance_km != null) chips.push(`<span class="card-chip card-chip--near">📍 ${escapeHtml(String(idea.distance_km))} km</span>`);
     if (idea.date) chips.push(`<span class="card-chip card-chip--date">📅 ${escapeHtml(formatEventRange(idea.date, idea.date_end))}</span>`);
     if (idea.newly_opened) chips.push('<span class="card-chip card-chip--new" title="Recently opened">✨ Just opened</span>');
