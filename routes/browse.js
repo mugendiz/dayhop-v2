@@ -647,6 +647,7 @@ function toBrowseIdea(c) {
     maps_url: c.maps_url || null,
     website: c.website || null,
     rating: c.rating != null ? c.rating : null,
+    open_now: c.open_now != null ? c.open_now : null,
     price_from: c.price_from != null ? c.price_from : null,
     currency: c.currency || null,
     image_url: c.image_url || null,
@@ -703,3 +704,6 @@ module.exports.warmDefaultPool = warmDefaultPool;
 module.exports.cacheKey = cacheKey;
 module.exports.syntheticPrompt = syntheticPrompt;
 module.exports.daypartOrder = daypartOrder;
+// Exported for the card-badge invariant test (test/ideaOpenNow.test.js) —
+// pure function over a candidate object, no network.
+module.exports.toBrowseIdea = toBrowseIdea;

@@ -261,6 +261,7 @@ function toFeedIdea(c) {
     maps_url: c.maps_url || null,
     website: c.website || null,
     rating: c.rating != null ? c.rating : null,
+    open_now: c.open_now != null ? c.open_now : null,
     price_from: c.price_from != null ? c.price_from : null,
     currency: c.currency || null,
     image_url: c.image_url || null,
@@ -279,3 +280,6 @@ module.exports = router;
 // function over candidate objects, no network.
 module.exports.buildSurpriseSections = buildSurpriseSections;
 module.exports.DRIVE_MAX_KM = DRIVE_MAX_KM;
+// Exported for the card-badge invariant test (test/ideaOpenNow.test.js) —
+// pure function over a candidate object, no network.
+module.exports.toFeedIdea = toFeedIdea;

@@ -1330,6 +1330,8 @@ button.date-clear-btn { padding: 13px 4px; }
 .card-chip--date { background: rgba(255,182,39,0.16); color: var(--ink); }
 .card-chip--advisory { background: rgba(217,119,6,0.14); color: #8a4b04; font-weight: 600; }
 .card-chip--near { background: rgba(255,107,74,0.12); color: var(--coral-dark); font-weight: 600; }
+.card-chip--open { background: rgba(63,111,92,0.14); color: var(--moss); font-weight: 600; }
+.card-chip--closed { background: var(--paper-dim); color: var(--ink-soft); }
 
 /* Location dropdown action rows (use-my-location / free-text search). */
 .location-option--geo .opt-city { color: var(--coral-dark); font-weight: 500; }
