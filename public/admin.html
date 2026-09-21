@@ -479,7 +479,7 @@
       </table>
       <p class="rate">Cadence: opener sends after owner approval → bump on day 4 → one closing note on day 10,
         then it stops. Replies land at admin@dayhop.quest — mark the row <strong>Replied</strong>, then
-        <strong>Send code</strong> fires the FOUNDING50 email on the same thread. Pausing a row stops
+        <strong>Send code</strong> fires the FOUNDING email on the same thread. Pausing a row stops
         everything instantly; opt-out suppresses it forever.</p>
     </div>
     </section>
@@ -937,7 +937,7 @@
         await crmPost('/' + row.id + '/stage', { stage: act });
         crmMsg(row.name + ' marked ' + act + '.', true);
       } else if (act === 'code') {
-        if (!confirm('Email the FOUNDING50 code to ' + row.name + ' (' + row.email + ') now?')) return;
+        if (!confirm('Email the FOUNDING code to ' + row.name + ' (' + row.email + ') now?')) return;
         await crmPost('/' + row.id + '/send-code');
         crmMsg('Code sent to ' + row.name + '.', true);
       } else if (act === 'pause') {

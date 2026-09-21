@@ -274,8 +274,17 @@ async function recordEmailEvent(resendId, type) {
   return true;
 }
 
+// The live founding-partner terms, as published on /advertise — kept here so
+// the one-click reply below can't drift from the page the prospect will
+// actually land on (the exact drift that burned the Sep 8 guide customer
+// per services/promo.js: copy updated, checkout wasn't, and the customer
+// was quoted a price the page never promised).
+const FOUNDING_CODE = 'FOUNDING';
+const FOUNDING_TERMS = '$99/mo Spotlight, locked in until your monthly report shows 500+ families ' +
+  'seeing your venue — then list price with 30 days\' notice, or cancel anytime';
+
 /**
- * The FOUNDING50 one-clicker: when a prospect replies interested, staff hit
+ * The FOUNDING one-clicker: when a prospect replies interested, staff hit
  * one button and the code + signup link goes out on the same thread. Logs to
  * the audit trail; does not change stage (a human decides won/lost).
  */
@@ -290,7 +299,7 @@ async function sendCoupon(id, actor) {
 
 Great to hear from you. Here is everything you need:
 
-Coupon code: FOUNDING50 (50% off your first three months)
+Coupon code: ${FOUNDING_CODE} (${FOUNDING_TERMS})
 Sign up here: https://dayhop.quest/advertise?utm_source=outreach&utm_campaign=founding
 
 The whole thing takes a few minutes online, and you can cancel anytime. If anything is unclear while you set it up, just reply here and I will sort it out the same day.
@@ -422,5 +431,7 @@ module.exports = {
   list, get, history, upsert, approve, setStage, setSuppressed, addNote,
   tick, recordEmailEvent, summary, sendCoupon,
   roleFor, listTeam, addTeamMember, removeTeamMember,
-  transferOwnership, ensureOwnerSeed
+  transferOwnership, ensureOwnerSeed,
+  // Exported for the copy-drift regression test (test/outreachCoupon.test.js).
+  FOUNDING_CODE, FOUNDING_TERMS
 };

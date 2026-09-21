@@ -493,7 +493,7 @@ router.post('/crm/:id/approve', requireAdmin, async (req, res) => {
   }
 });
 
-// FOUNDING50 one-clicker: reply came in, send the code on the same thread.
+// FOUNDING one-clicker: reply came in, send the code on the same thread.
 router.post('/crm/:id/send-code', requireStaff, async (req, res) => {
   try {
     res.json(await outreachSvc.sendCoupon(req.params.id, req.adminActor));
