@@ -63,7 +63,7 @@ Andrew from DayHop, just adding a short note in case my last email got buried.
 
 ${hook}DayHop shows GTA families what to do on the weekend, and I would genuinely like ${row.name} in there for the season. Setup is online and takes a few minutes.
 
-If it sounds useful, reply and I will send the founding partner 50% coupon code. If the timing is wrong, no worries at all.
+If it sounds useful, reply and I will send the founding partner rate. If the timing is wrong, no worries at all.
 
 ${SIG}`
   };
@@ -78,7 +78,7 @@ function closeMessage(row) {
 
 Andrew from DayHop, closing the loop so I stop showing up in your inbox.
 
-The founding partner offer stays open if the timing ever gets better, and ${row.name} keeps showing up organically in DayHop either way when it fits what a family asked for. If you ever want the 50% coupon code, it is one reply away.
+The founding partner offer stays open if the timing ever gets better, and ${row.name} keeps showing up organically in DayHop either way when it fits what a family asked for. If you ever want the founding partner rate, it is one reply away.
 
 Thanks for reading these, and have a great season.
 
@@ -281,7 +281,26 @@ async function recordEmailEvent(resendId, type) {
 // was quoted a price the page never promised).
 const FOUNDING_CODE = 'FOUNDING';
 const FOUNDING_TERMS = '$99/mo Spotlight, locked in until your monthly report shows 500+ families ' +
-  'seeing your venue — then list price with 30 days\' notice, or cancel anytime';
+  'seeing your venue. Then list price applies, with 30 days\' notice, or cancel anytime';
+
+/** Pure message builder, exported for the house-style test (test/copyStyle.test.js). */
+function couponMessage(row) {
+  const first = (row.contact_name || '').trim();
+  const greeting = first ? `Hi ${first},` : `Hi ${row.name} team,`;
+  return {
+    subject: `Re: ${openerSubject(row)}`,
+    text: `${greeting}
+
+Great to hear from you. Here is everything you need.
+
+Coupon code: ${FOUNDING_CODE} (${FOUNDING_TERMS})
+Sign up here: https://dayhop.quest/advertise?utm_source=outreach&utm_campaign=founding
+
+The whole thing takes a few minutes online, and you can cancel anytime. If anything is unclear while you set it up, just reply here and I will sort it out the same day.
+
+${SIG}`
+  };
+}
 
 /**
  * The FOUNDING one-clicker: when a prospect replies interested, staff hit
@@ -291,21 +310,7 @@ const FOUNDING_TERMS = '$99/mo Spotlight, locked in until your monthly report sh
 async function sendCoupon(id, actor) {
   const row = await get(id);
   if (!row) throw new Error(`unknown outreach row: ${id}`);
-  const first = (row.contact_name || '').trim();
-  const greeting = first ? `Hi ${first},` : `Hi ${row.name} team,`;
-  const message = {
-    subject: `Re: ${openerSubject(row)}`,
-    text: `${greeting}
-
-Great to hear from you. Here is everything you need:
-
-Coupon code: ${FOUNDING_CODE} (${FOUNDING_TERMS})
-Sign up here: https://dayhop.quest/advertise?utm_source=outreach&utm_campaign=founding
-
-The whole thing takes a few minutes online, and you can cancel anytime. If anything is unclear while you set it up, just reply here and I will sort it out the same day.
-
-${SIG}`
-  };
+  const message = couponMessage(row);
   const res = await sendEmail({
     to: row.email,
     subject: message.subject,
@@ -433,5 +438,8 @@ module.exports = {
   roleFor, listTeam, addTeamMember, removeTeamMember,
   transferOwnership, ensureOwnerSeed,
   // Exported for the copy-drift regression test (test/outreachCoupon.test.js).
-  FOUNDING_CODE, FOUNDING_TERMS
+  FOUNDING_CODE, FOUNDING_TERMS,
+  // Exported for the house-style test (test/copyStyle.test.js) — pure
+  // template functions over a row object, no network.
+  bumpMessage, closeMessage, couponMessage
 };

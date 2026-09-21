@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DayHop Guide</title>
-<meta name="description" content="A DayHop day guide — real places, real plans.">
+<meta name="description" content="A DayHop day guide. Real places, real plans.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
@@ -267,7 +267,7 @@
   <div id="guide-root">
     <div class="status"><h1>Loading your guide…</h1></div>
   </div>
-  <p class="footer-cta">Made with <a href="/">DayHop</a> — plan your perfect day in one sentence.</p>
+  <p class="footer-cta">Made with <a href="/">DayHop</a>. Plan your perfect day in one sentence.</p>
 </div>
 
 <div class="export-bar" id="export-bar" hidden>
@@ -409,7 +409,7 @@
     var body = groups.map(function (day) {
       var rows = (day.stops || []).map(function (stop, i) {
         return '<li><span class="ov-time">' + esc(stop.suggested_time || '·') + '</span><span>' +
-          String(i + 1).padStart(2, '0') + ' — ' + esc(stop.title) + '</span></li>';
+          String(i + 1).padStart(2, '0') + ': ' + esc(stop.title) + '</span></li>';
       }).join('');
       return (day.label ? '<p class="ov-day">' + esc(day.label) + '</p>' : '') + '<ol>' + rows + '</ol>';
     }).join('');
@@ -430,7 +430,7 @@
       } else if (idea.cost_tier) {
         val = idea.cost_tier === 'free' ? 'free' : idea.cost_tier;
         if (idea.cost_tier !== 'free') unpriced++;
-      } else { unpriced++; val = '—'; }
+      } else { unpriced++; val = 'n/a'; }
       rows += '<div class="cost-row"><span class="c-name">' + esc(stop.title) + '</span><span class="c-val">' + esc(val) + '</span></div>';
     });
     if (!priced && !unpriced) return '';
@@ -510,7 +510,7 @@
       '</div>';
     }).join('');
 
-    document.title = (g.title || 'DayHop Guide') + ' — DayHop';
+    document.title = (g.title || 'DayHop Guide') + ': DayHop';
     document.getElementById('guide-root').innerHTML =
       '<div class="guide-head">' +
         '<h1>' + esc(g.title || 'Your day, mapped out') + '</h1>' +
@@ -527,7 +527,7 @@
       dayNotesHtml() +
       '<div class="print-footer"><div class="qr">' + qrSvg(pageUrl) + '</div>' +
         '<div>Scan to reopen this guide with live maps &amp; booking links.<br>' + esc(pageUrl) +
-        '<br>Made with DayHop — plan your perfect day in one sentence.</div></div>';
+        '<br>Made with DayHop. Plan your perfect day in one sentence.</div></div>';
 
     // A stop photo that never loads used to leave a tall bordered box with the
     // browser's broken-image glyph in it. Try the original host once (in case
@@ -575,7 +575,7 @@
     if (!g.days && g.start_time) lines.push('Starts around ' + g.start_time);
     lines.push('');
     dayGroups(g).forEach(function (day) {
-      if (day.label) lines.push('— ' + day.label + (day.start_time ? ' (starts around ' + day.start_time + ')' : '') + ' —');
+      if (day.label) lines.push(day.label + (day.start_time ? ' (starts around ' + day.start_time + ')' : ''));
       (day.stops || []).forEach(function (stop, i) {
         var idea = stop.idea || {};
         lines.push((i + 1) + '. ' + stop.title + (stop.suggested_time ? ' (' + stop.suggested_time + ')' : ''));
@@ -603,7 +603,7 @@
       }
       (day.stops || []).forEach(function (stop, i) {
         var idea = stop.idea || {};
-        md.push('## ' + (i + 1) + '. ' + stop.title + (stop.suggested_time ? ' — ' + stop.suggested_time : ''));
+        md.push('## ' + (i + 1) + '. ' + stop.title + (stop.suggested_time ? ' (' + stop.suggested_time + ')' : ''));
         if (idea.why) md.push(idea.why);
         if (idea.location) md.push('- 📍 ' + idea.location);
         if (stop.note) md.push('- 📝 ' + stop.note);
@@ -616,14 +616,14 @@
     });
     if (g.notes) md.push('> 💬 ' + g.notes);
     md.push('');
-    md.push('Made with [DayHop](' + window.location.origin + ') — full guide: ' + pageUrl);
+    md.push('Made with [DayHop](' + window.location.origin + '). Full guide: ' + pageUrl);
     return md.join('\n');
   }
 
   function wireExports() {
     var g = guide.guide || {};
     var shareTitle = g.title || 'My DayHop day guide';
-    var shareText = shareTitle + (g.city ? ' — ' + g.city : '');
+    var shareText = shareTitle + (g.city ? ', ' + g.city : '');
 
     document.getElementById('btn-share').addEventListener('click', function () {
       if (navigator.share) {
