@@ -301,6 +301,25 @@
         </div>
       </dialog>
     </div>
+
+    <div class="card" id="tott-newsletter-card">
+      <h2>Newsletter — Talk of the town 🔥</h2>
+      <p class="rate" style="margin:0 0 10px">
+        Same subscriber list, a second weekly issue: goes out automatically
+        <strong>Mondays 9 AM Toronto</strong> (when Resend is configured),
+        sourced live from the Talk of the town shelf above — whatever's
+        pinned or verified there is what ships. An event drops off this email
+        the same moment it drops off the site: no separate cleanup step.
+      </p>
+      <div id="tott-newsletter-stats" class="rate" style="margin:0 0 12px">Loading…</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button id="tnl-preview" type="button">Preview this week's issue</button>
+        <input id="tnl-test-email" type="email" placeholder="test@you.com" style="font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line,#ddd);border-radius:8px">
+        <button id="tnl-test" type="button">Send test</button>
+        <button id="tnl-send" type="button">Send to all subscribers now</button>
+      </div>
+      <div id="tott-newsletter-msg" class="rate" style="margin-top:10px"></div>
+    </div>
     </section>
 
     <section class="tab-panel" id="tab-ops">
@@ -1571,6 +1590,12 @@
         (last ? '<br>Last send: ' + esc(new Date(last.at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })) +
           ' — ' + fmt(last.sent) + '/' + fmt(last.recipients) + (last.test ? ' (test)' : '') + ' · “' + esc(last.subject) + '”' : '');
       if (lastAuth.email && !$('nl-test-email').value) $('nl-test-email').value = lastAuth.email;
+      if (lastAuth.email && !$('tnl-test-email').value) $('tnl-test-email').value = lastAuth.email;
+      const tlast = data.tott_digest && data.tott_digest.last_run;
+      $('tott-newsletter-stats').innerHTML = tlast
+        ? 'Last send: ' + esc(new Date(tlast.at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })) +
+          ' — ' + fmt(tlast.sent) + '/' + fmt(tlast.recipients) + (tlast.test ? ' (test)' : '') + ' · “' + esc(tlast.subject) + '”'
+        : 'No sends yet.';
       // Subscriber list (up to 100 most recent). Supabase stays the source of
       // truth — this is a live view, not a copy.
       const fd = iso => iso ? new Date(iso).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }) : '—';
@@ -1636,6 +1661,59 @@
       nlMsg('Sent ' + fmt(data.sent) + '/' + fmt(data.recipients) + ' — “' + data.subject + '”', true);
       loadNewsletter();
     } catch (e) { nlMsg(e.message); }
+  });
+
+  // ---------- Talk of the town newsletter (Mondays) ----------
+  function tnlMsg(text, ok) {
+    $('tott-newsletter-msg').innerHTML = ok ? '<span style="color:#12855C;font-weight:600">' + esc(text) + '</span>' : esc(text);
+  }
+
+  $('tnl-preview').addEventListener('click', async () => {
+    if (!lastAuth) return;
+    tnlMsg('Building preview…', true);
+    try {
+      const res = await fetch('/api/admin/newsletter/tott-preview', { headers: lastAuth.headers });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message || 'Error ' + res.status); }
+      const html = await res.text();
+      const w = window.open('', '_blank');
+      if (w) { w.document.write(html); w.document.close(); tnlMsg('Preview opened in a new tab.', true); }
+      else tnlMsg('Popup blocked — allow popups for this page and retry.');
+    } catch (e) { tnlMsg(e.message); }
+  });
+
+  $('tnl-test').addEventListener('click', async () => {
+    if (!lastAuth) return;
+    const email = $('tnl-test-email').value.trim();
+    if (!email) return tnlMsg('Enter a test address first.');
+    tnlMsg('Sending test…', true);
+    try {
+      const res = await fetch('/api/admin/newsletter/tott-test-send', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, lastAuth.headers),
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Error ' + res.status);
+      if (data.skipped) throw new Error('Skipped: ' + data.skipped);
+      tnlMsg('Test sent to ' + email + ' — “' + data.subject + '”', true);
+      loadNewsletter();
+    } catch (e) { tnlMsg(e.message); }
+  });
+
+  $('tnl-send').addEventListener('click', async () => {
+    if (!lastAuth) return;
+    tnlMsg('Sending to all confirmed subscribers…', true);
+    try {
+      const res = await fetch('/api/admin/newsletter/tott-send', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, lastAuth.headers)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Error ' + res.status);
+      if (data.skipped) throw new Error('Skipped: ' + data.skipped);
+      tnlMsg('Sent ' + fmt(data.sent) + '/' + fmt(data.recipients) + ' — “' + data.subject + '”', true);
+      loadNewsletter();
+    } catch (e) { tnlMsg(e.message); }
   });
 
   function renderDiscovery(data) {
@@ -1738,7 +1816,7 @@
   // accounting card — it is deliberately NOT in this list.
   const OWNER_ONLY_CARDS = ['affiliate-card', 'premium-card', 'retention-card', 'digest-card',
     'acquisition-card', 'traffic-card', 'users-card', 'events-card', 'discovery-card',
-    'newsletter-card', 'team-card', 'sponsors-card', 'traction-card', 'ops-card', 'sources-card'];
+    'newsletter-card', 'tott-newsletter-card', 'team-card', 'sponsors-card', 'traction-card', 'ops-card', 'sources-card'];
 
   async function loadOperator(headers, email) {
     try {
