@@ -5421,15 +5421,27 @@
   function handleBillingReturn() {
     const params = new URLSearchParams(window.location.search);
     const billing = params.get('billing');
+    const sessionId = params.get('session_id');
     if (!billing) return;
     if (billing === 'success') {
       showToast('Welcome to DayHop Pro 🎉 Unlimited day plans unlocked.', { duration: 5000 });
-      // Webhook processing can lag checkout by a moment.
+      // Don't just wait on the webhook — a Render free-tier cold start can
+      // miss it at the connection level (services/billing.js's
+      // fulfillCheckoutSession comment). Reconcile the session directly
+      // first, same fallback the guide-purchase flow already relies on.
+      (sessionId
+        ? fetch('/api/billing/fulfill', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId })
+          }).catch(() => {})
+        : Promise.resolve()
+      ).then(refreshProStatus);
       setTimeout(refreshProStatus, 2500);
     } else if (billing === 'cancelled') {
       showToast('No worries — Pro is here whenever you want it.');
     }
     params.delete('billing');
+    params.delete('session_id');
     const rest = params.toString();
     window.history.replaceState({}, '', window.location.pathname + (rest ? '?' + rest : ''));
   }

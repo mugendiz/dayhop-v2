@@ -361,10 +361,20 @@ async function createCheckoutSession({ ownerId, email, origin, attrib }) {
           ...(metadata ? { metadata } : {})
         }
       : undefined,
-    success_url: `${origin}/?billing=success`,
+    // The session id rides in the return URL so the thank-you page can
+    // reconcile directly (see routes/billing.js POST /fulfill) instead of
+    // waiting on a webhook that may never arrive — see fulfillCheckoutSession's
+    // comment below for why that's a real risk here, not a hypothetical one.
+    success_url: `${origin}/?billing=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/?billing=cancelled`
   });
   return { id: session.id, url: session.url };
+}
+
+/** Fetch a Checkout Session by id — the thank-you-page fallback's only use
+ * of Stripe directly (routes/billing.js POST /fulfill). */
+async function retrieveCheckoutSession(sessionId) {
+  return getStripe().checkout.sessions.retrieve(sessionId);
 }
 
 /**
@@ -424,8 +434,10 @@ async function handleWebhook(rawBody, signature) {
 //
 // Two paths do now. The webhook is one. The other is the thank-you page,
 // which calls this directly after Stripe redirects the buyer back — because
-// the webhook is not reliable enough to be the only way a paid guide gets
-// delivered. This service runs on Render's free plan, which spins down after
+// the webhook is not reliable enough to be the only way a paid guide OR a
+// Pro subscription gets activated (routes/cityGuides.js POST /fulfill and
+// routes/billing.js POST /fulfill respectively — both funnel through here).
+// This service runs on Render's free plan, which spins down after
 // roughly 15 minutes idle, and a cold start takes longer than Stripe's
 // delivery timeout, so a webhook aimed at a sleeping instance fails at the
 // connection level. That is what Stripe reported on 2026-09-10: "2 requests
@@ -564,4 +576,4 @@ async function dispatchWebhookEvent(event) {
   }
 }
 
-module.exports = { isConfigured, status, isPro, getSubscription, getPriceInfo, createCheckoutSession, setCancelAtPeriodEnd, handleWebhook, fulfillCheckoutSessionOnce, adminSubscriptions, summarizeSubscription };
+module.exports = { isConfigured, status, isPro, getSubscription, getPriceInfo, createCheckoutSession, retrieveCheckoutSession, setCancelAtPeriodEnd, handleWebhook, fulfillCheckoutSessionOnce, adminSubscriptions, summarizeSubscription };

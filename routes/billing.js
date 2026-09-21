@@ -5,11 +5,14 @@
 // billingWebhook before express.json().
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const billing = require('../services/billing');
 const analytics = require('../services/analytics');
 const { entitlementsFor } = require('../services/entitlements');
 const { requireUser } = require('../middleware/auth');
+
+const checkoutLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
 
 function notConfigured(res) {
   return res.status(503).json({
@@ -42,6 +45,36 @@ router.post('/checkout', requireUser, async (req, res) => {
   } catch (err) {
     console.error('[billing] checkout failed:', err.message);
     res.status(502).json({ error: 'CHECKOUT_FAILED', message: 'Could not start checkout. Please try again.' });
+  }
+});
+
+// The thank-you page's half of fulfillment — same reasoning as the city
+// guides' /fulfill (routes/cityGuides.js, services/billing.js's
+// fulfillCheckoutSession comment): a webhook aimed at a sleeping Render free
+// instance fails at the connection level, so the browser reconciles the
+// session directly on the way back from Stripe instead of trusting the
+// webhook to be the only path to activation. The session id is the
+// authorization (Stripe hands it only to the buyer via success_url); every
+// fact used to activate is read back from Stripe, never from the request.
+router.post('/fulfill', checkoutLimiter, async (req, res) => {
+  if (!billing.isConfigured()) return notConfigured(res);
+  const sid = typeof (req.body && req.body.session_id) === 'string' ? req.body.session_id.trim() : '';
+  if (!/^cs_[A-Za-z0-9_]+$/.test(sid)) return res.status(400).json({ error: 'BAD_SESSION' });
+  try {
+    const session = await billing.retrieveCheckoutSession(sid);
+    // A trial checkout is 'no_payment_required' (nothing due yet) — still a
+    // real, completed signup, same test the guide flow uses.
+    const settled = session.payment_status === 'paid' || session.payment_status === 'no_payment_required';
+    if (!settled) return res.status(402).json({ error: 'NOT_PAID', message: 'This checkout has not completed.' });
+    const outcome = await billing.fulfillCheckoutSessionOnce(session, 'thanks-page');
+    console.log('[billing] fulfill via thanks page:', outcome);
+    res.json({ fulfilled: true });
+  } catch (err) {
+    // Never fail the buyer's page over this — the webhook (or a reload) can
+    // still deliver it; this call just removes the dependency on the
+    // instance being awake at the exact moment Stripe's webhook arrives.
+    console.error('[billing] thanks-page fulfill failed:', err.message);
+    res.status(502).json({ error: 'FULFILL_FAILED' });
   }
 });
 
