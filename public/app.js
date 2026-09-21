@@ -4567,12 +4567,20 @@
       if (!res.ok) throw new Error('browse failed');
       const data = await res.json();
       if (progress) progress.finish();
-      if ((data.ideas || []).length) browseCachePut(browseCacheKey(state.mode), { at: Date.now(), data });
-      browseAutoRetried = false; // a success re-arms the auto-retry
-      recordSeenIdeas(data.ideas);
-      if (state.locationChosen && coordsFresh) rememberCorridorPoint(state.coords, state.city);
-      applyBrowsePayload(data);
-      prefetchOtherModeFeed();
+      const hasFresh = (data.ideas || []).length > 0;
+      if (hasFresh) browseCachePut(browseCacheKey(state.mode), { at: Date.now(), data });
+      browseAutoRetried = false; // a success (fresh or empty) re-arms the auto-retry
+      if (hasFresh) {
+        recordSeenIdeas(data.ideas);
+        if (state.locationChosen && coordsFresh) rememberCorridorPoint(state.coords, state.city);
+        applyBrowsePayload(data);
+        prefetchOtherModeFeed();
+      } else if (!staleShown) {
+        // A genuinely empty result is the same dead end as a failed request —
+        // today's escapes must never fall through to the type-a-prompt empty
+        // state while a retry could still turn up something real.
+        renderBrowseRetry();
+      }
     } catch (err) {
       if (progress) progress.fail();
       if (err.name === 'AbortError') return;

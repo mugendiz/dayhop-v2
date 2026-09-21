@@ -133,6 +133,8 @@ router.post('/', async (req, res) => {
       } catch (err) { /* the radar is a bonus, never a failure */ }
     }
 
+    evenOutIdeas(ideas, candidates, layout);
+
     const featured = pickFeatured(candidates, geo);
     // Real venue photos for curated/open-data cards. Personalized feeds are
     // built per request, but findPhotoUrl caches per venue for 24 h, so the
@@ -664,6 +666,27 @@ function toBrowseIdea(c) {
   });
 }
 
+// Even feed length: past 720px wide (public/css/main.css) the feed becomes a
+// genuine two-column grid, and a trailing odd card leaves an empty gap
+// beside it in the last row while scrolling. Top up from whatever the
+// ranked candidate pool has left over (not yet used by any shelf); if it's
+// truly exhausted, drop the odd one out rather than ship a row with a hole
+// in it. Mutates `ideas` in place, matching the corridor-radar push right
+// before it — pure would mean returning a new array, but every caller
+// already treats `ideas` as the one true mutable feed being assembled.
+function evenOutIdeas(ideas, candidates, layout) {
+  if (ideas.length % 2 === 0) return;
+  const used = new Set(ideas.map(i => String(i.id)));
+  const extra = candidates.find(c => !used.has(String(c.id)));
+  if (extra) {
+    const padded = Object.assign(toBrowseIdea(extra), { section: 'More to explore 🧭' });
+    if (layout === 'top5') padded.fold = true;
+    ideas.push(padded);
+  } else {
+    ideas.pop();
+  }
+}
+
 // ---------- Default-pool warmer ----------
 // The most common first-visit request is the anonymous GTA-wide feed (the
 // client sends 'Across the GTA' until a location is chosen). Prime its
@@ -707,3 +730,5 @@ module.exports.daypartOrder = daypartOrder;
 // Exported for the card-badge invariant test (test/ideaOpenNow.test.js) —
 // pure function over a candidate object, no network.
 module.exports.toBrowseIdea = toBrowseIdea;
+// Exported for the even-feed-length test (test/browseFeedEven.test.js).
+module.exports.evenOutIdeas = evenOutIdeas;
