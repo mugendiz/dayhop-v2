@@ -316,6 +316,11 @@ function digestSvc() {
   if (!_digest) _digest = require('../services/digest');
   return _digest;
 }
+let _tottDigest = null;
+function tottDigestSvc() {
+  if (!_tottDigest) _tottDigest = require('../services/tottDigest');
+  return _tottDigest;
+}
 
 // Subscriber counts + consent trail + last digest run.
 router.get('/newsletter', requireAdmin, async (req, res) => {
@@ -323,7 +328,7 @@ router.get('/newsletter', requireAdmin, async (req, res) => {
     const newsletter = require('../services/newsletter');
     const email = require('../services/email');
     const stats = await newsletter.stats();
-    res.json(Object.assign({ email: email.status(), digest: digestSvc().digestStatus() }, stats));
+    res.json(Object.assign({ email: email.status(), digest: digestSvc().digestStatus(), tott_digest: tottDigestSvc().tottDigestStatus() }, stats));
   } catch (err) {
     console.error('[admin] newsletter stats failed:', err.message);
     res.status(500).json({ error: 'NEWSLETTER_FAILED', message: 'Could not compute newsletter stats.' });
@@ -364,6 +369,43 @@ router.post('/newsletter/send', requireAdmin, async (req, res) => {
     res.json(await digestSvc().sendDigest());
   } catch (err) {
     console.error('[admin] digest send failed:', err.message);
+    res.status(500).json({ error: 'SEND_FAILED', message: err.message });
+  }
+});
+
+// ---------- talk of the town newsletter (Mondays) ----------
+// Same subscriber list and send mechanics as the weekend brief above — a
+// second weekly issue sourced from services/talkOfTown.js's live shelf.
+router.get('/newsletter/tott-preview', requireAdmin, async (req, res) => {
+  try {
+    const preview = await tottDigestSvc().previewTottDigest();
+    res.setHeader('Cache-Control', 'no-store');
+    if (req.query.json) return res.json({ subject: preview.subject, picks: preview.picks });
+    res.setHeader('X-Digest-Subject', encodeURIComponent(preview.subject));
+    res.send(preview.html);
+  } catch (err) {
+    console.error('[admin] tott digest preview failed:', err.message);
+    res.status(500).json({ error: 'PREVIEW_FAILED', message: `Could not build talk of the town: ${err.message}` });
+  }
+});
+
+router.post('/newsletter/tott-test-send', requireAdmin, async (req, res) => {
+  const to = typeof (req.body && req.body.email) === 'string' ? req.body.email.trim() : '';
+  if (!to) return res.status(400).json({ error: 'INVALID_INPUT', message: 'email is required.' });
+  try {
+    res.json(await tottDigestSvc().sendTottDigest({ testTo: to }));
+  } catch (err) {
+    console.error('[admin] tott digest test send failed:', err.message);
+    res.status(500).json({ error: 'SEND_FAILED', message: err.message });
+  }
+});
+
+// Manual full send (the scheduler does this automatically on Mondays).
+router.post('/newsletter/tott-send', requireAdmin, async (req, res) => {
+  try {
+    res.json(await tottDigestSvc().sendTottDigest());
+  } catch (err) {
+    console.error('[admin] tott digest send failed:', err.message);
     res.status(500).json({ error: 'SEND_FAILED', message: err.message });
   }
 });

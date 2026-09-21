@@ -88,8 +88,10 @@ function confirmEmailHtml(token) {
     <p style="font-size:16px;line-height:1.6;margin:0 0 22px;">
       Confirm your email and two things happen: <strong>The GTA Family Weekend
       Playbook</strong> — 70+ outings actually worth your Saturday — arrives in
-      your welcome email, and every Thursday you'll get a short, honest brief on
-      the best family things happening around the GTA. No spam, ever.
+      your welcome email, and every week you'll get a short, honest brief on
+      the best family things happening around the GTA: Mondays it's
+      <strong>Talk of the town</strong> (this week's festivals, fairs and
+      outdoor happenings), Thursdays it's the weekend picks. No spam, ever.
       Unsubscribe any time.
     </p>
     <a href="${confirmUrl(token)}"
@@ -107,7 +109,7 @@ function confirmEmailHtml(token) {
 function confirmEmailText(token) {
   return `Confirm your DayHop subscription
 
-Confirm and two things happen: The GTA Family Weekend Playbook (70+ outings actually worth your Saturday) arrives in your welcome email, and every Thursday you get a short, honest brief on the best family things happening around the GTA. No spam, ever.
+Confirm and two things happen: The GTA Family Weekend Playbook (70+ outings actually worth your Saturday) arrives in your welcome email, and every week you get a short, honest brief on the best family things happening around the GTA: Mondays it's Talk of the town (this week's festivals, fairs and outdoor happenings), Thursdays it's the weekend picks. No spam, ever.
 
 Confirm here: ${confirmUrl(token)}
 
@@ -137,10 +139,13 @@ function welcomeEmailHtml(token, hasPdf = false) {
       co-parent. The link above always has the freshest version.
     </p>` : ''}
     <p style="font-size:16px;line-height:1.6;margin:0 0 14px;">
-      And every <strong>Thursday morning</strong> — in time to actually plan
-      your weekend — you'll get 4-5 things genuinely worth doing with your crew
-      around the GTA, a weather call, and a heads-up if anything's closed or
-      flooded. That's it. No spam, ever.
+      And every week, two short briefs: <strong>Monday</strong> is
+      <strong>Talk of the town</strong> — the festivals, fairs and outdoor
+      happenings locals are actually going to this week — and
+      <strong>Thursday morning</strong>, in time to actually plan your
+      weekend, is 4-5 things genuinely worth doing with your crew around the
+      GTA, a weather call, and a heads-up if anything's closed or flooded.
+      That's it. No spam, ever.
     </p>
     <p style="font-size:16px;line-height:1.6;margin:0 0 14px;">
       Two quick favours so we don't get lost: if this landed in Promotions or
@@ -162,7 +167,7 @@ function welcomeEmailText(token, hasPdf = false) {
 The GTA Family Weekend Playbook (70+ outings actually worth your Saturday, organized by age, budget, and rain-proofness):
 ${playbookUrl(token)}${hasPdf ? '\n\nIt is also attached as a PDF — save it, print it, share it. The link above always has the freshest version.' : ''}
 
-And every Thursday morning you'll get 4-5 things genuinely worth doing with your crew around the GTA, a weather call, and a heads-up if anything's closed. That's it. No spam, ever.
+And every week, two short briefs: Monday is Talk of the town — the festivals, fairs and outdoor happenings locals are actually going to this week — and Thursday morning you'll get 4-5 things genuinely worth doing with your crew around the GTA, a weather call, and a heads-up if anything's closed. That's it. No spam, ever.
 
 Two quick favours: if this landed in spam or Promotions, move it to your inbox — and hit reply with your kids' ages and your corner of the GTA. A real person reads every reply.
 

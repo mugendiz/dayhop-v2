@@ -773,6 +773,36 @@ if (process.env.RESEND_API_KEY && process.env.DIGEST_AUTO !== 'off') {
   console.log(`[digest] weekly schedule armed: Thursdays ${digestHour}:00-${digestHour}:59 Toronto`);
 }
 
+// Talk of the town newsletter: every MONDAY MORNING (Toronto time) — the
+// Sunday-midnight refresh above (services/talkOfTown.js) has already
+// verified this week's shelf by then, so Monday's send is always this
+// week's picks. Same subscriber list, same DST-proof clock-check pattern as
+// the Thursday digest. TOTT_DIGEST_HOUR overrides the hour (0-23 Toronto);
+// TOTT_DIGEST_AUTO=off disables the schedule (admin manual send still
+// works). Requires RESEND_API_KEY, else the tick is a silent no-op.
+if (process.env.RESEND_API_KEY && process.env.TOTT_DIGEST_AUTO !== 'off') {
+  const tottDigestHour = String(Math.min(23, Math.max(0, Number(process.env.TOTT_DIGEST_HOUR) || 9))).padStart(2, '0');
+  let lastTottDigestRun = 0;
+  const isMondayDigestHourToronto = () => {
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Toronto', weekday: 'short', hour: '2-digit', hour12: false
+      }).formatToParts(new Date()).map(p => [p.type, p.value])
+    );
+    return parts.weekday === 'Mon' && parts.hour === tottDigestHour;
+  };
+  setInterval(() => {
+    if (isMondayDigestHourToronto() && Date.now() - lastTottDigestRun > 12 * 60 * 60 * 1000) {
+      lastTottDigestRun = Date.now();
+      require('./services/heartbeat').record('tott_digest');
+      console.log('[tott-digest] Monday send window — building talk of the town');
+      require('./services/tottDigest').sendTottDigest()
+        .catch(err => console.warn('[tott-digest] weekly send failed:', err.message));
+    }
+  }, 20 * 60 * 1000).unref();
+  console.log(`[tott-digest] weekly schedule armed: Mondays ${tottDigestHour}:00-${tottDigestHour}:59 Toronto`);
+}
+
 // Panel roles bootstrap: guarantee exactly one owner row exists in
 // admin_users (seeds from ADMIN_EMAILS / the founder). Fail-soft.
 require('./services/outreach').ensureOwnerSeed()
