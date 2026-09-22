@@ -141,7 +141,7 @@ router.post('/', async (req, res) => {
     // browsed from yet; it never delays this response.
     const point = coords ||
       (gathered.geo && gathered.geo.lat != null ? gathered.geo : null);
-    const tott = talkOfTown.active({ point, limit: SECTION_CAP });
+    const tott = talkOfTown.active({ point, limit: SECTION_CAP, maxKm: DRIVE_MAX_KM });
     talkOfTown.noteBrowse(point);
 
     const ideas = buildSurpriseSections(candidates, { mode, near: Boolean(coords), wider, tott });

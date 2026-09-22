@@ -1476,8 +1476,8 @@ button.date-clear-btn { padding: 13px 4px; }
 .ghost-btn:hover { background: var(--paper-dim); }
 .ghost-btn:active { transform: scale(0.97); }
 
-/* Prompt-box action row: Surprise me to the left of the primary CTA, both
-   hugging the box's bottom-right corner. Equal heights via stretch. */
+/* Prompt-box action row: Plan my day and Surprise me side by side, mic last,
+   the group hugging the box's bottom-right corner. Equal heights via stretch. */
 .prompt-actions {
   display: flex;
   justify-content: flex-end;
@@ -1487,14 +1487,30 @@ button.date-clear-btn { padding: 13px 4px; }
 }
 .prompt-actions .primary-btn { align-self: auto; }
 
+/* Phones: the three controls total ~366px at desktop padding, which is wider
+   than the box on a 390px screen, so the mic wrapped onto a line of its own.
+   Tighten the gap and the horizontal padding instead — the mic belongs beside
+   the two buttons, not under them, and 44px of touch target is untouched. */
+@media (max-width: 480px) {
+  .prompt-actions { flex-wrap: nowrap; gap: 7px; }
+  .prompt-actions .primary-btn,
+  .prompt-actions .prompt-surprise-btn {
+    flex: 0 1 auto;
+    min-width: 0;
+    padding-left: 11px;
+    padding-right: 11px;
+    white-space: nowrap;
+  }
+}
+
 /* ---------- Voice prompt (mic) ----------
-   Circular control at the LEFT of the prompt action row: thumb-reachable on
-   mobile, and visually separate from the two commit buttons so nobody taps it
-   expecting a search. margin-right:auto pushes Surprise/Plan to the right
-   edge without changing their layout. */
+   Circular control at the RIGHT end of the prompt action row, after the two
+   commit buttons: still thumb-reachable on mobile, still visually distinct
+   (round, ghost) so nobody taps it expecting a search. No margin-right:auto
+   any more — the row's flex-end alignment keeps the whole group at the
+   bottom-right corner, and the mic is simply last in DOM order. */
 .mic-btn {
   position: relative;
-  margin-right: auto;
   flex: 0 0 auto;
   width: 44px;               /* 44px: the minimum comfortable touch target */
   height: 44px;

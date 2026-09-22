@@ -110,7 +110,12 @@ router.post('/', async (req, res) => {
     // noteBrowse() arms a one-off background refresh for a hub that has
     // never been browsed from; it never delays this response.
     const point = coords || (geo && geo.lat != null && geo.lng != null ? { lat: geo.lat, lng: geo.lng } : null);
-    const tott = talkOfTown.active({ point, limit: 6 });
+    // maxKm: the front page serves a day out, not a road trip. The weekly
+    // store reaches 180 km and the Monday newsletter still gets all of it
+    // (services/tottDigest.js passes no ceiling) — a week's notice is what
+    // makes "worth the drive" worth reading. A feed you scroll on Saturday
+    // morning is not.
+    const tott = talkOfTown.active({ point, limit: 6, maxKm: talkOfTown.FEED_MAX_KM });
     talkOfTown.noteBrowse(point);
     const layout = feedLayout();
 
