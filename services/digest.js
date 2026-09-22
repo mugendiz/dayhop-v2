@@ -88,11 +88,11 @@ function esc(s) {
 
 function weatherLine(weather) {
   if (!weather) return null;
-  let call = 'looks fine for being out and about';
-  if (weather.is_rainy) call = 'wet — lean on the indoor picks below';
-  else if (weather.is_extreme_heat) call = 'hot — plan shade, water, and early starts';
-  else if (weather.is_extreme_cold) call = 'seriously cold — short outdoor stints only';
-  return `${weather.description}, around ${weather.temp_c}°C — ${call}.`;
+  let call = 'It looks fine for being out and about.';
+  if (weather.is_rainy) call = 'Lean on the indoor picks below.';
+  else if (weather.is_extreme_heat) call = 'Plan shade, water, and early starts.';
+  else if (weather.is_extreme_cold) call = 'Short outdoor stints only today.';
+  return `${weather.description}, around ${weather.temp_c}°C. ${call}`;
 }
 
 function digestHtml(d, token, tracking) {
@@ -137,19 +137,19 @@ function digestHtml(d, token, tracking) {
     <p style="margin:2px 0 0;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#3F6F5C;font-weight:600;">The weekend brief · ${esc(d.weekendLabel)}</p>
     <h1 style="font-size:25px;line-height:1.25;margin:16px 0 8px;">Your weekend, sorted.</h1>
     <p style="font-size:15.5px;line-height:1.6;margin:0 0 20px;color:#2C4A4E;">
-      ${d.picks.length} things around ${esc(d.city)} actually worth your Saturday${weather ? ` — and the sky's call: ${esc(weather)}` : '.'}
+      ${d.picks.length} things around ${esc(d.city)} actually worth your Saturday.${weather ? ` ${esc(weather)}` : ''}
     </p>
     ${advisoriesHtml}
     ${picksHtml}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 0;">
       <a href="${esc(wrap(`${base}/`))}" style="display:inline-block;background:#FF6B4A;color:#ffffff;text-decoration:none;font-weight:700;font-size:15.5px;padding:13px 28px;border-radius:10px;">
         Turn one into a full day plan</a>
-      <p style="margin:10px 0 0;font-size:13px;color:#6b7c7e;">One sentence in, a whole day out — venues, timing, weather, the lot.</p>
+      <p style="margin:10px 0 0;font-size:13px;color:#6b7c7e;">One sentence in, a whole day out. Venues, timing, weather, the lot.</p>
     </td></tr></table>
     <p style="margin:30px 0 0;padding-top:16px;border-top:1px solid #e8e2d4;font-size:12px;line-height:1.6;color:#6b7c7e;">
       You're receiving this because you subscribed at dayhop.quest.<br>
       DayHop · Richmond Hill, Ontario, Canada · <a href="mailto:admin@dayhop.quest" style="color:#6b7c7e;">admin@dayhop.quest</a><br>
-      <a href="${unsub}" style="color:#6b7c7e;">Unsubscribe</a> — one click, no questions.
+      <a href="${unsub}" style="color:#6b7c7e;">Unsubscribe</a>. One click, no questions.
     </p>
     ${tracking ? `<img src="${esc(digestLinks.openPixelUrl(base, tracking))}" width="1" height="1" alt="" style="display:block;border:0;">` : ''}
   </div></body></html>`;
@@ -159,14 +159,14 @@ function digestText(d, token) {
   const base = newsletter.baseUrl();
   const weather = weatherLine(d.weather);
   const lines = [
-    `DAYHOP — THE WEEKEND BRIEF (${d.weekendLabel})`,
+    `DAYHOP: THE WEEKEND BRIEF (${d.weekendLabel})`,
     '',
     weather ? `Weather: ${weather}` : null,
     (d.advisories && d.advisories.length) ? `Heads-up: ${d.advisories.slice(0, 3).map(a => a.title || a.summary || a).join(' | ')}` : null,
     ''
   ].filter(v => v !== null);
   d.picks.forEach((p, i) => {
-    lines.push(`${i + 1}. ${p.title}${p.venue || p.location ? ` — ${p.venue || p.location}` : ''}`);
+    lines.push(`${i + 1}. ${p.title}${p.venue || p.location ? `, ${p.venue || p.location}` : ''}`);
     lines.push(`   ${trim(p.description, 160)}`);
     lines.push(`   ${p.booking_url || p.maps_url || base}`);
     lines.push('');
@@ -241,3 +241,7 @@ function digestStatus() {
 }
 
 module.exports = { buildDigest, sendDigest, previewDigest, digestStatus };
+// Exported for the house-style test (test/copyStyle.test.js) — pure
+// template functions over a plain data object, no network.
+module.exports.digestHtml = digestHtml;
+module.exports.digestText = digestText;

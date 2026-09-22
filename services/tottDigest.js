@@ -39,7 +39,7 @@ function fmtDate(ymd) {
 function fmtDateRange(start, end) {
   if (!isYmd(start)) return '';
   if (!isYmd(end) || end === start) return fmtDate(start);
-  return `${fmtDate(start)} – ${fmtDate(end)}`;
+  return `${fmtDate(start)} to ${fmtDate(end)}`;
 }
 const isYmd = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
 
@@ -83,18 +83,18 @@ function digestHtml(d, token, tracking) {
     <p style="margin:2px 0 0;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#3F6F5C;font-weight:600;">Talk of the town · ${esc(d.hubName)}</p>
     <h1 style="font-size:25px;line-height:1.25;margin:16px 0 8px;">What everyone's going to this week.</h1>
     <p style="font-size:15.5px;line-height:1.6;margin:0 0 20px;color:#2C4A4E;">
-      ${d.picks.length} verified outdoor happenings people around ${esc(d.hubName)} are actually talking about right now — festivals, fairs, markets, the works.
+      ${d.picks.length} verified outdoor happenings people around ${esc(d.hubName)} are actually talking about right now. Festivals, fairs, markets, the works.
     </p>
     ${picksHtml}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 0;">
       <a href="${esc(wrap(`${base}/`))}" style="display:inline-block;background:#FF6B4A;color:#ffffff;text-decoration:none;font-weight:700;font-size:15.5px;padding:13px 28px;border-radius:10px;">
         See the full shelf on DayHop</a>
-      <p style="margin:10px 0 0;font-size:13px;color:#6b7c7e;">Once an event's over, it drops off automatically — this list is always this week's.</p>
+      <p style="margin:10px 0 0;font-size:13px;color:#6b7c7e;">Once an event's over, it drops off automatically. This list is always this week's.</p>
     </td></tr></table>
     <p style="margin:30px 0 0;padding-top:16px;border-top:1px solid #e8e2d4;font-size:12px;line-height:1.6;color:#6b7c7e;">
       You're receiving this because you subscribed at dayhop.quest.<br>
       DayHop · Richmond Hill, Ontario, Canada · <a href="mailto:admin@dayhop.quest" style="color:#6b7c7e;">admin@dayhop.quest</a><br>
-      <a href="${unsub}" style="color:#6b7c7e;">Unsubscribe</a> — one click, no questions.
+      <a href="${unsub}" style="color:#6b7c7e;">Unsubscribe</a>. One click, no questions.
     </p>
     ${tracking ? `<img src="${esc(digestLinks.openPixelUrl(base, tracking))}" width="1" height="1" alt="" style="display:block;border:0;">` : ''}
   </div></body></html>`;
@@ -102,10 +102,10 @@ function digestHtml(d, token, tracking) {
 
 function digestText(d, token) {
   const base = newsletter.baseUrl();
-  const lines = [`DAYHOP — TALK OF THE TOWN (${d.hubName})`, ''];
+  const lines = [`DAYHOP: TALK OF THE TOWN (${d.hubName})`, ''];
   d.picks.forEach((p, i) => {
     const where = [p.venue, p.location && p.location !== p.venue ? p.location : null].filter(Boolean).join(' · ');
-    lines.push(`${i + 1}. ${p.title}${where ? ` — ${where}` : ''}`);
+    lines.push(`${i + 1}. ${p.title}${where ? `, ${where}` : ''}`);
     const dateCost = [fmtDateRange(p.date, p.date_end), p.cost_tier].filter(Boolean).join(' · ');
     if (dateCost) lines.push(`   ${dateCost}`);
     if (p.description) lines.push(`   ${trim(p.description, 160)}`);
@@ -176,3 +176,7 @@ function tottDigestStatus() {
 }
 
 module.exports = { buildTottDigest, sendTottDigest, previewTottDigest, tottDigestStatus };
+// Exported for the house-style test (test/copyStyle.test.js) — pure
+// template functions over a plain data object, no network.
+module.exports.digestHtml = digestHtml;
+module.exports.digestText = digestText;

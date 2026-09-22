@@ -49,10 +49,10 @@
   // client chrome below: filter chips, example prompts, placeholder, accent.
   const MODES = {
     rr: {
-      hint: '🌿 Restorative days — gardens, trails, lookouts, calm water',
+      hint: '🌿 Restorative days: gardens, trails, lookouts, calm water',
       feedTitle: "Today's calm escapes 🌿",
-      placeholder: '3 unhurried hours near the water — a quiet garden, a scenic lookout, and somewhere relaxed to eat after.',
-      switchToast: '🌿 R&R Mode on — new searches and plans will lean restful',
+      placeholder: '3 unhurried hours near the water. A quiet garden, a scenic lookout, and somewhere relaxed to eat after.',
+      switchToast: '🌿 R&R Mode on. New searches and plans will lean restful',
       filters: [
         { filter: 'all', label: 'All' },
         { filter: 'water', label: '🏖️ Calm Water' },
@@ -63,16 +63,16 @@
         { filter: 'cruises', label: '⛴️ Cruises' }
       ],
       examples: [
-        { label: '🌿 Slow morning in nature', prompt: 'A slow, restorative morning — a peaceful garden or quiet trail, a scenic lookout, and a calm café to end at.' },
-        { label: '🌧️ Rainy day with little kids', prompt: 'A rainy Saturday with two kids under 6 — somewhere calm indoors to unwind, then an easy lunch nearby.' },
-        { label: '🏖️ Afternoon by the water', prompt: '3 relaxed hours near the water with my 4-year-old — a splash pad and somewhere easy to eat after.' }
+        { label: '🌿 Slow morning in nature', prompt: 'A slow, restorative morning. A peaceful garden or quiet trail, a scenic lookout, and a calm café to end at.' },
+        { label: '🌧️ Rainy day with little kids', prompt: 'A rainy Saturday with two kids under 6. Somewhere calm indoors to unwind, then an easy lunch nearby.' },
+        { label: '🏖️ Afternoon by the water', prompt: '3 relaxed hours near the water with my 4-year-old. A splash pad and somewhere easy to eat after.' }
       ]
     },
     adventure: {
-      hint: '⛰️ Active days — ziplines, climbing, paddling, big thrills',
+      hint: '⛰️ Active days: ziplines, climbing, paddling, big thrills',
       feedTitle: "Today's thrills ⚡",
-      placeholder: 'A full-throttle Saturday — ziplining or climbing in the morning, kayaking after lunch, go-karts to finish.',
-      switchToast: '⚡ Adventure Mode on — new searches and plans will lean thrilling',
+      placeholder: 'A full-throttle Saturday. Ziplining or climbing in the morning, kayaking after lunch, go-karts to finish.',
+      switchToast: '⚡ Adventure Mode on. New searches and plans will lean thrilling',
       filters: [
         { filter: 'all', label: 'All' },
         { filter: 'adventures', label: '🚁 Big Experiences' },
@@ -82,9 +82,9 @@
         { filter: 'food', label: '🍽️ Refuel' }
       ],
       examples: [
-        { label: '🧗 Adrenaline day for two', prompt: 'An adrenaline-filled day for two adults — ziplining or treetop trekking, rock climbing, then a well-earned dinner.' },
-        { label: '🚣 Paddle & pedal', prompt: 'An active day outdoors — kayaking or paddleboarding in the morning, then a mountain bike trail after lunch.' },
-        { label: '🏎️ Thrills with teens', prompt: 'A high-energy day with two teenagers — go-karts, a climbing gym or trampoline park, and pizza after.' }
+        { label: '🧗 Adrenaline day for two', prompt: 'An adrenaline-filled day for two adults. Ziplining or treetop trekking, rock climbing, then a well-earned dinner.' },
+        { label: '🚣 Paddle & pedal', prompt: 'An active day outdoors. Kayaking or paddleboarding in the morning, then a mountain bike trail after lunch.' },
+        { label: '🏎️ Thrills with teens', prompt: 'A high-energy day with two teenagers. Go-karts, a climbing gym or trampoline park, and pizza after.' }
       ]
     }
   };
@@ -134,14 +134,14 @@
     stops: [
       {
         title: 'Breakfast at Bonjour Brioche',
-        suggested_time: '9:30 AM – 10:45 AM',
+        suggested_time: '9:30 AM to 10:45 AM',
         transition_note: '15 min drive (or a scenic ride down Leslie St) to the park gates',
         note: '',
         idea: {
           id: 'sample-brioche',
           title: 'Bonjour Brioche',
           location: 'Queen St E, Riverside',
-          why: 'A neighbourhood-institution French bakery — croissants worth the weekend line, and the people-watching on Queen East is free.',
+          why: 'A neighbourhood-institution French bakery. Croissants worth the weekend line, and the people-watching on Queen East is free.',
           duration_minutes: 75,
           cost_tier: '$$',
           category: 'food',
@@ -151,14 +151,14 @@
       },
       {
         title: 'Walk the spit at Tommy Thompson Park',
-        suggested_time: '11:00 AM – 1:00 PM',
+        suggested_time: '11:00 AM to 1:00 PM',
         transition_note: '10 min back up to Queen East for lunch',
         note: '',
         idea: {
           id: 'sample-tommy-thompson',
           title: 'Tommy Thompson Park',
           location: 'Leslie Street Spit, Toronto',
-          why: 'A car-free peninsula jutting 5 km into Lake Ontario — skyline views, cottonwood trails, and more birds than people.',
+          why: 'A car-free peninsula jutting 5 km into Lake Ontario. Skyline views, cottonwood trails, and more birds than people.',
           duration_minutes: 120,
           cost_tier: 'Free',
           category: 'general',
@@ -168,7 +168,7 @@
       },
       {
         title: 'Patio lunch & indie shops on Queen',
-        suggested_time: '1:30 PM – 3:00 PM',
+        suggested_time: '1:30 PM to 3:00 PM',
         transition_note: '8 min south to the beach for golden hour',
         note: '',
         idea: {
@@ -185,14 +185,14 @@
       },
       {
         title: 'Golden hour at Cherry Beach',
-        suggested_time: '3:30 PM – 5:30 PM',
+        suggested_time: '3:30 PM to 5:30 PM',
         transition_note: '',
         note: '',
         idea: {
           id: 'sample-cherry-beach',
           title: 'Cherry Beach',
           location: 'Unwin Ave, Port Lands',
-          why: 'A locals\' beach with real sand, calm water, and shady trees — the unhurried way to close out a Saturday.',
+          why: 'A locals\' beach with real sand, calm water, and shady trees. The unhurried way to close out a Saturday.',
           duration_minutes: 120,
           cost_tier: 'Free',
           category: 'water',
@@ -363,7 +363,7 @@
         <div class="draft-resume-text">
           <span class="draft-resume-label">Unsaved plan</span>
           <strong>${escapeHtml(draft.guide.title || 'Your day, mapped out')}</strong>
-          <span class="draft-resume-meta">${stops} stop${stops === 1 ? '' : 's'} — picks up right where you left off</span>
+          <span class="draft-resume-meta">${stops} stop${stops === 1 ? '' : 's'}. Picks up right where you left off</span>
         </div>
         <div class="draft-resume-actions">
           <button class="primary-btn draft-resume-open" type="button">Resume →</button>
@@ -679,7 +679,7 @@
     if (!state.planDateEnd || state.planDateEnd === state.planDate) {
       label.textContent = state.planDate === torontoToday() ? 'Today' : formatEventDate(state.planDate);
     } else {
-      label.textContent = `${formatEventDate(state.planDate)} – ${formatEventDate(state.planDateEnd)}`;
+      label.textContent = `${formatEventDate(state.planDate)} to ${formatEventDate(state.planDateEnd)}`;
     }
   }
 
@@ -894,13 +894,13 @@
   function useMyLocation() {
     if (combo.locating) return;
     if (!navigator.geolocation) {
-      showToast("Your browser doesn't support location — type a city or postal code instead.");
+      showToast("Your browser doesn't support location. Type a city or postal code instead.");
       return;
     }
     // Geolocation only exists on HTTPS (or localhost) — surface that as
     // guidance, not a mysterious failure.
     if (window.isSecureContext === false) {
-      showToast('Location needs a secure (https) connection — type a city or postal code instead.', { duration: 4500 });
+      showToast('Location needs a secure (https) connection. Type a city or postal code instead.', { duration: 4500 });
       return;
     }
 
@@ -921,7 +921,7 @@
     if (navigator.permissions && navigator.permissions.query) {
       navigator.permissions.query({ name: 'geolocation' }).then(status => {
         if (status.state === 'denied') {
-          showToast('Location is blocked in your browser settings — type a city or postal code instead.', { duration: 4500 });
+          showToast('Location is blocked in your browser settings. Type a city or postal code instead.', { duration: 4500 });
           combo.input.focus();
         } else {
           start();
@@ -983,8 +983,8 @@
     combo.locating = false;
     renderLocationOptions('');
     showToast(blocked
-      ? 'No problem — search a city, address, or postal code instead.'
-      : "Couldn't get your location — search a city or postal code instead.", { duration: 4500 });
+      ? 'No problem. Search a city, address, or postal code instead.'
+      : "Couldn't get your location. Search a city or postal code instead.", { duration: 4500 });
     combo.input.focus();
   }
 
@@ -1660,7 +1660,7 @@
       const pctText = `${Math.round(p)}%`;
       if (pctText !== lastPctText) { lastPctText = pctText; pctEl.textContent = pctText; }
       if (t > est * 1.25) {
-        stageEl.textContent = '⏳ Taking a bit longer than usual — worth it';
+        stageEl.textContent = '⏳ Taking a bit longer than usual. Worth it';
         hintEl.textContent = 'Almost there…';
       } else {
         const stage = stagesDesc.find(s => f >= s.at) || stages[0];
@@ -2084,7 +2084,7 @@
       reasons.push(`💬 You said “${[...new Set(echoed)].slice(0, 2).join('”, “')}”`);
     }
 
-    if (idea.rating >= 4.5) reasons.push(`★ ${idea.rating} — loved by locals`);
+    if (idea.rating >= 4.5) reasons.push(`★ ${idea.rating}, loved by locals`);
     else if (idea.rating != null) reasons.push(`★ ${idea.rating}`);
 
     if (String(idea.cost_tier).toLowerCase() === 'free') reasons.push('🎟 Completely free');
@@ -2161,7 +2161,7 @@
   function buildCardChips(idea) {
     const chips = [];
     const conflict = advisoryConflictChip(idea);
-    if (conflict) chips.push(`<span class="card-chip card-chip--advisory" title="An advisory is in effect for this area">⚠️ Outdoors — ${escapeHtml(conflict)}</span>`);
+    if (conflict) chips.push(`<span class="card-chip card-chip--advisory" title="An advisory is in effect for this area">⚠️ Outdoors: ${escapeHtml(conflict)}</span>`);
     // Live open/closed — the single highest-value "can I go right now" signal,
     // so it leads the row rather than sitting behind a click into details.
     if (idea.open_now === true) chips.push('<span class="card-chip card-chip--open">● Open now</span>');
@@ -2230,7 +2230,7 @@
     return d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
   }
 
-  // Multi-day happenings (Talk of the town): "Sep 10 – 13", or "Sep 28 – Oct 4"
+  // Multi-day happenings (Talk of the town): "Sep 10 to 13", or "Sep 28 to Oct 4"
   // across a month boundary; a single day falls back to formatEventDate.
   function formatEventRange(startStr, endStr) {
     if (!endStr || endStr === startStr) return formatEventDate(startStr);
@@ -2240,7 +2240,7 @@
     const sameMonth = a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
     const left = a.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
     const right = b.toLocaleDateString('en-CA', sameMonth ? { day: 'numeric' } : { month: 'short', day: 'numeric' });
-    return `${left} – ${right}`;
+    return `${left} to ${right}`;
   }
 
   // Regex escape, not a DOM round trip: the old createElement version
@@ -2658,7 +2658,7 @@
     updateShortlistCount();
     renderShortlistPanel();
     renderFeed(true);
-    showToast(`New shortlist — ${keep.length} pick${keep.length === 1 ? '' : 's'} carried over ✨`);
+    showToast(`New shortlist. ${keep.length} pick${keep.length === 1 ? '' : 's'} carried over ✨`);
   }
 
   function moveShortlistItem(index, delta) {
@@ -2770,7 +2770,7 @@
   function handleSurpriseMe() {
     const pool = ideasInPlay();
     if (pool.length === 0) {
-      showToast('No more ideas to surprise you with — generate a new day!');
+      showToast('No more ideas to surprise you with. Generate a new day!');
       return;
     }
     const wows = pool.filter(i => i.wow_reason || i.wow);
@@ -2916,7 +2916,7 @@
     el.className = 'postplan-upsell';
     el.id = 'postplan-upsell';
     el.innerHTML =
-      '<span class="postplan-upsell-text">Like it? Keep the whole long weekend planned — <b>Pro is free for 7 days</b>, or grab a <b>$20 field guide</b> you keep forever.</span>' +
+      '<span class="postplan-upsell-text">Like it? Keep the whole long weekend planned. <b>Pro is free for 7 days</b>, or grab a <b>$20 field guide</b> you keep forever.</span>' +
       '<span class="postplan-upsell-actions">' +
       '<button type="button" class="postplan-upsell-pro">Try Pro</button>' +
       '<a class="postplan-upsell-guide" href="/guides">See guides</a>' +
@@ -2999,11 +2999,11 @@
       </div>` : '';
 
     const timeHtml = state.editMode
-      ? `<input class="plan-time-input" data-group="${groupIndex}" data-index="${index}" data-field="suggested_time" value="${escapeAttr(stop.suggested_time || '')}" placeholder="e.g. 10:00 AM - 11:30 AM" aria-label="Suggested time">`
+      ? `<input class="plan-time-input" data-group="${groupIndex}" data-index="${index}" data-field="suggested_time" value="${escapeAttr(stop.suggested_time || '')}" placeholder="e.g. 10:00 AM to 11:30 AM" aria-label="Suggested time">`
       : `<span class="plan-stop-time">${escapeHtml(stop.suggested_time || '')}</span>`;
 
     const noteHtml = state.editMode
-      ? `<textarea class="plan-note-input" data-group="${groupIndex}" data-index="${index}" data-field="note" rows="1" maxlength="500" placeholder="Add a note — parking tips, snacks, who to text…" aria-label="Your note">${escapeHtml(stop.note || '')}</textarea>`
+      ? `<textarea class="plan-note-input" data-group="${groupIndex}" data-index="${index}" data-field="note" rows="1" maxlength="500" placeholder="Add a note: parking tips, snacks, who to text…" aria-label="Your note">${escapeHtml(stop.note || '')}</textarea>`
       : (stop.note ? `<p class="plan-stop-note">📝 ${escapeHtml(stop.note)}</p>` : '');
 
     const key = placeKey(stop);
@@ -3012,7 +3012,7 @@
     const doneBtn = !state.editMode && key ? `
       <button class="plan-done-btn${done ? ' is-done' : ''}" type="button"
         data-group="${groupIndex}" data-index="${index}" aria-pressed="${done}"
-        title="${done ? 'You’ve been here — tap to undo' : 'Been here? Check it off'}">
+        title="${done ? 'You’ve been here. Tap to undo' : 'Been here? Check it off'}">
         <span class="plan-done-tick">✓</span>${done ? 'Been here' : 'Done'}</button>` : '';
 
     return `
@@ -3091,10 +3091,10 @@
     if (!total) { el.hidden = true; return; }
     const pct = Math.round((done / total) * 100);
     const line = done === total
-      ? '🎉 Quest complete — you’ve been to every stop!'
+      ? '🎉 Quest complete. You’ve been to every stop!'
       : done
-        ? `🏅 ${done} of ${total} explored — keep going!`
-        : `🏅 ${done} of ${total} explored — check stops off as you go`;
+        ? `🏅 ${done} of ${total} explored. Keep going!`
+        : `🏅 ${done} of ${total} explored. Check stops off as you go`;
     el.innerHTML = `<p class="plan-quest-line">${line}</p>
       <div class="plan-quest-bar"><span style="width:${pct}%"></span></div>`;
     el.classList.toggle('plan-quest--complete', done === total);
@@ -3117,7 +3117,7 @@
         btn.classList.toggle('is-done', done);
         btn.setAttribute('aria-pressed', String(done));
         btn.innerHTML = `<span class="plan-done-tick">✓</span>${done ? 'Been here' : 'Done'}`;
-        btn.title = done ? 'You’ve been here — tap to undo' : 'Been here? Check it off';
+        btn.title = done ? 'You’ve been here. Tap to undo' : 'Been here? Check it off';
         const marker = stopEl.querySelector('.plan-stop-marker');
         if (marker) marker.textContent = done ? '✓' : marker.dataset.number;
         updatePlanQuest();
@@ -3189,7 +3189,7 @@
     state.editMode = !state.editMode;
     renderPlanView();
     if (state.editMode) {
-      showToast('Reorder, retime, remove stops, or add notes — then save.', { duration: 3500 });
+      showToast('Reorder, retime, remove stops, or add notes. Then save.', { duration: 3500 });
     }
   }
 
@@ -3511,11 +3511,11 @@
     if (!hint) return;
     const freeLimit = state.entitlements && state.entitlements.saved_guides;
     if (state.savedGuide) {
-      hint.textContent = 'Plan saved — share it anywhere, the link stays live.';
+      hint.textContent = 'Plan saved. Share it anywhere, the link stays live.';
     } else if (!isLoggedIn()) {
       hint.textContent = 'Sign in to save this as a shareable guide.';
     } else if (state.billingConfigured && !state.isPro) {
-      hint.textContent = `Exporting saves this plan (free includes ${freeLimit != null ? freeLimit : 5} — Pro is unlimited).`;
+      hint.textContent = `Exporting saves this plan (free includes ${freeLimit != null ? freeLimit : 5}, Pro is unlimited).`;
     } else {
       hint.textContent = 'Exporting saves this as a shareable guide with a public link.';
     }
@@ -3527,7 +3527,7 @@
   async function ensureGuideSaved() {
     if (state.savedGuide) return state.savedGuide;
     if (!state.currentGuide) {
-      showToast('Build a day plan first — add ideas and tap "Make my day".');
+      showToast('Build a day plan first. Add ideas and tap "Make my day".');
       return null;
     }
     const saved = await saveCurrentGuide();
@@ -3565,7 +3565,7 @@
     lines.push('');
     flattenGuideStops(g).forEach(({ stop, index, dayLabel, firstOfDay, dayStart }) => {
       if (firstOfDay) {
-        lines.push(`— ${dayLabel}${dayStart ? ` (starts around ${dayStart})` : ''} —`);
+        lines.push(`${dayLabel}${dayStart ? ` (starts around ${dayStart})` : ''}`);
       }
       const idea = stop.idea || {};
       lines.push(`${index + 1}. ${stop.title}${stop.suggested_time ? ` (${stop.suggested_time})` : ''}`);
@@ -3590,7 +3590,7 @@
         md.push('');
       }
       const idea = stop.idea || {};
-      md.push(`## ${index + 1}. ${stop.title}${stop.suggested_time ? ` — ${stop.suggested_time}` : ''}`);
+      md.push(`## ${index + 1}. ${stop.title}${stop.suggested_time ? ` (${stop.suggested_time})` : ''}`);
       if (idea.why) md.push(idea.why);
       if (idea.location) md.push(`- 📍 ${idea.location}`);
       if (stop.note) md.push(`- 📝 ${stop.note}`);
@@ -3601,7 +3601,7 @@
       md.push('');
     });
     if (g.notes) md.push(`> 💬 ${g.notes}`);
-    md.push('', `Made with DayHop — full guide: ${saved.share_url}`);
+    md.push('', `Made with DayHop. Full guide: ${saved.share_url}`);
     return md.join('\n');
   }
 
@@ -3622,13 +3622,13 @@
 
     if (format === 'share') {
       if (navigator.share) {
-        navigator.share({ title: shareTitle, text: `${shareTitle}${g.city ? ' — ' + g.city : ''}`, url: saved.share_url }).catch(() => {});
+        navigator.share({ title: shareTitle, text: `${shareTitle}${g.city ? ', ' + g.city : ''}`, url: saved.share_url }).catch(() => {});
       } else {
         // Desktop without Web Share: copy the link and open an X intent.
         copyToClipboard(saved.share_url);
         const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTitle)}&url=${encodeURIComponent(saved.share_url)}`;
         window.open(intent, '_blank', 'noopener');
-        showToast('Link copied — sharing on X');
+        showToast('Link copied. Sharing on X');
       }
     } else if (format === 'pdf') {
       // The share page carries the print stylesheet; ?print=1 auto-opens the
@@ -3654,7 +3654,7 @@
       // while still holding focus, which would silence the fallback.
       setTimeout(() => {
         if (document.hasFocus()) {
-          copyToClipboard(text, 'No email app opened — guide copied, paste it into any email ✉️');
+          copyToClipboard(text, 'No email app opened. Guide copied, paste it into any email ✉️');
         }
       }, 1200);
     } else if (format === 'file') {
@@ -3697,7 +3697,7 @@
     updateShortlistCount();
     renderShortlistPanel();
     renderFeed(true);
-    showToast('Fresh shortlist — pick your next day ✨');
+    showToast('Fresh shortlist. Pick your next day ✨');
   }
 
   // ---------- Instant discovery feed ----------
@@ -3800,7 +3800,7 @@
         el.querySelector('.capture-sub').textContent = 'Click the confirmation link and your Playbook (plus Thursday picks) is yours.';
       } catch (err) {
         const msg = el.querySelector('.capture-msg');
-        msg.textContent = err.message || 'Could not subscribe right now — try again in a minute.';
+        msg.textContent = err.message || 'Could not subscribe right now. Try again in a minute.';
         btn.disabled = false;
       }
     });
@@ -3818,14 +3818,14 @@
   // funnel. Facts rotate daily so regulars don't reread yesterday's.
   const FUN_FACTS = [
     'The Toronto Islands are the largest car-free urban community in North America.',
-    'The Scarborough Bluffs rise 90 metres — taller than Niagara Falls.',
+    'The Scarborough Bluffs rise 90 metres, taller than Niagara Falls.',
     "Downtown's PATH is the world's largest underground shopping complex: 30+ km of tunnels.",
     "High Park's cherry trees were a gift from Tokyo in 1959.",
     'Casa Loma hides a real 244-metre tunnel running under the street to its stables.',
-    "Ontario holds about 250,000 lakes — roughly a fifth of the world's fresh water.",
+    "Ontario holds about 250,000 lakes, roughly a fifth of the world's fresh water.",
     "Rouge, on Toronto's east edge, is Canada's first national urban park.",
-    "The Bruce Trail is Canada's oldest and longest marked footpath — about 900 km.",
-    "Canada's Wonderland's mountain is hollow — there's a whole coaster inside.",
+    "The Bruce Trail is Canada's oldest and longest marked footpath, about 900 km.",
+    "Canada's Wonderland's mountain is hollow. There's a whole coaster inside.",
     'The Niagara Escarpment is a UNESCO World Biosphere Reserve, 725 km long.'
   ];
 
@@ -3857,7 +3857,7 @@
       <p class="capture-fineprint">Instant PDF · every spot links to live directions · free updated editions</p>`;
     el.querySelector('.capture-heading').textContent = `${guide.title} 🌲`;
     el.querySelector('.capture-sub').textContent =
-      `${guide.subtitle} ${guide.spot_count ? guide.spot_count + ' hand-checked places, ' : ''}ready-made day plans, and a season-by-season calendar — the local knowledge this feed runs on, in one keepable PDF.`;
+      `${guide.subtitle} ${guide.spot_count ? guide.spot_count + ' hand-checked places, ' : ''}ready-made day plans, and a season-by-season calendar. The local knowledge this feed runs on, in one keepable PDF.`;
     // Price deliberately not shown here — it's revealed at Stripe checkout.
     el.querySelector('.guide-promo-go').textContent = 'Get the guide';
     el.querySelector('.guide-promo-go').addEventListener('click', () => {
@@ -3883,7 +3883,7 @@
     el.innerHTML = `
       <img class="capture-art" src="/img/venue-promo.jpg" alt="Illustrated venue in a spotlight" loading="lazy">
       <p class="capture-heading">This spot could be yours 👀</p>
-      <p class="capture-sub">Run a GTA venue? This feed reaches local families deciding their weekend. Founding partners get 50% off for three months — five spots.</p>
+      <p class="capture-sub">Run a GTA venue? This feed reaches local families deciding their weekend. Founding partners get Spotlight for $99/mo, first five spots.</p>
       <form class="capture-form" novalidate>
         <input type="email" required autocomplete="email" placeholder="you@yourvenue.ca" aria-label="Venue email address">
         <button type="submit" class="capture-btn">Get the media kit</button>
@@ -3901,7 +3901,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            venue: 'Feed ad-card lead — venue TBD',
+            venue: 'Feed ad-card lead, venue TBD',
             name: '', email,
             tier: 'Founding partner (feed card)',
             message: 'Left their email in the in-feed ad card. Send the media kit.',
@@ -3913,7 +3913,7 @@
         el.querySelector('.capture-heading').textContent = 'Media kit on its way 📬';
         el.querySelector('.capture-sub').textContent = 'We reply within one business day.';
       } catch (err) {
-        el.querySelector('.capture-msg').textContent = 'Could not send that — try again in a minute.';
+        el.querySelector('.capture-msg').textContent = 'Could not send that. Try again in a minute.';
         btn.disabled = false;
       }
     });
@@ -3947,7 +3947,7 @@
       if (breakIndex === 0 && captureEligible()) {
         card = buildCaptureCard('feed_card',
           'Get the free GTA Weekend Playbook 📖',
-          '70+ family outings actually worth your Saturday — plus five fresh picks every Thursday morning, weather-checked and closure-checked.',
+          '70+ family outings actually worth your Saturday, plus five fresh picks every Thursday morning, weather-checked and closure-checked.',
           'Send my Playbook');
       } else if (!guidePromoUsed && matchGuideForCity()) {
         card = buildGuidePromoCard(matchGuideForCity());
@@ -4090,7 +4090,7 @@
       title: 'David Dunlap Observatory',
       venue: 'David Dunlap Observatory, Richmond Hill',
       location: '123 Hillsview Dr, Richmond Hill',
-      why: 'Stand under the great dome of Canada’s largest optical telescope — guided public star nights with real deep-sky viewing, minutes from downtown Richmond Hill.',
+      why: 'Stand under the great dome of Canada’s largest optical telescope. Guided public star nights with real deep-sky viewing, minutes from downtown Richmond Hill.',
       image_url: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=900&q=70',
       maps_url: 'https://www.google.com/maps/search/?api=1&query=David+Dunlap+Observatory+Richmond+Hill'
     },
@@ -4099,7 +4099,7 @@
       title: 'Allan I. Carswell Observatory',
       venue: 'York University, North York',
       location: 'York University Keele Campus',
-      why: 'York University opens its campus telescopes to the public on Wednesday evenings — free, volunteer-guided, and surprisingly deep views of the night sky from the city.',
+      why: 'York University opens its campus telescopes to the public on Wednesday evenings. Free, volunteer-guided, and surprisingly deep views of the night sky from the city.',
       image_url: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?auto=format&fit=crop&w=900&q=70',
       maps_url: 'https://www.google.com/maps/search/?api=1&query=Allan+I+Carswell+Observatory+York+University'
     },
@@ -4108,7 +4108,7 @@
       title: 'Stargazing on the Leslie Spit',
       venue: 'Tommy Thompson Park, Toronto',
       location: 'Tommy Thompson Park, 1 Leslie St',
-      why: 'The car-free spit is downtown’s darkest sky — walk out toward the lighthouse with a blanket and watch the stars come up over the lake while the skyline glows behind you.',
+      why: 'The car-free spit is downtown’s darkest sky. Walk out toward the lighthouse with a blanket and watch the stars come up over the lake while the skyline glows behind you.',
       image_url: 'https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?auto=format&fit=crop&w=900&q=70',
       maps_url: 'https://www.google.com/maps/search/?api=1&query=Tommy+Thompson+Park+Toronto'
     },
@@ -4117,7 +4117,7 @@
       title: 'Dark skies in Rouge Park',
       venue: 'Rouge National Urban Park, Scarborough',
       location: 'Rouge National Urban Park',
-      why: 'Canada’s first national urban park gets properly dark — bring a red flashlight, find a meadow, and catch the Milky Way rising over the Little Rouge valley.',
+      why: 'Canada’s first national urban park gets properly dark. Bring a red flashlight, find a meadow, and catch the Milky Way rising over the Little Rouge valley.',
       image_url: 'https://images.unsplash.com/photo-1475274047050-1d0c0975c63e?auto=format&fit=crop&w=900&q=70',
       maps_url: 'https://www.google.com/maps/search/?api=1&query=Rouge+National+Urban+Park'
     },
@@ -4126,7 +4126,7 @@
       title: 'Open-air films at Christie Pits',
       venue: 'Christie Pits Park, Toronto',
       location: 'Christie Pits Park, 750 Bloor St W',
-      why: 'Open-air cinema on the hillside — arrive at dusk with a blanket and watch a film under the summer sky with half the neighbourhood spread out around you.',
+      why: 'Open-air cinema on the hillside. Arrive at dusk with a blanket and watch a film under the summer sky with half the neighbourhood spread out around you.',
       image_url: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=900&q=70',
       maps_url: 'https://www.google.com/maps/search/?api=1&query=Christie+Pits+Park+Toronto'
     },
@@ -4135,7 +4135,7 @@
       title: 'Sunset evenings at Trillium Park',
       venue: 'Trillium Park, Ontario Place',
       location: 'Trillium Park, 955 Lake Shore Blvd W',
-      why: 'A carved-granite point on the old Ontario Place grounds — sunset picnics, skyline views, and open lawns that fill with easy-going crowds as the light goes gold.',
+      why: 'A carved-granite point on the old Ontario Place grounds. Sunset picnics, skyline views, and open lawns that fill with easy-going crowds as the light goes gold.',
       image_url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=70',
       maps_url: 'https://www.google.com/maps/search/?api=1&query=Trillium+Park+Toronto'
     }
@@ -4598,7 +4598,7 @@
     if (!feed || state.allIdeas.length) return;
     feed.innerHTML = `
       <div class="empty-state">
-        <p class="empty-mark">— · — · — · —</p>
+        <p class="empty-mark">· · · ·</p>
         <h3>Still waking up 🥱</h3>
         <p>Couldn't load nearby ideas just now.</p>
         <button class="ghost-btn" id="browse-retry-btn" type="button">Try again</button>
@@ -4734,7 +4734,7 @@
       setButtonState('busy');
       setStatus('Finishing…');
       try { recognition.stop(); } catch (e) { /* already stopping */ }
-      if (reason === 'max') setStatus('That’s the 90-second limit — edit if needed, then plan your day.');
+      if (reason === 'max') setStatus('That’s the 90-second limit. Edit if needed, then plan your day.');
     }
 
     function finish() {
@@ -4748,9 +4748,9 @@
         setStatus('Edit if needed, then tap Plan my day.');
         track('voice_prompt_committed');
       } else if (heardSpeech) {
-        setStatus('Nothing came through — tap the mic to try again.');
+        setStatus('Nothing came through. Tap the mic to try again.');
       } else {
-        setStatus('Didn’t catch anything — tap the mic and speak.');
+        setStatus('Didn’t catch anything. Tap the mic and speak.');
       }
       // Focus stays in the box so the next thing they do is read and edit.
       textarea.focus();
@@ -4812,11 +4812,11 @@
         if (code === 'not-allowed' || code === 'service-not-allowed') {
           setStatus('Microphone is blocked. Allow it in your browser’s address-bar icon, then tap the mic again.', true);
         } else if (code === 'audio-capture') {
-          setStatus('No microphone found — you can still type your day.', true);
+          setStatus('No microphone found. You can still type your day.', true);
         } else if (code === 'network') {
           setStatus('Voice needs a connection. Check it and tap the mic again.', true);
         } else {
-          setStatus('Voice didn’t work that time — you can still type your day.', true);
+          setStatus('Voice didn’t work that time. You can still type your day.', true);
         }
       };
       r.onend = () => {
@@ -4868,7 +4868,7 @@
         recognition.start();
       } catch (e) {
         setButtonState('idle');
-        setStatus('Voice didn’t start — you can still type your day.', true);
+        setStatus('Voice didn’t start. You can still type your day.', true);
         return;
       }
       maxTimer = setTimeout(() => stop('max'), VOICE_MAX_MS);
@@ -4898,7 +4898,7 @@
 
     // Location first — never search location-less.
     if (!state.locationChosen) {
-      errorEl.textContent = 'First pick where 📍 — use your location, or type a city or postal code.';
+      errorEl.textContent = 'First pick where 📍. Use your location, or type a city or postal code.';
       const whereEl = document.getElementById('prompt-location');
       if (whereEl) {
         whereEl.classList.remove('prompt-location--error');
@@ -5026,7 +5026,7 @@
         document.getElementById('results-header').scrollIntoView({ behavior: 'auto', block: 'start' });
       } else {
         // Never wipe a live feed for an empty surprise.
-        showToast(`No surprises left around ${state.locationChosen ? state.city : 'the GTA'} — try the other mode or another spot.`, { duration: 3500 });
+        showToast(`No surprises left around ${state.locationChosen ? state.city : 'the GTA'}. Try the other mode or another spot.`, { duration: 3500 });
       }
     } catch (err) {
       progress.fail();
@@ -5085,7 +5085,7 @@
       if (data.exhausted === true || state.nextPages >= NEXT_PAGE_CAP) {
         state.nextExhausted = true;
         if (!fresh.length) showToast("That's everything awesome we could find 🎉", { duration: 3500 });
-        else if (state.nextPages >= NEXT_PAGE_CAP) showToast("That's today's set — describe your day for a tailored one ✨", { duration: 3500 });
+        else if (state.nextPages >= NEXT_PAGE_CAP) showToast("That's today's set. Describe your day for a tailored one ✨", { duration: 3500 });
       }
     } catch (err) {
       showToast(err.message || 'Could not load more right now.', { duration: 3500 });
@@ -5104,13 +5104,13 @@
   // Outcome language, not feature language: each line names the day the
   // user was about to have, then removes the thing standing in its way.
   const UPGRADE_CONTEXTS = {
-    generate: "You're out of plans for today — with Pro, a great day is never more than a sentence away.",
-    saved_guides: 'Never lose a perfect day again — Pro keeps every plan you make, forever.',
-    edit_guide: "You've made this plan yours — Pro saves your version so it's ready next weekend.",
-    multi_day: 'Turn a great day into a great weekend — Pro plans 2–3 day getaways.',
+    generate: "You're out of plans for today. With Pro, a great day is never more than a sentence away.",
+    saved_guides: 'Never lose a perfect day again. Pro keeps every plan you make, forever.',
+    edit_guide: "You've made this plan yours. Pro saves your version so it's ready next weekend.",
+    multi_day: 'Turn a great day into a great weekend. Pro plans 2-3 day getaways.',
     replan: 'Weather changed? Kids changed the mood? Pro re-plans as often as your day does.',
-    new_shortlist: 'Start fresh whenever inspiration strikes — unlimited shortlists with Pro.',
-    post_plan: 'Keep the whole long weekend planned — unlimited plans, saved history, weekend trips.'
+    new_shortlist: 'Start fresh whenever inspiration strikes. Unlimited shortlists with Pro.',
+    post_plan: 'Keep the whole long weekend planned. Unlimited plans, saved history, weekend trips.'
   };
 
   function showUpgradeModal(context) {
@@ -5137,7 +5137,7 @@
       row.classList.toggle('compare-hit', row.dataset.context === context));
     const cta = document.getElementById('upgrade-cta');
     cta.textContent = state.price && state.price.amount != null
-      ? `Try Pro free for 7 days — then $${state.price.amount} ${state.price.currency}/${state.price.interval} ✨`
+      ? `Try Pro free for 7 days, then $${state.price.amount} ${state.price.currency}/${state.price.interval} ✨`
       : 'Try Pro free for 7 days ✨';
     modal.hidden = false;
     requestAnimationFrame(() => modal.classList.add('modal--open'));
@@ -5189,8 +5189,8 @@
       resumeBtn.hidden = false;
     } else {
       statusEl.textContent = end
-        ? `You're Pro — unlimited plans, re-plans, and multi-day trips. Renews ${end}.`
-        : `You're Pro — unlimited plans, re-plans, and multi-day trips.`;
+        ? `You're Pro. Unlimited plans, re-plans, and multi-day trips. Renews ${end}.`
+        : `You're Pro. Unlimited plans, re-plans, and multi-day trips.`;
       cancelBtn.hidden = false;
       resumeBtn.hidden = true;
     }
@@ -5251,23 +5251,23 @@
     document.querySelectorAll('[data-close-membership]').forEach(el =>
       el.addEventListener('click', hideMembershipModal));
 
-    // Two taps on the SAME button: "Cancel membership" → "Yes, cancel — keep
+    // Two taps on the SAME button: "Cancel membership" → "Yes, cancel, keep
     // Pro until <date>". No nested dialogs, no guilt copy.
     cancelBtn.addEventListener('click', () => {
       if (!cancelBtn.classList.contains('is-confirming')) {
         cancelBtn.classList.add('is-confirming');
         const end = membershipEndDate();
         cancelBtn.querySelector('.btn-label').textContent =
-          end ? `Yes, cancel — keep Pro until ${end}` : 'Yes, cancel my membership';
+          end ? `Yes, cancel, keep Pro until ${end}` : 'Yes, cancel my membership';
         return;
       }
       const end = membershipEndDate();
       membershipRequest('cancel', cancelBtn,
-        end ? `Done — no more charges. Pro stays active until ${end}.` : 'Done — no more charges.');
+        end ? `Done. No more charges. Pro stays active until ${end}.` : 'Done. No more charges.');
     });
 
     resumeBtn.addEventListener('click', () => {
-      membershipRequest('resume', resumeBtn, 'Welcome back — your membership will renew as usual ✨');
+      membershipRequest('resume', resumeBtn, 'Welcome back. Your membership will renew as usual ✨');
     });
   }
 
@@ -5306,7 +5306,7 @@
       // Remember the intent so sign-in resumes checkout instead of dropping
       // the user back on the page to re-find the upgrade button.
       state.pendingUpgrade = true;
-      showToast('Sign in first — we\'ll take you straight to checkout.', { duration: 4000 });
+      showToast('Sign in first. We\'ll take you straight to checkout.', { duration: 4000 });
       const authBtn = document.getElementById('auth-btn');
       if (authBtn && !authBtn.hidden) authBtn.click();
       return;
@@ -5400,7 +5400,7 @@
 
     el.innerHTML = left > 0
       ? `<span class="plans-left-dots">${dots}</span><span>${left} of ${limit} free plan${limit === 1 ? '' : 's'} left today</span>`
-      : `<span class="plans-left-dots">${dots}</span><span>Back tomorrow — or</span><button type="button" class="linklike" id="plans-left-upgrade">go Pro for unlimited ✨</button>`;
+      : `<span class="plans-left-dots">${dots}</span><span>Back tomorrow, or</span><button type="button" class="linklike" id="plans-left-upgrade">go Pro for unlimited ✨</button>`;
     const up = document.getElementById('plans-left-upgrade');
     if (up) up.addEventListener('click', () => showUpgradeModal('generate'));
     el.hidden = false;
@@ -5438,7 +5438,7 @@
       ).then(refreshProStatus);
       setTimeout(refreshProStatus, 2500);
     } else if (billing === 'cancelled') {
-      showToast('No worries — Pro is here whenever you want it.');
+      showToast('No worries. Pro is here whenever you want it.');
     }
     params.delete('billing');
     params.delete('session_id');
@@ -5596,7 +5596,7 @@
       return;
     }
     el.hidden = false;
-    el.textContent = `${weatherEmoji(weather.condition)} ${weather.temp_c}°C, ${weather.description} — ideas adjusted for current conditions`;
+    el.textContent = `${weatherEmoji(weather.condition)} ${weather.temp_c}°C, ${weather.description}. Ideas adjusted for current conditions`;
   }
 
   function weatherEmoji(condition) {
@@ -5631,7 +5631,7 @@
     const src = a.source === 'derived'
       ? 'DayHop estimate from current conditions'
       : (a.source_name || 'verified source');
-    return `<strong>${escapeHtml(ADVISORY_EMOJI[a.type] || '⚠️')} ${escapeHtml(a.title)}</strong> — ${escapeHtml(a.message)} <span class="advisory-source">${escapeHtml(src)}</span>`;
+    return `<strong>${escapeHtml(ADVISORY_EMOJI[a.type] || '⚠️')} ${escapeHtml(a.title)}</strong>: ${escapeHtml(a.message)} <span class="advisory-source">${escapeHtml(src)}</span>`;
   }
 
   function renderAdvisoryStrip() {
@@ -5644,7 +5644,7 @@
       // implying "all clear" after a failed check would be a false promise.
       if (state.lastAdvisoriesStatus === 'unavailable' && state.allIdeas.length) {
         el.className = 'advisory-strip advisory-strip--unavailable';
-        el.innerHTML = '<span class="advisory-main">Couldn\'t verify local advisories right now — check conditions before heading out.</span>';
+        el.innerHTML = '<span class="advisory-main">Couldn\'t verify local advisories right now. Check conditions before heading out.</span>';
         el.hidden = false;
       } else {
         el.hidden = true;
@@ -5705,7 +5705,7 @@
     if (Array.isArray(guide.advisories) && guide.advisories.length) {
       const titles = guide.advisories.map(a => a.title).join(', ');
       const cls = guide.advisories.some(a => a.severity === 'danger') ? 'danger' : 'warning';
-      return `<div class="plan-advisory plan-advisory--${cls}">⚠️ Heads up: ${escapeHtml(titles)} — this plan works around it, but conditions can change fast. Ask DayHop to re-plan if they do.</div>`;
+      return `<div class="plan-advisory plan-advisory--${cls}">⚠️ Heads up: ${escapeHtml(titles)}. This plan works around it, but conditions can change fast. Ask DayHop to re-plan if they do.</div>`;
     }
     if (guide.advisories_checked) {
       return '<div class="plan-advisory plan-advisory--clear">✓ No active advisories for this area when this plan was made</div>';
@@ -5776,7 +5776,7 @@
         idea,
         title: 'Welcome back 👋',
         sub: idea && idea.title
-          ? `${idea.title} is safe on your shortlist — pick up right where you left off.`
+          ? `${idea.title} is safe on your shortlist. Pick up right where you left off.`
           : 'Your shortlist is right where you left it.'
       });
     });
@@ -5808,7 +5808,7 @@
       idea,
       title: saved ? 'Saved to your day ✨' : 'Booking opened in a new tab',
       sub: saved
-        ? `The booking tab is open — ${idea.title} is on your shortlist, so nothing gets lost.`
+        ? `The booking tab is open. ${idea.title} is on your shortlist, so nothing gets lost.`
         : 'Take your time over there. Your plan is waiting right here.'
     });
   }
@@ -5977,7 +5977,7 @@
 
   function favsCreateList({ name, city = null, mood = null, itemIds = [], sync = true }) {
     if (state.lists.length >= FAVS_LIST_CAP) {
-      showToast(`That's ${FAVS_LIST_CAP} lists — rename or delete one to make room`);
+      showToast(`That's ${FAVS_LIST_CAP} lists. Rename or delete one to make room`);
       return favsActiveList();
     }
     const list = {
@@ -6724,7 +6724,7 @@
       setTimeout(() => {
         if (!deferredInstallEvt || isLoggedIn() || installToastSeen()) return;
         markInstallToastSeen();
-        showToast('Add DayHop to your home screen — it works offline', {
+        showToast('Add DayHop to your home screen. It works offline', {
           duration: 7000,
           actionLabel: 'Install',
           onAction: promptInstall
@@ -6902,7 +6902,7 @@
     // Offline awareness (PWA): the shell + saved data work offline; live
     // search and AI plans need a connection.
     window.addEventListener('offline', () =>
-      showToast("You're offline — your saved plans and shortlist still work.", { duration: 4500 }));
+      showToast("You're offline. Your saved plans and shortlist still work.", { duration: 4500 }));
     window.addEventListener('online', () => showToast('Back online ✨'));
 
     handleBillingReturn();

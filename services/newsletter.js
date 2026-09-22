@@ -76,7 +76,7 @@ function complianceFooter(token) {
   <p style="margin:28px 0 0;padding-top:16px;border-top:1px solid #e8e2d4;font-size:12px;line-height:1.6;color:#6b7c7e;">
     You're receiving this because you subscribed at dayhop.quest.<br>
     DayHop · Richmond Hill, Ontario, Canada · <a href="mailto:admin@dayhop.quest" style="color:#6b7c7e;">admin@dayhop.quest</a><br>
-    <a href="${unsubscribeUrl(token)}" style="color:#6b7c7e;">Unsubscribe</a> — one click, no questions.
+    <a href="${unsubscribeUrl(token)}" style="color:#6b7c7e;">Unsubscribe</a>. One click, no questions.
   </p>`;
 }
 
@@ -86,9 +86,9 @@ function confirmEmailHtml(token) {
     <p style="font-size:22px;font-weight:700;margin:0 0 4px;">DayHop</p>
     <h1 style="font-size:24px;line-height:1.25;margin:18px 0 10px;">One click and the Playbook is yours</h1>
     <p style="font-size:16px;line-height:1.6;margin:0 0 22px;">
-      Confirm your email and two things happen: <strong>The GTA Family Weekend
-      Playbook</strong> — 70+ outings actually worth your Saturday — arrives in
-      your welcome email, and every week you'll get a short, honest brief on
+      Confirm your email and two things happen. <strong>The GTA Family Weekend
+      Playbook</strong>, 70+ outings actually worth your Saturday, arrives in
+      your welcome email. And every week you get a short, honest brief on
       the best family things happening around the GTA: Mondays it's
       <strong>Talk of the town</strong> (this week's festivals, fairs and
       outdoor happenings), Thursdays it's the weekend picks. No spam, ever.
@@ -98,7 +98,7 @@ function confirmEmailHtml(token) {
        style="display:inline-block;background:#FF6B4A;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;padding:13px 26px;border-radius:10px;">
       Confirm my subscription</a>
     <p style="font-size:13px;color:#6b7c7e;line-height:1.6;margin:22px 0 0;">
-      Didn't sign up? Just ignore this — you won't hear from us again.
+      Didn't sign up? Just ignore this. You won't hear from us again.
     </p>
     <p style="margin:28px 0 0;padding-top:16px;border-top:1px solid #e8e2d4;font-size:12px;line-height:1.6;color:#6b7c7e;">
       DayHop · Richmond Hill, Ontario, Canada · <a href="mailto:admin@dayhop.quest" style="color:#6b7c7e;">admin@dayhop.quest</a>
@@ -109,7 +109,7 @@ function confirmEmailHtml(token) {
 function confirmEmailText(token) {
   return `Confirm your DayHop subscription
 
-Confirm and two things happen: The GTA Family Weekend Playbook (70+ outings actually worth your Saturday) arrives in your welcome email, and every week you get a short, honest brief on the best family things happening around the GTA: Mondays it's Talk of the town (this week's festivals, fairs and outdoor happenings), Thursdays it's the weekend picks. No spam, ever.
+Confirm and two things happen. The GTA Family Weekend Playbook, 70+ outings actually worth your Saturday, arrives in your welcome email. And every week you get a short, honest brief on the best family things happening around the GTA: Mondays it's Talk of the town (this week's festivals, fairs and outdoor happenings), Thursdays it's the weekend picks. No spam, ever.
 
 Confirm here: ${confirmUrl(token)}
 
@@ -122,11 +122,11 @@ function welcomeEmailHtml(token, hasPdf = false) {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"></head><body style="margin:0;padding:0;background:#FBF7EE;">
   <div style="max-width:520px;margin:0 auto;padding:32px 24px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102A2E;">
     <p style="font-size:22px;font-weight:700;margin:0 0 4px;">DayHop</p>
-    <h1 style="font-size:24px;line-height:1.25;margin:18px 0 10px;">You're in — here's your Playbook.</h1>
+    <h1 style="font-size:24px;line-height:1.25;margin:18px 0 10px;">You're in. Here's your Playbook.</h1>
     <p style="font-size:16px;line-height:1.6;margin:0 0 16px;">
-      As promised: <strong>The GTA Family Weekend Playbook</strong> — 70+
+      As promised: <strong>The GTA Family Weekend Playbook</strong>, 70+
       outings actually worth your Saturday, organized by age, budget, and
-      rain-proofness. It regenerates from live data, so bookmark it; it only
+      rain-proofness. It regenerates from live data, so bookmark it. It only
       gets better.
     </p>
     <p style="margin:0 0 ${hasPdf ? '10px' : '22px'};">
@@ -135,41 +135,41 @@ function welcomeEmailHtml(token, hasPdf = false) {
         Open my Playbook</a>
     </p>
     ${hasPdf ? `<p style="font-size:13.5px;line-height:1.5;color:#6b7c7e;margin:0 0 22px;">
-      📎 It's also attached as a PDF — save it, print it, or share it with your
+      📎 It's also attached as a PDF. Save it, print it, or share it with your
       co-parent. The link above always has the freshest version.
     </p>` : ''}
     <p style="font-size:16px;line-height:1.6;margin:0 0 14px;">
-      And every week, two short briefs: <strong>Monday</strong> is
-      <strong>Talk of the town</strong> — the festivals, fairs and outdoor
-      happenings locals are actually going to this week — and
+      And every week, two short briefs. <strong>Monday</strong> is
+      <strong>Talk of the town</strong>, the festivals, fairs and outdoor
+      happenings locals are actually going to this week.
       <strong>Thursday morning</strong>, in time to actually plan your
       weekend, is 4-5 things genuinely worth doing with your crew around the
       GTA, a weather call, and a heads-up if anything's closed or flooded.
       That's it. No spam, ever.
     </p>
     <p style="font-size:16px;line-height:1.6;margin:0 0 14px;">
-      Two quick favours so we don't get lost: if this landed in Promotions or
-      spam, <strong>drag it to your Primary tab</strong> — and hit reply to
+      Two quick favours so we don't get lost. If this landed in Promotions or
+      spam, <strong>drag it to your Primary tab</strong>. And hit reply to
       tell us your kids' ages and your corner of the GTA. A real person reads
       every reply, and it makes your picks sharper.
     </p>
     <p style="font-size:16px;line-height:1.6;margin:0 0 22px;">
       Ready to go deeper? <a href="${baseUrl()}/" style="color:#E1502F;font-weight:600;">Tell the planner
-      what kind of day you want</a> — one sentence in, a whole day out.
+      what kind of day you want</a>. One sentence in, a whole day out.
     </p>
     ${complianceFooter(token)}
   </div></body></html>`;
 }
 
 function welcomeEmailText(token, hasPdf = false) {
-  return `You're in — here's your Playbook.
+  return `You're in. Here's your Playbook.
 
 The GTA Family Weekend Playbook (70+ outings actually worth your Saturday, organized by age, budget, and rain-proofness):
-${playbookUrl(token)}${hasPdf ? '\n\nIt is also attached as a PDF — save it, print it, share it. The link above always has the freshest version.' : ''}
+${playbookUrl(token)}${hasPdf ? '\n\nIt is also attached as a PDF. Save it, print it, share it. The link above always has the freshest version.' : ''}
 
-And every week, two short briefs: Monday is Talk of the town — the festivals, fairs and outdoor happenings locals are actually going to this week — and Thursday morning you'll get 4-5 things genuinely worth doing with your crew around the GTA, a weather call, and a heads-up if anything's closed. That's it. No spam, ever.
+And every week, two short briefs. Monday is Talk of the town, the festivals, fairs and outdoor happenings locals are actually going to this week. Thursday morning you'll get 4-5 things genuinely worth doing with your crew around the GTA, a weather call, and a heads-up if anything's closed. That's it. No spam, ever.
 
-Two quick favours: if this landed in spam or Promotions, move it to your inbox — and hit reply with your kids' ages and your corner of the GTA. A real person reads every reply.
+Two quick favours. If this landed in spam or Promotions, move it to your inbox. And hit reply with your kids' ages and your corner of the GTA. A real person reads every reply.
 
 Can't wait until Thursday? Plan a day now: ${baseUrl()}/
 
@@ -271,7 +271,7 @@ async function confirm(token) {
       if (sampler) attachments.push({ filename: 'DayHop-Ontario-Sampler.pdf', content: sampler });
       await sendEmail({
         to: row.email,
-        subject: 'Welcome to DayHop — your Weekend Playbook is inside',
+        subject: 'Welcome to DayHop: your Weekend Playbook is inside',
         html: welcomeEmailHtml(row.token, Boolean(pdf)),
         text: welcomeEmailText(row.token, Boolean(pdf)),
         unsubscribeUrl: unsubscribeUrl(row.token),
@@ -351,3 +351,9 @@ async function getByToken(token) {
 }
 
 module.exports = { subscribe, confirm, unsubscribe, listSubscribed, listPending, markSent, stats, unsubscribeUrl, baseUrl, getByToken, confirmUrl, complianceFooter };
+// Exported for the house-style test (test/copyStyle.test.js) — pure
+// template functions, no network.
+module.exports.confirmEmailHtml = confirmEmailHtml;
+module.exports.confirmEmailText = confirmEmailText;
+module.exports.welcomeEmailHtml = welcomeEmailHtml;
+module.exports.welcomeEmailText = welcomeEmailText;
