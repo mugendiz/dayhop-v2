@@ -2443,7 +2443,31 @@ button.date-clear-btn { padding: 13px 4px; }
   .card-feed { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .card-feed::before { display: none; }
   .idea-card::before { display: none; }
+
+  /* A card left alone in the grid's last row (public/app.js's
+     widenOddTrailingCards) spans both columns and switches to a photo-left,
+     detail-right layout instead of sitting next to an empty cell. */
+  .idea-card--wide {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(220px, 320px) 1fr;
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "photo body" "photo actions";
+    gap: 6px 20px;
+  }
+  .idea-card--wide .card-photo {
+    grid-area: photo;
+    margin: -18px 0 -14px -18px;
+    height: auto;
+    min-height: 220px;
+    border-radius: 17px 0 0 17px;
+  }
+  .idea-card--wide .card-body { grid-area: body; align-self: start; }
+  .idea-card--wide .card-actions { grid-area: actions; align-self: end; }
 }
+
+/* More of the story shows on a widened card regardless of viewport — it's
+   the one card in its row with real estate to spare, everywhere it appears. */
+.idea-card--wide .why { -webkit-line-clamp: 4; }
 
 @media (max-width: 480px) {
   .panel-sheet { width: 100%; padding: 20px 18px; }

@@ -777,6 +777,27 @@ module.exports = [
     wow: false, seasonal: 'summer', worth_trip: true
   },
   {
+    // Winona, on the Stoney Creek side of Hamilton, roughly 60 km from
+    // downtown Toronto, so it sits inside the 40 to 250 km "Worth the drive"
+    // band. wow: true earns the hidden gems shelf, which the automatic rule
+    // would never give it: that rule only picks places with 25 to 100
+    // reviews, and a 100 year old estate winery has far more than that.
+    // Coordinates are the Winona / Highway 8 area and are approximate,
+    // pending a Google Places confirmation on the next coords run.
+    id: 'cur-puddicombe-estate',
+    title: 'Puddicombe Estate, the $9 orchard train ride',
+    category: 'kids',
+    tags: ['farm', 'orchard', 'train', 'kids', 'toddler', 'outdoor', 'fall',
+      'day trip', 'worth the drive', 'winery', 'apples', 'hidden gem'],
+    location: 'Winona, Stoney Creek',
+    venue: 'Puddicombe Estate Farms and Winery',
+    description: 'A little train runs through the orchards for about $9 a seat. Pick your own apples after, then the bakery and the estate winery for the grown ups.',
+    cost_tier: '$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Puddicombe Estate Farms and Winery Winona Ontario'),
+    lat: 43.2158, lng: -79.6386,
+    wow: true, seasonal: 'summer', worth_trip: true
+  },
+  {
     id: 'cur-riverdale-farm',
     title: "Riverdale Farm — a free farm inside the city",
     category: 'kids',

@@ -1819,6 +1819,43 @@
     if (grid && ideas.length) favsCoachMark(); // once per device, first tile feed
   }
 
+  // A section header (or the best-match hero, which carries the same rule)
+  // always starts a fresh row in the 720px+ two-column grid (both are
+  // grid-column: 1/-1 in main.css) — so a run of plain cards between one
+  // full-span element and the next is exactly what can leave a lone card in
+  // a half-empty last row while scrolling. Rather than a gap, that lone card
+  // spans both columns and switches to a photo-left, detail-more-visible
+  // layout (.idea-card--wide): a deliberate "featured" moment, not an
+  // accident. Break cards (capture-card) take one grid cell like an idea
+  // card and count toward the run, but are never themselves widened — their
+  // callout styling already reads as intentional.
+  //
+  // Re-derived from scratch on every call (cheap at feed scale) because
+  // "More ideas" (unfoldFeed), "Next" pagination (appendIdeasToFeed), and
+  // dismissing a single card (removeIdeaCardInPlace) all reshuffle or extend
+  // the sequence after the fact — this runs from updateFeedChrome, the one
+  // choke point every feed mutation already passes through.
+  function widenOddTrailingCards(feed) {
+    let run = [];
+    const flush = () => {
+      const last = run[run.length - 1];
+      if (run.length % 2 !== 0 && last && last.classList.contains('idea-card')) {
+        last.classList.add('idea-card--wide');
+      }
+      run = [];
+    };
+    for (const el of feed.children) {
+      el.classList.remove('idea-card--wide');
+      if (el.classList.contains('is-folded')) continue; // display:none — not part of the grid
+      if (el.classList.contains('feed-section-header') || el.classList.contains('best-match')) {
+        flush();
+        continue;
+      }
+      run.push(el);
+    }
+    flush();
+  }
+
   // The feed's supporting cast — empty/no-results states, the idea-count
   // line, the collections shelf. Shared by the full render and the
   // single-card removal path so the two can't drift.
@@ -1829,6 +1866,8 @@
     // it here doubled the filter work on every render.
     const ideas = precomputedIdeas || visibleIdeas();
     const hasIdeas = state.allIdeas.length > 0;
+    const feedEl = document.getElementById('discovery-feed');
+    if (feedEl) widenOddTrailingCards(feedEl);
     // Empty: nothing generated yet. No-results: ideas exist but the filter/swipes hid them all.
     document.getElementById('empty-state').hidden = state.isGenerating || hasIdeas;
     document.getElementById('noresults-state').hidden = state.isGenerating || !hasIdeas || ideas.length > 0;
