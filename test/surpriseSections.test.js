@@ -103,13 +103,29 @@ test('the weekly store reaches 180 km; this feed still promises 80', () => {
 });
 
 test('a far pick releases its pool twin instead of taking it down too', () => {
+  // A LONE pool candidate, not POOL: the local shelf runs its picks through
+  // sample(), which shuffles, so against a crowded pool whether this one card
+  // wins a slot is a coin toss and the assertion flakes (~30% of runs). With
+  // one candidate the feed falls under MIN_FEED, the backstop takes the pool
+  // in order, and "did it survive the ownership filter" is the only variable
+  // left — which is the thing this test is actually about.
   const twin = make('cal-cne', { title: 'Happening tott-far', distance_km: 7 });
   const withFar = [...FOUR_TOTT.slice(0, 3), tottPick('tott-far', { distance_km: 150 })];
-  const ideas = buildSurpriseSections([...POOL, twin], {
+  const ideas = buildSurpriseSections([twin], {
     mode: 'rr', near: true, wider: false, tott: withFar
   });
   assert.ok(ideas.some(i => i.id === 'cal-cne'),
     'the pool candidate should survive when the tott pick it duplicates is dropped');
+});
+
+test('a shown pick still removes its twin from a lone-candidate pool', () => {
+  // The mirror of the test above on the same minimal pool, so the pair can
+  // only differ by the ownership rule and not by which shelf got lucky.
+  const twin = make('cal-cne', { title: 'Happening tott-0', distance_km: 7 });
+  const ideas = buildSurpriseSections([twin], {
+    mode: 'rr', near: true, wider: false, tott: FOUR_TOTT
+  });
+  assert.ok(!ideas.some(i => i.id === 'cal-cne'), 'a shown pick must own its title');
 });
 
 test('a shown pick owns its title, so one happening never holds two slots', () => {
