@@ -45,6 +45,11 @@ const isYmd = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
 
 async function buildTottDigest() {
   const hub = hubById(HUB_ID);
+  // No maxKm on purpose. The live feeds cap at FEED_MAX_KM (80) because a
+  // Saturday-morning scroll wants somewhere to go today; the Monday
+  // newsletter goes out with a week's notice, so the full reach of the store
+  // (HUB_REACH_KM, 180) is exactly what earns the open. Do not "fix" this to
+  // match the feeds — the difference is the point.
   const picks = talkOfTown.active({ point: { lat: hub.lat, lng: hub.lng }, limit: talkOfTown.SHELF_SIZE });
   if (!picks.length) throw new Error('talk-of-town digest has no live picks — refusing to send an empty email');
   const subject = `Talk of the town: ${trim(picks[0].title, 55)}${picks.length > 1 ? ` + ${picks.length - 1} more this week` : ''}`;

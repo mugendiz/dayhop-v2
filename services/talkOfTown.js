@@ -38,6 +38,14 @@ const SHELF_SIZE = 5;
 const ASK_FOR = 8;             // candidates requested per hub; verification thins them
 const PUBLISH_SIZE = SHELF_SIZE + 1; // one spare: the Top-5 layout lifts rank 1 into its slot 6
 const MAX_FAR = 2;             // of SHELF_SIZE, beyond FAR_KM
+// The live feeds promise a day out, not a road trip, and cap what they serve
+// at 80 km from the user (routes/surprise.js's DRIVE_MAX_KM says the same).
+// The weekly store itself reaches HUB_REACH_KM (180) on purpose: the Monday
+// newsletter is read at the kitchen table on a week's notice, where "worth
+// the drive to Prince Edward County" is the whole point. So the ceiling is
+// per-caller, not baked into the store — active() takes maxKm, the feeds
+// pass FEED_MAX_KM, and services/tottDigest.js deliberately passes nothing.
+const FEED_MAX_KM = 80;
 const WINDOW_DAYS = 10;        // "this week": today → today + 10
 const MAX_START_AHEAD_DAYS = 14;
 const MAX_RUN_DAYS = 75;       // long-running installations are fine; year-round attractions are not "happening"
@@ -404,7 +412,11 @@ const checkStaleOnBoot = () => checkStale({ reason: 'stale-on-boot' });
  * first then rank, ≤ HUB_REACH_KM from the user, at most MAX_FAR beyond
  * FAR_KM from the user. Candidate-shaped for routes/browse.js.
  */
-function active({ point, today = torontoToday(), limit = SHELF_SIZE, source } = {}) {
+function active({ point, today = torontoToday(), limit = SHELF_SIZE, source, maxKm = HUB_REACH_KM } = {}) {
+  // > 0, not just finite: Number(null) is 0, so a null ceiling would pass an
+  // isFinite check and silently empty the shelf. Same guard regionGate.js uses.
+  const reachN = Number(maxKm);
+  const reach = Number.isFinite(reachN) && reachN > 0 ? reachN : HUB_REACH_KM;
   if (!source) loadFromDb();
   const hub = hubFor(point);
   if (!hub) return [];
@@ -416,7 +428,7 @@ function active({ point, today = torontoToday(), limit = SHELF_SIZE, source } = 
   for (const r of list) {
     const e = r.entry;
     const km = e.lat != null ? haversineKm(point, { lat: e.lat, lng: e.lng }) : null;
-    if (km != null && km > HUB_REACH_KM) continue;
+    if (km != null && km > reach) continue;
     const isFar = km != null && km > FAR_KM;
     if (isFar && far >= MAX_FAR) continue;
     if (isFar) far++;
@@ -536,5 +548,5 @@ module.exports = {
   active, noteBrowse, refresh, refreshDue, checkStale, checkStaleOnBoot, needsRefresh,
   pin, retire, addManual, peek,
   // pure helpers for tests
-  shapePick, weekStart, toCandidate, SHELF_SIZE, MAX_FAR, FAR_KM
+  shapePick, weekStart, toCandidate, SHELF_SIZE, MAX_FAR, FAR_KM, FEED_MAX_KM
 };

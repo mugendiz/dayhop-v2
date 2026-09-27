@@ -110,7 +110,12 @@ router.post('/', async (req, res) => {
     // noteBrowse() arms a one-off background refresh for a hub that has
     // never been browsed from; it never delays this response.
     const point = coords || (geo && geo.lat != null && geo.lng != null ? { lat: geo.lat, lng: geo.lng } : null);
-    const tott = talkOfTown.active({ point, limit: 6 });
+    // maxKm: the front page serves a day out, not a road trip. The weekly
+    // store reaches 180 km and the Monday newsletter still gets all of it
+    // (services/tottDigest.js passes no ceiling) — a week's notice is what
+    // makes "worth the drive" worth reading. A feed you scroll on Saturday
+    // morning is not.
+    const tott = talkOfTown.active({ point, limit: 6, maxKm: talkOfTown.FEED_MAX_KM });
     talkOfTown.noteBrowse(point);
     const layout = feedLayout();
 
@@ -367,8 +372,18 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
 
   const text = c => `${c.title || ''} ${c.description || ''} ${c.category || ''}`;
   const hasDate = c => Boolean(c.date);
+  // Thrill is classified FIRST because isFood defers to it: the food regex
+  // matches a MENTION of food anywhere in title/description/category, and
+  // half the climbing gyms in the GTA describe a cafe or a patio. That put
+  // Boulder Parc on "New & notable dining". Category stays authoritative
+  // (a real restaurant is category food/patios and is never second-guessed);
+  // only the loose text fallback has to yield. Same "thrill wins ties" rule
+  // the mode classifiers below already use.
+  const isThrill = c => c.category === 'adventures' ||
+    /zipline|zip.?lin|treetop|aerial|ropes course|climb|boulder|mountain bik|bmx|kart|paintball|axe|trampoline|skydiv|parasail|paraglid|bungee|jet ski|rafting|atv|quad bik|off.?road|snowboard|toboggan|laser tag|wakeboard|surf|adrenaline|thrill/i.test(text(c));
   const isFood = c => ['food', 'patios'].includes(c.category) ||
-    /restaurant|café|cafe|coffee|brunch|breakfast|bakery|food|dining|patio|brewery|winery|dessert|ice cream|pizza|ramen|taco|bistro|eatery/i.test(text(c));
+    (!isThrill(c) &&
+      /restaurant|café|cafe|coffee|brunch|breakfast|bakery|food|dining|patio|brewery|winery|dessert|ice cream|pizza|ramen|taco|bistro|eatery/i.test(text(c)));
   // Dining worth a special trip: newly opened, or 4.4+ with a real crowd
   // behind the rating. Both modes get this shelf — adventurers eat too.
   const isNotableDining = c => isFood(c) &&
@@ -382,10 +397,9 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   // the curated catalog.
   const isGem = c => c.wow === true ||
     (c.rating != null && c.rating >= 4.6 && (c.rating_count || 0) >= 25 && (c.rating_count || 0) <= 100);
-  // The two mode personalities. Thrill wins ties (a climbing gym is a thrill,
-  // not a calm indoor spot), so calm explicitly excludes thrill matches.
-  const isThrill = c => c.category === 'adventures' ||
-    /zipline|zip.?lin|treetop|aerial|ropes course|climb|boulder|mountain bik|bmx|kart|paintball|axe|trampoline|skydiv|parasail|paraglid|bungee|jet ski|rafting|atv|quad bik|off.?road|snowboard|toboggan|laser tag|wakeboard|surf|adrenaline|thrill/i.test(text(c));
+  // The two mode personalities. Thrill (hoisted above isFood) wins ties: a
+  // climbing gym is a thrill, not a calm indoor spot, so calm explicitly
+  // excludes thrill matches.
   const isCalm = c => !isThrill(c) &&
     /garden|botanical|arboretum|trail|conservation|lookout|viewpoint|scenic|beach|waterfront|boardwalk|spa|sauna|springs|nature|greenhouse|gallery|museum|tea|picnic|sunset|quiet|peaceful|stroll/i.test(text(c));
 

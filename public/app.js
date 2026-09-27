@@ -5048,7 +5048,7 @@
   // ---------- Surprise me / Next ----------
   // "Surprise me": a full promptless feed from mode + location alone.
   // Rides the browse render path (server-assigned sections), so the feed
-  // shows Social gleanings / Top local locations / Curated by the
+  // shows Talk of the town / Top local locations / Curated by the
   // discovery engine without any new rendering machinery.
   async function handleSurprise() {
     if (state.isGenerating || state.isLoadingMore) return;

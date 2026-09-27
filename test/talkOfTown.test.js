@@ -4,7 +4,7 @@
 // shapePick needs none, and active() takes its rows as an argument.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { shapePick, active, weekStart, SHELF_SIZE, MAX_FAR, FAR_KM } = require('../services/talkOfTown');
+const { shapePick, active, weekStart, SHELF_SIZE, MAX_FAR, FAR_KM, FEED_MAX_KM } = require('../services/talkOfTown');
 const { hubById } = require('../data/tottHubs');
 
 const TORONTO = hubById('toronto');
@@ -103,4 +103,40 @@ test('at most two far picks, nothing beyond the ~2 h reach, shelf capped at five
 test('a point outside every hub gets no shelf', () => {
   const out = active({ point: { lat: 49.28, lng: -123.12 }, today: TODAY, source: [row('x')] }); // Vancouver
   assert.deepEqual(out, []);
+});
+
+// ---------- maxKm: the feeds cap at 80, the newsletter does not ----------
+// The store reaches HUB_REACH_KM (180) on purpose. A Saturday-morning scroll
+// wants somewhere to go today, so routes/browse.js and routes/surprise.js
+// pass FEED_MAX_KM; the Monday newsletter goes out a week ahead, so
+// services/tottDigest.js passes no ceiling and keeps the full list.
+
+// Only two picks beyond FAR_KM: MAX_FAR caps those at 2 regardless of any
+// ceiling, so a third would be dropped for a reason this test isn't about.
+const SPREAD = [
+  row('near', {}, { rank: 1 }),                                  // downtown, ~0 km
+  row('barrie', {}, { rank: 2, lat: 44.39, lng: -79.69 }),       // ~85 km
+  row('kitchener', {}, { rank: 3, lat: 43.45, lng: -80.49 })     // ~90 km
+];
+
+test('the feeds cap the shelf at 80 km from the user', () => {
+  const out = active({ point: DOWNTOWN, today: TODAY, source: SPREAD, maxKm: FEED_MAX_KM });
+  assert.deepEqual(out.map(c => c.id), ['near']);
+  for (const c of out) {
+    assert.ok(c.distance_km == null || c.distance_km <= FEED_MAX_KM,
+      `${c.id} at ${c.distance_km} km cleared an 80 km ceiling`);
+  }
+});
+
+test('the weekly newsletter keeps every pick the store reaches', () => {
+  const out = active({ point: DOWNTOWN, today: TODAY, source: SPREAD });
+  assert.deepEqual(out.map(c => c.id), ['near', 'barrie', 'kitchener'],
+    'no ceiling means the full list, worth-the-drive picks included');
+});
+
+test('a bad maxKm falls back to the store reach rather than emptying the shelf', () => {
+  for (const bad of [null, undefined, NaN, 'eighty']) {
+    const out = active({ point: DOWNTOWN, today: TODAY, source: SPREAD, maxKm: bad });
+    assert.equal(out.length, 3, `maxKm=${String(bad)} must not silently drop picks`);
+  }
 });

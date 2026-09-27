@@ -184,27 +184,29 @@
         maxlength="600"
         placeholder="3 unhurried hours near the water. A quiet garden, a scenic lookout, and somewhere relaxed to eat after."
         required></textarea>
-      <!-- One action row, right-aligned: Surprise me (promptless path,
-           hidden while the textarea has text) beside the primary CTA.
-           type="button" is load-bearing on Surprise — anything else inside
-           the form submits and trips the textarea's `required`. -->
+      <!-- One action row, right-aligned: the two ways to start a day sit
+           side by side (Plan my day, then Surprise me, which hides itself
+           while the textarea has text), with the mic last on the right.
+           DOM order IS visual order here, and it also puts the primary CTA
+           first in the tab order.
+           type="button" is load-bearing on Surprise and the mic — anything
+           else inside the form submits and trips the textarea's `required`. -->
       <div class="prompt-actions">
-        <!-- Talk the whole request. Sits at the left of the action row (so
-             it's under the thumb on mobile) and never auto-submits: speech
-             lands in the textarea and the user still taps Plan my day.
-             JS disables it with a tooltip where the Web Speech API is absent. -->
-        <button type="button" class="mic-btn" id="mic-btn" aria-pressed="false" aria-describedby="voice-status">
-          <span class="mic-btn-dot" aria-hidden="true"></span>
-          <span class="mic-btn-glyph" aria-hidden="true">🎤</span>
-          <span class="sr-only" id="mic-btn-label">Speak your day</span>
+        <button type="submit" class="primary-btn" id="generate-btn">
+          <span class="btn-label">✨ Plan my day</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
         </button>
         <button type="button" class="ghost-btn prompt-surprise-btn" id="prompt-surprise-btn">
           <span class="btn-label">🎲 Surprise me</span>
           <span class="btn-spinner" aria-hidden="true"></span>
         </button>
-        <button type="submit" class="primary-btn" id="generate-btn">
-          <span class="btn-label">✨ Plan my day</span>
-          <span class="btn-spinner" aria-hidden="true"></span>
+        <!-- Talk the whole request. Never auto-submits: speech lands in the
+             textarea and the user still taps Plan my day. JS disables it with
+             a tooltip where the Web Speech API is absent. -->
+        <button type="button" class="mic-btn" id="mic-btn" aria-pressed="false" aria-describedby="voice-status">
+          <span class="mic-btn-dot" aria-hidden="true"></span>
+          <span class="mic-btn-glyph" aria-hidden="true">🎤</span>
+          <span class="sr-only" id="mic-btn-label">Speak your day</span>
         </button>
       </div>
       <!-- Voice state line: permission, "Listening 0:07", "Edit if needed",

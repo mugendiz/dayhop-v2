@@ -395,6 +395,30 @@ module.exports = [
     wow: true, seasonal: null
   },
   {
+    // Founder-flagged via Instagram (@amol.batra / @smartadventure), Sep 2026.
+    // Barrie area, ~88 km straight line from downtown Toronto, so it sits
+    // inside the 40 to 250 km "Worth the drive" band, and worth_trip earns
+    // that shelf on the flag alone. wow: true puts it on the hand-picked
+    // shelf, which the automatic rule would never do for a paid tour
+    // operator. Prices are the ones the operator published in Sep 2026
+    // (2 h $194, 3 h $235, full day $325); only the entry price is repeated
+    // here so a tier change does not silently make the card wrong.
+    // Coordinates are the Barrie area and are approximate, pending a Google
+    // Places confirmation on the next coords run.
+    id: 'cur-smart-adventure-dirt-biking',
+    title: 'Smart Adventure, dirt biking an hour north of Toronto',
+    category: 'adventures',
+    tags: ['dirt bike', 'motocross', 'trail riding', 'thrill', 'adventure',
+      'forest', 'lessons', 'barrie', 'day trip', 'worth the drive', 'outdoor'],
+    location: 'Near Barrie',
+    venue: 'Smart Adventure',
+    description: 'Learn to ride a 250cc dirt bike on forest singletrack with no licence needed. Move up to a Surron, or take out a BMW adventure bike if you are licensed. From $194 for two hours.',
+    cost_tier: '$$$', good_for_ages: 'teens and adults',
+    maps_url: mapsSearch('Smart Adventure dirt biking Barrie Ontario'),
+    lat: 44.42, lng: -79.65,
+    wow: true, seasonal: 'summer', worth_trip: true
+  },
+  {
     id: 'cur-ifly-indoor-skydiving',
     title: "iFLY indoor skydiving",
     category: 'adventures',
