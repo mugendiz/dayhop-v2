@@ -68,6 +68,12 @@ const SOURCE_CAPS = {
 
 const CANDIDATE_POOL_CAP = 60;
 
+// How SOURCE_CAPS.curated_catalog is split. Relevance keeps the majority, so
+// the feed stays on-theme; the rest is reserved so the cut cannot starve the
+// two things text scoring is structurally bad at. See catalogCandidates.
+const CATALOG_WORTH_TRIP_SLOTS = 2;  // day-trip picks, which no nearby search can supply
+const CATALOG_ROTATING_SLOTS = 3;    // everything else, so the whole catalog gets a turn
+
 // ---------- "Date aware" picker: optional planning date/range ----------
 // Toronto-local YYYY-MM-DD, inclusive. Left unset, DayHop plans for "any
 // day" exactly as before (no date filtering, current weather applies).
@@ -729,6 +735,13 @@ function catalogCandidates(prompt, themes, limit, regionOpts) {
     maps_url: e.maps_url,
     rating: null,
     wow: e.wow === true,
+    // worth_trip was set on catalog entries and read by two consumers
+    // (relevance.js's winter distance exemption and browse.js's isWorthDrive)
+    // but never carried across this boundary, so it was dead in both. The
+    // comment on isWorthDrive still promised "worth_trip on an entry earns
+    // the shelf regardless of rating, which is how a hand-added place gets
+    // in" — a contract nothing upheld. Carry it.
+    worth_trip: e.worth_trip === true,
     newly_opened: isNewlyOpened(e),
     // Discovery-autopilot provenance (routes/surprise.js groups on these):
     // auto = published by the engine; buzz_score = social buzz at publish.
@@ -736,10 +749,42 @@ function catalogCandidates(prompt, themes, limit, regionOpts) {
     buzz_score: e.buzz_score != null ? e.buzz_score : null
   }));
 
-  const ranked = relevance.selectTop(
-    relevance.scoreCandidates(normalized, { prompt, themes }),
-    limit
+  // The catalog is ~120 hand-picked entries and this cut keeps `limit` (12),
+  // chosen by text score against a FIXED synthetic mode prompt on the browse
+  // feed (data/feedPrompts.js). That made the cut deterministic: the same
+  // twelve won every day, so ~90% of the catalog could never reach a default
+  // feed no matter what was added to it. Worse, it silently starved the one
+  // shelf that has no other supply. Every worth_trip entry in the catalog
+  // scored outside the top 40, so "Worth the drive" was being built almost
+  // entirely from whatever Google Places happened to return, and a nearby
+  // search does not return day trips.
+  //
+  // Same shape of bug Viator had, and the same fix it already uses above:
+  // rank deep, then show a daily-rotating window. rotateDaily is seeded on
+  // the Toronto calendar day, so a day's feed is stable and the route caches
+  // stay valid.
+  const scored = relevance.scoreCandidates(normalized, { prompt, themes });
+  const deep = relevance.selectTop(scored, scored.length);
+
+  const reserved = CATALOG_WORTH_TRIP_SLOTS + CATALOG_ROTATING_SLOTS;
+  const byRelevance = relevance.selectTop(scored, Math.max(1, limit - reserved));
+  const taken = new Set(byRelevance.map(r => r.id));
+
+  // Day-trip reserve: relevance keeps whichever worth_trip entries earned a
+  // slot on merit, and this tops the shelf's supply up from the rest.
+  const dayTrips = rotateDaily(
+    deep.filter(r => r.worth_trip === true && !taken.has(r.id)),
+    CATALOG_WORTH_TRIP_SLOTS
   );
+  for (const r of dayTrips) taken.add(r.id);
+
+  // General reserve: the rest of the catalog, so an entry that fits no
+  // synthetic prompt still gets its turn instead of never appearing.
+  const rotating = rotateDaily(
+    deep.filter(r => !taken.has(r.id)),
+    Math.max(0, limit - byRelevance.length - dayTrips.length)
+  );
+  const ranked = byRelevance.concat(dayTrips, rotating);
   // Newly-opened entries bypass the catalog quota — being surfaced while
   // new IS their job. But at most 3 per day, rotating through the eligible
   // set on a daily seed, so a busy opening season can't crowd the feed with
@@ -901,3 +946,7 @@ module.exports = {
   CANDIDATE_POOL_CAP,
   GTA_TOWNS
 };
+// Exported for test/catalogReach.test.js — pure over the catalog data plus a
+// prompt, no network, so the slot split can be pinned directly.
+module.exports.catalogCandidates = catalogCandidates;
+module.exports.SOURCE_CAPS = SOURCE_CAPS;
