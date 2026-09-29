@@ -166,3 +166,63 @@ scheduler these 27 remaining posts were written for is going away.
 **Treat the Date column as ordering, not scheduling.** The remaining posts are
 evergreen and can go out by hand in any order. Do not bulk-load them against
 the printed dates; most are already in the past.
+
+## Thanksgiving planner test: Meta via Zeely, Oct 3 to 9, 2026
+
+**Decision:** founder, 2026-09-29. A capped test that knowingly overrides the
+D4 "hold paid" recommendation (social/ops/founder-decisions-2026-09-12.md).
+Goal: people try the free planner, not buy the guide.
+
+### Setup (enter in Zeely's Meta campaign launcher)
+
+| Setting | Value |
+|---|---|
+| Objective | Traffic, optimised for landing page views |
+| Budget | CA$2/day, CA$14 total cap |
+| Schedule | Sat Oct 3, 00:00 to Fri Oct 9, 23:59 (Toronto). Ends before the long weekend and before Zeely renews Oct 10 |
+| Location | Toronto + 40 km radius (covers York Region, Peel, Durham edge) |
+| Age | 25 to 54 |
+| Audience | Advantage+ with a parents signal (interest: Parenting, or "Parents with children 3 to 12") |
+| Placements | IG Reels, IG Stories, FB Reels |
+| CTA button | Learn more |
+
+Destination, one per variant:
+- A: `https://dayhop.quest/?utm_source=zeely&utm_medium=cpc&utm_campaign=thanksgiving-planner-oct26&utm_content=a`
+- B: `https://dayhop.quest/?utm_source=zeely&utm_medium=cpc&utm_campaign=thanksgiving-planner-oct26&utm_content=b`
+
+### Creative
+
+Paid is where a Zeely avatar belongs (shareability standard section 4): the
+AI label costs less here than in organic, where it hurts reach.
+
+**A. Zeely avatar video, 15 seconds, 9:16.** Avatar: casual parent, kitchen or couch.
+
+> Thanksgiving weekend. No plan yet? Same. So I typed "rainy Saturday, two
+> kids, nothing too far" into DayHop, and it built the whole day. Real
+> places near us. It's free. Try it before Saturday.
+
+**B. Zeely image ad, 4:5 and 9:16.** Text on image: "It's 9 AM Saturday. It's raining. They're already bored."
+
+Copy for both:
+- Primary text: Thanksgiving weekend, sorted. Tell DayHop what your family wants and it plans the day around real places near you. Free, no sign up needed to try.
+- Headline: Your long weekend, planned
+- Description: Free planner for GTA families
+
+Checked against the code 2026-09-29: guests can plan without an account
+(routes/generate.js), so "no sign up needed" holds. A drive-time line was cut
+because the plan does not clearly display drive times.
+
+### How we judge it
+
+Read the acquisition card rows `zeely | thanksgiving-planner-oct26` (split by
+utm_content) in /admin.
+
+- **Win:** 10 or more planning prompts from the campaign, about CA$1.40 each.
+- **Mid-test check, Tue Oct 6 (about CA$6 spent):** if one variant has twice
+  the landing page views of the other, pause the loser.
+- **Kill:** 0 planning prompts by Oct 6. Pause both; the problem is the landing page, not the ad.
+
+### After
+
+Cancel Zeely before Oct 10 once the campaign is running (docs/tools.md).
+The campaign lives in the Meta ad account and ends Oct 9 on its own.
