@@ -10,24 +10,42 @@ waiting on hand-execution.
 
 ## 1. Resend — two emails to send
 
-### 1a. Reply to Team Snyder (Snyder's Family Farm giveaway)
+### 1a. Reply to Team Snyder (rewritten 2026-09-29: the giveaway is off)
 
 **To:** GuestServices@snydersfarm.com
 **From:** admin@dayhop.quest
-**Re:** A family-pass giveaway for Snyder's, run by us
+**Re:** Calling off the giveaway
 
 > Hi Team Snyder,
 >
-> Our Instagram is **@dayhopofficial**.
+> I owe you a straight answer rather than more silence.
 >
-> To keep things moving on our end: what family-pass would you like to offer, and what dates is it valid through? Once we have that, we'll draft the contest rules and skill-testing question, get you a collab-post invite so it shows on your profile too, and open entries the week of Sep 28 with the winner drawn Saturday Oct 3.
+> I proposed a family pass giveaway and then did not run it. The dates I floated have come and gone. Nothing was posted, no entries were taken, and no one is waiting on a prize, so there is nothing for you to sort out on your end.
 >
-> Thanks again — looking forward to sending some fall traffic your way.
+> The reason is simple. Our audience is still small enough that a contest would have looked busier than it was, and I would rather tell you that than run one and send you a screenshot of it.
+>
+> Snyder's is still in our day trip guide, free, where it has been since we added it: the corn maze, the pumpkin patch, the hayride and the campfire pods, with the note that you are in Blandford-Blenheim and not Kitchener, because every listing gets that wrong.
+>
+> When our numbers are worth showing you, I will send them unprompted, with the real figure attached. If they never get there, you will not hear from me again and you have lost nothing.
+>
+> If you would rather come off the guide, reply with one word and it is done today.
 >
 > Andrew
-> DayHop · dayhop.quest
+> DayHop, dayhop.quest
 
-*Blocks the giveaway posts below (rows 13/16/19) until Snyder's replies with pass + dates.*
+**Why the giveaway did not happen (on file 2026-09-29).**
+
+1. **The pitch went out.** On Sep 15 (00:34 UTC, Resend id `3cacfc57-007f-4ec9-8f31-0cccacd56ea9`) Snyder's was sent "A family-pass giveaway for Snyder's, run by us", one of six farm pitches in batch `farms-2026-09-14` (Chudleigh's, Downey's, Brooks, Pingle's, Reesor's, Snyder's). It proposed one family pass, entries the week of Sep 28, and a winner drawn Sat Oct 3. The send is logged in the local `social/ops/sent-log.json`.
+2. **Snyder's replied** asking for our Instagram handle. That was the only interested reply of the six.
+3. **We never answered.** The follow-up asking which pass and which dates was drafted (Sep 15, then again Sep 19 as the original 1a) and never sent. Without a pass and dates there was no prize, so nothing could be announced.
+4. **The audience could not carry it.** As of Sep 15, @dayhopofficial had 24 posts and 0 followers. A contest would have delivered Snyder's nothing, and the reach in a collab post would have come from their audience, not ours.
+5. **The dates lapsed and the scheduler went away.** The Sep 27, Sep 30 and Oct 3 posts were never posted and are now struck. Zeely, which was to schedule them, was cancelled Sep 27 (docs/tools.md).
+
+Net: no entries were taken, no prize was promised publicly, and nobody is owed anything. The one thing outstanding is the silence toward Snyder's, which email 1a closes.
+
+**Why this version.** The original asked Snyder's to pick a pass and dates for entries opening the week of Sep 28 and a winner drawn Oct 3. That email was never sent, those dates are gone, and the posts that depended on it are struck. Rewritten to close the loop honestly instead of reopening it: no new deadline, no reach claim the traffic cannot support, and one reversible ask. Written dash free per `docs/copy-style-guide.md`.
+
+**Do not** re-propose the giveaway. Zeely is cancelled (docs/tools.md), so the scheduler the posts were written for is going away, and a contest run to the current audience would embarrass both sides.
 
 ### 1b. Reply to the social-proof prospect ("the farm")
 
@@ -61,13 +79,10 @@ Full table also lives in `docs/ads.md` on branch `claude/zeely-image-calendar` (
 | 10 | Sep 24 | Dundas Peak | hamilton-spot-dundaspeak.jpg | "The view every Hamilton Instagram photo is secretly taken from." | — | IG |
 | 11 | Sep 25 | Sibbald Point, Lake Simcoe | lake-simcoe-spot-sibbald.jpg | "A real sand beach, 1 hour from Toronto, that isn't Wasaga." | /blog/free-toronto-days | IG |
 | 12 | Sep 25 | Rouge National Urban Park — Vista trails | markham-spot-vista.jpg | "Canada's biggest urban national park, and it's inside Markham." | — | IG, TT |
-| 13 | Sep 27 | **Giveaway announced** *(Zeely-generate: prize graphic)* | — | "GIVEAWAY: one family pass to Snyder's Family Farm — corn maze, pumpkin patch, hayride. Follow @dayhopofficial + tag 2 friends to enter. Winner drawn Sat Oct 3." | — | IG, TT |
 | 14 | Sep 28 | Rouge Carolinian forest (trillium fact) | markham-spot-trillium.jpg | "Less than 1% of Canada is this forest type. It's in Markham, and a trillium there takes 7 years just to bloom." | — | IG |
 | 15 | Sep 29 | Main Street Unionville | markham-spot-unionville.jpg | "A main street that looks like a movie set, and it's a GO Train away from downtown." | /blog/toronto-farmers-markets-guide | IG |
-| 16 | Sep 30 | **Giveaway reminder** *(Zeely-generate: countdown graphic)* | — | "3 days left to win a family pass to Snyder's Family Farm. Follow + tag 2 friends. Rules in bio." | — | IG, TT |
 | 17 | Oct 1 | Dundurn Castle | hamilton-spot-dundurn.jpg | "A real 19th-century castle you can tour, and it's inside Hamilton city limits." | — | IG |
 | 18 | Oct 2 | Princess Point, Cootes Paradise | hamilton-spot-cootes.jpg | "Paddle a marsh inside a city — Cootes Paradise doesn't get enough credit." | — | IG |
-| 19 | Oct 3 | **Giveaway winner announced** *(Zeely-generate: winner graphic)* | — | "Congrats to our Snyder's Family Farm pass winner! More local giveaways coming — follow @dayhopofficial so you don't miss the next one." | — | IG, TT |
 | 20 | Oct 4 | Scarborough Bluffs | toronto-spot-bluffs.jpg | "The cliffs everyone's seen in photos, and most GTA parents have never actually stood on." | /blog/first-timers-toronto-must-sees | IG |
 | 21 | Oct 5 | Distillery District | toronto-spot-distillery.jpg | "Cobblestones, no cars, and it's actually stroller-friendly — rare combo downtown." | /blog/new-in-toronto-2026 | IG |
 | 22 | Oct 6 | Kempenfelt Bay, Barrie | lake-simcoe-spot-barrie.jpg | "An hour north and the whole vibe changes — Barrie's waterfront on a fall afternoon." | — | IG |
@@ -82,7 +97,7 @@ Full table also lives in `docs/ads.md` on branch `claude/zeely-image-calendar` (
 
 **Also still open:** connect at least one social account (Instagram or TikTok) to Zeely so these can auto-post/boost — not yet done as of this handoff.
 
-**Sequencing note:** rows 13/16/19 (the giveaway) depend on email 1a above landing a reply from Snyder's with pass + dates first.
+**Sequencing note (updated 2026-09-29):** the giveaway rows are struck. Nothing in this calendar now depends on a reply from Snyder's, and email 1a no longer asks for one. Dates in the table are ordering, not scheduling: most are in the past and Zeely is cancelled, so the remaining posts go out by hand or not at all.
 
 ---
 

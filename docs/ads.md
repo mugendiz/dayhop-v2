@@ -117,7 +117,7 @@ published `/blog` article already covers the topic, it's linked — BLG is
 still fully active through the Sep 27 billing date, so this uses it while
 it's paid for; no reactivation needed.
 
-Destination for all: `dayhop.quest?utm_source=zeely&utm_medium=social&utm_campaign=fall26-spots` (append `-giveaway` for the 3 Snyder's posts).
+Destination for all: `dayhop.quest?utm_source=zeely&utm_medium=social&utm_campaign=fall26-spots`.
 
 | # | Date | Post | Asset | Caption | Blog link | Social |
 |---|---|---|---|---|---|---|
@@ -133,13 +133,10 @@ Destination for all: `dayhop.quest?utm_source=zeely&utm_medium=social&utm_campai
 | 10 | Sep 24 | Dundas Peak | hamilton-spot-dundaspeak.jpg | "The view every Hamilton Instagram photo is secretly taken from." | — | IG |
 | 11 | Sep 25 | Sibbald Point, Lake Simcoe | lake-simcoe-spot-sibbald.jpg | "A real sand beach, 1 hour from Toronto, that isn't Wasaga." | /blog/free-toronto-days | IG |
 | 12 | Sep 25 | Rouge National Urban Park — Vista trails | markham-spot-vista.jpg | "Canada's biggest urban national park, and it's inside Markham." | — | IG, TT |
-| 13 | Sep 27 | **Giveaway announced** *(Zeely-generate: prize graphic)* | — | "GIVEAWAY: one family pass to Snyder's Family Farm — corn maze, pumpkin patch, hayride. Follow @dayhopofficial + tag 2 friends to enter. Winner drawn Sat Oct 3." | — | IG, TT |
 | 14 | Sep 28 | Rouge Carolinian forest (trillium fact) | markham-spot-trillium.jpg | "Less than 1% of Canada is this forest type. It's in Markham, and a trillium there takes 7 years just to bloom." | — | IG |
 | 15 | Sep 29 | Main Street Unionville | markham-spot-unionville.jpg | "A main street that looks like a movie set, and it's a GO Train away from downtown." | /blog/toronto-farmers-markets-guide | IG |
-| 16 | Sep 30 | **Giveaway reminder** *(Zeely-generate: countdown graphic)* | — | "3 days left to win a family pass to Snyder's Family Farm. Follow + tag 2 friends. Rules in bio." | — | IG, TT |
 | 17 | Oct 1 | Dundurn Castle | hamilton-spot-dundurn.jpg | "A real 19th-century castle you can tour, and it's inside Hamilton city limits." | — | IG |
 | 18 | Oct 2 | Princess Point, Cootes Paradise | hamilton-spot-cootes.jpg | "Paddle a marsh inside a city — Cootes Paradise doesn't get enough credit." | — | IG |
-| 19 | Oct 3 | **Giveaway winner announced** *(Zeely-generate: winner graphic)* | — | "Congrats to our Snyder's Family Farm pass winner! More local giveaways coming — follow @dayhopofficial so you don't miss the next one." | — | IG, TT |
 | 20 | Oct 4 | Scarborough Bluffs | toronto-spot-bluffs.jpg | "The cliffs everyone's seen in photos, and most GTA parents have never actually stood on." | /blog/first-timers-toronto-must-sees | IG |
 | 21 | Oct 5 | Distillery District | toronto-spot-distillery.jpg | "Cobblestones, no cars, and it's actually stroller-friendly — rare combo downtown." | /blog/new-in-toronto-2026 | IG |
 | 22 | Oct 6 | Kempenfelt Bay, Barrie | lake-simcoe-spot-barrie.jpg | "An hour north and the whole vibe changes — Barrie's waterfront on a fall afternoon." | — | IG |
@@ -154,7 +151,18 @@ Destination for all: `dayhop.quest?utm_source=zeely&utm_medium=social&utm_campai
 
 Zeely execution note: this session has no browser/API access to Zeely,
 Instagram, or TikTok — the table above is the content/schedule deliverable
-for hand-entry (founder or Claude-in-Chrome, already logged in). Rows 13,
-16, 19 are the Snyder's giveaway (see reply-to-Snyder's-email thread,
-Sep 2026) and should use the `-giveaway` UTM campaign suffix instead of
-`fall26-spots`.
+for hand-entry (founder or Claude-in-Chrome, already logged in).
+
+**2026-09-29: the Snyder's giveaway (former rows 13, 16, 19) is struck, and
+the dates on the remaining rows are dead.** The chain announced a giveaway on
+Sep 27, a reminder on Sep 30, and a winner on Oct 3. It was gated on Snyder's
+replying with a pass and valid dates, and that email was drafted Sep 19 and
+never sent, so no prize was ever agreed. Nothing was posted. Running the
+back half of the chain would have congratulated the winner of a contest that
+was never announced, for a prize a real business never offered. Struck rather
+than rescheduled: Zeely is cancelled as of Sep 27 (docs/tools.md), so the
+scheduler these 27 remaining posts were written for is going away.
+
+**Treat the Date column as ordering, not scheduling.** The remaining posts are
+evergreen and can go out by hand in any order. Do not bulk-load them against
+the printed dates; most are already in the past.
