@@ -12,6 +12,8 @@ waiting on hand-execution.
 
 ### 1a. Reply to Team Snyder (rewritten 2026-09-29: the giveaway is off)
 
+**SENT 2026-09-29** via Resend, from `Andrew at DayHop <admin@dayhop.quest>`, id `01a0ed9a-4e2d-729c-80f1-c71b57b3cf7f`, logged in the local `social/ops/sent-log.json` as batch `snyders-calloff-2026-09-29`. Do not send again.
+
 **To:** GuestServices@snydersfarm.com
 **From:** admin@dayhop.quest
 **Re:** Calling off the giveaway
