@@ -33,6 +33,16 @@ waiting on hand-execution.
 > Andrew
 > DayHop, dayhop.quest
 
+**Why the giveaway did not happen (on file 2026-09-29).**
+
+1. **The pitch went out.** On Sep 15 (00:34 UTC, Resend id `3cacfc57-007f-4ec9-8f31-0cccacd56ea9`) Snyder's was sent "A family-pass giveaway for Snyder's, run by us", one of six farm pitches in batch `farms-2026-09-14` (Chudleigh's, Downey's, Brooks, Pingle's, Reesor's, Snyder's). It proposed one family pass, entries the week of Sep 28, and a winner drawn Sat Oct 3. The send is logged in the local `social/ops/sent-log.json`.
+2. **Snyder's replied** asking for our Instagram handle. That was the only interested reply of the six.
+3. **We never answered.** The follow-up asking which pass and which dates was drafted (Sep 15, then again Sep 19 as the original 1a) and never sent. Without a pass and dates there was no prize, so nothing could be announced.
+4. **The audience could not carry it.** As of Sep 15, @dayhopofficial had 24 posts and 0 followers. A contest would have delivered Snyder's nothing, and the reach in a collab post would have come from their audience, not ours.
+5. **The dates lapsed and the scheduler went away.** The Sep 27, Sep 30 and Oct 3 posts were never posted and are now struck. Zeely, which was to schedule them, was cancelled Sep 27 (docs/tools.md).
+
+Net: no entries were taken, no prize was promised publicly, and nobody is owed anything. The one thing outstanding is the silence toward Snyder's, which email 1a closes.
+
 **Why this version.** The original asked Snyder's to pick a pass and dates for entries opening the week of Sep 28 and a winner drawn Oct 3. That email was never sent, those dates are gone, and the posts that depended on it are struck. Rewritten to close the loop honestly instead of reopening it: no new deadline, no reach claim the traffic cannot support, and one reversible ask. Written dash free per `docs/copy-style-guide.md`.
 
 **Do not** re-propose the giveaway. Zeely is cancelled (docs/tools.md), so the scheduler the posts were written for is going away, and a contest run to the current audience would embarrass both sides.
