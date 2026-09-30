@@ -226,3 +226,23 @@ utm_content) in /admin.
 
 Cancel Zeely before Oct 10 once the campaign is running (docs/tools.md).
 The campaign lives in the Meta ad account and ends Oct 9 on its own.
+
+### As entered in Zeely (2026-09-30)
+
+Built in Zeely's Meta launcher on the partner account, left unlaunched for the
+founder to press Launch. Differences from the brief above, all forced by the tool:
+
+- **One campaign, one link.** Zeely allows a single destination per campaign, so
+  all three ads use `utm_content=ab`. Compare A vs B in Zeely/Meta per-ad stats,
+  not in /admin.
+- **Budget:** US$10/day minimum (not CA$2). Set to US$10 x 2 days = US$20 total.
+- **No start date.** It goes live once Meta approves (typically within 6 h) and
+  runs 2 days, so time the Launch press for the Thanksgiving lead-up.
+- **Targeting:** Toronto (city, Meta's default radius), age 25 to 54, all genders.
+  No interest (parents) or placement controls in Zeely.
+- **Visitors land on a Zeely warm-up page** (headline + primary text) before dayhop.quest.
+- **Creatives:** A = avatar video, 12 s, kitchen/rainy window, script verbatim.
+  B = Playground image in 9:16 and 4:5, text on image verbatim. All three use
+  the primary text and headline above; Zeely has no description field. CTA Learn more.
+- Zeely access runs to about Oct 30 after the Sep 30 cancellation, so the
+  "cancel before Oct 10" step no longer applies.
