@@ -54,6 +54,41 @@ async function syncFromDb(force) {
   }
 }
 
+// Confirmation-resend cooldown, per address, in memory only.
+//
+// subscribe() re-sends a confirmation on every call for an address that is
+// not already 'subscribed'. With outbound mail live that is an abuse vector,
+// not a convenience: anyone can POST a stranger's address on a loop and that
+// stranger receives a DayHop-branded email per request. The victim reports
+// it as spam and the sending domain pays for it.
+//
+// Deliberately NOT a column on the row: persist() upserts the whole row into
+// Supabase, so a new field would need a migration, and last_sent_at already
+// means something else (the digest). In memory is the right shape anyway.
+// The attack is high frequency, so a process-local memory of the last few
+// minutes catches it; a restart forgetting the window costs one extra email
+// to someone who was being targeted anyway. Render runs one instance, so
+// there is no second process to coordinate with today. If this ever scales
+// horizontally this has to move to the database or a shared cache.
+const CONFIRM_COOLDOWN_MS = 10 * 60 * 1000;
+const CONFIRM_SENT_MAX = 5000; // bounded: the map must not become its own leak
+const confirmSentAt = new Map();
+
+function confirmRecentlySent(email) {
+  const at = confirmSentAt.get(email);
+  return at != null && Date.now() - at < CONFIRM_COOLDOWN_MS;
+}
+
+function noteConfirmSent(email) {
+  // Oldest-first eviction. Map preserves insertion order, and re-sending
+  // deletes before setting, so the first key is always the oldest write.
+  if (confirmSentAt.size >= CONFIRM_SENT_MAX) {
+    confirmSentAt.delete(confirmSentAt.keys().next().value);
+  }
+  confirmSentAt.delete(email);
+  confirmSentAt.set(email, Date.now());
+}
+
 async function persist(row) {
   if (!hasServiceKey()) return;
   try {
@@ -225,6 +260,15 @@ async function subscribe(rawEmail, { source = 'unknown', ownerId = null, ip = nu
     customData: { content_name: 'newsletter', content_category: row.consent_source }
   });
 
+  // Consent record and analytics above are written every time (a repeat
+  // request IS a real signal); only the SEND is throttled. The token is
+  // unchanged for a pending row, so the first email still works and the
+  // person is never stranded by the cooldown.
+  if (confirmRecentlySent(email)) {
+    return { ok: true, state: 'confirm_throttled', emailSent: false };
+  }
+  noteConfirmSent(email);
+
   const result = await sendEmail({
     to: email,
     subject: 'Confirm your DayHop subscription',
@@ -353,6 +397,9 @@ async function getByToken(token) {
 module.exports = { subscribe, confirm, unsubscribe, listSubscribed, listPending, markSent, stats, unsubscribeUrl, baseUrl, getByToken, confirmUrl, complianceFooter };
 // Exported for the house-style test (test/copyStyle.test.js) — pure
 // template functions, no network.
+// Exported for test/newsletterAbuse.test.js — the confirmation-resend
+// cooldown that stops /subscribe being used to mail a stranger on a loop.
+module.exports.CONFIRM_COOLDOWN_MS = CONFIRM_COOLDOWN_MS;
 module.exports.confirmEmailHtml = confirmEmailHtml;
 module.exports.confirmEmailText = confirmEmailText;
 module.exports.welcomeEmailHtml = welcomeEmailHtml;

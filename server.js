@@ -377,9 +377,16 @@ app.use('/api/track', (req, res, next) => {
 // Newsletter consent endpoints: subscribe is a cheap write but each new email
 // triggers a real outbound send (confirmation) — the limiter keeps a bot from
 // burning the Resend quota or spraying confirmations at strangers' inboxes.
+// 3/min, not 10. A person subscribes once; 10 POSTs a minute was only ever
+// headroom for a mistake. With outbound mail live it is also the ceiling on
+// how fast someone can cycle addresses through /subscribe, and every one of
+// those is a real send: Resend's free tier is 100/day (services/email.js),
+// so 10/min from a single IP exhausts a whole day's quota in ten minutes and
+// the next city guide somebody PAID for silently fails to arrive. GETs stay
+// exempt so confirm and unsubscribe links can never bounce.
 const newsletterLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 10,
+  max: 3,
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => req.method === 'GET', // confirm/unsubscribe links must never bounce
