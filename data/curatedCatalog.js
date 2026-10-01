@@ -860,6 +860,35 @@ module.exports = [
 
   // ---------- Culture & hidden gems ----------
   {
+    // Founder-flagged via TikTok (@New Finds Canada), Oct 2026. 13629 Guelph
+    // Line, Milton, roughly 51 km straight line from downtown Toronto, so it
+    // sits inside the 40 to 250 km "Worth the drive" band and the post's
+    // "1 hour from Toronto" checks out. worth_trip earns that shelf on the
+    // flag alone; wow earns the hand-picked shelf, which the automatic rule
+    // would never give a museum with thousands of reviews.
+    //
+    // seasonal: 'summer' (months 4 to 10) is load-bearing, not decoration.
+    // The railway runs a season, not a year, so without it the feed would
+    // send a family an hour down Guelph Line in February to a closed gate.
+    //
+    // Only the adult price is repeated below, so a change to the youth,
+    // child or family tier cannot silently make the card wrong. Coordinates
+    // are the Guelph Line area and approximate, pending a Places confirm on
+    // the next coords run.
+    id: 'cur-halton-radial-railway',
+    title: 'Halton County Radial Railway, streetcars through the woods',
+    category: 'culture',
+    tags: ['museum', 'streetcar', 'train', 'railway', 'heritage', 'kids',
+      'family', 'fall colours', 'milton', 'day trip', 'worth the drive', 'outdoor'],
+    location: 'Guelph Line, Milton',
+    venue: 'Halton County Radial Railway',
+    description: 'Ride restored streetcars through 2 km of wooded track, then walk the museum and its 75 historic railway vehicles. Admission covers unlimited rides. Adults $26 plus HST.',
+    cost_tier: '$$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Halton County Radial Railway 13629 Guelph Line Milton Ontario'),
+    lat: 43.53, lng: -79.99,
+    wow: true, seasonal: 'summer', worth_trip: true
+  },
+  {
     id: 'cur-casa-loma',
     title: "Casa Loma — a real castle with secret tunnels",
     category: 'culture',
