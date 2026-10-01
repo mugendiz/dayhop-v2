@@ -45,8 +45,7 @@ function isoDaysAgo(n) {
 const DEADLINES = [
   { on: '2026-09-19', what: 'Gate 1 — is there an external dollar yet?', act: 'If not, the Oct 3 rule is live.' },
   { on: '2026-09-21', what: 'FALL75 ends 23:59 Toronto', act: 'Extend it or replace it — do not let the $5 price expire untested.' },
-  { on: '2026-10-01', what: 'SuperGrok renews US$30', act: 'Cancellation decided 2026-09-27 — confirm it processed. The product runs on API credits, not a SuperGrok seat, so nothing breaks.' },
-  { on: '2026-10-10', what: 'Zeely renews US$79.95', act: 'Cancellation decided 2026-09-27 — confirm it processed before this date.' },
+  { on: '2026-10-30', what: 'Zeely access ends (cancelled Sep 30, 30 days granted)', act: 'Last day the scheduler works. Anything still wanted from the 30-post calendar goes out before this, or by hand after. No bill either way.' },
   { on: '2026-09-27', what: 'BLG billing date — pause takes effect', act: 'BLG stays fully active/usable through this date (already paid for); billing drops to $0 after, autopilot cadence stops.' },
   { on: '2026-10-03', what: 'Gate 2 — day-30 maintenance-mode decision', act: 'On zero revenue, take the rule at its word.' },
   { on: '2027-02-13', what: 'BLG pause (5mo from Sep 27 billing date) resumes billing ~2027-02-27', act: 'Decide cancel vs. continue before it auto-resumes — confirm exact resume date from BLG\'s pause confirmation.' }
