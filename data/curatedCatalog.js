@@ -875,6 +875,35 @@ module.exports = [
     // child or family tier cannot silently make the card wrong. Coordinates
     // are the Guelph Line area and approximate, pending a Places confirm on
     // the next coords run.
+    // Founder-flagged via TikTok (@inshortscanada, Oct 2026), the same clip
+    // that surfaced the Cheltenham and Dundas booking requirement. Tottenham,
+    // roughly 53 km straight line from downtown Toronto, inside the 40 to 250
+    // km band. Pairs with the Halton entry below: two heritage railways, one
+    // electric streetcar and one steam, both an easy drive out.
+    //
+    // seasonal: 'summer' (months 4 to 10) matches the excursion season. It
+    // also hides the December Christmas trains, which is the wrong answer in
+    // one direction but the safe one: a hidden excursion costs a booking, a
+    // shown one in February costs somebody a drive to a closed station.
+    //
+    // No prices here on purpose. The clip did not state them and the sandbox
+    // cannot reach the operator, so a made up fare would be exactly the kind
+    // of detail that destroys trust in a card. Coordinates are the Tottenham
+    // area and approximate, pending a Places confirm on the next coords run.
+    id: 'cur-south-simcoe-railway',
+    title: 'South Simcoe Railway, a steam train through Beeton Creek valley',
+    category: 'kids',
+    tags: ['steam train', 'railway', 'heritage', 'kids', 'family', 'ride',
+      'fall colours', 'tottenham', 'day trip', 'worth the drive', 'outdoor'],
+    location: 'Tottenham, Simcoe County',
+    venue: 'South Simcoe Railway',
+    description: 'Ride a restored steam train through the Beeton Creek valley behind a working 1883 station. Short run, big noise, and the engine crew will talk to anyone who asks.',
+    cost_tier: '$$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('South Simcoe Railway Tottenham Ontario'),
+    lat: 44.0217, lng: -79.8064,
+    wow: true, seasonal: 'summer', worth_trip: true
+  },
+  {
     id: 'cur-halton-radial-railway',
     title: 'Halton County Radial Railway, streetcars through the woods',
     category: 'culture',
@@ -1163,10 +1192,16 @@ module.exports = [
     id: 'cur-dundas-peak',
     title: "Dundas Peak & Tews Falls — the fall-colours lookout",
     category: 'general',
-    tags: ['trail', 'hike', 'lookout', 'waterfall', 'fall colours', 'escarpment', 'photo'],
+    tags: ['trail', 'hike', 'lookout', 'waterfall', 'fall colours', 'escarpment', 'photo',
+      'reservation required', 'book ahead'],
     location: "Spencer Gorge, Hamilton",
     venue: "Spencer Gorge Conservation Area",
-    description: "The trail past Tews Falls (Ontario's tallest ribbon waterfall) up to the cliff-edge lookout over Dundas Valley. Reserve ahead in leaf season — it's THE fall hike.",
+    // Was "Reserve ahead in leaf season", which reads as a crowd tip and
+    // implies you can turn up in July without one. Spencer Gorge gates on a
+    // reservation whenever it is open, so the qualifier was the dangerous
+    // part of the sentence. Same creator flag and the same unverified
+    // caveat as Cheltenham above.
+    description: "The trail past Tews Falls, Ontario's tallest ribbon waterfall, up to the cliff edge lookout over Dundas Valley. Book parking online first or you will be turned away at the gate.",
     cost_tier: '$', good_for_ages: '6+',
     maps_url: mapsSearch('Dundas Peak Spencer Gorge Hamilton'),
     wow: true, seasonal: null
@@ -1208,13 +1243,25 @@ module.exports = [
     wow: true, seasonal: null
   },
   {
+    // The booking line is the most important thing on this card. Cheltenham
+    // runs on advance online vehicle reservations and staff turn people away
+    // at the gate without one, so a card that just says "Mars-red hills an
+    // hour away" sends a family on a two hour round trip for nothing. That is
+    // the exact failure the curated layer exists to prevent, and it outranks
+    // the prose. Flagged by a creator post (@inshortscanada, Oct 2026) and
+    // NOT verifiable from the build sandbox: heritagetrust.on.ca and cvc.ca
+    // are both blocked by egress. Worded as an instruction to book rather
+    // than a claim about the policy, because the asymmetry is lopsided:
+    // booking when you did not have to costs two minutes, not booking when
+    // you had to costs the whole outing.
     id: 'cur-cheltenham-badlands',
     title: "Cheltenham Badlands — Mars-red hills an hour away",
     category: 'general',
-    tags: ['badlands', 'lookout', 'photo', 'boardwalk', 'trail', 'geology', 'fall colours'],
+    tags: ['badlands', 'lookout', 'photo', 'boardwalk', 'trail', 'geology', 'fall colours',
+      'reservation required', 'book ahead'],
     location: "Caledon",
     venue: "Cheltenham Badlands",
-    description: "Bare, rippled red-shale hills that look airlifted from another planet. Boardwalk viewing, Bruce Trail access next door, and unbeatable golden-hour photos.",
+    description: "Bare, rippled red shale that looks airlifted from another planet, seen from a boardwalk. Book parking online before you drive. Without a booking you are turned away at the gate.",
     cost_tier: '$', good_for_ages: 'all ages',
     maps_url: mapsSearch('Cheltenham Badlands Caledon'),
     wow: true, seasonal: null
