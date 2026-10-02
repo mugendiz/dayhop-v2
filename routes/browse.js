@@ -14,7 +14,7 @@ const analytics = require('../services/analytics');
 const { normalizeMode } = require('../services/grok');
 const { gatherCandidates, sanitizeCoords, fallbackIdea, parseDateWindow, DEFAULT_CITY, GTA_TOWNS } = require('../services/candidates');
 const { enrichIdeaImages } = require('../services/ideaPhotos');
-const { isAroundSpotlight, formatRange, torontoToday } = require('../services/spotlight');
+const { isAroundSpotlight, formatRange, torontoToday, addDays } = require('../services/spotlight');
 const { getSeasonContext } = require('../data/seasons');
 const { haversineKm } = require('../services/relevance');
 const { getSkyTonight } = require('../services/skyConditions');
@@ -450,8 +450,43 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   const takeTalkOfTown = () => {
     if (tottTaken) return;
     tottTaken = true;
-    take('Talk of the town 🔥', tottList, 5);
+    take('Talk of the town 🔥', tottList.length ? tottList : tottFallback(), 5);
   };
+
+  // The shelf had exactly one supply line, the weekly Grok search, and no
+  // floor under it. When a refresh fails or its picks all finish mid-week the
+  // shelf does not degrade, it vanishes, and nothing on the page says why.
+  // Observed live on 2026-10-01 and 2026-10-02: zero picks served, in the
+  // month with the most going on all year.
+  //
+  // The floor is built from candidates the request already fetched and
+  // verified at source (Ticketmaster, Eventbrite, the civic calendars): real,
+  // dated, outdoor things inside the same 10-day window the weekly store
+  // uses. Nothing is invented and no date is guessed, which is the only way
+  // a fallback can be allowed to wear this shelf's name.
+  //
+  // Indoor listings are excluded on purpose. The dated pool in October is
+  // mostly gallery exhibits, and "Talk of the town" promising a room of
+  // paintings is how a shelf loses its meaning. Those still reach the feed
+  // through the dated shelf below, which runs after this one and cannot
+  // repeat a card the used-Set already holds.
+  //
+  // Three is the floor: a one or two card shelf under this headline reads as
+  // broken, so below that the shelf is skipped and the cards flow on to the
+  // dated shelf exactly as they do today.
+  function tottFallback() {
+    const today = torontoToday();
+    // Same 10-day horizon the weekly store uses (WINDOW_DAYS in
+    // services/talkOfTown.js), so the floor and the real shelf mean the
+    // same thing by "this week".
+    const horizon = addDays(today, 10);
+    const picks = pool.filter(c =>
+      hasDate(c) &&
+      String(c.date).slice(0, 10) >= today &&
+      String(c.date).slice(0, 10) <= horizon &&
+      isOutdoor(c) && !isIndoor(c));
+    return picks.length >= 3 ? picks : [];
+  }
 
   // Season shelf: spring through fall it's trails ("push trails forward" is
   // the product promise those months), winter it's OUTDOOR winter — skating
