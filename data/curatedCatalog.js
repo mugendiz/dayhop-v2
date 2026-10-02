@@ -1196,12 +1196,19 @@ module.exports = [
       'reservation required', 'book ahead'],
     location: "Spencer Gorge, Hamilton",
     venue: "Spencer Gorge Conservation Area",
-    // Was "Reserve ahead in leaf season", which reads as a crowd tip and
-    // implies you can turn up in July without one. Spencer Gorge gates on a
-    // reservation whenever it is open, so the qualifier was the dangerous
-    // part of the sentence. Same creator flag and the same unverified
-    // caveat as Cheltenham above.
-    description: "The trail past Tews Falls, Ontario's tallest ribbon waterfall, up to the cliff edge lookout over Dundas Valley. Book parking online first or you will be turned away at the gate.",
+    // VERIFIED 2026-10-02 (Hamilton Conservation Authority). The original
+    // line here, "Reserve ahead in leaf season", was RIGHT and an earlier
+    // pass of this change was wrong to drop the qualifier: Spencer Gorge
+    // requires reservations for a defined fall window, Sep 26 to Nov 8 in
+    // 2026, not year round. Asserting "always book" would have been a
+    // different kind of false.
+    //
+    // What neither version had is the part that actually ruins a Saturday:
+    // booking is online only, there is no walk up, drive up or same day, and
+    // the window closes at midnight the night before. Someone deciding over
+    // breakfast has already missed it. That is the sentence worth the
+    // characters. Slots are 2 hours, or 4 for the full gorge.
+    description: "The trail past Tews Falls, Ontario's tallest ribbon waterfall, to the cliff edge over Dundas Valley. Fall visits need a time slot booked online by midnight the night before.",
     cost_tier: '$', good_for_ages: '6+',
     maps_url: mapsSearch('Dundas Peak Spencer Gorge Hamilton'),
     wow: true, seasonal: null
@@ -1243,17 +1250,17 @@ module.exports = [
     wow: true, seasonal: null
   },
   {
-    // The booking line is the most important thing on this card. Cheltenham
-    // runs on advance online vehicle reservations and staff turn people away
-    // at the gate without one, so a card that just says "Mars-red hills an
-    // hour away" sends a family on a two hour round trip for nothing. That is
-    // the exact failure the curated layer exists to prevent, and it outranks
-    // the prose. Flagged by a creator post (@inshortscanada, Oct 2026) and
-    // NOT verifiable from the build sandbox: heritagetrust.on.ca and cvc.ca
-    // are both blocked by egress. Worded as an instruction to book rather
-    // than a claim about the policy, because the asymmetry is lopsided:
-    // booking when you did not have to costs two minutes, not booking when
-    // you had to costs the whole outing.
+    // VERIFIED 2026-10-02 (Ontario Heritage Trust, plus visitor reports of
+    // security checking tickets at the gate). Parking is reserved in advance
+    // through ParkPass, online only, with nothing sold on site. Charged per
+    // vehicle: about $10 to $18 plus HST on weekdays, $20 to $35 plus HST on
+    // weekends and holidays, by length of slot. Prices are deliberately NOT
+    // in the description, because a fare that moves is the detail most
+    // likely to go stale and make the card a lie.
+    //
+    // The booking line outranks the prose. A card that just said "Mars-red
+    // hills an hour away" sends a family on a two hour round trip for
+    // nothing, which is the exact failure the curated layer exists to stop.
     id: 'cur-cheltenham-badlands',
     title: "Cheltenham Badlands — Mars-red hills an hour away",
     category: 'general',
@@ -1261,10 +1268,18 @@ module.exports = [
       'reservation required', 'book ahead'],
     location: "Caledon",
     venue: "Cheltenham Badlands",
-    description: "Bare, rippled red shale that looks airlifted from another planet, seen from a boardwalk. Book parking online before you drive. Without a booking you are turned away at the gate.",
-    cost_tier: '$', good_for_ages: 'all ages',
+    description: "Bare, rippled red shale that looks airlifted from another planet, seen from a boardwalk. Parking is booked online through ParkPass, per vehicle. Nothing is sold at the gate.",
+    cost_tier: '$$', good_for_ages: 'all ages',
     maps_url: mapsSearch('Cheltenham Badlands Caledon'),
-    wow: true, seasonal: null
+    // seasonal was null, which served this year round. The site CLOSES for
+    // winter and runs roughly May to mid November, so the feed was offering
+    // a January drive to Caledon to stand at a locked lot. 'summer' is
+    // months 4 to 10 (data/seasons.js): it clips the first half of November,
+    // which costs a visit, against showing a closed site for four months,
+    // which costs trust. Found while verifying the booking requirement.
+    // cost_tier moved from '$' to '$$': a weekend slot is $20 to $35 plus
+    // HST per vehicle, which is not a few dollars.
+    wow: true, seasonal: 'summer'
   },
   {
     id: 'cur-rouge-vista',
