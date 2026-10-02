@@ -875,6 +875,35 @@ module.exports = [
     // child or family tier cannot silently make the card wrong. Coordinates
     // are the Guelph Line area and approximate, pending a Places confirm on
     // the next coords run.
+    // Founder-flagged via TikTok (@inshortscanada, Oct 2026), the same clip
+    // that surfaced the Cheltenham and Dundas booking requirement. Tottenham,
+    // roughly 53 km straight line from downtown Toronto, inside the 40 to 250
+    // km band. Pairs with the Halton entry below: two heritage railways, one
+    // electric streetcar and one steam, both an easy drive out.
+    //
+    // seasonal: 'summer' (months 4 to 10) matches the excursion season. It
+    // also hides the December Christmas trains, which is the wrong answer in
+    // one direction but the safe one: a hidden excursion costs a booking, a
+    // shown one in February costs somebody a drive to a closed station.
+    //
+    // No prices here on purpose. The clip did not state them and the sandbox
+    // cannot reach the operator, so a made up fare would be exactly the kind
+    // of detail that destroys trust in a card. Coordinates are the Tottenham
+    // area and approximate, pending a Places confirm on the next coords run.
+    id: 'cur-south-simcoe-railway',
+    title: 'South Simcoe Railway, a steam train through Beeton Creek valley',
+    category: 'kids',
+    tags: ['steam train', 'railway', 'heritage', 'kids', 'family', 'ride',
+      'fall colours', 'tottenham', 'day trip', 'worth the drive', 'outdoor'],
+    location: 'Tottenham, Simcoe County',
+    venue: 'South Simcoe Railway',
+    description: 'Ride a restored steam train through the Beeton Creek valley behind a working 1883 station. Short run, big noise, and the engine crew will talk to anyone who asks.',
+    cost_tier: '$$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('South Simcoe Railway Tottenham Ontario'),
+    lat: 44.0217, lng: -79.8064,
+    wow: true, seasonal: 'summer', worth_trip: true
+  },
+  {
     id: 'cur-halton-radial-railway',
     title: 'Halton County Radial Railway, streetcars through the woods',
     category: 'culture',
@@ -1163,10 +1192,23 @@ module.exports = [
     id: 'cur-dundas-peak',
     title: "Dundas Peak & Tews Falls — the fall-colours lookout",
     category: 'general',
-    tags: ['trail', 'hike', 'lookout', 'waterfall', 'fall colours', 'escarpment', 'photo'],
+    tags: ['trail', 'hike', 'lookout', 'waterfall', 'fall colours', 'escarpment', 'photo',
+      'reservation required', 'book ahead'],
     location: "Spencer Gorge, Hamilton",
     venue: "Spencer Gorge Conservation Area",
-    description: "The trail past Tews Falls (Ontario's tallest ribbon waterfall) up to the cliff-edge lookout over Dundas Valley. Reserve ahead in leaf season — it's THE fall hike.",
+    // VERIFIED 2026-10-02 (Hamilton Conservation Authority). The original
+    // line here, "Reserve ahead in leaf season", was RIGHT and an earlier
+    // pass of this change was wrong to drop the qualifier: Spencer Gorge
+    // requires reservations for a defined fall window, Sep 26 to Nov 8 in
+    // 2026, not year round. Asserting "always book" would have been a
+    // different kind of false.
+    //
+    // What neither version had is the part that actually ruins a Saturday:
+    // booking is online only, there is no walk up, drive up or same day, and
+    // the window closes at midnight the night before. Someone deciding over
+    // breakfast has already missed it. That is the sentence worth the
+    // characters. Slots are 2 hours, or 4 for the full gorge.
+    description: "The trail past Tews Falls, Ontario's tallest ribbon waterfall, to the cliff edge over Dundas Valley. Fall visits need a time slot booked online by midnight the night before.",
     cost_tier: '$', good_for_ages: '6+',
     maps_url: mapsSearch('Dundas Peak Spencer Gorge Hamilton'),
     wow: true, seasonal: null
@@ -1208,16 +1250,36 @@ module.exports = [
     wow: true, seasonal: null
   },
   {
+    // VERIFIED 2026-10-02 (Ontario Heritage Trust, plus visitor reports of
+    // security checking tickets at the gate). Parking is reserved in advance
+    // through ParkPass, online only, with nothing sold on site. Charged per
+    // vehicle: about $10 to $18 plus HST on weekdays, $20 to $35 plus HST on
+    // weekends and holidays, by length of slot. Prices are deliberately NOT
+    // in the description, because a fare that moves is the detail most
+    // likely to go stale and make the card a lie.
+    //
+    // The booking line outranks the prose. A card that just said "Mars-red
+    // hills an hour away" sends a family on a two hour round trip for
+    // nothing, which is the exact failure the curated layer exists to stop.
     id: 'cur-cheltenham-badlands',
     title: "Cheltenham Badlands — Mars-red hills an hour away",
     category: 'general',
-    tags: ['badlands', 'lookout', 'photo', 'boardwalk', 'trail', 'geology', 'fall colours'],
+    tags: ['badlands', 'lookout', 'photo', 'boardwalk', 'trail', 'geology', 'fall colours',
+      'reservation required', 'book ahead'],
     location: "Caledon",
     venue: "Cheltenham Badlands",
-    description: "Bare, rippled red-shale hills that look airlifted from another planet. Boardwalk viewing, Bruce Trail access next door, and unbeatable golden-hour photos.",
-    cost_tier: '$', good_for_ages: 'all ages',
+    description: "Bare, rippled red shale that looks airlifted from another planet, seen from a boardwalk. Parking is booked online through ParkPass, per vehicle. Nothing is sold at the gate.",
+    cost_tier: '$$', good_for_ages: 'all ages',
     maps_url: mapsSearch('Cheltenham Badlands Caledon'),
-    wow: true, seasonal: null
+    // seasonal was null, which served this year round. The site CLOSES for
+    // winter and runs roughly May to mid November, so the feed was offering
+    // a January drive to Caledon to stand at a locked lot. 'summer' is
+    // months 4 to 10 (data/seasons.js): it clips the first half of November,
+    // which costs a visit, against showing a closed site for four months,
+    // which costs trust. Found while verifying the booking requirement.
+    // cost_tier moved from '$' to '$$': a weekend slot is $20 to $35 plus
+    // HST per vehicle, which is not a few dollars.
+    wow: true, seasonal: 'summer'
   },
   {
     id: 'cur-rouge-vista',
