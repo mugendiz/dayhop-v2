@@ -886,8 +886,14 @@ function upcomingCuratedEvents(limit) {
       price_from: null,
       currency: null,
       cost_tier: e.cost_tier || null,
-      image_url: null,
-      booking_url: null,
+      // Was hard-coded null, which sent every curated event through the
+      // Places photo lookup. Places is a database of PLACES, so for an event
+      // hosted somewhere it can only ever return the host: a pop-up in a mall
+      // parking lot came back as a photo of the mall. An event that carries
+      // its own image keeps it, and enrichIdeaImages skips anything that
+      // already has one, so this one line covers every feed path.
+      image_url: e.image_url || null,
+      booking_url: e.booking_url || null,
       maps_url: null,
       rating: null
     }));
