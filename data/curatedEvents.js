@@ -40,6 +40,16 @@ const EVENTS = [
     date_end: '2026-11-01',
     description: 'A travelling pop-up bounce park of giant inflatable castles in the south parking lot, with music and room to jump. From $28.99 for ages 10 and up.',
     cost_tier: '$$',
+    // A temporary stand-in, not the real thing. Places can only return Upper
+    // Canada Mall for this, because a travelling bounce park is not a place,
+    // and a photo of a mall facade on a card about inflatable castles is the
+    // wrong picture rather than a missing one. This is the same playground
+    // image the app already falls back to for the kids category, so it is
+    // licence-clean and on-message. Swap in the operator's own photo when one
+    // is to hand (royalduck.ca, or the mall's event listing): one URL, no
+    // other change needed.
+    image_url: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=900&q=70',
+    booking_url: 'https://www.royalduck.ca/',
     source: 'curated'
   }
 ];
