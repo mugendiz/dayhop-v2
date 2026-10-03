@@ -476,15 +476,22 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   // dated shelf exactly as they do today.
   function tottFallback() {
     const today = torontoToday();
-    // Same 10-day horizon the weekly store uses (WINDOW_DAYS in
-    // services/talkOfTown.js), so the floor and the real shelf mean the
-    // same thing by "this week".
-    const horizon = addDays(today, 10);
-    const picks = pool.filter(c =>
-      hasDate(c) &&
-      String(c.date).slice(0, 10) >= today &&
-      String(c.date).slice(0, 10) <= horizon &&
-      isOutdoor(c) && !isIndoor(c));
+    // Borrowed from the store rather than written again here. This was a
+    // hard-coded 10 with a comment claiming it matched WINDOW_DAYS, which
+    // stopped being true the moment the window moved to 21: the floor and
+    // the real shelf would have disagreed about what "this week" means,
+    // silently and in the floor's favour.
+    const horizon = addDays(today, talkOfTown.WINDOW_DAYS);
+    const picks = pool.filter(c => {
+      if (!hasDate(c)) return false;
+      const start = String(c.date).slice(0, 10);
+      // Still on, by its END date. Filtering on start alone dropped any run
+      // longer than a day the morning after it opened, so a pop-up booked
+      // for a month showed for one day of it. Falls back to start, so a
+      // one-day event is unaffected.
+      const end = String(c.date_end || c.date).slice(0, 10);
+      return end >= today && start <= horizon && isOutdoor(c) && !isIndoor(c);
+    });
     return picks.length >= 3 ? picks : [];
   }
 
