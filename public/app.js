@@ -2437,6 +2437,24 @@
   // pills instead of a label/value list. Rating and cost_tier lead (the two
   // Gemini's rooftop list put first); duration/ages/date follow. Venue and
   // location stay as text below — they're prose-length, not chip-shaped.
+  // Attribution for a hardcoded hero photo. Most Commons images are CC BY or
+  // CC BY-SA, which require the author, the licence and a link to the source
+  // wherever the image appears, so the credit rides with the image rather
+  // than living on a credits page nobody opens. Absent for Places and stock
+  // photos, which need none. Every field is escaped; the link is only built
+  // for an https source, so a bad row degrades to plain text, never a
+  // javascript: URL.
+  function photoCreditHtml(credit) {
+    if (!credit || !credit.author) return '';
+    const who = escapeHtml(String(credit.author).slice(0, 120));
+    const lic = credit.licence ? ` · ${escapeHtml(String(credit.licence).slice(0, 40))}` : '';
+    const src = typeof credit.source === 'string' && /^https:\/\//.test(credit.source) ? credit.source : null;
+    const text = `Photo: ${who}${lic}`;
+    return `<p class="detail-photo-credit">${src
+      ? `<a href="${escapeAttr(src)}" target="_blank" rel="noopener noreferrer">${text}</a>`
+      : text}</p>`;
+  }
+
   function detailChipsHtml(idea) {
     const chips = [];
     if (idea.rating != null) chips.push(`<span class="detail-chip detail-chip--rating">★ ${escapeHtml(String(idea.rating))}</span>`);
@@ -2469,6 +2487,7 @@
         <span class="detail-hero-category">${categoryLabel}</span>
         ${idea.wow_reason ? '<span class="detail-hero-wow">✨ Unexpected find</span>' : ''}
       </div>
+      ${photoCreditHtml(idea.image_credit)}
       ${detailChipsHtml(idea)}
       ${venueLine ? `<p class="detail-venue-line">${escapeHtml(venueLine)}</p>` : ''}
       <p class="detail-why">${escapeHtml(idea.why || '')}</p>

@@ -312,6 +312,7 @@ function toFeedIdea(c) {
     price_from: c.price_from != null ? c.price_from : null,
     currency: c.currency || null,
     image_url: c.image_url || null,
+    image_credit: c.image_credit || undefined,
     date: c.date || null,
     venue: c.venue || null,
     civic: c.civic === true || undefined,
