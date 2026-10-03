@@ -862,7 +862,12 @@ function dedupKey(c) {
 function upcomingCuratedEvents(limit) {
   const today = torontoToday();
   return curatedEvents
-    .filter(e => !e.date || e.date >= today)
+    // An event is over when it ENDS, not when it starts. This filtered on
+    // the start date alone, so anything running more than a day vanished
+    // from the pool the morning after it opened: a pop-up booked for a
+    // month was visible for one day of it. date_end falls back to date, so
+    // single-day events behave exactly as before.
+    .filter(e => !e.date || (e.date_end || e.date) >= today)
     .slice(0, limit)
     .map(e => ({
       source: 'curated',
@@ -871,7 +876,10 @@ function upcomingCuratedEvents(limit) {
       description: e.description || '',
       category: e.category || null,
       date: e.date || null,
-      venue: null,
+      // Carried so the shelves can tell a run from a day. Without it a
+      // multi-week event looks like a one-day event that already happened.
+      date_end: e.date_end || e.date || null,
+      venue: e.venue || null,
       address: e.location || null,
       lat: null,
       lng: null,

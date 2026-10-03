@@ -95,3 +95,56 @@ test('a card never appears on both the floor and the dated shelf', () => {
   const ids = ideas.map(i => i.id);
   assert.equal(new Set(ids).size, ids.length, 'a card was served twice');
 });
+
+// ---------- a run is not a day ----------
+// The Royal Duck pop-up at Upper Canada Mall runs 2026-10-03 to 2026-11-01.
+// A 29-day run is the first thing in the data long enough to expose three
+// places that treated an event as finished the morning after it opened,
+// because each filtered on the START date: the curated-events pool filter,
+// this floor, and the floor's hard-coded horizon that stopped matching
+// WINDOW_DAYS when the window moved to 21.
+const talkOfTown = require('../services/talkOfTown');
+
+const run = (id, start, end) => ({
+  id, source: 'curated', title: `Bounce Park ${id}`, category: 'kids',
+  description: 'giant inflatable castles in the parking lot, outdoor',
+  location: 'Newmarket', date: start, date_end: end,
+  distance_km: 46, rating: null, rating_count: null, wow: false
+});
+
+test('a multi-week run still shows once it has started', () => {
+  const started = addDays(TODAY, -9);          // opened over a week ago
+  const ends = addDays(TODAY, 20);             // still on for weeks
+  const ideas = build([
+    ...Array.from({ length: 6 }, (_, i) => filler(i + 1)),
+    run('duck', started, ends), run('b', started, ends), run('c', started, ends)
+  ], { tott: [] });
+  assert.ok(shelf(ideas).includes('duck'),
+    'an event in the middle of its run was treated as over');
+});
+
+test('a run that has genuinely ended does not show', () => {
+  const ended = addDays(TODAY, -2);
+  const ideas = build([
+    ...Array.from({ length: 6 }, (_, i) => filler(i + 1)),
+    run('over', addDays(TODAY, -30), ended),
+    run('a', TODAY, addDays(TODAY, 5)), run('b', TODAY, addDays(TODAY, 5)),
+    run('c', TODAY, addDays(TODAY, 5))
+  ], { tott: [] });
+  assert.ok(!shelf(ideas).includes('over'), 'a finished run reached the shelf');
+});
+
+test('the floor borrows its horizon from the store instead of restating it', () => {
+  // Hard-coding this is how the floor and the shelf came to disagree about
+  // "this week" when WINDOW_DAYS moved from 10 to 21.
+  const nearEdge = addDays(TODAY, talkOfTown.WINDOW_DAYS - 1);
+  const pastEdge = addDays(TODAY, talkOfTown.WINDOW_DAYS + 5);
+  const ideas = build([
+    ...Array.from({ length: 6 }, (_, i) => filler(i + 1)),
+    run('edge', nearEdge, nearEdge), run('a', TODAY, TODAY), run('b', TODAY, TODAY),
+    run('far', pastEdge, pastEdge)
+  ], { tott: [] });
+  const got = shelf(ideas);
+  assert.ok(got.includes('edge'), 'a pick inside the store window was refused by the floor');
+  assert.ok(!got.includes('far'), 'a pick past the window reached the floor');
+});
