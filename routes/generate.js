@@ -321,6 +321,7 @@ function mergeWithCandidates(selectedIdeas, candidates) {
         price_from: original.price_from != null ? original.price_from : null,
         currency: original.currency || null,
         image_url: original.image_url || null,
+        image_credit: original.image_credit || undefined,
         date: original.date || null,
         venue: original.venue || null,
         civic: original.civic === true || undefined,

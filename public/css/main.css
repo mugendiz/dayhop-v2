@@ -2139,6 +2139,18 @@ button.date-clear-btn { padding: 13px 4px; }
 .detail-chip--rating { color: var(--coral-dark); border-color: rgba(255, 107, 74, 0.35); background: rgba(255, 107, 74, 0.08); }
 .detail-chip--date { color: var(--moss); border-color: rgba(63, 111, 92, 0.3); background: rgba(63, 111, 92, 0.08); }
 
+/* Photo attribution under the detail hero. Required for CC BY / BY-SA
+   images, so it must be legible, but it is housekeeping, not content:
+   small, muted, and never competing with the place's name. */
+.detail-photo-credit {
+  margin: 6px 2px 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink-soft, #5a6b6e);
+  opacity: 0.85;
+}
+.detail-photo-credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
 .detail-venue-line {
   font-size: 13px;
   color: var(--ink-soft);
