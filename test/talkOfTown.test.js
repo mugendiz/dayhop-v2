@@ -6,6 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { shapePick, active, weekStart, SHELF_SIZE, MAX_FAR, FAR_KM, FEED_MAX_KM } = require('../services/talkOfTown');
 const { hubById } = require('../data/tottHubs');
+const { addDays } = require('../services/spotlight');
 
 const TORONTO = hubById('toronto');
 const TODAY = '2026-09-07';
@@ -139,4 +140,35 @@ test('a bad maxKm falls back to the store reach rather than emptying the shelf',
     const out = active({ point: DOWNTOWN, today: TODAY, source: SPREAD, maxKm: bad });
     assert.equal(out.length, 3, `maxKm=${String(bad)} must not silently drop picks`);
   }
+});
+
+// ---------- the search horizon ----------
+// A season of festivals went by without one reaching the shelf. The cause was
+// WINDOW_DAYS, not the gates: pickerPrompt() asks Grok for happenings between
+// today and today + WINDOW_DAYS, so nothing past that horizon is ever even
+// requested, however permissive shapePick is. These pin the horizon and the
+// invariant that keeps the two numbers from drifting apart again.
+
+const { WINDOW_DAYS, MAX_START_AHEAD_DAYS } = require('../services/talkOfTown');
+
+test('the gate can never be narrower than the search window', () => {
+  // If it is, the system silently discards the far edge of its own results:
+  // Grok is asked for N days, finds a fair on day N-1, shapePick drops it as
+  // too_far_ahead, and nothing anywhere reports the loss.
+  assert.ok(MAX_START_AHEAD_DAYS >= WINDOW_DAYS,
+    `gate ${MAX_START_AHEAD_DAYS} is tighter than the window ${WINDOW_DAYS}`);
+});
+
+test('the window reaches far enough to catch a festival while it can be planned', () => {
+  assert.ok(WINDOW_DAYS >= 21,
+    'under three weeks and an announced fair is invisible until the week it runs');
+});
+
+test('an event inside the window is accepted, one past the gate is not', () => {
+  const inWindow = addDays(TODAY, WINDOW_DAYS - 1);
+  const wayOut = addDays(TODAY, MAX_START_AHEAD_DAYS + 10);
+  const ok = shapePick(raw({ start_date: inWindow, end_date: inWindow }), { hub: TORONTO, today: TODAY });
+  assert.equal(ok.ok, true, `a pick at day ${WINDOW_DAYS - 1} should survive: ${ok.reason}`);
+  const far = shapePick(raw({ start_date: wayOut, end_date: wayOut }), { hub: TORONTO, today: TODAY });
+  assert.equal(far.reason, 'too_far_ahead');
 });
