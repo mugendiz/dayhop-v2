@@ -13,13 +13,23 @@ const { verifyClick, verifyOpen } = require('../services/digestLinks');
 
 const GIF_1PX = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 const clean = (v, max) => String(v || '').trim().slice(0, max);
+// Two newsletters share these routes: the Thursday brief signs links with a
+// plain date ("2026-10-08"), the Monday Talk of the town issue with a
+// prefixed one ("tott-2026-10-05") so the two never merge in analytics.
+// Both the length cap and the pattern used to allow only the plain date, so
+// every Monday link was cut to "tott-2026-", failed the check and answered
+// "Bad link.", and its open pixel was silently never counted. The prefix is
+// an exact literal, not a wildcard, so this widens nothing an attacker can
+// use: the HMAC still has to match the full id.
+const ISSUE_MAX = 15;
+const ISSUE_RE = /^(tott-)?\d{4}-\d{2}-\d{2}$/;
 
 // 1×1 pixel. Always answers with the gif — a broken signature should render
 // invisibly in the email client, just uncounted.
 router.get('/open', (req, res) => {
-  const issue = clean(req.query.i, 10);
+  const issue = clean(req.query.i, ISSUE_MAX);
   const sid = clean(req.query.s, 16);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(issue) && verifyOpen(issue, sid, req.query.sig)) {
+  if (ISSUE_RE.test(issue) && verifyOpen(issue, sid, req.query.sig)) {
     analytics.recordEvent({
       type: 'digest_opened',
       ownerKey: `sub-${sid}`,
@@ -37,10 +47,10 @@ router.get('/open', (req, res) => {
 // Signed redirect. The signature covers issue+sid+destination, so the only
 // URLs this will ever bounce to are ones the digest itself embedded.
 router.get('/click', (req, res) => {
-  const issue = clean(req.query.i, 10);
+  const issue = clean(req.query.i, ISSUE_MAX);
   const sid = clean(req.query.s, 16);
   const url = clean(req.query.u, 600);
-  const ok = /^\d{4}-\d{2}-\d{2}$/.test(issue) &&
+  const ok = ISSUE_RE.test(issue) &&
     /^https?:\/\//i.test(url) &&
     verifyClick(issue, sid, url, req.query.sig);
   if (!ok) return res.status(400).send('Bad link.');
