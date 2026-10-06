@@ -194,6 +194,33 @@ button, .filter-chip {
   min-width: 0;
 }
 
+/* Wordmark over tagline. Stacked rather than inline so the tagline never
+   competes with the location tag for width on a phone, and baseline-aligns
+   the location tag to the wordmark, not to the tagline. */
+.brand-lockup {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.05;
+  min-width: 0;
+}
+.logo-tagline {
+  margin-top: 3px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--moss);
+  white-space: nowrap;
+}
+/* Phones: the nav pills take most of the row, so on one line the tagline was
+   being cut off at "GET OUT THERE". Break it at the full stop instead, as
+   two deliberate lines, which also reads more like a lockup than a caption. */
+@media (max-width: 480px) {
+  .logo-tagline { font-size: 9.5px; letter-spacing: 0.05em; }
+  .logo-tagline > span { display: block; }
+}
+
 .logo {
   font-family: var(--display);
   font-weight: 700;
