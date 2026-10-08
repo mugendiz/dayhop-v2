@@ -51,6 +51,31 @@ const EVENTS = [
     image_url: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=900&q=70',
     booking_url: 'https://www.royalduck.ca/',
     source: 'curated'
+  },
+  {
+    // Founder-flagged via Instagram (@ouradventures.withgrace with
+    // @narcitycanada), Oct 8 2026. Dates and venue are confirmed by two
+    // listings apart from the post: NOW Toronto and Toronto On Demand, both
+    // Oct 9 to 12 2026 at Sugar Beach, 11 Dockside Dr, produced by Street
+    // Eats Market. Hours are from the NOW Toronto listing. Free admission is
+    // the post's claim (Narcity is a co-author) and matches the free 2025
+    // edition at HTO Park; neither listing contradicts it.
+    //
+    // No image_url on purpose. Unlike a pop-up in a mall lot, the host venue
+    // IS the picture here: a Places photo of Sugar Beach is the right photo.
+    // The creator's own photo is theirs, so it is not borrowed.
+    //
+    // No booking_url: free entry, and no organizer page could be confirmed.
+    id: 'cur-fall-harvest-market-sugar-beach-2026',
+    title: 'Fall Harvest Market at Sugar Beach',
+    category: 'food',
+    location: 'Toronto',
+    venue: 'Sugar Beach, 11 Dockside Dr',
+    date: '2026-10-09',
+    date_end: '2026-10-12',
+    description: 'A free Thanksgiving weekend harvest market on the waterfront: local vendors, fall food and drinks, live music, pumpkin carving, apple bobbing and plenty of photo spots. Friday 5 to 10 pm, Saturday and Sunday noon to 10 pm, Monday noon to 8 pm.',
+    cost_tier: 'free',
+    source: 'curated'
   }
 ];
 
