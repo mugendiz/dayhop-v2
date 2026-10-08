@@ -40,3 +40,22 @@ test('an idea that already has an image is never sent to the photo lookup', asyn
     if (prev === undefined) delete process.env.GOOGLE_MAPS_API_KEY; else process.env.GOOGLE_MAPS_API_KEY = prev;
   }
 });
+
+test('the Fall Harvest Market runs the whole Thanksgiving weekend', () => {
+  const m = events.find(e => e.id === 'cur-fall-harvest-market-sugar-beach-2026');
+  assert.ok(m, 'the entry should exist');
+  assert.equal(m.date, '2026-10-09');
+  assert.equal(m.date_end, '2026-10-12', 'without date_end it would drop off the morning after it opens');
+  assert.equal(m.cost_tier, 'free');
+  // Talk of the town only takes outdoor events; the copy has to say so.
+  assert.match(`${m.title} ${m.venue} ${m.description}`, /beach|waterfront/i);
+});
+
+test('curated events still running pass the house copy rule', () => {
+  const { lint } = require('../services/copyStyle');
+  const today = new Date().toISOString().slice(0, 10);
+  for (const e of events.filter(x => (x.date_end || x.date || '9999') >= today)) {
+    const found = lint(`${e.title}\n${e.description || ''}`).map(v => v.detail);
+    assert.deepEqual(found, [], `${e.id} copy breaks the house style`);
+  }
+});
