@@ -844,6 +844,7 @@ if (process.env.RESEND_API_KEY) {
   let lastCadenceRun = 0;
   let lastReportRun = 0;
   let lastSocialRun = 0;
+  let lastSocialMonthRun = 0;
   const remindersSent = new Set();
   // One-off operator reminders, Toronto-date-keyed. Fire at 9 AM alongside
   // the other operator email slots; each key sends at most once per process
@@ -886,6 +887,20 @@ if (process.env.RESEND_API_KEY) {
       heartbeat.record('social_batch');
       require('./services/socialBatch').sendBatch()
         .catch(err => console.warn('[social] Tuesday batch failed:', err.message));
+    }
+    // Monthly social plan: on the 24th at 10, next month's calendar from the
+    // formula (data/socialFormula.js), with the CSV and the month's photos
+    // attached, so the photo posts can be scheduled in one sitting before
+    // the month starts. Grok drafts the captions when the key is set;
+    // without it the plan still sends, with plain captions flagged to fix.
+    // SOCIAL_MONTH=off disables it; /api/admin/social/month still works.
+    if (process.env.SOCIAL_MONTH !== 'off'
+        && parts.day === '24' && parts.hour === '10'
+        && Date.now() - lastSocialMonthRun > 12 * 60 * 60 * 1000) {
+      lastSocialMonthRun = Date.now();
+      heartbeat.record('social_month');
+      require('./services/socialMonth').sendMonth()
+        .catch(err => console.warn('[social-month] monthly plan failed:', err.message));
     }
     const today = `${parts.year}-${parts.month}-${parts.day}`;
     for (const r of REMINDERS) {

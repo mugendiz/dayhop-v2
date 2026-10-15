@@ -1111,7 +1111,7 @@
       const h = await res.json();
       const s = h.schedulers || {};
       const runs = s.last_runs || {};
-      const names = ['outreach_cadence', 'operator_report', 'social_batch', 'weekly_digest', 'discovery_scan', 'tott_refresh', 'accounting_recurring'];
+      const names = ['outreach_cadence', 'operator_report', 'social_batch', 'social_month', 'weekly_digest', 'discovery_scan', 'tott_refresh', 'accounting_recurring'];
       $('ops-schedulers').innerHTML =
         'Process up ' + (s.process_uptime_hours != null ? s.process_uptime_hours + 'h' : '?') + ' · ' +
         names.map(n => '<b>' + esc(n.replace(/_/g, ' ')) + '</b>: ' +
