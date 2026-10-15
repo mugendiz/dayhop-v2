@@ -150,3 +150,10 @@ test('a photo only borrows a catalog fact when it is the same place', () => {
   assert.equal(sm.catalogFactFor('Lake Wilcox park').id, 'cur-lake-wilcox-park');
   assert.equal(sm.catalogFactFor('David Dunlap Observatory').id, 'cur-david-dunlap-observatory');
 });
+
+test('no water park is suggested for filming outside June to August', async () => {
+  for (const ym of ['2026-10', '2027-05', '2027-09']) {
+    const plan = await sm.buildMonth(ym, { useGrok: false });
+    for (const r of plan.rows.filter(x => x.suggestion)) assert.doesNotMatch(r.suggestion, /wet'?n'?wild|water ?park|splash/i, `${ym}: ${r.suggestion}`);
+  }
+});

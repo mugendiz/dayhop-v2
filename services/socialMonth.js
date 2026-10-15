@@ -48,9 +48,13 @@ const OUTDOOR_RE = /\b(parks?|trails?|gardens?|beach(es)?|nature|conservation|hi
 const INDOOR_RE = /\b(indoor|arcade|museum|gallery|climbing|karting|kart|playground|trampoline|bowling|escape room|cinema|theatre|theater|spa|art collection)\b/i;
 // Someone has to film it, so it has to be open. The catalog calls November
 // winter, but ski hills and tubing parks rarely open before December.
+// The same goes for water parks and splash pads at the other end: the
+// catalog's summer runs to October, but they close around Labour Day.
+const WATER_PARK_RE = /\b(water ?park|wet'?n'?wild|splash pad|wave pool|waterslides?)\b/i;
 const filmableIn = (e, month) => {
   const { isCatalogSeasonEligible } = require('../data/seasons');
   if (e.seasonal === 'winter') return month === 12 || month <= 3;
+  if (WATER_PARK_RE.test(`${e.title || ''} ${e.venue || ''} ${e.description || ''}`)) return month >= 6 && month <= 8;
   return isCatalogSeasonEligible(e.seasonal || null, month);
 };
 const isOutdoorEntry = e => {
