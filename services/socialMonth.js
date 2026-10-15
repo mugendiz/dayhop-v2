@@ -48,9 +48,13 @@ const OUTDOOR_RE = /\b(parks?|trails?|gardens?|beach(es)?|nature|conservation|hi
 const INDOOR_RE = /\b(indoor|arcade|museum|gallery|climbing|karting|kart|playground|trampoline|bowling|escape room|cinema|theatre|theater|spa|art collection)\b/i;
 // Someone has to film it, so it has to be open. The catalog calls November
 // winter, but ski hills and tubing parks rarely open before December.
+// The same goes for water parks and splash pads at the other end: the
+// catalog's summer runs to October, but they close around Labour Day.
+const WATER_PARK_RE = /\b(water ?park|wet'?n'?wild|splash pad|wave pool|waterslides?)\b/i;
 const filmableIn = (e, month) => {
   const { isCatalogSeasonEligible } = require('../data/seasons');
   if (e.seasonal === 'winter') return month === 12 || month <= 3;
+  if (WATER_PARK_RE.test(`${e.title || ''} ${e.venue || ''} ${e.description || ''}`)) return month >= 6 && month <= 8;
   return isCatalogSeasonEligible(e.seasonal || null, month);
 };
 const isOutdoorEntry = e => {
@@ -160,21 +164,30 @@ function photoPicks(ym, n) {
 }
 
 // A catalog fact for a photo, so a caption can say one true thing instead of
-// only naming the place. Matched on distinctive words in the photo's search
-// term ("Webster" in "Webster Falls Dundas"), never on generic ones.
-const GENERIC = new Set(['ontario', 'toronto', 'park', 'parks', 'provincial', 'conservation', 'lake', 'beach', 'main', 'street', 'view', 'falls', 'trail', 'forest', 'house', 'heritage', 'museum', 'national', 'urban', 'river', 'waterfront', 'centre', 'center', 'island']);
+// only naming the place. The match has to be exact enough to trust: every
+// distinctive word in the photo's search term must appear in the entry's
+// venue or title. The first version matched on any one word, town names
+// included, so Fairy Lake drew a Newmarket play cafe's description, Burr
+// House the Richmond Hill wave pool's, and a trillium photo "Trillium Park"
+// at Ontario Place. A wrong fact is worse than none: with no fact the
+// caption only names the place.
+// Only words that venues name inconsistently. Everything else in the term
+// has to match, which is what tells Albion Falls (Hamilton) from Albion Hills
+// (Caledon), or a trillium photo from Trillium Park.
+const GENERIC = new Set(['ontario', 'provincial', 'conservation', 'national', 'urban', 'area']);
 function catalogFactFor(term) {
   let catalog = [];
   try { catalog = require('../data/curatedCatalog'); } catch { return null; }
-  const words = String(term || '').toLowerCase().split(/[^a-z']+/).filter(w => w.length >= 4 && !GENERIC.has(w));
+  const words = String(term || '').toLowerCase().split(/[^a-z']+/)
+    .filter(w => w.length >= 4 && !GENERIC.has(w));
   if (!words.length) return null;
-  let best = null;
   for (const e of catalog) {
-    const hay = `${e.venue || ''} ${e.title || ''}`.toLowerCase();
-    const score = words.filter(w => hay.includes(w)).length;
-    if (score && (!best || score > best.score)) best = { score, id: e.id, fact: e.description || '' };
+    // Location counts too, so a town in the term ("Markham Museum") has to
+    // be the entry's town, instead of being dropped and leaving "museum".
+    const hay = `${e.venue || ''} ${e.title || ''} ${e.location || ''}`.toLowerCase();
+    if (words.every(w => new RegExp(`\\b${w}\\b`).test(hay))) return { id: e.id, fact: e.description || '' };
   }
-  return best;
+  return null;
 }
 
 function hashtagsFor(region) {
