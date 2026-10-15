@@ -79,7 +79,7 @@ test('the email marks each draft and drops the stale Zeely checklist', () => {
   assert.match(text, /2\. Sat Oct 3: .*\n   FIX FIRST/);
   assert.doesNotMatch(text, /Zeely|ZERO posts/);
   // The checklist and headings are fixed copy the operator pastes from.
-  const fixed = text.split('\n').filter(l => /^(DayHop|Four|Posting|  \d\.)/.test(l)).join('\n');
+  const fixed = text.split('\n').filter(l => /^(DayHop|\d+ short videos|Posting|  \d\.)/.test(l)).join('\n');
   assert.deepEqual(lint(fixed), []);
 });
 
