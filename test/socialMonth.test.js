@@ -137,3 +137,16 @@ test('batch grounding carries day trips and dated events, and the app moment nee
   };
   assert.deepEqual(checkPost(appPost, places), []);
 });
+
+test('a photo only borrows a catalog fact when it is the same place', () => {
+  // Each of these drew another place's fact under the first, one-word match:
+  // a Newmarket play cafe, the Richmond Hill wave pool, the Aga Khan Museum,
+  // Unionville's main street, Trillium Park, Albion Hills.
+  for (const term of ['Fairy Lake Newmarket', 'Burr House Richmond Hill', 'Markham Museum',
+    'Main Street Newmarket Ontario', 'white trillium forest Ontario', 'Albion Falls']) {
+    assert.equal(sm.catalogFactFor(term), null, term);
+  }
+  assert.equal(sm.catalogFactFor('Unionville Ontario Main Street').id, 'cur-unionville-main-street');
+  assert.equal(sm.catalogFactFor('Lake Wilcox park').id, 'cur-lake-wilcox-park');
+  assert.equal(sm.catalogFactFor('David Dunlap Observatory').id, 'cur-david-dunlap-observatory');
+});
