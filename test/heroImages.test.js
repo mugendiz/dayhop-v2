@@ -102,3 +102,20 @@ test('with no heroes at all, the baked Places photo still serves', () => {
   const c = pick({});
   assert.ok(c && c.image_url, 'removing heroes must not strip the existing photo');
 });
+
+test('self-hosted heroes are real JPEG files, never a logo PNG renamed', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  for (const [id, h] of Object.entries(heroes).filter(([, h]) => h.verified && String(h.image_url).startsWith('/img/'))) {
+    const head = fs.readFileSync(path.join(__dirname, '..', 'public', h.image_url)).subarray(0, 3);
+    assert.deepEqual([...head], [0xff, 0xd8, 0xff], `${id}: ${h.image_url} is not a JPEG`);
+  }
+});
+
+test('a rejected candidate is remembered and never served', () => {
+  const rejected = Object.entries(heroes).filter(([, h]) => h.rejected);
+  assert.ok(rejected.length > 0);
+  for (const [id, h] of rejected) {
+    assert.ok(!h.verified && !h.image_url, `${id}: a rejected hero must carry no image`);
+  }
+});
