@@ -135,6 +135,38 @@ function tottSvc() {
   if (!_tott) _tott = require('../services/talkOfTown');
   return _tott;
 }
+// Monthly social calendar (services/socialMonth.js). GET previews a month
+// as JSON, plain text or the CSV to schedule from; captions are drafted by
+// Grok only with ?captions=1, so a preview reload never spends anything.
+// POST /send emails the plan with the photos attached, same as the 24th.
+router.get('/social/month', requireAdmin, async (req, res) => {
+  const sm = require('../services/socialMonth');
+  const month = String(req.query.month || sm.nextMonth());
+  try {
+    const plan = await sm.buildMonth(month, { useGrok: req.query.captions === '1' });
+    const format = String(req.query.format || 'json');
+    if (format === 'csv') {
+      res.set('Content-Type', 'text/csv; charset=utf-8');
+      res.set('Content-Disposition', `attachment; filename="dayhop-social-${month}.csv"`);
+      return res.send(sm.toCsv(plan));
+    }
+    if (format === 'text') return res.type('text/plain').send(sm.formatMonth(plan));
+    res.json(plan);
+  } catch (err) {
+    res.status(400).json({ error: 'BAD_MONTH', message: err.message });
+  }
+});
+
+router.post('/social/month/send', requireAdmin, async (req, res) => {
+  const sm = require('../services/socialMonth');
+  const month = String((req.body && req.body.month) || sm.nextMonth());
+  try {
+    res.json(await sm.sendMonth(new Date(), month));
+  } catch (err) {
+    res.status(400).json({ error: 'SEND_FAILED', message: err.message });
+  }
+});
+
 router.get('/tott', requireAdmin, async (req, res) => {
   try {
     res.json(await tottSvc().peek());

@@ -16,7 +16,7 @@ test('pending lines say how long each item has been held and whether it costs mo
   const money = lines.filter(l => l.includes('[COSTS MONEY]'));
   assert.strictEqual(money.length, PENDING.filter(p => p.money).length);
   assert.ok(money.length >= 1);
-  assert.ok(lines.some(l => l.includes('#12')));
+  assert.ok(lines.some(l => l.includes('#40')));
 });
 
 test('held days never go negative', () => {

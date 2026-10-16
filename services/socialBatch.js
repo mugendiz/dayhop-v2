@@ -97,9 +97,66 @@ Return ONLY valid JSON, no markdown fences:
   ]
 }
 
-Make exactly 4 posts, spread across the next 7 days.`;
+The input gives "slots": the posting calendar from DayHop's monthly formula (data/socialFormula.js). Make exactly one post for each slot, in order. post_day is that slot's day, and the video follows that slot's pillar and brief:
+- "Hidden in plain sight": a real_places entry with kind "catalog".
+- "This weekend" or "Long weekend": a real_places entry with kind "event" that is on that weekend, if one is given; otherwise the strongest seasonal catalog place, and say so in concept.
+- "Worth the drive": a real_places entry with kind "day_trip" if one is given; otherwise a catalog place.
+- "App moment": a screen recording of dayhop.quest answering one real parent request. This is the only slot where the brand may appear early; fact_source is "app: screen recording".
+Every video ends, in its last 1.5 seconds, on the sign-off "DayHop. A Nature App. Get out there."`;
 
-async function buildBatch(now = new Date(), places = seasonalPicks(12, now)) {
+/**
+ * The formula's video slots for the coming week: tomorrow through a week
+ * from today. Tuesday's batch therefore drafts Thursday, Saturday and next
+ * Tuesday (plus the app moment when the first Monday of a month falls in
+ * range), which is the week data/socialFormula.js lays out.
+ */
+function videoSlots(now = new Date()) {
+  const { slotsBetween } = require('./socialMonth');
+  const today = torontoToday(now);
+  return slotsBetween(addDays(today, 1), addDays(today, 7))
+    .filter(s => s.format === 'video')
+    .map(s => ({ post_day: s.day, time: s.time, pillar: s.pillar_name, brief: s.brief, holiday: s.holiday ? s.holiday.name : undefined }));
+}
+
+/**
+ * Everything a draft may cite as fact_source: the week's catalog picks, the
+ * day trips, and dated events running in the coming week (curated events
+ * plus the live Talk of the town store, a pure memory read). checkPost
+ * rejects a source that is not in this list, so the slot pillars can only
+ * be filled from real entries.
+ */
+function groundingPlaces(now = new Date()) {
+  const today = torontoToday(now);
+  const end = addDays(today, 7);
+  const catalogPicks = seasonalPicks(12, now).map(p => Object.assign({ kind: 'catalog' }, p));
+  const out = [...catalogPicks];
+  try {
+    const month = Number(today.slice(5, 7));
+    const { isCatalogSeasonEligible } = require('../data/seasons');
+    for (const e of require('../data/curatedCatalog')) {
+      if (!e.worth_trip || !isCatalogSeasonEligible(e.seasonal || null, month)) continue;
+      if (out.some(p => p.id === e.id)) continue;
+      out.push({ id: e.id, kind: 'day_trip', venue: e.venue, location: e.location, fact: e.description, ages: e.good_for_ages, is_new: isNewlyOpened(e, today) });
+    }
+    for (const e of require('../data/curatedEvents')) {
+      if (!e.date || e.date > end || (e.date_end || e.date) < today) continue;
+      out.push({ id: e.id, kind: 'event', venue: e.venue || e.location, location: e.location, fact: `${e.title}. ${e.description || ''} On ${e.date}${e.date_end && e.date_end !== e.date ? ` to ${e.date_end}` : ''}.`, is_new: false });
+    }
+    const { hubById } = require('../data/tottHubs');
+    const hub = hubById('toronto');
+    if (hub) {
+      for (const c of require('./talkOfTown').active({ point: { lat: hub.lat, lng: hub.lng }, today, limit: 6 })) {
+        if (c.date > end) continue;
+        out.push({ id: c.id, kind: 'event', venue: c.venue || c.location, location: c.location, fact: `${c.title}. ${c.description || ''} On ${c.date}${c.date_end && c.date_end !== c.date ? ` to ${c.date_end}` : ''}.`, is_new: false });
+      }
+    }
+  } catch (err) {
+    console.warn('[social] grounding beyond the catalog failed, catalog picks only:', err.message);
+  }
+  return out;
+}
+
+async function buildBatch(now = new Date(), places = groundingPlaces(now), slots = videoSlots(now)) {
   const sp = getSpotlight(now);
   const messages = [
     { role: 'system', content: SYSTEM_PROMPT },
@@ -110,6 +167,7 @@ async function buildBatch(now = new Date(), places = seasonalPicks(12, now)) {
         upcoming_holiday: sp && sp.kind === 'holiday'
           ? { name: sp.name, date: sp.date, range: sp.range, days_away: sp.days_away }
           : null,
+        slots,
         real_places: places
       })
     }
@@ -155,6 +213,8 @@ function checkPost(p, places = []) {
   const place = places.find(x => x.id === source);
   if (!source) {
     problems.push('no fact_source; say where the fact comes from');
+  } else if (source.startsWith('app:')) {
+    // The app moment films the planner itself; the screen is the source.
   } else if (source.startsWith('general')) {
     problems.push(`fact is not from the catalog; verify before posting (${source.replace(/^general:\s*/, '')})`);
   } else if (!place) {
@@ -182,7 +242,7 @@ function checkPost(p, places = []) {
 
 function formatBatch(posts, places = [], now = new Date()) {
   const lines = [`DayHop social batch, week of ${torontoToday(now)}`, ''];
-  lines.push('Four short videos. Post each one on TikTok AND as an Instagram Reel.', '');
+  lines.push(`${posts.length} short videos, one per slot in the monthly formula. Post each one on TikTok AND as an Instagram Reel.`, '');
   posts.forEach((p, i) => {
     const problems = checkPost(p, places);
     lines.push(`${i + 1}. ${p.post_day || 'Any day'}: ${p.concept || ''}`);
@@ -210,12 +270,12 @@ function formatBatch(posts, places = [], now = new Date()) {
 }
 
 async function sendBatch(now = new Date()) {
-  const places = seasonalPicks(12, now);
+  const places = groundingPlaces(now);
   const posts = await buildBatch(now, places);
   const text = formatBatch(posts, places, now);
   const res = await sendEmail({
     to: BATCH_TO,
-    subject: 'DayHop social batch: 4 videos drafted for this week',
+    subject: `DayHop social batch: ${posts.length} videos drafted for this week`,
     text,
     html: `<pre style="font-family:ui-monospace,Menlo,monospace;font-size:13px;white-space:pre-wrap">${text
       .replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>`
@@ -225,4 +285,4 @@ async function sendBatch(now = new Date()) {
   return res;
 }
 
-module.exports = { buildBatch, sendBatch, checkPost, formatBatch, seasonalPicks };
+module.exports = { buildBatch, sendBatch, checkPost, formatBatch, seasonalPicks, videoSlots, groundingPlaces };

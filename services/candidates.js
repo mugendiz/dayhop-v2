@@ -492,18 +492,25 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   for (const c of pool) c.description = cleanDescription(c.description);
 
   // A dated event in the past is never a valid recommendation, whatever the
-  // picker says — one stale card poisons trust in the whole feed.
+  // picker says — one stale card poisons trust in the whole feed. "Past"
+  // means it has ENDED: this compared the start date alone, so every run
+  // longer than a day was dropped the morning after it opened. The Royal
+  // Duck (Oct 3 to Nov 1) was invisible from Oct 4, and Pumpkins After Dark
+  // (Sep 26 to Oct 31) never showed at all, while upcomingCuratedEvents had
+  // already been fixed to keep them. date_end falls back to date, so a one
+  // day event is filtered exactly as before.
   pool = pool.filter(c => {
-    const past = c.date && DATE_RE.test(c.date) && c.date < today;
-    if (past) console.log(`[candidates] dropping past event: ${c.title} (${c.date})`);
+    const past = isEventOver(c, today);
+    if (past) console.log(`[candidates] dropping past event: ${c.title} (${c.date_end || c.date})`);
     return !past;
   });
 
   // "Date aware" picker: dated events outside the requested window are
   // dropped; evergreen candidates (no fixed date — most venues/activities)
-  // are unaffected, since they're a fine idea on any day in the window.
+  // are unaffected, since they're a fine idea on any day in the window. A
+  // run counts when it overlaps the window, not only when it starts inside it.
   if (dateWindow) {
-    pool = pool.filter(c => !c.date || (c.date >= dateWindow.start && c.date <= dateWindow.end));
+    pool = pool.filter(c => overlapsWindow(c, dateWindow));
   }
 
   // Distance is a first-class signal whenever we know where the day starts:
@@ -887,6 +894,25 @@ function dedupKey(c) {
   return venue ? `${title}|v:${venue}` : `${title}|d:${c.date || ''}`;
 }
 
+// Event dates as the filters above read them: a run is over when its END
+// date has passed, and it is in a window when any day of it falls inside.
+// Undated candidates (venues, activities) are never over and fit any window.
+function eventSpan(c) {
+  const start = c && DATE_RE.test(String(c.date || '').slice(0, 10)) ? String(c.date).slice(0, 10) : null;
+  if (!start) return null;
+  const endRaw = String(c.date_end || '').slice(0, 10);
+  return { start, end: DATE_RE.test(endRaw) && endRaw >= start ? endRaw : start };
+}
+function isEventOver(c, today) {
+  const span = eventSpan(c);
+  return Boolean(span && span.end < today);
+}
+function overlapsWindow(c, win) {
+  const span = eventSpan(c);
+  if (!span) return true;
+  return span.start <= win.end && span.end >= win.start;
+}
+
 // Curated seed events, upcoming only (dates are Toronto-local YYYY-MM-DD).
 function upcomingCuratedEvents(limit) {
   const today = torontoToday();
@@ -994,3 +1020,5 @@ module.exports = {
 // prompt, no network, so the slot split can be pinned directly.
 module.exports.catalogCandidates = catalogCandidates;
 module.exports.SOURCE_CAPS = SOURCE_CAPS;
+module.exports.isEventOver = isEventOver;
+module.exports.overlapsWindow = overlapsWindow;

@@ -76,6 +76,30 @@ const EVENTS = [
     description: 'A free Thanksgiving weekend harvest market on the waterfront: local vendors, fall food and drinks, live music, pumpkin carving, apple bobbing and plenty of photo spots. Friday 5 to 10 pm, Saturday and Sunday noon to 10 pm, Monday noon to 8 pm.',
     cost_tier: 'free',
     source: 'curated'
+  },
+  {
+    // Added Oct 15 2026 while the weekly Talk of the town search sat in its
+    // mid-week dead zone (PR #40), so the shelf had real outdoor picks into
+    // Halloween. Dates confirmed by two listings: Toronto Tourism's
+    // Halloween guide (Sep 26 to Oct 31 2026) and Todocanada (Sep 25 to
+    // Nov 1 2026). date_end is the earlier of the two ends, so the card can
+    // only ever come down a day early, never stay up a day late. Neither
+    // listing's price was confirmed for 2026, so the description names none;
+    // it is a timed, ticketed evening walk, hence $$.
+    //
+    // No image_url and no booking_url: no licence-clean photo of the
+    // pumpkins is to hand, and the official site could not be reached to
+    // confirm its address. The Places photo of the park is the fallback.
+    id: 'cur-pumpkins-after-dark-milton-2026',
+    title: 'Pumpkins After Dark at Country Heritage Park',
+    category: 'kids',
+    location: 'Milton',
+    venue: 'Country Heritage Park, 8560 Tremaine Rd',
+    date: '2026-09-26',
+    date_end: '2026-10-31',
+    description: 'An evening walk through thousands of hand-carved, glowing pumpkins on the grounds of Country Heritage Park. Timed tickets, so book a slot before you drive out.',
+    cost_tier: '$$',
+    source: 'curated'
   }
 ];
 

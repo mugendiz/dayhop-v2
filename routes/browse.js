@@ -474,6 +474,24 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   // Three is the floor: a one or two card shelf under this headline reads as
   // broken, so below that the shelf is skipped and the cards flow on to the
   // dated shelf exactly as they do today.
+  // The floor's own reading of "outdoor", stricter than isOutdoor() on
+  // purpose. isOutdoor matches fragments anywhere in the copy ("park" in
+  // "parking" or "Parkdale", "nature" in "signature"), which is harmless on
+  // a broad shelf and wrong under this headline: on 2026-10-15 the floor
+  // served "Kids Coding", a virtual architecture competition and a gallery
+  // show as the talk of the town. So here the outdoor evidence has to be a
+  // whole word in the title, venue or location (or an unmistakable phrase
+  // in the description), and anything whose title or venue says class,
+  // competition, exhibition or virtual is out, whatever its copy says.
+  const FLOOR_WHERE_RE = /\b(outdoors?|open[- ]air|parks?|trails?|gardens?|beach(es)?|waterfront|harbour(front)?|islands?|farms?|orchards?|pumpkins?|corn maze|hayrides?|festival|fair|parade|fireworks|market|ravine|conservation|forest|hik(e|es|ing)|lookout|falls|paddl(e|ing)|kayak(ing)?|skat(e|ing)|toboggan(ing)?|street party|block party|square)\b/i;
+  const FLOOR_DESC_RE = /\b(outdoors?|open[- ]air|in the park|trails?|beach|waterfront|farm|pumpkin patch|corn maze|hayrides?|fireworks|parade)\b/i;
+  const FLOOR_NOT_EVENT_RE = /\b(virtual|online|webinar|zoom|exhibit(s|ion)?|workshops?|class(es)?|coding|lectures?|seminars?|competition|conference|course|book club|storytime)\b/i;
+  const floorOutdoor = c => {
+    const where = `${c.title || ''} ${c.venue || ''} ${c.location || ''}`;
+    const evidence = ['water', 'adventures'].includes(c.category) || FLOOR_WHERE_RE.test(where) || FLOOR_DESC_RE.test(c.description || '');
+    return evidence && !FLOOR_NOT_EVENT_RE.test(where);
+  };
+
   function tottFallback() {
     const today = torontoToday();
     // Borrowed from the store rather than written again here. This was a
@@ -482,15 +500,18 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
     // the real shelf would have disagreed about what "this week" means,
     // silently and in the floor's favour.
     const horizon = addDays(today, talkOfTown.WINDOW_DAYS);
+    // Cards an earlier shelf already showed are not counted: take() would
+    // skip them anyway, and counting them is how a "3 or nothing" floor
+    // still put a two card shelf on the page.
     const picks = pool.filter(c => {
-      if (!hasDate(c)) return false;
+      if (used.has(c.id) || !hasDate(c)) return false;
       const start = String(c.date).slice(0, 10);
       // Still on, by its END date. Filtering on start alone dropped any run
       // longer than a day the morning after it opened, so a pop-up booked
       // for a month showed for one day of it. Falls back to start, so a
       // one-day event is unaffected.
       const end = String(c.date_end || c.date).slice(0, 10);
-      return end >= today && start <= horizon && isOutdoor(c) && !isIndoor(c);
+      return end >= today && start <= horizon && floorOutdoor(c) && !isIndoor(c);
     });
     return picks.length >= 3 ? picks : [];
   }

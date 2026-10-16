@@ -148,3 +148,43 @@ test('the floor borrows its horizon from the store instead of restating it', () 
   assert.ok(got.includes('edge'), 'a pick inside the store window was refused by the floor');
   assert.ok(!got.includes('far'), 'a pick past the window reached the floor');
 });
+
+// Observed live on 2026-10-15: the loose outdoor test let these wear the
+// shelf's name. "park" matched inside other words and nothing checked for a
+// class, a competition or a virtual venue.
+test('classes, competitions, virtual and gallery listings never make the floor', () => {
+  const junk = [
+    ev('coding', { source: 'eventbrite', title: 'Community Sundays: Kids Coding', venue: '34 Hanover Rd', description: 'Free parking behind the building. Laptops provided.' }),
+    ev('compete', { source: 'toronto_open_data', title: 'International Architectural Design Competition 2026-2027', venue: 'Toronto (virtual)', description: 'Design a new waterfront park.' }),
+    ev('gallery', { source: 'toronto_open_data', title: '"DEEP ROOTS" by Nancy L. Moore', venue: 'Riverdale Hub', description: 'Paintings with a signature palette of garden scenes.' })
+  ];
+  const ideas = build([...Array.from({ length: 6 }, (_, i) => filler(i + 1)), ...junk, ev('real-1'), ev('real-2')]);
+  const got = shelf(ideas);
+  for (const id of ['coding', 'compete', 'gallery']) assert.ok(!got.includes(id), `${id} made the floor`);
+});
+
+test('real outdoor events with the evidence in the title or venue still make the floor', () => {
+  const real = [
+    ev('pumpkins', { source: 'curated', title: 'Pumpkins After Dark', venue: 'Country Heritage Park, Milton', description: 'An evening walk past glowing pumpkins.' }),
+    ev('market', { source: 'curated', title: 'Fall Harvest Market at Sugar Beach', venue: 'Sugar Beach', description: 'Vendors and music.' }),
+    ev('duck', { source: 'curated', title: 'The Royal Duck bounce park', venue: 'Upper Canada Mall, south lot', description: 'Inflatables.' })
+  ];
+  const ideas = build([...Array.from({ length: 6 }, (_, i) => filler(i + 1)), ...real]);
+  const got = shelf(ideas);
+  // An earlier shelf may claim one of them first; then the floor has two
+  // left and must stand down rather than show a two card shelf.
+  if (got.length) assert.deepEqual(got.sort(), ['duck', 'market', 'pumpkins']);
+  else assert.ok(ideas.some(i => ['duck', 'market', 'pumpkins'].includes(i.id)), 'they still reach the feed');
+  const withMore = shelf(build([...Array.from({ length: 6 }, (_, i) => filler(i + 1)), ...real,
+    ev('lights', { source: 'curated', title: 'Lantern Festival', venue: 'Ontario Place', description: 'Lights.' })]));
+  assert.ok(withMore.length >= 3, 'with a fourth real event the floor stands');
+  assert.ok(withMore.every(id => ['duck', 'market', 'pumpkins', 'lights'].includes(id)));
+});
+
+test('the floor never shows fewer than three cards', () => {
+  for (let extra = 0; extra <= 4; extra++) {
+    const pool = [...Array.from({ length: 6 }, (_, i) => filler(i + 1)), ...Array.from({ length: extra }, (_, i) => ev(`e${i}`))];
+    const n = shelf(build(pool)).length;
+    assert.ok(n === 0 || n >= 3, `${extra} events gave a ${n} card shelf`);
+  }
+});
