@@ -21,6 +21,14 @@
 //   node scripts/hero-images.js --dry      show what it would stage, write nothing
 //   node scripts/hero-images.js --approve cur-a,cur-b   mark reviewed heroes verified
 //   node scripts/hero-images.js --reject  cur-a         drop a bad candidate
+//   node scripts/hero-images.js --download public/img/heroes
+//        also save each staged photo there, so an approved hero is served
+//        from dayhop.quest instead of hotlinked from Wikimedia
+//
+// This sandbox cannot reach Wikimedia, so the staging run happens in GitHub
+// Actions (.github/workflows/hero-photos.yml), which pushes the candidates
+// and their files to a review branch. Every file is looked at before
+// --approve; the search is wrong often enough that review is the gate.
 //
 // Needs outbound access to en.wikipedia.org, commons.wikimedia.org and
 // upload.wikimedia.org. No API key.
@@ -46,7 +54,9 @@ const HEADERS = { 'User-Agent': 'DayHopHeroImages/1.0 (https://dayhop.quest; adm
 // breach its licence. ND (NoDerivatives) is refused too: a crop for a card
 // tile can count as an adaptation, and the risk is not worth one photo.
 const FREE_LICENCE_RE = /^(?!.*\b(nc|nd)\b)(cc[ -]?by(-sa)?|cc0|cc zero|public domain|pd\b)/i;
-const THUMB_PX = 1200;
+// Cards render at about 400px and the detail hero at about 800px, so 960
+// keeps files small enough to commit (roughly 150 KB each).
+const THUMB_PX = 960;
 const PAUSE_MS = 300;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -133,12 +143,51 @@ async function stage({ force, dry }) {
   console.log('Nothing staged is served until approved: review each, then run --approve.');
 }
 
+const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+
+/** Save each unverified staged photo into dir and remember its public path. */
+async function download(dir) {
+  const heroes = load();
+  const abs = path.resolve(dir);
+  fs.mkdirSync(abs, { recursive: true });
+  let saved = 0;
+  for (const [id, h] of Object.entries(heroes)) {
+    if (h.verified || h.local_url || !/^https:\/\//.test(h.image_url || '')) continue;
+    try {
+      const { data } = await axios.get(h.image_url, { headers: HEADERS, timeout: 30000, responseType: 'arraybuffer' });
+      const file = path.join(abs, `${id}.jpg`);
+      fs.writeFileSync(file, Buffer.from(data));
+      h.local_url = '/' + path.relative(PUBLIC_DIR, file).split(path.sep).join('/');
+      saved++;
+    } catch (err) {
+      console.log(`  !      ${id}: download failed, ${err.message}`);
+    }
+    await sleep(PAUSE_MS);
+  }
+  save(heroes);
+  console.log(`${saved} photo${saved === 1 ? '' : 's'} saved to ${dir} for review.`);
+}
+
 function setVerified(ids, verified) {
   const heroes = load();
   for (const id of ids) {
     if (!heroes[id]) { console.log(`  ${id}: not staged`); continue; }
-    if (verified) { heroes[id].verified = true; console.log(`  ${id}: approved`); }
-    else { delete heroes[id]; console.log(`  ${id}: removed`); }
+    if (verified) {
+      // Serve our own copy when one was downloaded: no hotlink, no
+      // dependency on Wikimedia staying up, same credit line.
+      if (heroes[id].local_url) {
+        heroes[id].source_image = heroes[id].image_url;
+        heroes[id].image_url = heroes[id].local_url;
+        delete heroes[id].local_url;
+      }
+      heroes[id].verified = true;
+      console.log(`  ${id}: approved`);
+    } else {
+      const local = heroes[id].local_url || (/^\/img\//.test(heroes[id].image_url || '') ? heroes[id].image_url : null);
+      if (local) { try { fs.unlinkSync(path.join(PUBLIC_DIR, local)); } catch { /* already gone */ } }
+      delete heroes[id];
+      console.log(`  ${id}: removed`);
+    }
   }
   save(heroes);
 }
@@ -153,7 +202,9 @@ async function main() {
   const reject = listAfter('--reject');
   if (approve) return setVerified(approve, true);
   if (reject) return setVerified(reject, false);
+  const dl = args.indexOf('--download');
   await stage({ force: args.includes('--force'), dry: args.includes('--dry') });
+  if (dl >= 0 && args[dl + 1] && !args.includes('--dry')) await download(args[dl + 1]);
 }
 
 if (require.main === module) {

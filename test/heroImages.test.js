@@ -29,10 +29,28 @@ test('every hardcoded event photo is credited', () => {
   for (const e of events.filter(x => needsCredit(x.image_url))) assertCredit(e.id, e.image_credit);
 });
 
-test('every approved hero has an https image and a full credit', () => {
+test('every approved hero is a real image, hotlinked over https or self-hosted, with a full credit', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
   for (const [id, h] of Object.entries(heroes).filter(([, h]) => h.verified === true)) {
-    assert.match(String(h.image_url || ''), /^https:\/\//, `${id}: hero image must be https`);
+    const url = String(h.image_url || '');
+    if (url.startsWith('/img/heroes/')) {
+      // Self-hosted: the file has to ship with the deploy, or the card breaks.
+      assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', url)), `${id}: ${url} is not in public/`);
+    } else {
+      assert.match(url, /^https:\/\//, `${id}: hero image must be https or a self-hosted /img/heroes/ file`);
+    }
     assertCredit(id, h.image_credit);
+  }
+});
+
+test('no self-hosted hero file is orphaned', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const dir = path.join(__dirname, '..', 'public', 'img', 'heroes');
+  const used = new Set(Object.values(heroes).map(h => h.image_url));
+  for (const f of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
+    assert.ok(used.has(`/img/heroes/${f}`), `public/img/heroes/${f} is not used by any hero`);
   }
 });
 

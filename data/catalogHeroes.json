@@ -1,1 +1,62 @@
-{}
+{
+  "cur-centre-island-paddleboats": {
+    "image_url": "/img/heroes/cur-centre-island-paddleboats.jpg",
+    "image_credit": {
+      "author": "Whpq",
+      "licence": "CC BY-SA 4.0",
+      "source": "https://commons.wikimedia.org/w/index.php?curid=92204729"
+    },
+    "from": "assets/photos/toronto-spot-islands.jpg",
+    "verified": true
+  },
+  "cur-david-dunlap-observatory": {
+    "image_url": "/img/heroes/cur-david-dunlap-observatory.jpg",
+    "image_credit": {
+      "author": "The Cosmonaut",
+      "licence": "CC BY-SA 2.5 ca",
+      "source": "https://commons.wikimedia.org/w/index.php?curid=88908328"
+    },
+    "from": "assets/photos/rh-spot-ddo.jpg",
+    "verified": true
+  },
+  "cur-lake-wilcox-park": {
+    "image_url": "/img/heroes/cur-lake-wilcox-park.jpg",
+    "image_credit": {
+      "author": "Canmenwalker",
+      "licence": "CC BY 4.0",
+      "source": "https://commons.wikimedia.org/w/index.php?curid=160687126"
+    },
+    "from": "assets/photos/rh-spot-wilcox.jpg",
+    "verified": true
+  },
+  "cur-rouge-vista": {
+    "image_url": "/img/heroes/cur-rouge-vista.jpg",
+    "image_credit": {
+      "author": "Mhsheikholeslami",
+      "licence": "CC BY-SA 4.0",
+      "source": "https://commons.wikimedia.org/w/index.php?curid=92349514"
+    },
+    "from": "assets/photos/markham-spot-vista.jpg",
+    "verified": true
+  },
+  "cur-tommy-thompson-park": {
+    "image_url": "/img/heroes/cur-tommy-thompson-park.jpg",
+    "image_credit": {
+      "author": "OldYorkGuy",
+      "licence": "CC BY-SA 3.0",
+      "source": "https://commons.wikimedia.org/w/index.php?curid=61035410"
+    },
+    "from": "assets/photos/toronto-spot-spit.jpg",
+    "verified": true
+  },
+  "cur-unionville-main-street": {
+    "image_url": "/img/heroes/cur-unionville-main-street.jpg",
+    "image_credit": {
+      "author": "Nath87",
+      "licence": "CC0",
+      "source": "https://commons.wikimedia.org/w/index.php?curid=151211265"
+    },
+    "from": "assets/photos/markham-spot-unionville.jpg",
+    "verified": true
+  }
+}
