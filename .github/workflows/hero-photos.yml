@@ -1,0 +1,35 @@
+# Stage catalog hero photos: run by hand from the Actions tab (or the API).
+# The Claude sandbox cannot reach Wikimedia, GitHub's runners can. This finds
+# a licence-clean Commons photo for each curated catalog entry that has no
+# hero yet (scripts/hero-images.js), saves the files under public/img/heroes,
+# and pushes everything, unverified, to the claude/hero-photos-staged branch.
+# Nothing here reaches the site: candidates.js only serves verified heroes,
+# and a person reviews every photo before a PR approves any of them.
+name: Stage catalog hero photos
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: node scripts/hero-images.js --download public/img/heroes
+      - name: Push the candidates to the review branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B claude/hero-photos-staged
+          git add data/catalogHeroes.json public/img/heroes
+          if git diff --cached --quiet; then echo "Nothing new to stage."; exit 0; fi
+          git commit -m "Stage catalog hero photos for review (unverified)"
+          git push --force origin claude/hero-photos-staged
