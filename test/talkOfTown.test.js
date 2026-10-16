@@ -172,3 +172,36 @@ test('an event inside the window is accepted, one past the gate is not', () => {
   const far = shapePick(raw({ start_date: wayOut, end_date: wayOut }), { hub: TORONTO, today: TODAY });
   assert.equal(far.reason, 'too_far_ahead');
 });
+
+// The mid-week dead zone. Sunday's pass files its rows under the week that is
+// ending, the hourly check re-runs Monday under the new week, and the old
+// needsRefresh then said "this hub has rows this week" until Sunday even
+// after every one of them had ended, so the shelf sat empty from about
+// Thursday on: the run-up to every weekend.
+const { needsRefresh, MIN_LIVE } = require('../services/talkOfTown');
+const tottRow = (id, date_end, extra = {}) => Object.assign({
+  id, hub: 'toronto', status: 'active', pinned: false, week_start: '2026-10-05',
+  created_at: '2026-10-05T05:00:00Z', entry: { title: id, date: '2026-10-05', date_end }
+}, extra);
+
+test('a shelf whose picks have all ended mid-week asks for a fresh search', () => {
+  const mondayPicks = ['a', 'b', 'c', 'd', 'e'].map(id => tottRow(id, '2026-10-06'));
+  assert.equal(needsRefresh('toronto', '2026-10-08', { source: mondayPicks, last: null }), true);
+});
+
+test('a shelf with enough live picks does not re-buy a search', () => {
+  const live = ['a', 'b', 'c'].map(id => tottRow(id, '2026-10-12'));
+  assert.equal(MIN_LIVE, 3);
+  assert.equal(needsRefresh('toronto', '2026-10-08', { source: live, last: null }), false);
+});
+
+test('the run-dry refresh happens at most once per Toronto day', () => {
+  const dry = [tottRow('a', '2026-10-06')];
+  // A run already happened today (remembered in memory)...
+  assert.equal(needsRefresh('toronto', '2026-10-08', { source: dry, last: { at: '2026-10-08T14:00:00Z' } }), false);
+  // ...or proven by a row it wrote, which survives a redeploy.
+  const wroteToday = [tottRow('a', '2026-10-06'), tottRow('b', '2026-10-07', { created_at: '2026-10-08T14:00:00Z' })];
+  assert.equal(needsRefresh('toronto', '2026-10-08', { source: wroteToday, last: null }), false);
+  // The next day it may try again.
+  assert.equal(needsRefresh('toronto', '2026-10-09', { source: dry, last: { at: '2026-10-08T14:00:00Z' } }), true);
+});

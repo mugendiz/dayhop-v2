@@ -340,8 +340,10 @@ async function refresh({ hubId = 'toronto', reason = 'manual', today = torontoTo
         id: p.id, hub: hub.id, entry: p, week_start: wk, status: 'active', pinned: false,
         created_at: new Date().toISOString()
       }));
-      // Retire last week's un-pinned rows for this hub, keep the pins.
-      const retire = previous.filter(r => !r.pinned && !newRows.some(n => n.id === r.id))
+      // Retire last week's un-pinned rows for this hub, keep the pins. A run
+      // that verified nothing retires nothing: emptying the shelf because a
+      // mid-week search came back thin would turn a short shelf into none.
+      const retire = !newRows.length ? [] : previous.filter(r => !r.pinned && !newRows.some(n => n.id === r.id))
         .map(r => Object.assign({}, r, { status: 'retired' }));
       await persistRows([...newRows, ...retire]);
       run.published = newRows.length;
@@ -399,16 +401,39 @@ async function refreshDue({ reason = 'weekly', today = torontoToday() } = {}) {
 
 /**
  * Does a hub need a refresh right now? No rows for this week (a deploy on
- * the wrong side of Sunday, a failed run), or the last run was cut short by
- * the Maps budget and midnight has passed since. Reads the DB first so a
- * redeploy mid-week never re-buys a run that already happened.
+ * the wrong side of Sunday, a failed run), the shelf has run dry mid-week,
+ * or the last run was cut short by the Maps budget and midnight has passed
+ * since. Reads the DB first so a redeploy mid-week never re-buys a run that
+ * already happened.
+ *
+ * The run-dry rule is the one that was missing. This used to count rows by
+ * WEEK only, while active() serves them by DATE, so the two disagreed from
+ * the middle of the week on: Sunday's pass files its rows under the week
+ * that is ending, the hourly check re-runs on Monday under the new week,
+ * and from then until the next Sunday the hub "has rows this week" even
+ * after every one of them has ended. The prompt weights the near days, so
+ * Monday's picks are mostly over by Thursday, and the shelf sat empty
+ * through the run-up to every weekend: Oct 1, and again Oct 8, the eve of
+ * Thanksgiving. Fewer than MIN_LIVE picks still running now buys one fresh
+ * search, at most once per Toronto day, so a quiet week costs one ~US$0.12
+ * run a day at worst and a busy one costs nothing extra.
+ *
+ * opts.source and opts.last are for tests; the server passes neither.
  */
-function needsRefresh(hubId, today = torontoToday()) {
+const MIN_LIVE = 3; // same floor routes/browse.js tottFallback() needs to show a shelf at all
+function needsRefresh(hubId, today = torontoToday(), opts = {}) {
   const wk = weekStart(today);
-  const thisWeek = [...rows.values()].filter(r => r.hub === hubId && r.status === 'active' && r.week_start >= wk);
+  const mine = [...(opts.source || rows.values())].filter(r => r.hub === hubId && r.status === 'active');
+  const thisWeek = mine.filter(r => r.week_start >= wk);
   if (!thisWeek.length) return true;
-  const last = lastRun.get(hubId);
-  if (last && last.retry && thisWeek.length < SHELF_SIZE && torontoToday(new Date(last.at)) < today) return true;
+  const last = 'last' in opts ? opts.last : lastRun.get(hubId);
+  const dayOf = at => (at ? torontoToday(new Date(at)) : '');
+  // A run today, remembered in memory or proven by a row it wrote. The row
+  // check is what stops a redeploy (which empties lastRun) from re-buying.
+  const ranToday = dayOf(last && last.at) === today || mine.some(r => dayOf(r.created_at) === today);
+  const live = mine.filter(r => r.entry && r.entry.date_end >= today);
+  if (live.length < MIN_LIVE && !ranToday) return true;
+  if (last && last.retry && thisWeek.length < SHELF_SIZE && dayOf(last.at) < today) return true;
   return false;
 }
 
@@ -568,7 +593,7 @@ module.exports = {
   active, noteBrowse, refresh, refreshDue, checkStale, checkStaleOnBoot, needsRefresh,
   pin, retire, addManual, peek,
   // pure helpers for tests
-  shapePick, weekStart, toCandidate, SHELF_SIZE, MAX_FAR, FAR_KM, FEED_MAX_KM,
+  shapePick, weekStart, toCandidate, SHELF_SIZE, MIN_LIVE, MAX_FAR, FAR_KM, FEED_MAX_KM,
   // Exported so test/talkOfTown.test.js can pin the invariant between them:
   // the gate must never be tighter than the window the search asks for.
   WINDOW_DAYS, MAX_START_AHEAD_DAYS
