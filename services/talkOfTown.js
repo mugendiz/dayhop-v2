@@ -29,7 +29,7 @@
 const maps = require('./googleMaps');
 const { callGrokSearch } = require('./grok');
 const dbClient = require('./db/client');
-const { venueGateVerdict, looksLikeBarOrRestaurant } = require('./venueGates');
+const { venueGateVerdict, looksLikeBarOrRestaurant, isHalloweenThemed } = require('./venueGates');
 const { HUBS, HUB_REACH_KM, FAR_KM, hubFor, hubById, haversineKm } = require('../data/tottHubs');
 const { torontoToday } = require('./spotlight');
 
@@ -161,6 +161,7 @@ function shapePick(raw, { hub, today }) {
   if (!outdoor) return { ok: false, reason: 'indoor_only' };
   const gate = venueGateVerdict({ title, description: why, date: start, types: [] });
   if (!gate.pass) return { ok: false, reason: gate.reason };
+  if (isHalloweenThemed({ title, description: why, venue })) return { ok: false, reason: 'halloween' };
   const url = /^https?:\/\//i.test(String(raw.official_url || '')) ? String(raw.official_url).slice(0, 300) : null;
   const price = String(raw.price || raw.free_or_price || '').toLowerCase();
   const cost_tier = /free|no charge|\$0\b/.test(price) ? 'free' : /\$\$|premium|\b(4|5|6|7|8|9)\d\b/.test(price) ? '$$' : price ? '$' : null;
@@ -256,6 +257,7 @@ Find the ${ASK_FOR} outdoor happenings between ${today} and ${end} that people a
 
 Rules:
 - Every pick must INVOLVE THE OUTDOORS. No indoor-only events, no restaurants or cafés as such, nothing that is mainly about drinking (bars, pub crawls, taprooms, beer-only halls).
+- Nothing Halloween themed: no haunted attractions, trick or treating, costume events, ghost walks or jack-o'-lantern displays. In the fall, pick harvest festivals, farm days, fall colour walks, markets, races and parades instead.
 - Mostly local: ${hub.local}. At most 2 of the ${ASK_FOR} may be standouts further out (up to about 2 hours' drive: ${hub.far}), and only if genuinely worth the trip.
 - Real, scheduled, and happening in this window. Skip anything that ended before ${today} and anything year-round.
 - Weight the near days heavily. Most picks should be on in the next few days, because that is what someone deciding tonight can act on. Include something further out only when it is genuinely worth planning for, like a named festival or fair, and never more than 3 of the ${ASK_FOR}.

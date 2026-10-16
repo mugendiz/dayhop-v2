@@ -499,6 +499,10 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   // (Sep 26 to Oct 31) never showed at all, while upcomingCuratedEvents had
   // already been fixed to keep them. date_end falls back to date, so a one
   // day event is filtered exactly as before.
+  // No Halloween events (founder rule 2026-10-16, services/venueGates.js):
+  // fall instead. Dated listings only; a venue is not an event.
+  pool = pool.filter(c => !(c.date && isHalloweenThemed(c)));
+
   pool = pool.filter(c => {
     const past = isEventOver(c, today);
     if (past) console.log(`[candidates] dropping past event: ${c.title} (${c.date_end || c.date})`);
@@ -591,7 +595,7 @@ function normTitle(s) {
 // Lives in services/venueGates.js since 2026-09-07 so the discovery
 // autopilot and the "Talk of the town" picker apply the exact same rules
 // (plus the drinking-only gate) at publish time. Re-exported below.
-const { isIndoorOnlyBarOrRestaurant } = require('./venueGates');
+const { isIndoorOnlyBarOrRestaurant, isHalloweenThemed } = require('./venueGates');
 
 // Coordinates from the browser (already rounded client-side). Anything
 // malformed is silently ignored — the request proceeds city-based.

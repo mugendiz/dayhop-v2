@@ -1,7 +1,7 @@
 // test/runningEvents.test.js — a multi-day event is on until it ENDS. The
 // candidate pool's past-event filter compared the start date alone, so the
-// Royal Duck (Oct 3 to Nov 1) vanished from every feed on Oct 4 and
-// Pumpkins After Dark (Sep 26 to Oct 31) never appeared, even though
+// Royal Duck (Oct 3 to Nov 1) vanished from every feed on Oct 4 and a
+// Sep 26 to Oct 31 pumpkin walk never appeared, even though
 // upcomingCuratedEvents had already been fixed to keep them.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -9,7 +9,8 @@ const { isEventOver, overlapsWindow } = require('../services/candidates');
 const events = require('../data/curatedEvents');
 
 const duck = events.find(e => e.id === 'cur-royal-duck-upper-canada-2026');
-const pumpkins = events.find(e => e.id === 'cur-pumpkins-after-dark-milton-2026');
+// A month-long run shaped like the pumpkin walk that first exposed this.
+const pumpkins = { title: 'A month-long run', date: '2026-09-26', date_end: '2026-10-31' };
 
 test('a run that started earlier is still on until its end date', () => {
   assert.equal(isEventOver(duck, '2026-10-15'), false);

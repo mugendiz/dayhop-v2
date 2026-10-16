@@ -17,6 +17,7 @@ const { callGrok } = require('./grok');
 const { getSpotlight, torontoToday, addDays } = require('./spotlight');
 const { sendEmail } = require('./email');
 const { lint } = require('./copyStyle');
+const { HALLOWEEN_RE } = require('./venueGates');
 
 const BATCH_TO = process.env.OPERATOR_REPORT_TO || 'dayhopadmin@gmail.com';
 
@@ -76,6 +77,7 @@ Also:
 - Voice: warm, plain, a little wry. A local parent, never a brand. No emoji walls, no "hey fam".
 - Never use em dashes, en dashes, or a spaced hyphen as punctuation. Use periods and commas.
 - If a holiday is coming up, tie posts to it and set post_day to the days just before it. A hook that names a date or weekday must be posted on that day.
+- Nothing Halloween: no haunts, costumes, trick or treating, ghosts or jack-o'-lanterns. October and November are fall: colours, harvest, farms, trails, the first cold walk.
 
 Return ONLY valid JSON, no markdown fences:
 {
@@ -140,13 +142,14 @@ function groundingPlaces(now = new Date()) {
     }
     for (const e of require('../data/curatedEvents')) {
       if (!e.date || e.date > end || (e.date_end || e.date) < today) continue;
+      if (HALLOWEEN_RE.test(`${e.title} ${e.description || ''}`)) continue;
       out.push({ id: e.id, kind: 'event', venue: e.venue || e.location, location: e.location, fact: `${e.title}. ${e.description || ''} On ${e.date}${e.date_end && e.date_end !== e.date ? ` to ${e.date_end}` : ''}.`, is_new: false });
     }
     const { hubById } = require('../data/tottHubs');
     const hub = hubById('toronto');
     if (hub) {
       for (const c of require('./talkOfTown').active({ point: { lat: hub.lat, lng: hub.lng }, today, limit: 6 })) {
-        if (c.date > end) continue;
+        if (c.date > end || HALLOWEEN_RE.test(`${c.title} ${c.description || ''}`)) continue;
         out.push({ id: c.id, kind: 'event', venue: c.venue || c.location, location: c.location, fact: `${c.title}. ${c.description || ''} On ${c.date}${c.date_end && c.date_end !== c.date ? ` to ${c.date_end}` : ''}.`, is_new: false });
       }
     }
@@ -205,6 +208,9 @@ function checkPost(p, places = []) {
   }
   if (STATIC_OPEN_RE.test(String(p.frame_one || ''))) {
     problems.push('frame one is static; G1 wants a face or motion');
+  }
+  if (HALLOWEEN_RE.test(`${p.hook || ''} ${p.concept || ''} ${p.script || ''} ${p.caption || ''} ${(p.hashtags || []).join(' ')}`)) {
+    problems.push('Halloween content; DayHop posts fall, not Halloween');
   }
   if (SYNTHETIC_RE.test(`${p.frame_one || ''} ${p.footage || ''}`)) {
     problems.push('asks for avatar, AI or stock footage; film it for real');
