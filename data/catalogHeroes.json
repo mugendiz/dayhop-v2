@@ -1,146 +1,122 @@
 {
   "cur-aga-khan-museum": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Aga_Khan_Museum_2022.jpg/960px-Aga_Khan_Museum_2022.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-aga-khan-museum.jpg",
     "image_credit": {
       "author": "Canmenwalker",
       "licence": "CC BY 4.0",
       "source": "https://commons.wikimedia.org/wiki/File:Aga_Khan_Museum_2022.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Aga_Khan_Museum",
-    "verified": false,
-    "local_url": "/img/heroes/cur-aga-khan-museum.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Aga_Khan_Museum_2022.jpg/960px-Aga_Khan_Museum_2022.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-albion-hills-swim": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Cheltenham_Badlands%2C_Caledon_Hills%2C_Ontario%2C_Canada._%287097453311%29.jpg/960px-Cheltenham_Badlands%2C_Caledon_Hills%2C_Ontario%2C_Canada._%287097453311%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "kaybee07",
-      "licence": "CC BY 2.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Cheltenham_Badlands,_Caledon_Hills,_Ontario,_Canada._(7097453311).jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Caledon%2C_Ontario",
-    "verified": false,
-    "local_url": "/img/heroes/cur-albion-hills-swim.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-albion-hills-winter": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Cheltenham_Badlands%2C_Caledon_Hills%2C_Ontario%2C_Canada._%287097453311%29.jpg/960px-Cheltenham_Badlands%2C_Caledon_Hills%2C_Ontario%2C_Canada._%287097453311%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "kaybee07",
-      "licence": "CC BY 2.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Cheltenham_Badlands,_Caledon_Hills,_Ontario,_Canada._(7097453311).jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Caledon%2C_Ontario",
-    "verified": false,
-    "local_url": "/img/heroes/cur-albion-hills-winter.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-arrowhead-ice-trail": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/Arrowhead_Lake.jpg/960px-Arrowhead_Lake.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "John Vetterli from Toronto, Canada",
-      "licence": "CC BY-SA 2.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Arrowhead_Lake.jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Arrowhead_Provincial_Park",
-    "verified": false,
-    "local_url": "/img/heroes/cur-arrowhead-ice-trail.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-arrowhead-summer": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/Arrowhead_Lake.jpg/960px-Arrowhead_Lake.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-arrowhead-summer.jpg",
     "image_credit": {
       "author": "John Vetterli from Toronto, Canada",
       "licence": "CC BY-SA 2.0",
       "source": "https://commons.wikimedia.org/wiki/File:Arrowhead_Lake.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Arrowhead_Provincial_Park",
-    "verified": false,
-    "local_url": "/img/heroes/cur-arrowhead-summer.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/Arrowhead_Lake.jpg/960px-Arrowhead_Lake.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-bentway-skate": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8b/The_Bentway_near_Garrison_Common_2023.jpg/960px-The_Bentway_near_Garrison_Common_2023.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-bentway-skate.jpg",
     "image_credit": {
       "author": "Canmenwalker",
       "licence": "CC BY 4.0",
       "source": "https://commons.wikimedia.org/wiki/File:The_Bentway_near_Garrison_Common_2023.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/The_Bentway",
-    "verified": false,
-    "local_url": "/img/heroes/cur-bentway-skate.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8b/The_Bentway_near_Garrison_Common_2023.jpg/960px-The_Bentway_near_Garrison_Common_2023.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-black-creek-village": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/In_the_shade_%281247127124%29.jpg/960px-In_the_shade_%281247127124%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-black-creek-village.jpg",
     "image_credit": {
       "author": "johnantoni from Toronto, Canada",
       "licence": "CC BY-SA 2.0",
       "source": "https://commons.wikimedia.org/wiki/File:In_the_shade_(1247127124).jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/The_Village_at_Black_Creek",
-    "verified": false,
-    "local_url": "/img/heroes/cur-black-creek-village.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/In_the_shade_%281247127124%29.jpg/960px-In_the_shade_%281247127124%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-blue-mountain-summer": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Blue_Mountain_Resort_-_Summer_view.jpg/960px-Blue_Mountain_Resort_-_Summer_view.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-blue-mountain-summer.jpg",
     "image_credit": {
       "author": "Andrew Skujins",
       "licence": "CC BY-SA 4.0",
       "source": "https://commons.wikimedia.org/wiki/File:Blue_Mountain_Resort_-_Summer_view.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Blue_Mountain_(ski_resort)",
-    "verified": false,
-    "local_url": "/img/heroes/cur-blue-mountain-summer.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Blue_Mountain_Resort_-_Summer_view.jpg/960px-Blue_Mountain_Resort_-_Summer_view.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-bluffers-park-beach": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/66/Scarborough_Bluffs%2C_May_4_2026_%2807%29.jpg/960px-Scarborough_Bluffs%2C_May_4_2026_%2807%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-bluffers-park-beach.jpg",
     "image_credit": {
       "author": "Dillan Payne",
       "licence": "CC BY-SA 4.0",
       "source": "https://commons.wikimedia.org/wiki/File:Scarborough_Bluffs,_May_4_2026_(07).jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Scarborough_Bluffs",
-    "verified": false,
-    "local_url": "/img/heroes/cur-bluffers-park-beach.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/66/Scarborough_Bluffs%2C_May_4_2026_%2807%29.jpg/960px-Scarborough_Bluffs%2C_May_4_2026_%2807%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-bronte-creek": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Gfp-canada-ontario-bronte-creek-park-shoreline.jpg/960px-Gfp-canada-ontario-bronte-creek-park-shoreline.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-bronte-creek.jpg",
     "image_credit": {
       "author": "Yinan Chen",
       "licence": "Public Domain",
       "source": "https://commons.wikimedia.org/wiki/File:Gfp-canada-ontario-bronte-creek-park-shoreline.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Bronte_Creek_Provincial_Park",
-    "verified": false,
-    "local_url": "/img/heroes/cur-bronte-creek.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Gfp-canada-ontario-bronte-creek-park-shoreline.jpg/960px-Gfp-canada-ontario-bronte-creek-park-shoreline.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-casa-loma": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Exterior_of_Casa_Loma%2C_June_2012.jpg/960px-Exterior_of_Casa_Loma%2C_June_2012.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-casa-loma.jpg",
     "image_credit": {
       "author": "Priscilla Jordão from São Paulo, Brasil",
       "licence": "CC BY-SA 2.0",
       "source": "https://commons.wikimedia.org/wiki/File:Exterior_of_Casa_Loma,_June_2012.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Casa_Loma",
-    "verified": false,
-    "local_url": "/img/heroes/cur-casa-loma.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Exterior_of_Casa_Loma%2C_June_2012.jpg/960px-Exterior_of_Casa_Loma%2C_June_2012.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-casa-loma-escape": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Yonge_St_in_North_York-Willowdale_2021.jpg/960px-Yonge_St_in_North_York-Willowdale_2021.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Canmenwalker",
-      "licence": "CC BY 4.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Yonge_St_in_North_York-Willowdale_2021.jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Willowdale%2C_Toronto",
-    "verified": false,
-    "local_url": "/img/heroes/cur-casa-loma-escape.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-cathedral-bluffs-lookout": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/66/Scarborough_Bluffs%2C_May_4_2026_%2807%29.jpg/960px-Scarborough_Bluffs%2C_May_4_2026_%2807%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-cathedral-bluffs-lookout.jpg",
     "image_credit": {
       "author": "Dillan Payne",
       "licence": "CC BY-SA 4.0",
       "source": "https://commons.wikimedia.org/wiki/File:Scarborough_Bluffs,_May_4_2026_(07).jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Scarborough_Bluffs",
-    "verified": false,
-    "local_url": "/img/heroes/cur-cathedral-bluffs-lookout.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/66/Scarborough_Bluffs%2C_May_4_2026_%2807%29.jpg/960px-Scarborough_Bluffs%2C_May_4_2026_%2807%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-centre-island-paddleboats": {
     "image_url": "/img/heroes/cur-centre-island-paddleboats.jpg",
@@ -153,92 +129,68 @@
     "verified": true
   },
   "cur-cheltenham-badlands": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9f/CheltenhamBadlands.JPG/960px-CheltenhamBadlands.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-cheltenham-badlands.jpg",
     "image_credit": {
       "author": "Hgwiazda",
       "licence": "CC BY 3.0",
       "source": "https://commons.wikimedia.org/wiki/File:CheltenhamBadlands.JPG"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Cheltenham_Badlands",
-    "verified": false,
-    "local_url": "/img/heroes/cur-cheltenham-badlands.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9f/CheltenhamBadlands.JPG/960px-CheltenhamBadlands.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-cherry-beach": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/Cherry_Beach_Park_%2837949679394%29.jpg/960px-Cherry_Beach_Park_%2837949679394%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-cherry-beach.jpg",
     "image_credit": {
       "author": "Jeff Hitchcock from Seattle, WA, USA",
       "licence": "CC BY 2.0",
       "source": "https://commons.wikimedia.org/wiki/File:Cherry_Beach_Park_(37949679394).jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Cherry_Beach",
-    "verified": false,
-    "local_url": "/img/heroes/cur-cherry-beach.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/Cherry_Beach_Park_%2837949679394%29.jpg/960px-Cherry_Beach_Park_%2837949679394%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-cn-tower-edgewalk": {
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/4/48/CN_Tower_logo.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
-    "image_credit": {
-      "author": "Unknown author Unknown author",
-      "licence": "Public domain",
-      "source": "https://commons.wikimedia.org/wiki/File:CN_Tower_logo.png"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/CN_Tower",
-    "verified": false,
-    "local_url": "/img/heroes/cur-cn-tower-edgewalk.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-cobourg-beach": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/Victoria_hall_2023.jpg/960px-Victoria_hall_2023.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "elysia",
-      "licence": "CC BY-SA 4.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Victoria_hall_2023.jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Cobourg",
-    "verified": false,
-    "local_url": "/img/heroes/cur-cobourg-beach.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-combat-archery": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/35/Convocation_Hall_during_Fall_convocation%2C_2007_Nov._16th.jpg/960px-Convocation_Hall_during_Fall_convocation%2C_2007_Nov._16th.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Glogger",
-      "licence": "CC BY-SA 4.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Convocation_Hall_during_Fall_convocation,_2007_Nov._16th.jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/List_of_University_of_Toronto_alumni",
-    "verified": false,
-    "local_url": "/img/heroes/cur-combat-archery.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-crawford-lake": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Crawford_Lake-2010-03-18-001.JPG/960px-Crawford_Lake-2010-03-18-001.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-crawford-lake.jpg",
     "image_credit": {
       "author": "Whpq",
       "licence": "CC BY-SA 3.0",
       "source": "https://commons.wikimedia.org/wiki/File:Crawford_Lake-2010-03-18-001.JPG"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Crawford_Lake_Conservation_Area",
-    "verified": false,
-    "local_url": "/img/heroes/cur-crawford-lake.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Crawford_Lake-2010-03-18-001.JPG/960px-Crawford_Lake-2010-03-18-001.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-crothers-woods": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Crothers_Woods_Toronto.jpg/960px-Crothers_Woods_Toronto.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-crothers-woods.jpg",
     "image_credit": {
       "author": "Atrian at English Wikipedia",
       "licence": "Public domain",
       "source": "https://commons.wikimedia.org/wiki/File:Crothers_Woods_Toronto.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Crothers_Woods",
-    "verified": false,
-    "local_url": "/img/heroes/cur-crothers-woods.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Crothers_Woods_Toronto.jpg/960px-Crothers_Woods_Toronto.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-dagmar-mtb": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/Uxbridge_downtown.jpg/960px-Uxbridge_downtown.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Chris Harte",
-      "licence": "CC BY 2.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Uxbridge_downtown.jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Uxbridge%2C_Ontario",
-    "verified": false,
-    "local_url": "/img/heroes/cur-dagmar-mtb.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-david-dunlap-observatory": {
     "image_url": "/img/heroes/cur-david-dunlap-observatory.jpg",
@@ -251,290 +203,224 @@
     "verified": true
   },
   "cur-distillery-district": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e2/Gooderham.jpg/960px-Gooderham.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-distillery-district.jpg",
     "image_credit": {
       "author": "Geo Swan stitched by Marku1988 This image was created with Hugin .",
       "licence": "CC BY-SA 3.0",
       "source": "https://commons.wikimedia.org/wiki/File:Gooderham.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Distillery_District",
-    "verified": false,
-    "local_url": "/img/heroes/cur-distillery-district.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e2/Gooderham.jpg/960px-Gooderham.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-distillery-winter-village": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e2/Gooderham.jpg/960px-Gooderham.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-distillery-winter-village.jpg",
     "image_credit": {
       "author": "Geo Swan stitched by Marku1988 This image was created with Hugin .",
       "licence": "CC BY-SA 3.0",
       "source": "https://commons.wikimedia.org/wiki/File:Gooderham.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Distillery_District",
-    "verified": false,
-    "local_url": "/img/heroes/cur-distillery-winter-village.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e2/Gooderham.jpg/960px-Gooderham.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-doris-mccarthy": {
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/6/69/Doris_McCarthy.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
-    "image_credit": {
-      "author": "Vickyjones at English Wikipedia",
-      "licence": "CC BY-SA 3.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Doris_McCarthy.jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Doris_McCarthy",
-    "verified": false,
-    "local_url": "/img/heroes/cur-doris-mccarthy.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-downeys-farm": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Cheltenham_Badlands%2C_Caledon_Hills%2C_Ontario%2C_Canada._%287097453311%29.jpg/960px-Cheltenham_Badlands%2C_Caledon_Hills%2C_Ontario%2C_Canada._%287097453311%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "kaybee07",
-      "licence": "CC BY 2.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Cheltenham_Badlands,_Caledon_Hills,_Ontario,_Canada._(7097453311).jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Caledon%2C_Ontario",
-    "verified": false,
-    "local_url": "/img/heroes/cur-downeys-farm.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-dundas-peak": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Waterdawn_Webster_Falls5.jpg/960px-Waterdawn_Webster_Falls5.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-dundas-peak.jpg",
     "image_credit": {
       "author": "Laslovarga",
       "licence": "CC BY-SA 2.5",
       "source": "https://commons.wikimedia.org/wiki/File:Waterdawn_Webster_Falls5.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Spencer_Gorge_Conservation_Area",
-    "verified": false,
-    "local_url": "/img/heroes/cur-dundas-peak.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Waterdawn_Webster_Falls5.jpg/960px-Waterdawn_Webster_Falls5.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-durham-forest-trails": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/Uxbridge_downtown.jpg/960px-Uxbridge_downtown.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Chris Harte",
-      "licence": "CC BY 2.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Uxbridge_downtown.jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Uxbridge%2C_Ontario",
-    "verified": false,
-    "local_url": "/img/heroes/cur-durham-forest-trails.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-edwards-gardens": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Beryl_Ivey_Knot_Garden_2023.jpg/960px-Beryl_Ivey_Knot_Garden_2023.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-edwards-gardens.jpg",
     "image_credit": {
       "author": "Canmenwalker",
       "licence": "CC BY 4.0",
       "source": "https://commons.wikimedia.org/wiki/File:Beryl_Ivey_Knot_Garden_2023.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Toronto_Botanical_Garden",
-    "verified": false,
-    "local_url": "/img/heroes/cur-edwards-gardens.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Beryl_Ivey_Knot_Garden_2023.jpg/960px-Beryl_Ivey_Knot_Garden_2023.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-evergreen-brick-works": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/Don_Valley_Brick_Works_%2854010434534%29.jpg/960px-Don_Valley_Brick_Works_%2854010434534%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-evergreen-brick-works.jpg",
     "image_credit": {
       "author": "V. L.",
       "licence": "CC0",
       "source": "https://commons.wikimedia.org/wiki/File:Don_Valley_Brick_Works_(54010434534).jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Don_Valley_Brick_Works",
-    "verified": false,
-    "local_url": "/img/heroes/cur-evergreen-brick-works.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/Don_Valley_Brick_Works_%2854010434534%29.jpg/960px-Don_Valley_Brick_Works_%2854010434534%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-forks-credit": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ca/Forks_of_the_Credit_Provincial_Park.jpg/960px-Forks_of_the_Credit_Provincial_Park.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-forks-credit.jpg",
     "image_credit": {
       "author": "Richard apple",
       "licence": "CC BY-SA 3.0",
       "source": "https://commons.wikimedia.org/wiki/File:Forks_of_the_Credit_Provincial_Park.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Forks_of_the_Credit_Provincial_Park",
-    "verified": false,
-    "local_url": "/img/heroes/cur-forks-credit.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ca/Forks_of_the_Credit_Provincial_Park.jpg/960px-Forks_of_the_Credit_Provincial_Park.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-forks-credit-drive": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Cheltenham_Badlands%2C_Caledon_Hills%2C_Ontario%2C_Canada._%287097453311%29.jpg/960px-Cheltenham_Badlands%2C_Caledon_Hills%2C_Ontario%2C_Canada._%287097453311%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "kaybee07",
-      "licence": "CC BY 2.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Cheltenham_Badlands,_Caledon_Hills,_Ontario,_Canada._(7097453311).jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Caledon%2C_Ontario",
-    "verified": false,
-    "local_url": "/img/heroes/cur-forks-credit-drive.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-glen-eden-skiing": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Kelso_Conservation_Area-_Escarpment_-_Milton_Heights-Ontario_%282%29.jpg/960px-Kelso_Conservation_Area-_Escarpment_-_Milton_Heights-Ontario_%282%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Mhsheikholeslami",
-      "licence": "CC BY-SA 4.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Kelso_Conservation_Area-_Escarpment_-_Milton_Heights-Ontario_(2).jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Kelso_Conservation_Area",
-    "verified": false,
-    "local_url": "/img/heroes/cur-glen-eden-skiing.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-glen-eden-snow": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Kelso_Conservation_Area-_Escarpment_-_Milton_Heights-Ontario_%282%29.jpg/960px-Kelso_Conservation_Area-_Escarpment_-_Milton_Heights-Ontario_%282%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Mhsheikholeslami",
-      "licence": "CC BY-SA 4.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Kelso_Conservation_Area-_Escarpment_-_Milton_Heights-Ontario_(2).jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Kelso_Conservation_Area",
-    "verified": false,
-    "local_url": "/img/heroes/cur-glen-eden-snow.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-glow-mini-putt": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1d/Vaughan_Metropolitan_Centre_Skyline%2C_August_7_2025.jpg/960px-Vaughan_Metropolitan_Centre_Skyline%2C_August_7_2025.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Dillan Payne",
-      "licence": "CC BY-SA 4.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Vaughan_Metropolitan_Centre_Skyline,_August_7_2025.jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Vaughan",
-    "verified": false,
-    "local_url": "/img/heroes/cur-glow-mini-putt.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-graffiti-alley": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Graffiti_Alley_Toronto%2C_June_24_2026_%2802%29.jpg/960px-Graffiti_Alley_Toronto%2C_June_24_2026_%2802%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-graffiti-alley.jpg",
     "image_credit": {
       "author": "Dillan Payne",
       "licence": "CC BY-SA 4.0",
       "source": "https://commons.wikimedia.org/wiki/File:Graffiti_Alley_Toronto,_June_24_2026_(02).jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Graffiti_Alley%2C_Toronto",
-    "verified": false,
-    "local_url": "/img/heroes/cur-graffiti-alley.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Graffiti_Alley_Toronto%2C_June_24_2026_%2802%29.jpg/960px-Graffiti_Alley_Toronto%2C_June_24_2026_%2802%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-halton-radial-railway": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/02/HCRY-PCC-Ice-Cream-Shop.jpg/960px-HCRY-PCC-Ice-Cream-Shop.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-halton-radial-railway.jpg",
     "image_credit": {
       "author": "DavidArthur",
       "licence": "CC BY-SA 3.0",
       "source": "https://commons.wikimedia.org/wiki/File:HCRY-PCC-Ice-Cream-Shop.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Halton_County_Radial_Railway",
-    "verified": false,
-    "local_url": "/img/heroes/cur-halton-radial-railway.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/02/HCRY-PCC-Ice-Cream-Shop.jpg/960px-HCRY-PCC-Ice-Cream-Shop.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-harbourfront-kayak": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/Toronto_-_ON_-_Toronto_Harbourfront_-_Amsterdam_Bridge.jpg/960px-Toronto_-_ON_-_Toronto_Harbourfront_-_Amsterdam_Bridge.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-harbourfront-kayak.jpg",
     "image_credit": {
       "author": "Wladyslaw",
       "licence": "CC BY-SA 3.0",
       "source": "https://commons.wikimedia.org/wiki/File:Toronto_-_ON_-_Toronto_Harbourfront_-_Amsterdam_Bridge.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Harbourfront%2C_Toronto",
-    "verified": false,
-    "local_url": "/img/heroes/cur-harbourfront-kayak.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/Toronto_-_ON_-_Toronto_Harbourfront_-_Amsterdam_Bridge.jpg/960px-Toronto_-_ON_-_Toronto_Harbourfront_-_Amsterdam_Bridge.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-hardwood-bike": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/04/Oro-Medonte_ON.JPG/960px-Oro-Medonte_ON.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "P199",
-      "licence": "CC BY-SA 3.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Oro-Medonte_ON.JPG"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Oro-Medonte",
-    "verified": false,
-    "local_url": "/img/heroes/cur-hardwood-bike.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-high-park-zoo": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/Hillside_Gardens_%2824677009128%29.jpg/960px-Hillside_Gardens_%2824677009128%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-high-park-zoo.jpg",
     "image_credit": {
       "author": "Jeff Hitchcock from Seattle, WA, USA",
       "licence": "CC BY 2.0",
       "source": "https://commons.wikimedia.org/wiki/File:Hillside_Gardens_(24677009128).jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/High_Park",
-    "verified": false,
-    "local_url": "/img/heroes/cur-high-park-zoo.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/Hillside_Gardens_%2824677009128%29.jpg/960px-Hillside_Gardens_%2824677009128%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-hilton-falls": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Hilton_Falls_-_panoramio_%281%29.jpg/960px-Hilton_Falls_-_panoramio_%281%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-hilton-falls.jpg",
     "image_credit": {
       "author": "Eric Marshall",
       "licence": "CC BY 3.0",
       "source": "https://commons.wikimedia.org/wiki/File:Hilton_Falls_-_panoramio_(1).jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Hilton_Falls_Conservation_Area",
-    "verified": false,
-    "local_url": "/img/heroes/cur-hilton-falls.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Hilton_Falls_-_panoramio_%281%29.jpg/960px-Hilton_Falls_-_panoramio_%281%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-horseshoe-tubing": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/04/Oro-Medonte_ON.JPG/960px-Oro-Medonte_ON.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "P199",
-      "licence": "CC BY-SA 3.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Oro-Medonte_ON.JPG"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Oro-Medonte",
-    "verified": false,
-    "local_url": "/img/heroes/cur-horseshoe-tubing.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-humber-paddle": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/70/TTC_Montage_2.png/960px-TTC_Montage_2.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Poe8toe",
-      "licence": "CC BY-SA 4.0",
-      "source": "https://commons.wikimedia.org/wiki/File:TTC_Montage_2.png"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Toronto_Transit_Commission",
-    "verified": false,
-    "local_url": "/img/heroes/cur-humber-paddle.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-ifly-indoor-skydiving": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/73/400-series_highways_map.svg/960px-400-series_highways_map.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "BrandonXLF",
-      "licence": "CC BY-SA 3.0",
-      "source": "https://commons.wikimedia.org/wiki/File:400-series_highways_map.svg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/400-series_highways",
-    "verified": false,
-    "local_url": "/img/heroes/cur-ifly-indoor-skydiving.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-journey-behind-falls": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/3Falls_Niagara.jpg/960px-3Falls_Niagara.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-journey-behind-falls.jpg",
     "image_credit": {
       "author": "Saffron Blaze",
       "licence": "CC BY-SA 3.0",
       "source": "https://commons.wikimedia.org/wiki/File:3Falls_Niagara.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Niagara_Falls",
-    "verified": false,
-    "local_url": "/img/heroes/cur-journey-behind-falls.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/3Falls_Niagara.jpg/960px-3Falls_Niagara.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-kelso-chairlift": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Kelso_Conservation_Area-_Escarpment_-_Milton_Heights-Ontario_%282%29.jpg/960px-Kelso_Conservation_Area-_Escarpment_-_Milton_Heights-Ontario_%282%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-kelso-chairlift.jpg",
     "image_credit": {
       "author": "Mhsheikholeslami",
       "licence": "CC BY-SA 4.0",
       "source": "https://commons.wikimedia.org/wiki/File:Kelso_Conservation_Area-_Escarpment_-_Milton_Heights-Ontario_(2).jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Kelso_Conservation_Area",
-    "verified": false,
-    "local_url": "/img/heroes/cur-kelso-chairlift.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Kelso_Conservation_Area-_Escarpment_-_Milton_Heights-Ontario_%282%29.jpg/960px-Kelso_Conservation_Area-_Escarpment_-_Milton_Heights-Ontario_%282%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-kelso-mtb": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Kelso_Conservation_Area-_Escarpment_-_Milton_Heights-Ontario_%282%29.jpg/960px-Kelso_Conservation_Area-_Escarpment_-_Milton_Heights-Ontario_%282%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-kelso-mtb.jpg",
     "image_credit": {
       "author": "Mhsheikholeslami",
       "licence": "CC BY-SA 4.0",
       "source": "https://commons.wikimedia.org/wiki/File:Kelso_Conservation_Area-_Escarpment_-_Milton_Heights-Ontario_(2).jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Kelso_Conservation_Area",
-    "verified": false,
-    "local_url": "/img/heroes/cur-kelso-mtb.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Kelso_Conservation_Area-_Escarpment_-_Milton_Heights-Ontario_%282%29.jpg/960px-Kelso_Conservation_Area-_Escarpment_-_Milton_Heights-Ontario_%282%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-kortright": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Bird_Chase.jpg/960px-Bird_Chase.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-kortright.jpg",
     "image_credit": {
       "author": "John Vetterli",
       "licence": "CC BY-SA 2.0",
       "source": "https://commons.wikimedia.org/wiki/File:Bird_Chase.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Kortright_Centre_for_Conservation",
-    "verified": false,
-    "local_url": "/img/heroes/cur-kortright.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Bird_Chase.jpg/960px-Bird_Chase.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-lake-wilcox-park": {
     "image_url": "/img/heroes/cur-lake-wilcox-park.jpg",
@@ -547,202 +433,148 @@
     "verified": true
   },
   "cur-legoland-vaughan": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Legoland_Discovery_Centre_Manchester.JPG/960px-Legoland_Discovery_Centre_Manchester.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-legoland-vaughan.jpg",
     "image_credit": {
       "author": "Seth Whales",
       "licence": "CC BY-SA 3.0",
       "source": "https://commons.wikimedia.org/wiki/File:Legoland_Discovery_Centre_Manchester.JPG"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Legoland_Discovery_Centre",
-    "verified": false,
-    "local_url": "/img/heroes/cur-legoland-vaughan.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Legoland_Discovery_Centre_Manchester.JPG/960px-Legoland_Discovery_Centre_Manchester.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-limehouse": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/Main_Street_Georgetown_Ontario_2010_2.jpg/960px-Main_Street_Georgetown_Ontario_2010_2.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Balcer",
-      "licence": "CC BY 2.5",
-      "source": "https://commons.wikimedia.org/wiki/File:Main_Street_Georgetown_Ontario_2010_2.jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Halton_Hills",
-    "verified": false,
-    "local_url": "/img/heroes/cur-limehouse.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-mcmichael-gallery": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Gallery_New-Entrance_Credit-Art2Print-Images_%287538295154%29.jpg/960px-Gallery_New-Entrance_Credit-Art2Print-Images_%287538295154%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-mcmichael-gallery.jpg",
     "image_credit": {
       "author": "McMichael Canadian Art Collection",
       "licence": "CC BY-SA 2.0",
       "source": "https://commons.wikimedia.org/wiki/File:Gallery_New-Entrance_Credit-Art2Print-Images_(7538295154).jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/McMichael_Canadian_Art_Collection",
-    "verified": false,
-    "local_url": "/img/heroes/cur-mcmichael-gallery.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Gallery_New-Entrance_Credit-Art2Print-Images_%287538295154%29.jpg/960px-Gallery_New-Entrance_Credit-Art2Print-Images_%287538295154%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-mono-cliffs": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Ontario_in_Canada_2.svg/960px-Ontario_in_Canada_2.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "MapGrid",
-      "licence": "CC BY-SA 4.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Ontario_in_Canada_2.svg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/List_of_airports_in_Ontario",
-    "verified": false,
-    "local_url": "/img/heroes/cur-mono-cliffs.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-morningstar-mill": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7d/St._Catharines_Downtown_Centre-ville_de_St._Catharines_%2823904737637%29.jpg/960px-St._Catharines_Downtown_Centre-ville_de_St._Catharines_%2823904737637%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Municipal Affairs and Housing",
-      "licence": "CC BY 2.0",
-      "source": "https://commons.wikimedia.org/wiki/File:St._Catharines_Downtown_Centre-ville_de_St._Catharines_(23904737637).jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/St._Catharines",
-    "verified": false,
-    "local_url": "/img/heroes/cur-morningstar-mill.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-nathan-phillips-skate": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Nathan_Philips_Square%2C_2022.jpg/960px-Nathan_Philips_Square%2C_2022.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-nathan-phillips-skate.jpg",
     "image_credit": {
       "author": "Hutima",
       "licence": "CC BY-SA 4.0",
       "source": "https://commons.wikimedia.org/wiki/File:Nathan_Philips_Square,_2022.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Nathan_Phillips_Square",
-    "verified": false,
-    "local_url": "/img/heroes/cur-nathan-phillips-skate.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Nathan_Philips_Square%2C_2022.jpg/960px-Nathan_Philips_Square%2C_2022.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-niagara-falls-boat": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/3Falls_Niagara.jpg/960px-3Falls_Niagara.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-niagara-falls-boat.jpg",
     "image_credit": {
       "author": "Saffron Blaze",
       "licence": "CC BY-SA 3.0",
       "source": "https://commons.wikimedia.org/wiki/File:3Falls_Niagara.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Niagara_Falls",
-    "verified": false,
-    "local_url": "/img/heroes/cur-niagara-falls-boat.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/3Falls_Niagara.jpg/960px-3Falls_Niagara.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-niagara-parkway-drive": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/36/Niagara_on_the_lake.jpg/960px-Niagara_on_the_lake.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Paste Let’s have a chat. / Paste at English Wikipedia",
-      "licence": "CC BY-SA 3.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Niagara_on_the_lake.jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Niagara-on-the-Lake",
-    "verified": false,
-    "local_url": "/img/heroes/cur-niagara-parkway-drive.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-niagara-takes-flight": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/3Falls_Niagara.jpg/960px-3Falls_Niagara.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-niagara-takes-flight.jpg",
     "image_credit": {
       "author": "Saffron Blaze",
       "licence": "CC BY-SA 3.0",
       "source": "https://commons.wikimedia.org/wiki/File:3Falls_Niagara.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Niagara_Falls",
-    "verified": false,
-    "local_url": "/img/heroes/cur-niagara-takes-flight.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/3Falls_Niagara.jpg/960px-3Falls_Niagara.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-night-markets": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/94/Coronavirus._SARS-CoV-2.png/960px-Coronavirus._SARS-CoV-2.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Alexey Solodovnikov (Idea, Producer, CG, Editor), Valeria Arkhipova (Scientific Сonsultant)",
-      "licence": "CC BY-SA 4.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Coronavirus._SARS-CoV-2.png"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Xenophobia_and_racism_related_to_the_COVID-19_pandemic",
-    "verified": false,
-    "local_url": "/img/heroes/cur-night-markets.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-ontario-place-trillium": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/83/WikiOntarioPlace_Toronto_ID2.jpg/960px-WikiOntarioPlace_Toronto_ID2.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "The original uploader was IDuke at English Wikipedia .",
-      "licence": "CC BY 2.5",
-      "source": "https://commons.wikimedia.org/wiki/File:WikiOntarioPlace_Toronto_ID2.jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Ontario_Place",
-    "verified": false,
-    "local_url": "/img/heroes/cur-ontario-place-trillium.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-pacific-mall-food": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/Pacific_Mall_2023.jpg/960px-Pacific_Mall_2023.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-pacific-mall-food.jpg",
     "image_credit": {
       "author": "Canmenwalker",
       "licence": "CC BY 4.0",
       "source": "https://commons.wikimedia.org/wiki/File:Pacific_Mall_2023.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Pacific_Mall",
-    "verified": false,
-    "local_url": "/img/heroes/cur-pacific-mall-food.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/Pacific_Mall_2023.jpg/960px-Pacific_Mall_2023.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-professors-lake": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c9/Peel_Art_Gallery%2C_Museum_and_Archives_Building_%28PAMA%29.jpg/960px-Peel_Art_Gallery%2C_Museum_and_Archives_Building_%28PAMA%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Peter K Burian",
-      "licence": "CC BY-SA 4.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Peel_Art_Gallery,_Museum_and_Archives_Building_(PAMA).jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Brampton",
-    "verified": false,
-    "local_url": "/img/heroes/cur-professors-lake.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-rattlesnake-climbing": {
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/8/8c/Bruce-Trail-bmountain.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
+    "image_url": "/img/heroes/cur-rattlesnake-climbing.jpg",
     "image_credit": {
       "author": "David Sky",
       "licence": "CC BY-SA 3.0",
       "source": "https://commons.wikimedia.org/wiki/File:Bruce-Trail-bmountain.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Rattlesnake_Point_(Canada)",
-    "verified": false,
-    "local_url": "/img/heroes/cur-rattlesnake-climbing.jpg"
+    "verified": true,
+    "source_image": "https://upload.wikimedia.org/wikipedia/commons/8/8c/Bruce-Trail-bmountain.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled"
   },
   "cur-rattlesnake-point": {
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/8/8c/Bruce-Trail-bmountain.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
+    "image_url": "/img/heroes/cur-rattlesnake-point.jpg",
     "image_credit": {
       "author": "David Sky",
       "licence": "CC BY-SA 3.0",
       "source": "https://commons.wikimedia.org/wiki/File:Bruce-Trail-bmountain.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Rattlesnake_Point_(Canada)",
-    "verified": false,
-    "local_url": "/img/heroes/cur-rattlesnake-point.jpg"
+    "verified": true,
+    "source_image": "https://upload.wikimedia.org/wikipedia/commons/8/8c/Bruce-Trail-bmountain.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled"
   },
   "cur-rec-room-vr": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6a/Playdium_%28Mississauga%29.jpg/960px-Playdium_%28Mississauga%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "OhanaUnited Talk page",
-      "licence": "CC BY-SA 4.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Playdium_(Mississauga).jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Playdium",
-    "verified": false,
-    "local_url": "/img/heroes/cur-rec-room-vr.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-ripleys-aquarium": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/Ripley%27s_Aquarium_of_Canada%2C_Toronto%2C_Ontario.jpg/960px-Ripley%27s_Aquarium_of_Canada%2C_Toronto%2C_Ontario.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-ripleys-aquarium.jpg",
     "image_credit": {
       "author": "EuroCarGT",
       "licence": "CC BY-SA 4.0",
       "source": "https://commons.wikimedia.org/wiki/File:Ripley%27s_Aquarium_of_Canada,_Toronto,_Ontario.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Ripley's_Aquarium_of_Canada",
-    "verified": false,
-    "local_url": "/img/heroes/cur-ripleys-aquarium.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/Ripley%27s_Aquarium_of_Canada%2C_Toronto%2C_Ontario.jpg/960px-Ripley%27s_Aquarium_of_Canada%2C_Toronto%2C_Ontario.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-riverdale-farm": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/Toronto_Cabbage_Town_35_%288437635457%29.jpg/960px-Toronto_Cabbage_Town_35_%288437635457%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Alain Rouiller",
-      "licence": "CC BY-SA 2.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Toronto_Cabbage_Town_35_(8437635457).jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Cabbagetown%2C_Toronto",
-    "verified": false,
-    "local_url": "/img/heroes/cur-riverdale-farm.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-rouge-vista": {
     "image_url": "/img/heroes/cur-rouge-vista.jpg",
@@ -755,125 +587,89 @@
     "verified": true
   },
   "cur-sam-smith-skate": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/Colonel_Samuel_Smith_Park_%2893962%29.jpg/960px-Colonel_Samuel_Smith_Park_%2893962%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-sam-smith-skate.jpg",
     "image_credit": {
       "author": "Rhododendrites",
       "licence": "CC BY-SA 4.0",
       "source": "https://commons.wikimedia.org/wiki/File:Colonel_Samuel_Smith_Park_(93962).jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Colonel_Samuel_Smith_Park",
-    "verified": false,
-    "local_url": "/img/heroes/cur-sam-smith-skate.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/Colonel_Samuel_Smith_Park_%2893962%29.jpg/960px-Colonel_Samuel_Smith_Park_%2893962%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-sandbanks-beach": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Lake_Ontario_-_Sandbanks_Provincial_Park_2001.jpg/960px-Lake_Ontario_-_Sandbanks_Provincial_Park_2001.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-sandbanks-beach.jpg",
     "image_credit": {
       "author": "C. Löser",
       "licence": "CC BY-SA 2.0 de",
       "source": "https://commons.wikimedia.org/wiki/File:Lake_Ontario_-_Sandbanks_Provincial_Park_2001.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Sandbanks_Provincial_Park",
-    "verified": false,
-    "local_url": "/img/heroes/cur-sandbanks-beach.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Lake_Ontario_-_Sandbanks_Provincial_Park_2001.jpg/960px-Lake_Ontario_-_Sandbanks_Provincial_Park_2001.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-scarborough-bluffs-paddle": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/66/Scarborough_Bluffs%2C_May_4_2026_%2807%29.jpg/960px-Scarborough_Bluffs%2C_May_4_2026_%2807%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-scarborough-bluffs-paddle.jpg",
     "image_credit": {
       "author": "Dillan Payne",
       "licence": "CC BY-SA 4.0",
       "source": "https://commons.wikimedia.org/wiki/File:Scarborough_Bluffs,_May_4_2026_(07).jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Scarborough_Bluffs",
-    "verified": false,
-    "local_url": "/img/heroes/cur-scarborough-bluffs-paddle.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/66/Scarborough_Bluffs%2C_May_4_2026_%2807%29.jpg/960px-Scarborough_Bluffs%2C_May_4_2026_%2807%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-scenic-caves-snowshoe": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7c/Ortigia_%28SR%29.jpg/960px-Ortigia_%28SR%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "AndreaCT78",
-      "licence": "CC BY-SA 2.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Ortigia_(SR).jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Syracuse%2C_Sicily",
-    "verified": false,
-    "local_url": "/img/heroes/cur-scenic-caves-snowshoe.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-scenic-caves-summer": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/50/Blue_Mountains_ON_gondola.jpg/960px-Blue_Mountains_ON_gondola.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Transportfan70",
-      "licence": "CC0",
-      "source": "https://commons.wikimedia.org/wiki/File:Blue_Mountains_ON_gondola.jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/The_Blue_Mountains%2C_Ontario",
-    "verified": false,
-    "local_url": "/img/heroes/cur-scenic-caves-summer.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-science-centre-popups": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Ontario_Science_Centre_at_Harbourfront_Centre.jpg/960px-Ontario_Science_Centre_at_Harbourfront_Centre.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "VCAtOSCToronto",
-      "licence": "CC0",
-      "source": "https://commons.wikimedia.org/wiki/File:Ontario_Science_Centre_at_Harbourfront_Centre.jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Ontario_Science_Centre",
-    "verified": false,
-    "local_url": "/img/heroes/cur-science-centre-popups.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-seaton-trail": {
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/a/aa/CORT01.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
-    "image_credit": {
-      "author": "No machine-readable author provided. R Pollack~commonswiki assumed (based on copyright claims).",
-      "licence": "Public domain",
-      "source": "https://commons.wikimedia.org/wiki/File:CORT01.JPG"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/List_of_rail_trails",
-    "verified": false,
-    "local_url": "/img/heroes/cur-seaton-trail.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-smart-adventure-dirt-biking": {
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/0/05/Peter_pan_1911_pipes_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
-    "image_credit": {
-      "author": "Francis Donkin Bedford",
-      "licence": "Public domain",
-      "source": "https://commons.wikimedia.org/wiki/File:Peter_pan_1911_pipes_(cropped).jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Peter_Pan_(character)",
-    "verified": false,
-    "local_url": "/img/heroes/cur-smart-adventure-dirt-biking.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-st-lawrence-market": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/St_Lawerence_South_Market_Exterior_202112.jpg/960px-St_Lawerence_South_Market_Exterior_202112.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-st-lawrence-market.jpg",
     "image_credit": {
       "author": "Canmenwalker",
       "licence": "CC BY 4.0",
       "source": "https://commons.wikimedia.org/wiki/File:St_Lawerence_South_Market_Exterior_202112.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/St._Lawrence_Market",
-    "verified": false,
-    "local_url": "/img/heroes/cur-st-lawrence-market.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/St_Lawerence_South_Market_Exterior_202112.jpg/960px-St_Lawerence_South_Market_Exterior_202112.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-sunnyside-pool": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e6/Sunnyside_Waterfront_View.JPG/960px-Sunnyside_Waterfront_View.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Alaney2k",
-      "licence": "CC BY 3.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Sunnyside_Waterfront_View.JPG"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Sunnyside%2C_Toronto",
-    "verified": false,
-    "local_url": "/img/heroes/cur-sunnyside-pool.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-tall-ship-kajama": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/Toronto-Kajama.jpg/960px-Toronto-Kajama.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-tall-ship-kajama.jpg",
     "image_credit": {
       "author": "Abxbay",
       "licence": "Public domain",
       "source": "https://commons.wikimedia.org/wiki/File:Toronto-Kajama.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Kajama",
-    "verified": false,
-    "local_url": "/img/heroes/cur-tall-ship-kajama.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/Toronto-Kajama.jpg/960px-Toronto-Kajama.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-tommy-thompson-park": {
     "image_url": "/img/heroes/cur-tommy-thompson-park.jpg",
@@ -886,48 +682,36 @@
     "verified": true
   },
   "cur-toronto-archery-range": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f8/E.T._Seton_Park_Aerial_view_2023.jpg/960px-E.T._Seton_Park_Aerial_view_2023.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-toronto-archery-range.jpg",
     "image_credit": {
       "author": "Canmenwalker",
       "licence": "CC BY 4.0",
       "source": "https://commons.wikimedia.org/wiki/File:E.T._Seton_Park_Aerial_view_2023.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/E.T._Seton_Park",
-    "verified": false,
-    "local_url": "/img/heroes/cur-toronto-archery-range.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f8/E.T._Seton_Park_Aerial_view_2023.jpg/960px-E.T._Seton_Park_Aerial_view_2023.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-toronto-music-garden": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/Toronto_-_ON_-_Toronto_Harbourfront_-_Amsterdam_Bridge.jpg/960px-Toronto_-_ON_-_Toronto_Harbourfront_-_Amsterdam_Bridge.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Wladyslaw",
-      "licence": "CC BY-SA 3.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Toronto_-_ON_-_Toronto_Harbourfront_-_Amsterdam_Bridge.jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Harbourfront%2C_Toronto",
-    "verified": false,
-    "local_url": "/img/heroes/cur-toronto-music-garden.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-toronto-zoo": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Scarborough_City_Centre.JPG/960px-Scarborough_City_Centre.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "SimonP",
-      "licence": "CC BY-SA 3.0",
-      "source": "https://commons.wikimedia.org/wiki/File:Scarborough_City_Centre.JPG"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Scarborough%2C_Ontario",
-    "verified": false,
-    "local_url": "/img/heroes/cur-toronto-zoo.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-treetop-brampton": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/98/Heart_Lake_Conservation2.jpg/960px-Heart_Lake_Conservation2.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-treetop-brampton.jpg",
     "image_credit": {
       "author": "Mykola Swarnyk",
       "licence": "CC BY-SA 4.0",
       "source": "https://commons.wikimedia.org/wiki/File:Heart_Lake_Conservation2.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Heart_Lake_Conservation_Area",
-    "verified": false,
-    "local_url": "/img/heroes/cur-treetop-brampton.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/98/Heart_Lake_Conservation2.jpg/960px-Heart_Lake_Conservation2.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-unionville-main-street": {
     "image_url": "/img/heroes/cur-unionville-main-street.jpg",
@@ -940,58 +724,52 @@
     "verified": true
   },
   "cur-warsaw-caves": {
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/0/0f/Warsaw_Caves%2C_Ontario.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
+    "image_url": "/img/heroes/cur-warsaw-caves.jpg",
     "image_credit": {
       "author": "Plismo",
       "licence": "CC BY-SA 3.0",
       "source": "https://commons.wikimedia.org/wiki/File:Warsaw_Caves,_Ontario.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Warsaw_Caves",
-    "verified": false,
-    "local_url": "/img/heroes/cur-warsaw-caves.jpg"
+    "verified": true,
+    "source_image": "https://upload.wikimedia.org/wikipedia/commons/0/0f/Warsaw_Caves%2C_Ontario.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled"
   },
   "cur-wasaga-beach": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/03/Wasaga_Beach_One_2024.jpg/960px-Wasaga_Beach_One_2024.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-wasaga-beach.jpg",
     "image_credit": {
       "author": "Transportfan70",
       "licence": "CC0",
       "source": "https://commons.wikimedia.org/wiki/File:Wasaga_Beach_One_2024.jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Wasaga_Beach",
-    "verified": false,
-    "local_url": "/img/heroes/cur-wasaga-beach.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/03/Wasaga_Beach_One_2024.jpg/960px-Wasaga_Beach_One_2024.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-wave-pool-rh": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/DowntownRichmondHill3.jpg/960px-DowntownRichmondHill3.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-    "image_credit": {
-      "author": "Raysonho @ Open Grid Scheduler / Scalable Grid Engine",
-      "licence": "CC0",
-      "source": "https://commons.wikimedia.org/wiki/File:DowntownRichmondHill3.jpg"
-    },
-    "wiki_page": "https://en.wikipedia.org/wiki/Richmond_Hill%2C_Ontario",
-    "verified": false,
-    "local_url": "/img/heroes/cur-wave-pool-rh.jpg"
+    "rejected": true,
+    "wiki_page": null,
+    "rejected_on": "2026-10-16"
   },
   "cur-wonderland-coasters": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/A_very_Canadian_Canada%27s_Wonderland_%2841514872810%29.jpg/960px-A_very_Canadian_Canada%27s_Wonderland_%2841514872810%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-wonderland-coasters.jpg",
     "image_credit": {
       "author": "Enoch Leung from Canada",
       "licence": "CC BY-SA 2.0",
       "source": "https://commons.wikimedia.org/wiki/File:A_very_Canadian_Canada%27s_Wonderland_(41514872810).jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Canada's_Wonderland",
-    "verified": false,
-    "local_url": "/img/heroes/cur-wonderland-coasters.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/A_very_Canadian_Canada%27s_Wonderland_%2841514872810%29.jpg/960px-A_very_Canadian_Canada%27s_Wonderland_%2841514872810%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   "cur-wonderland-splash-works": {
-    "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/A_very_Canadian_Canada%27s_Wonderland_%2841514872810%29.jpg/960px-A_very_Canadian_Canada%27s_Wonderland_%2841514872810%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "image_url": "/img/heroes/cur-wonderland-splash-works.jpg",
     "image_credit": {
       "author": "Enoch Leung from Canada",
       "licence": "CC BY-SA 2.0",
       "source": "https://commons.wikimedia.org/wiki/File:A_very_Canadian_Canada%27s_Wonderland_(41514872810).jpg"
     },
     "wiki_page": "https://en.wikipedia.org/wiki/Canada's_Wonderland",
-    "verified": false,
-    "local_url": "/img/heroes/cur-wonderland-splash-works.jpg"
+    "verified": true,
+    "source_image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/A_very_Canadian_Canada%27s_Wonderland_%2841514872810%29.jpg/960px-A_very_Canadian_Canada%27s_Wonderland_%2841514872810%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   }
 }

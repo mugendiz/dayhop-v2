@@ -115,6 +115,9 @@ async function stage({ force, dry }) {
   for (const entry of catalog) {
     const existing = heroes[entry.id];
     if (existing && existing.verified) { kept++; continue; }
+    // A reviewed and rejected candidate stays rejected: the search would
+    // find the same wrong article again. --force does not undo a review.
+    if (existing && existing.rejected) { kept++; continue; }
     if (existing && !force) { kept++; continue; }
     try {
       const title = await wikiTitleFor(entry);
@@ -185,8 +188,10 @@ function setVerified(ids, verified) {
     } else {
       const local = heroes[id].local_url || (/^\/img\//.test(heroes[id].image_url || '') ? heroes[id].image_url : null);
       if (local) { try { fs.unlinkSync(path.join(PUBLIC_DIR, local)); } catch { /* already gone */ } }
-      delete heroes[id];
-      console.log(`  ${id}: removed`);
+      // Remembered, not deleted, so the next staging run skips it. Never
+      // served: candidates.js only reads verified heroes.
+      heroes[id] = { rejected: true, wiki_page: heroes[id].wiki_page || null, rejected_on: new Date().toISOString().slice(0, 10) };
+      console.log(`  ${id}: rejected`);
     }
   }
   save(heroes);
