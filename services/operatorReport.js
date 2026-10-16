@@ -57,7 +57,6 @@ const DEADLINES = [
 // an entry here once it is done or dropped. money:true marks the ones that
 // cost money, so the brief can say which are free to clear.
 const PENDING = [
-  { since: '2026-10-06', what: 'PRs #4 Creative benchmarks, #5 Geo expansion research, #6 City expansion roadmap', act: 'Recommended: merge as reference docs. No code, no cost.' },
   { since: '2026-10-06', money: true, what: 'PHOTO_DAILY_BUDGET_USD on Render (now $0.35/day, about 50 photos)', act: 'The main cause of placeholder images on cards. It is a ceiling, not a target: raising it only spends what visitors actually load.' },
   { since: '2026-10-02', what: 'SuperGrok Lite price still not in docs/tools.md', act: 'Lite went active Oct 2 after the $30 tier was cancelled Oct 1. Until the amount is recorded, the run rate figure is wrong. One minute on the xAI billing page.' },
   { since: '2026-10-06', what: 'PUBLIC_BASE_URL=https://dayhop.quest on Render', act: 'Newsletter links still point at dayhop-v2.onrender.com until this is set. Free, one env var.' },

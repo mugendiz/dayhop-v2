@@ -205,3 +205,13 @@ test('the run-dry refresh happens at most once per Toronto day', () => {
   // The next day it may try again.
   assert.equal(needsRefresh('toronto', '2026-10-09', { source: dry, last: { at: '2026-10-08T14:00:00Z' } }), true);
 });
+
+test('Grok picks that are Halloween themed are dropped; fall picks pass', () => {
+  const hub = hubById('toronto');
+  const today = '2026-10-16';
+  const base = { venue: 'Some Park', city: 'Toronto', start_date: '2026-10-24', end_date: '2026-10-24', outdoor: true };
+  assert.equal(shapePick({ ...base, title: 'Boo at the Zoo', why: 'Costumes and candy' }, { hub, today }).reason, 'halloween');
+  assert.equal(shapePick({ ...base, title: 'Ghost Walk of Old Town', why: 'Spooky stories' }, { hub, today }).reason, 'halloween');
+  assert.equal(shapePick({ ...base, title: 'Harvest Festival', why: 'Apple cider and hay rides' }, { hub, today }).ok, true);
+  assert.equal(shapePick({ ...base, title: 'Pumpkin patch weekend', why: 'Pick your own pumpkins' }, { hub, today }).ok, true, 'pumpkins are fall');
+});

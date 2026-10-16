@@ -165,7 +165,7 @@ test('classes, competitions, virtual and gallery listings never make the floor',
 
 test('real outdoor events with the evidence in the title or venue still make the floor', () => {
   const real = [
-    ev('pumpkins', { source: 'curated', title: 'Pumpkins After Dark', venue: 'Country Heritage Park, Milton', description: 'An evening walk past glowing pumpkins.' }),
+    ev('pumpkins', { source: 'curated', title: 'Fall Harvest Days at Downey Farm', venue: 'Downey Farm, Caledon', description: 'Hay rides and apple cider.' }),
     ev('market', { source: 'curated', title: 'Fall Harvest Market at Sugar Beach', venue: 'Sugar Beach', description: 'Vendors and music.' }),
     ev('duck', { source: 'curated', title: 'The Royal Duck bounce park', venue: 'Upper Canada Mall, south lot', description: 'Inflatables.' })
   ];
@@ -187,4 +187,16 @@ test('the floor never shows fewer than three cards', () => {
     const n = shelf(build(pool)).length;
     assert.ok(n === 0 || n >= 3, `${extra} events gave a ${n} card shelf`);
   }
+});
+
+test('Halloween events never wear the shelf\'s name, fall events do', () => {
+  const spooky = [
+    ev('haunt', { source: 'curated', title: 'Haunted Hayride Nights', venue: 'Some Farm' }),
+    ev('treat', { source: 'civic_calendars', title: 'Main Street Trick or Treat', venue: 'Main Street' }),
+    ev('lanterns', { source: 'curated', title: 'Jack-o-Lantern Trail', venue: 'Riverside Park' })
+  ];
+  const fall = [1, 2, 3].map(i => ev(`fall-${i}`, { title: `Harvest Fair ${i}`, venue: 'Fairgrounds park' }));
+  const got = shelf(build([...Array.from({ length: 6 }, (_, i) => filler(i + 1)), ...spooky, ...fall]));
+  for (const id of ['haunt', 'treat', 'lanterns']) assert.ok(!got.includes(id), `${id} made the shelf`);
+  assert.ok(got.some(id => id.startsWith('fall-')));
 });

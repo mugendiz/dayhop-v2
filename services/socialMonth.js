@@ -231,7 +231,8 @@ function suggestionFor(slot) {
     if (slot.pillar === 'weekend' || slot.pillar === 'holiday') {
       const events = require('../data/curatedEvents');
       const fri = addDays(slot.date, 1), sun = addDays(slot.date, 3);
-      const on = events.find(e => e.date && e.date <= sun && (e.date_end || e.date) >= fri);
+      const { isHalloweenThemed } = require('./venueGates');
+      const on = events.find(e => e.date && e.date <= sun && (e.date_end || e.date) >= fri && !isHalloweenThemed(e));
       return on ? `${on.title} (curated event)` : "Rank 1 on that week's Talk of the town";
     }
     if (slot.pillar === 'app') return `Type: "${APP_PROMPTS[monthNo % APP_PROMPTS.length]}"`;

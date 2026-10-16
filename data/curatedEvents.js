@@ -78,27 +78,23 @@ const EVENTS = [
     source: 'curated'
   },
   {
-    // Added Oct 15 2026 while the weekly Talk of the town search sat in its
-    // mid-week dead zone (PR #40), so the shelf had real outdoor picks into
-    // Halloween. Dates confirmed by two listings: Toronto Tourism's
-    // Halloween guide (Sep 26 to Oct 31 2026) and Todocanada (Sep 25 to
-    // Nov 1 2026). date_end is the earlier of the two ends, so the card can
-    // only ever come down a day early, never stay up a day late. Neither
-    // listing's price was confirmed for 2026, so the description names none;
-    // it is a timed, ticketed evening walk, hence $$.
-    //
-    // No image_url and no booking_url: no licence-clean photo of the
-    // pumpkins is to hand, and the official site could not be reached to
-    // confirm its address. The Places photo of the park is the fallback.
-    id: 'cur-pumpkins-after-dark-milton-2026',
-    title: 'Pumpkins After Dark at Country Heritage Park',
-    category: 'kids',
-    location: 'Milton',
-    venue: 'Country Heritage Park, 8560 Tremaine Rd',
-    date: '2026-09-26',
-    date_end: '2026-10-31',
-    description: 'An evening walk through thousands of hand-carved, glowing pumpkins on the grounds of Country Heritage Park. Timed tickets, so book a slot before you drive out.',
-    cost_tier: '$$',
+    // Founder, Oct 16 2026: "skip all halloween related in lieu of fall
+    // events". This replaced Pumpkins After Dark (a jack-o'-lantern walk)
+    // as the late-October pick. Dates confirmed by several listings: the
+    // AIMS race preview and the Movember fundraising page both give Sunday
+    // Oct 18 2026, and NOW Toronto and Endorphins Running list the race
+    // weekend as Oct 17 to 18 (the 5K Saturday, the marathon and half
+    // Sunday). No start line or route is named because none was confirmed
+    // for 2026. Free to watch, hence free.
+    id: 'cur-toronto-waterfront-marathon-2026',
+    title: 'TCS Toronto Waterfront Marathon weekend',
+    category: 'adventures',
+    location: 'Toronto',
+    venue: 'Toronto waterfront course',
+    date: '2026-10-17',
+    date_end: '2026-10-18',
+    description: 'The big fall race weekend on the waterfront: the 5K on Saturday, the marathon and half on Sunday. Free to cheer from the course with a thermos and a sign, and plan around road closures on Sunday morning.',
+    cost_tier: 'free',
     source: 'curated'
   }
 ];

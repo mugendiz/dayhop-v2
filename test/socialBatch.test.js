@@ -92,3 +92,9 @@ test('grounding picks carry facts, rotate by week, and know what is no longer ne
   const niagara = [...a, ...b].find(p => p.id === 'cur-niagara-takes-flight');
   if (niagara) assert.equal(niagara.is_new, false);
 });
+
+test('Halloween drafts are flagged; DayHop posts fall', () => {
+  const spooky = { ...good, hook: 'The haunted trail nobody talks about', concept: 'Ghost walk at dusk' };
+  assert.match(checkPost(spooky, places).join(), /Halloween content/);
+  assert.doesNotMatch(checkPost(good, places).join(), /Halloween/);
+});

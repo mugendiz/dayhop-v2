@@ -22,6 +22,7 @@ const venueIndex = require('../services/venueIndex');
 const { MODE_PROMPTS, CORRIDOR_QUERY } = require('../data/feedPrompts');
 const sponsors = require('../services/sponsors');
 const talkOfTown = require('../services/talkOfTown');
+const { isHalloweenThemed } = require('../services/venueGates');
 
 // Home-feed layout. 'top5' (TOP5_FEED=on): Top 5 picks → one sponsor /
 // spotlight slot → Talk of the town, then every other shelf flagged
@@ -511,7 +512,7 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
       // for a month showed for one day of it. Falls back to start, so a
       // one-day event is unaffected.
       const end = String(c.date_end || c.date).slice(0, 10);
-      return end >= today && start <= horizon && floorOutdoor(c) && !isIndoor(c);
+      return end >= today && start <= horizon && floorOutdoor(c) && !isIndoor(c) && !isHalloweenThemed(c);
     });
     return picks.length >= 3 ? picks : [];
   }

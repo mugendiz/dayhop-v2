@@ -85,7 +85,18 @@ function venueGateVerdict(c) {
   return { pass: true };
 }
 
+// Founder rule, 2026-10-16: "skip all halloween related in lieu of fall
+// events". DayHop is a nature app, so October is harvest, colours, farms
+// and trails, not haunted attractions and trick or treating. Applies to
+// dated events wherever they enter (the candidate pool, both halves of Talk
+// of the town, the curated list, the social drafts). Pumpkins and corn
+// mazes are fall and stay; jack-o'-lanterns and haunts are Halloween and go.
+const HALLOWEEN_RE = /\b(hallowe'?en|haunt(ed|s|ing)?|spook(y|tacular|s|iest)?|trick[- ]or[- ]treat(ing|ers)?|fright ?(night|fest|s)?|ghosts?|ghouls?|zombies?|scream ?park|boo at the|howl[- ]?o[- ]?ween|costume (party|parade|contest)|paranormal|horror|witch(es)?|vampires?|monster mash|jack[- ]?o'?[- ]?lanterns?|pumpkins after dark|creepy)\b/i;
+function isHalloweenThemed(c) {
+  return HALLOWEEN_RE.test(`${(c && c.title) || ''} ${(c && (c.description || c.why)) || ''} ${(c && c.venue) || ''}`);
+}
+
 module.exports = {
-  BAR_TYPES, BAR_RESTO_TEXT_RE, OUTDOOR_RE,
-  isIndoorOnlyBarOrRestaurant, isDrinkingOnly, looksLikeBarOrRestaurant, venueGateVerdict
+  BAR_TYPES, BAR_RESTO_TEXT_RE, OUTDOOR_RE, HALLOWEEN_RE,
+  isIndoorOnlyBarOrRestaurant, isDrinkingOnly, looksLikeBarOrRestaurant, venueGateVerdict, isHalloweenThemed
 };
