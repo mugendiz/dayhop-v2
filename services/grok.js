@@ -656,6 +656,61 @@ JSON shape to return:
   };
 }
 
+/**
+ * Search-grounded price detail for one food/drink place — powers the detail
+ * panel's price section for the categories where Google's coarse 1-4
+ * price_level tier isn't enough to actually decide. Unlike placeFacts()
+ * (general knowledge, never searches), this uses callGrokSearch() — the
+ * same live web/X search already running in production for
+ * services/talkOfTown.js — so it can report real, sourced menu-price
+ * ranges the way a person would after checking the venue's own site or
+ * social posts. Same trust contract as everywhere else in this codebase:
+ * report only what a citation actually supports, never invent a number.
+ * Caller (routes/details.js) gates this to food/patios/couples categories
+ * and caches the result for 24h, so the ~13s/~US$0.12 search cost is paid
+ * once per venue, not once per view.
+ */
+async function placePriceSearch({ title, venue, location, city }) {
+  if (!title || !String(title).trim()) {
+    const err = new Error('A place title is required');
+    err.code = 'INVALID_INPUT';
+    throw err;
+  }
+
+  const input = JSON.stringify({ place: title, venue: venue || undefined, area: location || undefined, city: city || undefined });
+  const instructions = `You are a careful local food/drink price researcher for DayHop, a day-planning app. Search the web for this specific venue's real menu prices (its own website, social posts, review sites) — never guess or use general knowledge about "places like this".
+
+Hard rules:
+- Only report a number, range, or category you can actually find and cite. If you find nothing specific for this exact venue, return an empty "ranges" array and empty "summary" rather than inventing anything.
+- Never fabricate a dollar figure. A vague "affordable" or "upscale" description from a real source is fine; a specific number must come from a specific source.
+- Keep it current — prefer the venue's own site/menu page over old posts.
+
+Return ONLY this JSON, no markdown fences, no commentary:
+{"summary": "one sentence, e.g. 'Mains run $22-$45, cocktails $12-$22' — empty string if nothing found", "ranges": [{"label": "e.g. Appetizers, Mains, Drinks", "range": "e.g. $14-$22"}], "source_note": "one short phrase on where this came from, e.g. 'venue website menu' — empty string if nothing found"}`;
+
+  let result;
+  try {
+    const { data } = await callGrokSearch(input, { instructions, temperature: 0.1 });
+    result = data;
+  } catch (err) {
+    err.code = err.code || 'GROK_SEARCH_FAILED';
+    throw err;
+  }
+  if (!result || typeof result !== 'object') return null;
+  const ranges = Array.isArray(result.ranges)
+    ? result.ranges.slice(0, 6)
+      .filter(r => r && r.label && r.range)
+      .map(r => ({ label: String(r.label).slice(0, 60), range: String(r.range).slice(0, 40) }))
+    : [];
+  const summary = result.summary ? String(result.summary).slice(0, 240) : '';
+  if (!summary && !ranges.length) return null; // nothing found — caller shows no price section, never a fabricated one
+  return {
+    summary,
+    ranges,
+    source_note: result.source_note ? String(result.source_note).slice(0, 120) : ''
+  };
+}
+
 // ---------- Live-search completion (xAI Responses API) ----------
 // The chat-completions client above never searches: every request-path call
 // is grounded by OUR candidate pool. This one is for the weekly jobs that
@@ -711,6 +766,7 @@ module.exports = {
   buildDayPlan,
   replanPlan,
   placeFacts,
+  placePriceSearch, // search-grounded price detail (routes/details.js, food/patios/couples only)
   callGrok, // generic JSON-mode completion (used by services/newOpenings.js)
   getHealth // admin dashboard banner + /health operator view
 };

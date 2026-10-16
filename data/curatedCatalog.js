@@ -395,6 +395,30 @@ module.exports = [
     wow: true, seasonal: null
   },
   {
+    // Founder-flagged via Instagram (@amol.batra / @smartadventure), Sep 2026.
+    // Barrie area, ~88 km straight line from downtown Toronto, so it sits
+    // inside the 40 to 250 km "Worth the drive" band, and worth_trip earns
+    // that shelf on the flag alone. wow: true puts it on the hand-picked
+    // shelf, which the automatic rule would never do for a paid tour
+    // operator. Prices are the ones the operator published in Sep 2026
+    // (2 h $194, 3 h $235, full day $325); only the entry price is repeated
+    // here so a tier change does not silently make the card wrong.
+    // Coordinates are the Barrie area and are approximate, pending a Google
+    // Places confirmation on the next coords run.
+    id: 'cur-smart-adventure-dirt-biking',
+    title: 'Smart Adventure, dirt biking an hour north of Toronto',
+    category: 'adventures',
+    tags: ['dirt bike', 'motocross', 'trail riding', 'thrill', 'adventure',
+      'forest', 'lessons', 'barrie', 'day trip', 'worth the drive', 'outdoor'],
+    location: 'Near Barrie',
+    venue: 'Smart Adventure',
+    description: 'Learn to ride a 250cc dirt bike on forest singletrack with no licence needed. Move up to a Surron, or take out a BMW adventure bike if you are licensed. From $194 for two hours.',
+    cost_tier: '$$$', good_for_ages: 'teens and adults',
+    maps_url: mapsSearch('Smart Adventure dirt biking Barrie Ontario'),
+    lat: 44.42, lng: -79.65,
+    wow: true, seasonal: 'summer', worth_trip: true
+  },
+  {
     id: 'cur-ifly-indoor-skydiving',
     title: "iFLY indoor skydiving",
     category: 'adventures',
@@ -539,6 +563,25 @@ module.exports = [
     wow: true, seasonal: 'summer'
   },
   {
+    // Founder-flagged via Instagram (@chasethewaterfalls), Sep 2026. Verified:
+    // Grand River Conservation Authority, 161 Fall St S, Rockwood ON N0B 2K0
+    // (Guelph/Eramosa). ~62km straight-line / ~85-95km driving from Toronto,
+    // similar band to neighbouring Elora Gorge. Caves close Oct 16-Mar 31 for
+    // bat hibernation, swimming is a summer activity — seasonal: 'summer'
+    // matches the April-October convention used elsewhere in this file.
+    id: 'cur-rockwood-conservation-area',
+    title: "Rockwood Conservation Area — swimming holes, caves & giant potholes",
+    category: 'adventures',
+    tags: ['swimming', 'caves', 'potholes', 'hiking', 'canoe', 'nature', 'water', 'day trip'],
+    location: "Rockwood (Guelph/Eramosa, ~1h west of the GTA)",
+    venue: "Rockwood Conservation Area",
+    description: "A swimming beach, 200+ glacial potholes (one among the world's largest), limestone caves, and canoe rentals along the Eramosa River — free to explore beyond admission.",
+    cost_tier: '$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Rockwood Conservation Area 161 Fall Street South'),
+    lat: 43.6119, lng: -80.1490,
+    wow: true, seasonal: 'summer'
+  },
+  {
     id: 'cur-humber-paddle',
     title: "Paddle the Humber River from Old Mill",
     category: 'water',
@@ -561,6 +604,45 @@ module.exports = [
     cost_tier: '$', good_for_ages: '10+',
     maps_url: mapsSearch('Kelso Conservation Area mountain biking Milton'),
     wow: false, seasonal: 'summer'
+  },
+  {
+    // Founder-flagged via Instagram (@jenzjourneys), Sep 2026. Verified:
+    // Conservation Halton, 5234 Kelso Rd, Milton. Same site as
+    // cur-kelso-mtb but a different bookable experience (chairlift, not
+    // biking) - not a duplicate, same logic as cur-upla-stouffville next to
+    // cur-treetop-trekking. seasonal:'summer' maps to Apr-Oct per
+    // data/seasons.js isCatalogSeasonEligible, which correctly covers the
+    // fall-foliage chairlift season (weekends, through Thanksgiving) without
+    // inventing an unsupported 'fall' literal.
+    id: 'cur-kelso-chairlift',
+    title: "Kelso's escarpment chairlift — fall foliage from above",
+    category: 'adventures',
+    tags: ['chairlift', 'fall colours', 'escarpment', 'views', 'scenic', 'day trip'],
+    location: "Milton",
+    venue: "Kelso Conservation Area",
+    description: "A 2-way chairlift up the Niagara Escarpment for fall-foliage views — weekends through Thanksgiving. ~$10.50/pp entrance + ~$8/pp chairlift (cheaper booked online).",
+    cost_tier: '$$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Kelso Conservation Area chairlift Milton'),
+    lat: 43.5067, lng: -79.9408,
+    wow: true, seasonal: 'summer'
+  },
+  {
+    // Same site, winter identity: Glen Eden Ski & Snowboard Centre operates
+    // on Kelso's escarpment hill mid-Dec to mid-March (weather/snow
+    // permitting). Ticket pricing not independently verified (source reel
+    // only priced the fall chairlift) - cost_tier is a category estimate for
+    // a ski hill, not a sourced figure; description avoids stating a price.
+    id: 'cur-glen-eden-skiing',
+    title: "Glen Eden — a family ski hill on Kelso's escarpment",
+    category: 'adventures',
+    tags: ['skiing', 'snowboarding', 'winter', 'chairlift', 'beginner', 'escarpment', 'family'],
+    location: "Milton",
+    venue: "Glen Eden Ski & Snowboard Centre (Kelso Conservation Area)",
+    description: "Kelso's hill becomes a family ski/snowboard centre in winter — 3 chairlifts plus carpet lifts for beginners. Open mid-December to mid-March, weather and snow permitting.",
+    cost_tier: '$$$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Glen Eden Ski and Snowboard Centre Milton'),
+    lat: 43.5067, lng: -79.9408,
+    wow: true, seasonal: 'winter'
   },
   {
     id: 'cur-rattlesnake-climbing',
@@ -719,6 +801,27 @@ module.exports = [
     wow: false, seasonal: 'summer', worth_trip: true
   },
   {
+    // Winona, on the Stoney Creek side of Hamilton, roughly 60 km from
+    // downtown Toronto, so it sits inside the 40 to 250 km "Worth the drive"
+    // band. wow: true earns the hidden gems shelf, which the automatic rule
+    // would never give it: that rule only picks places with 25 to 100
+    // reviews, and a 100 year old estate winery has far more than that.
+    // Coordinates are the Winona / Highway 8 area and are approximate,
+    // pending a Google Places confirmation on the next coords run.
+    id: 'cur-puddicombe-estate',
+    title: 'Puddicombe Estate, the $9 orchard train ride',
+    category: 'kids',
+    tags: ['farm', 'orchard', 'train', 'kids', 'toddler', 'outdoor', 'fall',
+      'day trip', 'worth the drive', 'winery', 'apples', 'hidden gem'],
+    location: 'Winona, Stoney Creek',
+    venue: 'Puddicombe Estate Farms and Winery',
+    description: 'A little train runs through the orchards for about $9 a seat. Pick your own apples after, then the bakery and the estate winery for the grown ups.',
+    cost_tier: '$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Puddicombe Estate Farms and Winery Winona Ontario'),
+    lat: 43.2158, lng: -79.6386,
+    wow: true, seasonal: 'summer', worth_trip: true
+  },
+  {
     id: 'cur-riverdale-farm',
     title: "Riverdale Farm — a free farm inside the city",
     category: 'kids',
@@ -756,6 +859,64 @@ module.exports = [
   },
 
   // ---------- Culture & hidden gems ----------
+  {
+    // Founder-flagged via TikTok (@New Finds Canada), Oct 2026. 13629 Guelph
+    // Line, Milton, roughly 51 km straight line from downtown Toronto, so it
+    // sits inside the 40 to 250 km "Worth the drive" band and the post's
+    // "1 hour from Toronto" checks out. worth_trip earns that shelf on the
+    // flag alone; wow earns the hand-picked shelf, which the automatic rule
+    // would never give a museum with thousands of reviews.
+    //
+    // seasonal: 'summer' (months 4 to 10) is load-bearing, not decoration.
+    // The railway runs a season, not a year, so without it the feed would
+    // send a family an hour down Guelph Line in February to a closed gate.
+    //
+    // Only the adult price is repeated below, so a change to the youth,
+    // child or family tier cannot silently make the card wrong. Coordinates
+    // are the Guelph Line area and approximate, pending a Places confirm on
+    // the next coords run.
+    // Founder-flagged via TikTok (@inshortscanada, Oct 2026), the same clip
+    // that surfaced the Cheltenham and Dundas booking requirement. Tottenham,
+    // roughly 53 km straight line from downtown Toronto, inside the 40 to 250
+    // km band. Pairs with the Halton entry below: two heritage railways, one
+    // electric streetcar and one steam, both an easy drive out.
+    //
+    // seasonal: 'summer' (months 4 to 10) matches the excursion season. It
+    // also hides the December Christmas trains, which is the wrong answer in
+    // one direction but the safe one: a hidden excursion costs a booking, a
+    // shown one in February costs somebody a drive to a closed station.
+    //
+    // No prices here on purpose. The clip did not state them and the sandbox
+    // cannot reach the operator, so a made up fare would be exactly the kind
+    // of detail that destroys trust in a card. Coordinates are the Tottenham
+    // area and approximate, pending a Places confirm on the next coords run.
+    id: 'cur-south-simcoe-railway',
+    title: 'South Simcoe Railway, a steam train through Beeton Creek valley',
+    category: 'kids',
+    tags: ['steam train', 'railway', 'heritage', 'kids', 'family', 'ride',
+      'fall colours', 'tottenham', 'day trip', 'worth the drive', 'outdoor'],
+    location: 'Tottenham, Simcoe County',
+    venue: 'South Simcoe Railway',
+    description: 'Ride a restored steam train through the Beeton Creek valley behind a working 1883 station. Short run, big noise, and the engine crew will talk to anyone who asks.',
+    cost_tier: '$$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('South Simcoe Railway Tottenham Ontario'),
+    lat: 44.0217, lng: -79.8064,
+    wow: true, seasonal: 'summer', worth_trip: true
+  },
+  {
+    id: 'cur-halton-radial-railway',
+    title: 'Halton County Radial Railway, streetcars through the woods',
+    category: 'culture',
+    tags: ['museum', 'streetcar', 'train', 'railway', 'heritage', 'kids',
+      'family', 'fall colours', 'milton', 'day trip', 'worth the drive', 'outdoor'],
+    location: 'Guelph Line, Milton',
+    venue: 'Halton County Radial Railway',
+    description: 'Ride restored streetcars through 2 km of wooded track, then walk the museum and its 75 historic railway vehicles. Admission covers unlimited rides. Adults $26 plus HST.',
+    cost_tier: '$$', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Halton County Radial Railway 13629 Guelph Line Milton Ontario'),
+    lat: 43.53, lng: -79.99,
+    wow: true, seasonal: 'summer', worth_trip: true
+  },
   {
     id: 'cur-casa-loma',
     title: "Casa Loma — a real castle with secret tunnels",
@@ -815,6 +976,31 @@ module.exports = [
     cost_tier: '$$', good_for_ages: '4+',
     maps_url: mapsSearch('Black Creek Pioneer Village Toronto'),
     wow: false, seasonal: 'summer'
+  },
+  {
+    // Founder-flagged via Instagram, Sep 2026. Verified: City of
+    // St. Catharines heritage site, 2714 Decew Rd, free admission (donations
+    // welcome). Two gaps left open rather than guessed: (1) posted hours are
+    // limited (Tue/Thu/Sat/Sun 9am-2pm per multiple listings) and a 2024
+    // restoration closure (ended Nov 2024) shows the site does close for
+    // work sometimes — current 2026 hours not independently reconfirmed
+    // beyond the source reel's own comment, so the description says to
+    // check ahead rather than asserting daily hours; (2) lat/lng is an
+    // estimate near the adjoining Lake Gibson reservoir (DeCew Falls'
+    // water source), not a geocoded address match — close enough for
+    // day-trip distance banding (St. Catharines is unambiguously in band)
+    // but should be corrected to a precise Places geocode when convenient.
+    id: 'cur-morningstar-mill',
+    title: "Morningstar Mill — a working 1872 grist mill at DeCew Falls",
+    category: 'culture',
+    tags: ['history', 'mill', 'waterfall', 'hiking', 'free', 'heritage', 'niagara', 'day trip'],
+    location: "St. Catharines (Niagara Region)",
+    venue: "Morningstar Mill",
+    description: "A working 1872 grist mill on the Niagara Escarpment — waterwheel and millstones still run, free admission, backs onto the Bruce Trail at DeCew Falls. Limited hours — check ahead.",
+    cost_tier: 'free', good_for_ages: 'all ages',
+    maps_url: mapsSearch('Morningstar Mill 2714 Decew Road St. Catharines'),
+    lat: 43.1017, lng: -79.2278,
+    wow: false, seasonal: null, worth_trip: true
   },
   {
     id: 'cur-graffiti-alley',
@@ -1006,10 +1192,23 @@ module.exports = [
     id: 'cur-dundas-peak',
     title: "Dundas Peak & Tews Falls — the fall-colours lookout",
     category: 'general',
-    tags: ['trail', 'hike', 'lookout', 'waterfall', 'fall colours', 'escarpment', 'photo'],
+    tags: ['trail', 'hike', 'lookout', 'waterfall', 'fall colours', 'escarpment', 'photo',
+      'reservation required', 'book ahead'],
     location: "Spencer Gorge, Hamilton",
     venue: "Spencer Gorge Conservation Area",
-    description: "The trail past Tews Falls (Ontario's tallest ribbon waterfall) up to the cliff-edge lookout over Dundas Valley. Reserve ahead in leaf season — it's THE fall hike.",
+    // VERIFIED 2026-10-02 (Hamilton Conservation Authority). The original
+    // line here, "Reserve ahead in leaf season", was RIGHT and an earlier
+    // pass of this change was wrong to drop the qualifier: Spencer Gorge
+    // requires reservations for a defined fall window, Sep 26 to Nov 8 in
+    // 2026, not year round. Asserting "always book" would have been a
+    // different kind of false.
+    //
+    // What neither version had is the part that actually ruins a Saturday:
+    // booking is online only, there is no walk up, drive up or same day, and
+    // the window closes at midnight the night before. Someone deciding over
+    // breakfast has already missed it. That is the sentence worth the
+    // characters. Slots are 2 hours, or 4 for the full gorge.
+    description: "The trail past Tews Falls, Ontario's tallest ribbon waterfall, to the cliff edge over Dundas Valley. Fall visits need a time slot booked online by midnight the night before.",
     cost_tier: '$', good_for_ages: '6+',
     maps_url: mapsSearch('Dundas Peak Spencer Gorge Hamilton'),
     wow: true, seasonal: null
@@ -1051,16 +1250,36 @@ module.exports = [
     wow: true, seasonal: null
   },
   {
+    // VERIFIED 2026-10-02 (Ontario Heritage Trust, plus visitor reports of
+    // security checking tickets at the gate). Parking is reserved in advance
+    // through ParkPass, online only, with nothing sold on site. Charged per
+    // vehicle: about $10 to $18 plus HST on weekdays, $20 to $35 plus HST on
+    // weekends and holidays, by length of slot. Prices are deliberately NOT
+    // in the description, because a fare that moves is the detail most
+    // likely to go stale and make the card a lie.
+    //
+    // The booking line outranks the prose. A card that just said "Mars-red
+    // hills an hour away" sends a family on a two hour round trip for
+    // nothing, which is the exact failure the curated layer exists to stop.
     id: 'cur-cheltenham-badlands',
     title: "Cheltenham Badlands — Mars-red hills an hour away",
     category: 'general',
-    tags: ['badlands', 'lookout', 'photo', 'boardwalk', 'trail', 'geology', 'fall colours'],
+    tags: ['badlands', 'lookout', 'photo', 'boardwalk', 'trail', 'geology', 'fall colours',
+      'reservation required', 'book ahead'],
     location: "Caledon",
     venue: "Cheltenham Badlands",
-    description: "Bare, rippled red-shale hills that look airlifted from another planet. Boardwalk viewing, Bruce Trail access next door, and unbeatable golden-hour photos.",
-    cost_tier: '$', good_for_ages: 'all ages',
+    description: "Bare, rippled red shale that looks airlifted from another planet, seen from a boardwalk. Parking is booked online through ParkPass, per vehicle. Nothing is sold at the gate.",
+    cost_tier: '$$', good_for_ages: 'all ages',
     maps_url: mapsSearch('Cheltenham Badlands Caledon'),
-    wow: true, seasonal: null
+    // seasonal was null, which served this year round. The site CLOSES for
+    // winter and runs roughly May to mid November, so the feed was offering
+    // a January drive to Caledon to stand at a locked lot. 'summer' is
+    // months 4 to 10 (data/seasons.js): it clips the first half of November,
+    // which costs a visit, against showing a closed site for four months,
+    // which costs trust. Found while verifying the booking requirement.
+    // cost_tier moved from '$' to '$$': a weekend slot is $20 to $35 plus
+    // HST per vehicle, which is not a few dollars.
+    wow: true, seasonal: 'summer'
   },
   {
     id: 'cur-rouge-vista',

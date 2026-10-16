@@ -377,9 +377,16 @@ app.use('/api/track', (req, res, next) => {
 // Newsletter consent endpoints: subscribe is a cheap write but each new email
 // triggers a real outbound send (confirmation) — the limiter keeps a bot from
 // burning the Resend quota or spraying confirmations at strangers' inboxes.
+// 3/min, not 10. A person subscribes once; 10 POSTs a minute was only ever
+// headroom for a mistake. With outbound mail live it is also the ceiling on
+// how fast someone can cycle addresses through /subscribe, and every one of
+// those is a real send: Resend's free tier is 100/day (services/email.js),
+// so 10/min from a single IP exhausts a whole day's quota in ten minutes and
+// the next city guide somebody PAID for silently fails to arrive. GETs stay
+// exempt so confirm and unsubscribe links can never bounce.
 const newsletterLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 10,
+  max: 3,
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => req.method === 'GET', // confirm/unsubscribe links must never bounce
@@ -557,10 +564,25 @@ app.get('/.well-known/assetlinks.json', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'));
 });
 
-// SPA fallback — must stay last. Serves the hash-rewritten shell when the
-// build produced one (production), the source shell otherwise (dev).
-app.get('*', (req, res) => {
+// The SPA's actual home — no dedicated route existed for this before, so it
+// was silently relying on the catch-all below. Must stay explicit and above
+// it: the catch-all now answers 404, and '/' is the one path this shell
+// legitimately serves with 200. In-page state (panels, filters) rides
+// pushState/replaceState on this same path (see public/app.js) rather than
+// routing to a different one, so this is the only entry point that needs it.
+app.get('/', (req, res) => {
   res.sendFile(hasHashedShell ? hashedIndex : path.join(__dirname, 'public', 'index.html'));
+});
+
+// SPA fallback — must stay last. Every real page (/playbook, /guides,
+// /blog/:slug, /g/:shareId, the '/' route above, ...) has its own explicit
+// route, so anything reaching here is a genuinely unknown path — a typo, a
+// dead link, a bot probe — and must answer 404, not 200 (a "soft 404":
+// Google Search Console flags a 200-status unknown page as an indexing
+// problem, not a graceful catch-all). Still serves the shell so a client-
+// side deep link that only exists in app state doesn't dead-end visually.
+app.get('*', (req, res) => {
+  res.status(404).sendFile(hasHashedShell ? hashedIndex : path.join(__dirname, 'public', 'index.html'));
 });
 
 // Centralized error handler — catches anything thrown synchronously in routes.
@@ -758,6 +780,36 @@ if (process.env.RESEND_API_KEY && process.env.DIGEST_AUTO !== 'off') {
   console.log(`[digest] weekly schedule armed: Thursdays ${digestHour}:00-${digestHour}:59 Toronto`);
 }
 
+// Talk of the town newsletter: every MONDAY MORNING (Toronto time) — the
+// Sunday-midnight refresh above (services/talkOfTown.js) has already
+// verified this week's shelf by then, so Monday's send is always this
+// week's picks. Same subscriber list, same DST-proof clock-check pattern as
+// the Thursday digest. TOTT_DIGEST_HOUR overrides the hour (0-23 Toronto);
+// TOTT_DIGEST_AUTO=off disables the schedule (admin manual send still
+// works). Requires RESEND_API_KEY, else the tick is a silent no-op.
+if (process.env.RESEND_API_KEY && process.env.TOTT_DIGEST_AUTO !== 'off') {
+  const tottDigestHour = String(Math.min(23, Math.max(0, Number(process.env.TOTT_DIGEST_HOUR) || 9))).padStart(2, '0');
+  let lastTottDigestRun = 0;
+  const isMondayDigestHourToronto = () => {
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Toronto', weekday: 'short', hour: '2-digit', hour12: false
+      }).formatToParts(new Date()).map(p => [p.type, p.value])
+    );
+    return parts.weekday === 'Mon' && parts.hour === tottDigestHour;
+  };
+  setInterval(() => {
+    if (isMondayDigestHourToronto() && Date.now() - lastTottDigestRun > 12 * 60 * 60 * 1000) {
+      lastTottDigestRun = Date.now();
+      require('./services/heartbeat').record('tott_digest');
+      console.log('[tott-digest] Monday send window — building talk of the town');
+      require('./services/tottDigest').sendTottDigest()
+        .catch(err => console.warn('[tott-digest] weekly send failed:', err.message));
+    }
+  }, 20 * 60 * 1000).unref();
+  console.log(`[tott-digest] weekly schedule armed: Mondays ${tottDigestHour}:00-${tottDigestHour}:59 Toronto`);
+}
+
 // Panel roles bootstrap: guarantee exactly one owner row exists in
 // admin_users (seeds from ADMIN_EMAILS / the founder). Fail-soft.
 require('./services/outreach').ensureOwnerSeed()
@@ -792,6 +844,7 @@ if (process.env.RESEND_API_KEY) {
   let lastCadenceRun = 0;
   let lastReportRun = 0;
   let lastSocialRun = 0;
+  let lastSocialMonthRun = 0;
   const remindersSent = new Set();
   // One-off operator reminders, Toronto-date-keyed. Fire at 9 AM alongside
   // the other operator email slots; each key sends at most once per process
@@ -834,6 +887,20 @@ if (process.env.RESEND_API_KEY) {
       heartbeat.record('social_batch');
       require('./services/socialBatch').sendBatch()
         .catch(err => console.warn('[social] Tuesday batch failed:', err.message));
+    }
+    // Monthly social plan: on the 24th at 10, next month's calendar from the
+    // formula (data/socialFormula.js), with the CSV and the month's photos
+    // attached, so the photo posts can be scheduled in one sitting before
+    // the month starts. Grok drafts the captions when the key is set;
+    // without it the plan still sends, with plain captions flagged to fix.
+    // SOCIAL_MONTH=off disables it; /api/admin/social/month still works.
+    if (process.env.SOCIAL_MONTH !== 'off'
+        && parts.day === '24' && parts.hour === '10'
+        && Date.now() - lastSocialMonthRun > 12 * 60 * 60 * 1000) {
+      lastSocialMonthRun = Date.now();
+      heartbeat.record('social_month');
+      require('./services/socialMonth').sendMonth()
+        .catch(err => console.warn('[social-month] monthly plan failed:', err.message));
     }
     const today = `${parts.year}-${parts.month}-${parts.day}`;
     for (const r of REMINDERS) {

@@ -229,6 +229,10 @@ async function sitemap(req, res) {
   const all = await articles.listPublished();
   const urls = [
     { loc: `${base}/`, priority: '1.0' },
+    // The lead magnet every paid campaign links to (docs/ads.md) - it was
+    // wrongly noindexed until now and was never in the sitemap either,
+    // leaving Google to discover it via crawled links alone.
+    { loc: `${base}/playbook`, priority: '0.9' },
     { loc: `${base}/guides`, priority: '0.9' },
     { loc: `${base}/guides/richmond-hill`, priority: '0.8' },
     { loc: `${base}/blog`, priority: '0.8' },

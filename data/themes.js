@@ -83,8 +83,14 @@ const THEMES = [
   },
   {
     theme: 'nature',
+    // 'outdoors'/'outdoor' deliberately excluded: a generic setting word,
+    // not a nature-specific one - patios, water parks, and adventures are
+    // all "outdoors" too. Sitting in this list let it win matchThemes()
+    // ties it had no real claim to, e.g. "food and drinks outdoors"
+    // pulling nature/water candidates (incl. splash pads) into a query
+    // that meant patios/food.
     triggers: ['hike', 'hiking', 'trail', 'nature', 'forest', 'walk', 'walking', 'bike',
-      'biking', 'cycling', 'garden', 'gardens', 'picnic', 'outdoors', 'birdwatching'],
+      'biking', 'cycling', 'garden', 'gardens', 'picnic', 'birdwatching'],
     placesQueries: ['hiking trail conservation area', 'botanical garden', 'scenic lookout park'],
     categories: ['general', 'kids', 'adventures'],
     tags: ['hike', 'trail', 'nature', 'forest', 'garden', 'picnic', 'lookout', 'bike', 'bluffs']

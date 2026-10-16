@@ -184,6 +184,9 @@ async function fetchPlaces({ query, lat, lng, radiusMeters, maxResults, bucket =
         'places.photos',
         'places.businessStatus',
         'places.regularOpeningHours.weekdayDescriptions',
+        // Live open/closed — same Enterprise+Atmosphere SKU this call
+        // already pays for via outdoorSeating below, so this is free.
+        'places.currentOpeningHours.openNow',
         // Patio truth for the bar/restaurant outdoor-space gate
         // (candidates.js). NOTE: this field bills Text Search at the
         // Enterprise + Atmosphere SKU ($40/1k vs $35/1k Enterprise) —
@@ -312,7 +315,8 @@ function normalizePlace(p) {
     // true/false when Google knows, null when it doesn't — the candidate
     // pipeline's outdoor-space gate treats null as "no patio evidence".
     outdoor_seating: p.outdoorSeating ?? null,
-    open_hours: p.regularOpeningHours?.weekdayDescriptions || null
+    open_hours: p.regularOpeningHours?.weekdayDescriptions || null,
+    open_now: p.currentOpeningHours?.openNow ?? null
   };
 }
 

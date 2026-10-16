@@ -135,6 +135,38 @@ function tottSvc() {
   if (!_tott) _tott = require('../services/talkOfTown');
   return _tott;
 }
+// Monthly social calendar (services/socialMonth.js). GET previews a month
+// as JSON, plain text or the CSV to schedule from; captions are drafted by
+// Grok only with ?captions=1, so a preview reload never spends anything.
+// POST /send emails the plan with the photos attached, same as the 24th.
+router.get('/social/month', requireAdmin, async (req, res) => {
+  const sm = require('../services/socialMonth');
+  const month = String(req.query.month || sm.nextMonth());
+  try {
+    const plan = await sm.buildMonth(month, { useGrok: req.query.captions === '1' });
+    const format = String(req.query.format || 'json');
+    if (format === 'csv') {
+      res.set('Content-Type', 'text/csv; charset=utf-8');
+      res.set('Content-Disposition', `attachment; filename="dayhop-social-${month}.csv"`);
+      return res.send(sm.toCsv(plan));
+    }
+    if (format === 'text') return res.type('text/plain').send(sm.formatMonth(plan));
+    res.json(plan);
+  } catch (err) {
+    res.status(400).json({ error: 'BAD_MONTH', message: err.message });
+  }
+});
+
+router.post('/social/month/send', requireAdmin, async (req, res) => {
+  const sm = require('../services/socialMonth');
+  const month = String((req.body && req.body.month) || sm.nextMonth());
+  try {
+    res.json(await sm.sendMonth(new Date(), month));
+  } catch (err) {
+    res.status(400).json({ error: 'SEND_FAILED', message: err.message });
+  }
+});
+
 router.get('/tott', requireAdmin, async (req, res) => {
   try {
     res.json(await tottSvc().peek());
@@ -316,6 +348,11 @@ function digestSvc() {
   if (!_digest) _digest = require('../services/digest');
   return _digest;
 }
+let _tottDigest = null;
+function tottDigestSvc() {
+  if (!_tottDigest) _tottDigest = require('../services/tottDigest');
+  return _tottDigest;
+}
 
 // Subscriber counts + consent trail + last digest run.
 router.get('/newsletter', requireAdmin, async (req, res) => {
@@ -323,7 +360,7 @@ router.get('/newsletter', requireAdmin, async (req, res) => {
     const newsletter = require('../services/newsletter');
     const email = require('../services/email');
     const stats = await newsletter.stats();
-    res.json(Object.assign({ email: email.status(), digest: digestSvc().digestStatus() }, stats));
+    res.json(Object.assign({ email: email.status(), digest: digestSvc().digestStatus(), tott_digest: tottDigestSvc().tottDigestStatus() }, stats));
   } catch (err) {
     console.error('[admin] newsletter stats failed:', err.message);
     res.status(500).json({ error: 'NEWSLETTER_FAILED', message: 'Could not compute newsletter stats.' });
@@ -364,6 +401,43 @@ router.post('/newsletter/send', requireAdmin, async (req, res) => {
     res.json(await digestSvc().sendDigest());
   } catch (err) {
     console.error('[admin] digest send failed:', err.message);
+    res.status(500).json({ error: 'SEND_FAILED', message: err.message });
+  }
+});
+
+// ---------- talk of the town newsletter (Mondays) ----------
+// Same subscriber list and send mechanics as the weekend brief above — a
+// second weekly issue sourced from services/talkOfTown.js's live shelf.
+router.get('/newsletter/tott-preview', requireAdmin, async (req, res) => {
+  try {
+    const preview = await tottDigestSvc().previewTottDigest();
+    res.setHeader('Cache-Control', 'no-store');
+    if (req.query.json) return res.json({ subject: preview.subject, picks: preview.picks });
+    res.setHeader('X-Digest-Subject', encodeURIComponent(preview.subject));
+    res.send(preview.html);
+  } catch (err) {
+    console.error('[admin] tott digest preview failed:', err.message);
+    res.status(500).json({ error: 'PREVIEW_FAILED', message: `Could not build talk of the town: ${err.message}` });
+  }
+});
+
+router.post('/newsletter/tott-test-send', requireAdmin, async (req, res) => {
+  const to = typeof (req.body && req.body.email) === 'string' ? req.body.email.trim() : '';
+  if (!to) return res.status(400).json({ error: 'INVALID_INPUT', message: 'email is required.' });
+  try {
+    res.json(await tottDigestSvc().sendTottDigest({ testTo: to }));
+  } catch (err) {
+    console.error('[admin] tott digest test send failed:', err.message);
+    res.status(500).json({ error: 'SEND_FAILED', message: err.message });
+  }
+});
+
+// Manual full send (the scheduler does this automatically on Mondays).
+router.post('/newsletter/tott-send', requireAdmin, async (req, res) => {
+  try {
+    res.json(await tottDigestSvc().sendTottDigest());
+  } catch (err) {
+    console.error('[admin] tott digest send failed:', err.message);
     res.status(500).json({ error: 'SEND_FAILED', message: err.message });
   }
 });
@@ -451,7 +525,7 @@ router.post('/crm/:id/approve', requireAdmin, async (req, res) => {
   }
 });
 
-// FOUNDING50 one-clicker: reply came in, send the code on the same thread.
+// FOUNDING one-clicker: reply came in, send the code on the same thread.
 router.post('/crm/:id/send-code', requireStaff, async (req, res) => {
   try {
     res.json(await outreachSvc.sendCoupon(req.params.id, req.adminActor));

@@ -38,8 +38,35 @@ const SHELF_SIZE = 5;
 const ASK_FOR = 8;             // candidates requested per hub; verification thins them
 const PUBLISH_SIZE = SHELF_SIZE + 1; // one spare: the Top-5 layout lifts rank 1 into its slot 6
 const MAX_FAR = 2;             // of SHELF_SIZE, beyond FAR_KM
-const WINDOW_DAYS = 10;        // "this week": today → today + 10
-const MAX_START_AHEAD_DAYS = 14;
+// The live feeds promise a day out, not a road trip, and cap what they serve
+// at 80 km from the user (routes/surprise.js's DRIVE_MAX_KM says the same).
+// The weekly store itself reaches HUB_REACH_KM (180) on purpose: the Monday
+// newsletter is read at the kitchen table on a week's notice, where "worth
+// the drive to Prince Edward County" is the whole point. So the ceiling is
+// per-caller, not baked into the store — active() takes maxKm, the feeds
+// pass FEED_MAX_KM, and services/tottDigest.js deliberately passes nothing.
+const FEED_MAX_KM = 80;
+// How far ahead the weekly search looks. This is the number that decides
+// whether a festival is ever FOUND: pickerPrompt() asks Grok for happenings
+// "between ${today} and ${end}", and end is today + WINDOW_DAYS, so nothing
+// past this horizon is ever requested, however permissive the gates below
+// are. At 10 days the shelf could only ever report what was already upon us,
+// which is why a season of festivals went by without one appearing: a fair
+// announced three weeks out was invisible until the week it ran, by which
+// point a family had already made other plans.
+//
+// 21 days covers the next three weekends, which is the horizon a family
+// actually plans a day out on, without turning a "talk of the town" shelf
+// into a listings page.
+const WINDOW_DAYS = 21;
+// Derived, never a loose literal. This gate rejects a pick whose start is
+// further out than the search asked for, so if it is ever SMALLER than
+// WINDOW_DAYS the system quietly throws away the far edge of its own search
+// results: Grok is asked for 21 days, finds a fair on day 18, and shapePick
+// drops it as too_far_ahead. That is invisible from the outside and the two
+// numbers were already drifting (10 vs 14). Tying them together means the
+// window can be retuned in one place without opening that trap.
+const MAX_START_AHEAD_DAYS = WINDOW_DAYS + 3;
 const MAX_RUN_DAYS = 75;       // long-running installations are fine; year-round attractions are not "happening"
 const DEMAND_WINDOW_DAYS = 14; // a hub stays on the weekly schedule while it has rows this recent
 
@@ -231,7 +258,8 @@ Rules:
 - Every pick must INVOLVE THE OUTDOORS. No indoor-only events, no restaurants or cafés as such, nothing that is mainly about drinking (bars, pub crawls, taprooms, beer-only halls).
 - Mostly local: ${hub.local}. At most 2 of the ${ASK_FOR} may be standouts further out (up to about 2 hours' drive: ${hub.far}), and only if genuinely worth the trip.
 - Real, scheduled, and happening in this window. Skip anything that ended before ${today} and anything year-round.
-- Rank 1 = the single most talked-about pick this week.
+- Weight the near days heavily. Most picks should be on in the next few days, because that is what someone deciding tonight can act on. Include something further out only when it is genuinely worth planning for, like a named festival or fair, and never more than 3 of the ${ASK_FOR}.
+- Rank 1 = the single most talked-about pick happening right now, not the biggest event in the window.
 
 Return ONLY this JSON, no commentary:
 {"picks":[{"rank":1,"title":"","venue":"venue or street, as specific as possible","city":"","start_date":"YYYY-MM-DD","end_date":"YYYY-MM-DD","official_url":"https://...","why":"one sentence, max 160 chars, why locals are going","price":"free | $ | $$","family_ok":true,"outdoor":true}]}`;
@@ -404,7 +432,11 @@ const checkStaleOnBoot = () => checkStale({ reason: 'stale-on-boot' });
  * first then rank, ≤ HUB_REACH_KM from the user, at most MAX_FAR beyond
  * FAR_KM from the user. Candidate-shaped for routes/browse.js.
  */
-function active({ point, today = torontoToday(), limit = SHELF_SIZE, source } = {}) {
+function active({ point, today = torontoToday(), limit = SHELF_SIZE, source, maxKm = HUB_REACH_KM } = {}) {
+  // > 0, not just finite: Number(null) is 0, so a null ceiling would pass an
+  // isFinite check and silently empty the shelf. Same guard regionGate.js uses.
+  const reachN = Number(maxKm);
+  const reach = Number.isFinite(reachN) && reachN > 0 ? reachN : HUB_REACH_KM;
   if (!source) loadFromDb();
   const hub = hubFor(point);
   if (!hub) return [];
@@ -416,7 +448,7 @@ function active({ point, today = torontoToday(), limit = SHELF_SIZE, source } = 
   for (const r of list) {
     const e = r.entry;
     const km = e.lat != null ? haversineKm(point, { lat: e.lat, lng: e.lng }) : null;
-    if (km != null && km > HUB_REACH_KM) continue;
+    if (km != null && km > reach) continue;
     const isFar = km != null && km > FAR_KM;
     if (isFar && far >= MAX_FAR) continue;
     if (isFar) far++;
@@ -536,5 +568,8 @@ module.exports = {
   active, noteBrowse, refresh, refreshDue, checkStale, checkStaleOnBoot, needsRefresh,
   pin, retire, addManual, peek,
   // pure helpers for tests
-  shapePick, weekStart, toCandidate, SHELF_SIZE, MAX_FAR, FAR_KM
+  shapePick, weekStart, toCandidate, SHELF_SIZE, MAX_FAR, FAR_KM, FEED_MAX_KM,
+  // Exported so test/talkOfTown.test.js can pin the invariant between them:
+  // the gate must never be tighter than the window the search asks for.
+  WINDOW_DAYS, MAX_START_AHEAD_DAYS
 };

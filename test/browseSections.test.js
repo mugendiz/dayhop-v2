@@ -172,3 +172,53 @@ test('top5 layout under a shelter advisory keeps Top 5 indoor and drops the spon
   assert.ok(!ideas.some(i => i.sponsored), 'sponsor suppressed under shelter');
   assert.equal(sectionsOf(ideas)[1], 'In the spotlight 📣');
 });
+
+// ---------- "New & notable dining" is for dining ----------
+// Boulder Parc, a bouldering gym, shipped on the dining shelf: isFood
+// matched the word "cafe" in its description, because the text branch tests
+// for a MENTION of food, not for a food venue. Category stays authoritative;
+// only the loose fallback yields to isThrill.
+
+const climbingGym = {
+  id: 'gym-boulder-parc', source: 'google_places', title: 'Boulder Parc',
+  category: 'general', description: 'Bouldering gym with a cafe and a patio',
+  // 25 km keeps both fixtures out of "Within 15 minutes", which takes
+  // first match and would otherwise claim them before dining is reached.
+  location: 'Toronto', distance_km: 25, rating: 4.7, rating_count: 400, wow: false
+};
+const realRestaurant = {
+  id: 'dine-real', source: 'google_places', title: 'Sixteen Tables',
+  category: 'food', description: 'Tasting menu restaurant', location: 'Toronto',
+  distance_km: 25, rating: 4.6, rating_count: 500, wow: false
+};
+
+const diningShelf = ideas =>
+  ideas.filter(i => i.section === 'New & notable dining 🍽️').map(i => i.id);
+
+test('a climbing gym that mentions its cafe is not new & notable dining', () => {
+  for (const mode of ['rr', 'adventure']) {
+    const ideas = buildSections([...CANDIDATES, climbingGym, realRestaurant],
+      { near: true, weather: null, part: 'afternoon', mode, advisories: [], dateWindow: SUMMER });
+    assert.ok(!diningShelf(ideas).includes('gym-boulder-parc'),
+      `Boulder Parc reached the dining shelf in ${mode} mode`);
+  }
+});
+
+test('a real restaurant still reaches the dining shelf', () => {
+  const ideas = buildSections([...CANDIDATES, climbingGym, realRestaurant],
+    { near: true, weather: null, part: 'afternoon', mode: 'rr', advisories: [], dateWindow: SUMMER });
+  assert.ok(diningShelf(ideas).includes('dine-real'),
+    'the guard must not cost a genuine restaurant its slot');
+});
+
+test('category food wins over a thrill word in the name', () => {
+  // "Surf" is thrill vocabulary. A restaurant carrying it is still dining,
+  // because category is authoritative and never second-guessed.
+  const surfTurf = Object.assign({}, realRestaurant, {
+    id: 'dine-surf', title: 'Surf and Turf Chophouse'
+  });
+  const ideas = buildSections([...CANDIDATES, surfTurf],
+    { near: true, weather: null, part: 'afternoon', mode: 'rr', advisories: [], dateWindow: SUMMER });
+  assert.ok(diningShelf(ideas).includes('dine-surf'),
+    'a food-category restaurant must survive a thrill word in its title');
+});

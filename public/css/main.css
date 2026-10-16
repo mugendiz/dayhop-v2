@@ -194,6 +194,33 @@ button, .filter-chip {
   min-width: 0;
 }
 
+/* Wordmark over tagline. Stacked rather than inline so the tagline never
+   competes with the location tag for width on a phone, and baseline-aligns
+   the location tag to the wordmark, not to the tagline. */
+.brand-lockup {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.05;
+  min-width: 0;
+}
+.logo-tagline {
+  margin-top: 3px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--moss);
+  white-space: nowrap;
+}
+/* Phones: the nav pills take most of the row, so on one line the tagline was
+   being cut off at "GET OUT THERE". Break it at the full stop instead, as
+   two deliberate lines, which also reads more like a lockup than a caption. */
+@media (max-width: 480px) {
+  .logo-tagline { font-size: 9.5px; letter-spacing: 0.05em; }
+  .logo-tagline > span { display: block; }
+}
+
 .logo {
   font-family: var(--display);
   font-weight: 700;
@@ -1330,6 +1357,8 @@ button.date-clear-btn { padding: 13px 4px; }
 .card-chip--date { background: rgba(255,182,39,0.16); color: var(--ink); }
 .card-chip--advisory { background: rgba(217,119,6,0.14); color: #8a4b04; font-weight: 600; }
 .card-chip--near { background: rgba(255,107,74,0.12); color: var(--coral-dark); font-weight: 600; }
+.card-chip--open { background: rgba(63,111,92,0.14); color: var(--moss); font-weight: 600; }
+.card-chip--closed { background: var(--paper-dim); color: var(--ink-soft); }
 
 /* Location dropdown action rows (use-my-location / free-text search). */
 .location-option--geo .opt-city { color: var(--coral-dark); font-weight: 500; }
@@ -1474,8 +1503,8 @@ button.date-clear-btn { padding: 13px 4px; }
 .ghost-btn:hover { background: var(--paper-dim); }
 .ghost-btn:active { transform: scale(0.97); }
 
-/* Prompt-box action row: Surprise me to the left of the primary CTA, both
-   hugging the box's bottom-right corner. Equal heights via stretch. */
+/* Prompt-box action row: Plan my day and Surprise me side by side, mic last,
+   the group hugging the box's bottom-right corner. Equal heights via stretch. */
 .prompt-actions {
   display: flex;
   justify-content: flex-end;
@@ -1485,14 +1514,30 @@ button.date-clear-btn { padding: 13px 4px; }
 }
 .prompt-actions .primary-btn { align-self: auto; }
 
+/* Phones: the three controls total ~366px at desktop padding, which is wider
+   than the box on a 390px screen, so the mic wrapped onto a line of its own.
+   Tighten the gap and the horizontal padding instead — the mic belongs beside
+   the two buttons, not under them, and 44px of touch target is untouched. */
+@media (max-width: 480px) {
+  .prompt-actions { flex-wrap: nowrap; gap: 7px; }
+  .prompt-actions .primary-btn,
+  .prompt-actions .prompt-surprise-btn {
+    flex: 0 1 auto;
+    min-width: 0;
+    padding-left: 11px;
+    padding-right: 11px;
+    white-space: nowrap;
+  }
+}
+
 /* ---------- Voice prompt (mic) ----------
-   Circular control at the LEFT of the prompt action row: thumb-reachable on
-   mobile, and visually separate from the two commit buttons so nobody taps it
-   expecting a search. margin-right:auto pushes Surprise/Plan to the right
-   edge without changing their layout. */
+   Circular control at the RIGHT end of the prompt action row, after the two
+   commit buttons: still thumb-reachable on mobile, still visually distinct
+   (round, ghost) so nobody taps it expecting a search. No margin-right:auto
+   any more — the row's flex-end alignment keeps the whole group at the
+   bottom-right corner, and the mic is simply last in DOM order. */
 .mic-btn {
   position: relative;
-  margin-right: auto;
   flex: 0 0 auto;
   width: 44px;               /* 44px: the minimum comfortable touch target */
   height: 44px;
@@ -2055,10 +2100,90 @@ button.date-clear-btn { padding: 13px 4px; }
 
 /* Detail panel */
 .detail-why { font-size: 15px; line-height: 1.6; margin: 14px 0 18px; color: var(--ink-soft); }
-.detail-grid { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 14px; }
-.detail-grid dt { font-family: var(--mono); font-size: 11px; text-transform: uppercase; color: var(--ink-soft); align-self: center; }
-/* Values can be pasted URLs/addresses — wrap anywhere, never stretch the panel. */
-.detail-grid dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+
+/* Hero: photo-forward, category + wow flag overlaid on a gradient rather
+   than sitting as separate text lines below a small thumbnail. */
+.detail-hero {
+  position: relative;
+  margin: 0 0 14px;
+  height: 220px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--paper-dim);
+}
+.detail-hero-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.detail-hero-gradient {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 60%;
+  background: linear-gradient(to top, rgba(16, 42, 46, 0.65), rgba(16, 42, 46, 0));
+  pointer-events: none;
+}
+.detail-hero-category {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.detail-hero-wow {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--glass-strong);
+  backdrop-filter: var(--blur);
+  color: var(--ink);
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-soft);
+}
+
+/* "At a glance" chips — rating/cost lead, matching what a Gemini-style
+   list leads with, in DayHop's own pill/paper visual language. */
+.detail-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.detail-chip {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--paper-dim);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  padding: 5px 11px;
+  white-space: nowrap;
+}
+.detail-chip--rating { color: var(--coral-dark); border-color: rgba(255, 107, 74, 0.35); background: rgba(255, 107, 74, 0.08); }
+.detail-chip--date { color: var(--moss); border-color: rgba(63, 111, 92, 0.3); background: rgba(63, 111, 92, 0.08); }
+
+/* Photo attribution under the detail hero. Required for CC BY / BY-SA
+   images, so it must be legible, but it is housekeeping, not content:
+   small, muted, and never competing with the place's name. */
+.detail-photo-credit {
+  margin: 6px 2px 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink-soft, #5a6b6e);
+  opacity: 0.85;
+}
+.detail-photo-credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
+.detail-venue-line {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
 
 /* Detail enrichment: photos strip, live status, facts, hours */
 .detail-more { margin-top: 18px; }
@@ -2080,10 +2205,11 @@ button.date-clear-btn { padding: 13px 4px; }
 }
 .detail-gallery img {
   flex: 0 0 auto;
-  width: 150px;
-  height: 104px;
+  width: 168px;
+  height: 118px;
   object-fit: cover;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
   scroll-snap-align: start;
 }
 
@@ -2129,6 +2255,24 @@ button.date-clear-btn { padding: 13px 4px; }
   padding: 10px 12px;
   margin: 0 0 12px;
 }
+
+.detail-price-summary { font-size: 13.5px; line-height: 1.6; color: var(--ink-soft); margin-bottom: 8px; }
+.detail-price-ranges {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+}
+.detail-price-ranges li {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.detail-price-ranges li:last-child { border-bottom: none; }
+.detail-price-label { color: var(--ink-soft); }
+.detail-price-range { font-weight: 600; }
+.detail-price-source { font-size: 11.5px; color: var(--ink-soft); opacity: .75; margin: 0 0 12px; }
 
 .detail-hours { margin-bottom: 12px; }
 .detail-hours summary {
@@ -2354,7 +2498,31 @@ button.date-clear-btn { padding: 13px 4px; }
   .card-feed { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .card-feed::before { display: none; }
   .idea-card::before { display: none; }
+
+  /* A card left alone in the grid's last row (public/app.js's
+     widenOddTrailingCards) spans both columns and switches to a photo-left,
+     detail-right layout instead of sitting next to an empty cell. */
+  .idea-card--wide {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(220px, 320px) 1fr;
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "photo body" "photo actions";
+    gap: 6px 20px;
+  }
+  .idea-card--wide .card-photo {
+    grid-area: photo;
+    margin: -18px 0 -14px -18px;
+    height: auto;
+    min-height: 220px;
+    border-radius: 17px 0 0 17px;
+  }
+  .idea-card--wide .card-body { grid-area: body; align-self: start; }
+  .idea-card--wide .card-actions { grid-area: actions; align-self: end; }
 }
+
+/* More of the story shows on a widened card regardless of viewport — it's
+   the one card in its row with real estate to spare, everywhere it appears. */
+.idea-card--wide .why { -webkit-line-clamp: 4; }
 
 @media (max-width: 480px) {
   .panel-sheet { width: 100%; padding: 20px 18px; }

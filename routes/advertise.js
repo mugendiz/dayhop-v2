@@ -55,7 +55,7 @@ footer{border-top:1px solid var(--line);margin-top:50px;padding-top:22px;font-si
 function pageHtml() {
   return `<!DOCTYPE html><html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Advertise on DayHop — reach GTA families while they plan their weekend</title>
+<title>Advertise on DayHop: reach GTA families while they plan their weekend</title>
 <meta name="description" content="Sponsored placements put your venue in front of GTA families at the exact moment they decide what to do this weekend. Flat monthly pricing, honest labeling, real reporting.">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
 <style>${STYLES}</style>
@@ -64,7 +64,7 @@ function pageHtml() {
 <nav class="topbar"><a class="logo" href="/">DayHop</a><a class="cta" href="/">See the planner →</a></nav>
 
 <h1>Be the answer to “what are we doing this weekend?”</h1>
-<p class="lede">DayHop is where GTA families plan their days out — real venues, live weather,
+<p class="lede">DayHop is where GTA families plan their days out. Real venues, live weather,
 honest closure advisories, and a Thursday-morning weekend brief. A sponsored placement puts
 your venue in front of them at the exact moment they're deciding, not scrolling.</p>
 
@@ -91,12 +91,12 @@ else. Your listing lives inside recommendations people actually believe.</div>
     <li>First right of refusal on your category</li></ul></div>
 </div>
 <p style="font-size:13.5px;color:var(--ink-soft)">Annual prepay: 2 months free. Inventory is
-deliberately capped — one sponsored slot per plan, one per weekend brief — so placements stay
+deliberately capped: one sponsored slot per plan, one per weekend brief. That keeps placements
 scarce and effective.</p>
 
-<div class="founding"><strong>🎉 Founding partner offer — first 5 venues:</strong> Spotlight for
+<div class="founding"><strong>🎉 Founding partner offer, first 5 venues:</strong> Spotlight for
 <strong>$99/mo</strong> with code <strong>FOUNDING</strong> at checkout, locked in until your monthly
-report shows 500+ families seeing your venue — then list price with 30 days' notice, or cancel.
+report shows 500+ families seeing your venue. After that, list price applies, with 30 days' notice, or cancel.
 We're early and you're paying for the audience you actually get. In exchange: honest feedback and
 permission to share your results. Month-to-month, cancel anytime.</div>
 
@@ -107,7 +107,7 @@ permission to share your results. Month-to-month, cancel anytime.</div>
   <div><label for="inq-email">Email</label><input id="inq-email" type="email" required maxlength="120" placeholder="you@yourvenue.ca"></div>
   <div><label for="inq-tier">Interested in</label><select id="inq-tier">
     <option>Featured ($99/mo)</option><option selected>Spotlight ($299/mo)</option>
-    <option>Anchor ($499/mo)</option><option>Not sure yet — tell me more</option></select></div>
+    <option>Anchor ($499/mo)</option><option>Not sure yet, tell me more</option></select></div>
   <div><label for="inq-msg">Anything we should know? (optional)</label><textarea id="inq-msg" maxlength="1000" placeholder="Season, target audience, what's worked for you before…"></textarea></div>
   <button type="submit">Request a callback</button>
   <p class="msg" id="inq-msg-out" role="status" aria-live="polite"></p>
@@ -126,8 +126,8 @@ venue:document.getElementById('inq-venue').value,name:document.getElementById('i
 email:document.getElementById('inq-email').value,tier:document.getElementById('inq-tier').value,
 message:document.getElementById('inq-msg').value,
 attrib:(window.dayhopAttrib&&window.dayhopAttrib())||undefined})})
-.then(function(r){if(!r.ok)throw new Error();m.textContent='Got it — we\\u2019ll be in touch within one business day.';m.style.color='#12855C';f.querySelectorAll('input,select,textarea,button').forEach(function(el){el.disabled=true;});})
-.catch(function(){m.textContent='Something went wrong — please email us directly instead.';b.disabled=false;});});})();
+.then(function(r){if(!r.ok)throw new Error();m.textContent='Got it. We\\u2019ll be in touch within one business day.';m.style.color='#12855C';f.querySelectorAll('input,select,textarea,button').forEach(function(el){el.disabled=true;});})
+.catch(function(){m.textContent='Something went wrong. Please email us directly instead.';b.disabled=false;});});})();
 </script>
 </body></html>`;
 }
@@ -162,13 +162,16 @@ router.post('/inquiry', express.json({ limit: '10kb' }), async (req, res) => {
   sendEmail({
     to: ADMIN_EMAIL,
     subject: `💰 Sponsor inquiry: ${lead.venue} (${lead.tier || 'no tier'})`,
-    html: `<p><strong>${esc(lead.venue)}</strong> — ${esc(lead.tier)}</p>
+    html: `<p><strong>${esc(lead.venue)}</strong>: ${esc(lead.tier)}</p>
 <p>${esc(lead.name)} &lt;${esc(lead.email)}&gt;</p>
 <p>${esc(lead.message) || '(no message)'}</p>
 ${utm ? `<p style="color:#666">Came via: ${esc(JSON.stringify(utm))}</p>` : ''}`,
-    text: `${lead.venue} — ${lead.tier}\n${lead.name} <${lead.email}>\n\n${lead.message || '(no message)'}`
+    text: `${lead.venue}: ${lead.tier}\n${lead.name} <${lead.email}>\n\n${lead.message || '(no message)'}`
   }).catch(() => {});
   res.json({ ok: true });
 });
 
 module.exports = router;
+// Exported for the house-style test (test/copyStyle.test.js) — pure, no
+// data dependency.
+module.exports.pageHtml = pageHtml;

@@ -22,6 +22,11 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const CACHE_MAX_ENTRIES = 500;
 const cache = new Map();
 
+// Categories where Google's price_level (free/$/$$/$$$) is too coarse to
+// actually help someone decide — matches data/themes.js's 'food', 'patios',
+// and 'couples' theme categories.
+const PRICE_SEARCH_CATEGORIES = new Set(['food', 'patios', 'couples']);
+
 // L2 behind the memory map: the process restarts constantly on the free tier
 // (deploys, spin-down), so the "24h" memory cache was cold far more often
 // than 24h implies. public.place_details persists the same payloads keyed
@@ -80,7 +85,14 @@ router.post('/', async (req, res) => {
     return res.json(persisted.payload);
   }
 
-  const [place, facts] = await Promise.all([
+  // Search-grounded pricing only for categories where Google's coarse 1-4
+  // price_level tier genuinely isn't enough to decide (food/drink venues) —
+  // it's a real cost (~13s, ~US$0.12) per uncached venue, so it's gated
+  // rather than run for every idea. Result is cached alongside place/facts,
+  // so that cost is paid once per venue, not once per view.
+  const wantsPriceSearch = PRICE_SEARCH_CATEGORIES.has(category);
+
+  const [place, facts, priceDetail] = await Promise.all([
     lookupPlace({ id, source, title, venue, location, city }).catch(err => {
       console.warn('[details] place lookup failed:', err.message);
       return null;
@@ -88,11 +100,17 @@ router.post('/', async (req, res) => {
     grok.placeFacts({ title, venue, location, city, category }).catch(err => {
       console.warn('[details] facts generation failed:', err.message);
       return null;
-    })
+    }),
+    wantsPriceSearch
+      ? grok.placePriceSearch({ title, venue, location, city }).catch(err => {
+        console.warn('[details] price search failed:', err.message);
+        return null;
+      })
+      : Promise.resolve(null)
   ]);
 
-  const payload = { place, facts };
-  if (place || facts) {
+  const payload = { place, facts, priceDetail };
+  if (place || facts || priceDetail) {
     if (cache.size >= CACHE_MAX_ENTRIES) cache.delete(cache.keys().next().value);
     cache.set(key, { at: Date.now(), payload });
     persist(key, payload); // fire-and-forget

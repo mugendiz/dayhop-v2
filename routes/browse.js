@@ -14,7 +14,7 @@ const analytics = require('../services/analytics');
 const { normalizeMode } = require('../services/grok');
 const { gatherCandidates, sanitizeCoords, fallbackIdea, parseDateWindow, DEFAULT_CITY, GTA_TOWNS } = require('../services/candidates');
 const { enrichIdeaImages } = require('../services/ideaPhotos');
-const { isAroundSpotlight, formatRange, torontoToday } = require('../services/spotlight');
+const { isAroundSpotlight, formatRange, torontoToday, addDays } = require('../services/spotlight');
 const { getSeasonContext } = require('../data/seasons');
 const { haversineKm } = require('../services/relevance');
 const { getSkyTonight } = require('../services/skyConditions');
@@ -110,7 +110,12 @@ router.post('/', async (req, res) => {
     // noteBrowse() arms a one-off background refresh for a hub that has
     // never been browsed from; it never delays this response.
     const point = coords || (geo && geo.lat != null && geo.lng != null ? { lat: geo.lat, lng: geo.lng } : null);
-    const tott = talkOfTown.active({ point, limit: 6 });
+    // maxKm: the front page serves a day out, not a road trip. The weekly
+    // store reaches 180 km and the Monday newsletter still gets all of it
+    // (services/tottDigest.js passes no ceiling) — a week's notice is what
+    // makes "worth the drive" worth reading. A feed you scroll on Saturday
+    // morning is not.
+    const tott = talkOfTown.active({ point, limit: 6, maxKm: talkOfTown.FEED_MAX_KM });
     talkOfTown.noteBrowse(point);
     const layout = feedLayout();
 
@@ -367,8 +372,18 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
 
   const text = c => `${c.title || ''} ${c.description || ''} ${c.category || ''}`;
   const hasDate = c => Boolean(c.date);
+  // Thrill is classified FIRST because isFood defers to it: the food regex
+  // matches a MENTION of food anywhere in title/description/category, and
+  // half the climbing gyms in the GTA describe a cafe or a patio. That put
+  // Boulder Parc on "New & notable dining". Category stays authoritative
+  // (a real restaurant is category food/patios and is never second-guessed);
+  // only the loose text fallback has to yield. Same "thrill wins ties" rule
+  // the mode classifiers below already use.
+  const isThrill = c => c.category === 'adventures' ||
+    /zipline|zip.?lin|treetop|aerial|ropes course|climb|boulder|mountain bik|bmx|kart|paintball|axe|trampoline|skydiv|parasail|paraglid|bungee|jet ski|rafting|atv|quad bik|off.?road|snowboard|toboggan|laser tag|wakeboard|surf|adrenaline|thrill/i.test(text(c));
   const isFood = c => ['food', 'patios'].includes(c.category) ||
-    /restaurant|café|cafe|coffee|brunch|breakfast|bakery|food|dining|patio|brewery|winery|dessert|ice cream|pizza|ramen|taco|bistro|eatery/i.test(text(c));
+    (!isThrill(c) &&
+      /restaurant|café|cafe|coffee|brunch|breakfast|bakery|food|dining|patio|brewery|winery|dessert|ice cream|pizza|ramen|taco|bistro|eatery/i.test(text(c)));
   // Dining worth a special trip: newly opened, or 4.4+ with a real crowd
   // behind the rating. Both modes get this shelf — adventurers eat too.
   const isNotableDining = c => isFood(c) &&
@@ -382,10 +397,9 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   // the curated catalog.
   const isGem = c => c.wow === true ||
     (c.rating != null && c.rating >= 4.6 && (c.rating_count || 0) >= 25 && (c.rating_count || 0) <= 100);
-  // The two mode personalities. Thrill wins ties (a climbing gym is a thrill,
-  // not a calm indoor spot), so calm explicitly excludes thrill matches.
-  const isThrill = c => c.category === 'adventures' ||
-    /zipline|zip.?lin|treetop|aerial|ropes course|climb|boulder|mountain bik|bmx|kart|paintball|axe|trampoline|skydiv|parasail|paraglid|bungee|jet ski|rafting|atv|quad bik|off.?road|snowboard|toboggan|laser tag|wakeboard|surf|adrenaline|thrill/i.test(text(c));
+  // The two mode personalities. Thrill (hoisted above isFood) wins ties: a
+  // climbing gym is a thrill, not a calm indoor spot, so calm explicitly
+  // excludes thrill matches.
   const isCalm = c => !isThrill(c) &&
     /garden|botanical|arboretum|trail|conservation|lookout|viewpoint|scenic|beach|waterfront|boardwalk|spa|sauna|springs|nature|greenhouse|gallery|museum|tea|picnic|sunset|quiet|peaceful|stroll/i.test(text(c));
 
@@ -436,8 +450,71 @@ function buildSections(candidates, { near, weather, part, mode, advisories, spot
   const takeTalkOfTown = () => {
     if (tottTaken) return;
     tottTaken = true;
-    take('Talk of the town 🔥', tottList, 5);
+    take('Talk of the town 🔥', tottList.length ? tottList : tottFallback(), 5);
   };
+
+  // The shelf had exactly one supply line, the weekly Grok search, and no
+  // floor under it. When a refresh fails or its picks all finish mid-week the
+  // shelf does not degrade, it vanishes, and nothing on the page says why.
+  // Observed live on 2026-10-01 and 2026-10-02: zero picks served, in the
+  // month with the most going on all year.
+  //
+  // The floor is built from candidates the request already fetched and
+  // verified at source (Ticketmaster, Eventbrite, the civic calendars): real,
+  // dated, outdoor things inside the same 10-day window the weekly store
+  // uses. Nothing is invented and no date is guessed, which is the only way
+  // a fallback can be allowed to wear this shelf's name.
+  //
+  // Indoor listings are excluded on purpose. The dated pool in October is
+  // mostly gallery exhibits, and "Talk of the town" promising a room of
+  // paintings is how a shelf loses its meaning. Those still reach the feed
+  // through the dated shelf below, which runs after this one and cannot
+  // repeat a card the used-Set already holds.
+  //
+  // Three is the floor: a one or two card shelf under this headline reads as
+  // broken, so below that the shelf is skipped and the cards flow on to the
+  // dated shelf exactly as they do today.
+  // The floor's own reading of "outdoor", stricter than isOutdoor() on
+  // purpose. isOutdoor matches fragments anywhere in the copy ("park" in
+  // "parking" or "Parkdale", "nature" in "signature"), which is harmless on
+  // a broad shelf and wrong under this headline: on 2026-10-15 the floor
+  // served "Kids Coding", a virtual architecture competition and a gallery
+  // show as the talk of the town. So here the outdoor evidence has to be a
+  // whole word in the title, venue or location (or an unmistakable phrase
+  // in the description), and anything whose title or venue says class,
+  // competition, exhibition or virtual is out, whatever its copy says.
+  const FLOOR_WHERE_RE = /\b(outdoors?|open[- ]air|parks?|trails?|gardens?|beach(es)?|waterfront|harbour(front)?|islands?|farms?|orchards?|pumpkins?|corn maze|hayrides?|festival|fair|parade|fireworks|market|ravine|conservation|forest|hik(e|es|ing)|lookout|falls|paddl(e|ing)|kayak(ing)?|skat(e|ing)|toboggan(ing)?|street party|block party|square)\b/i;
+  const FLOOR_DESC_RE = /\b(outdoors?|open[- ]air|in the park|trails?|beach|waterfront|farm|pumpkin patch|corn maze|hayrides?|fireworks|parade)\b/i;
+  const FLOOR_NOT_EVENT_RE = /\b(virtual|online|webinar|zoom|exhibit(s|ion)?|workshops?|class(es)?|coding|lectures?|seminars?|competition|conference|course|book club|storytime)\b/i;
+  const floorOutdoor = c => {
+    const where = `${c.title || ''} ${c.venue || ''} ${c.location || ''}`;
+    const evidence = ['water', 'adventures'].includes(c.category) || FLOOR_WHERE_RE.test(where) || FLOOR_DESC_RE.test(c.description || '');
+    return evidence && !FLOOR_NOT_EVENT_RE.test(where);
+  };
+
+  function tottFallback() {
+    const today = torontoToday();
+    // Borrowed from the store rather than written again here. This was a
+    // hard-coded 10 with a comment claiming it matched WINDOW_DAYS, which
+    // stopped being true the moment the window moved to 21: the floor and
+    // the real shelf would have disagreed about what "this week" means,
+    // silently and in the floor's favour.
+    const horizon = addDays(today, talkOfTown.WINDOW_DAYS);
+    // Cards an earlier shelf already showed are not counted: take() would
+    // skip them anyway, and counting them is how a "3 or nothing" floor
+    // still put a two card shelf on the page.
+    const picks = pool.filter(c => {
+      if (used.has(c.id) || !hasDate(c)) return false;
+      const start = String(c.date).slice(0, 10);
+      // Still on, by its END date. Filtering on start alone dropped any run
+      // longer than a day the morning after it opened, so a pop-up booked
+      // for a month showed for one day of it. Falls back to start, so a
+      // one-day event is unaffected.
+      const end = String(c.date_end || c.date).slice(0, 10);
+      return end >= today && start <= horizon && floorOutdoor(c) && !isIndoor(c);
+    });
+    return picks.length >= 3 ? picks : [];
+  }
 
   // Season shelf: spring through fall it's trails ("push trails forward" is
   // the product promise those months), winter it's OUTDOOR winter — skating
@@ -647,9 +724,11 @@ function toBrowseIdea(c) {
     maps_url: c.maps_url || null,
     website: c.website || null,
     rating: c.rating != null ? c.rating : null,
+    open_now: c.open_now != null ? c.open_now : null,
     price_from: c.price_from != null ? c.price_from : null,
     currency: c.currency || null,
     image_url: c.image_url || null,
+    image_credit: c.image_credit || undefined,
     date: c.date || null,
     date_end: c.date_end && c.date_end !== c.date ? c.date_end : undefined,
     tott: c.tott === true || undefined,
@@ -703,3 +782,6 @@ module.exports.warmDefaultPool = warmDefaultPool;
 module.exports.cacheKey = cacheKey;
 module.exports.syntheticPrompt = syntheticPrompt;
 module.exports.daypartOrder = daypartOrder;
+// Exported for the card-badge invariant test (test/ideaOpenNow.test.js) —
+// pure function over a candidate object, no network.
+module.exports.toBrowseIdea = toBrowseIdea;

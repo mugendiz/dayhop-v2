@@ -317,9 +317,11 @@ function mergeWithCandidates(selectedIdeas, candidates) {
         maps_url: original.maps_url || null,
         website: original.website || null,
         rating: original.rating != null ? original.rating : null,
+        open_now: original.open_now != null ? original.open_now : null,
         price_from: original.price_from != null ? original.price_from : null,
         currency: original.currency || null,
         image_url: original.image_url || null,
+        image_credit: original.image_credit || undefined,
         date: original.date || null,
         venue: original.venue || null,
         civic: original.civic === true || undefined,
@@ -655,3 +657,6 @@ function handleGrokError(err, res) {
 }
 
 module.exports = router;
+// Exported for the card-badge invariant test (test/ideaOpenNow.test.js) —
+// pure function over candidate objects, no network.
+module.exports.mergeWithCandidates = mergeWithCandidates;

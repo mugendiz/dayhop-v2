@@ -207,8 +207,9 @@ function buildEntry(item, place) {
     if (place.image_url) entry.image_url = place.image_url;
   }
   // The scan already paid for the social-buzz score (news/Reddit/YouTube) —
-  // keep it, so the surprise feed's "Social gleanings" shelf can rank by it
-  // without ever running buzz at request time.
+  // keep it. The surprise feed's buzz shelf that used to rank by it is gone
+  // (replaced by Talk of the town), but the admin Discovery inbox still shows
+  // the score, and it costs nothing to carry on an entry already being written.
   if (item.buzz && Number.isFinite(Number(item.buzz.score))) {
     entry.buzz_score = Math.round(Number(item.buzz.score));
   }

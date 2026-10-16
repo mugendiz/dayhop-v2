@@ -100,7 +100,17 @@ footer{border-top:1px solid var(--line);margin-top:50px;padding-top:22px;font-si
 @media print{.topbar .cta,.print-btn,.gate,footer nav{display:none}body{background:#fff}.pick{box-shadow:none}}
 `;
 
-function page({ title, description, bodyHtml }) {
+function origin(req) {
+  // trust proxy is on in server.js, so protocol survives Render's proxy.
+  return `${req.protocol}://${req.get('host')}`;
+}
+
+function page({ req, title, description, bodyHtml, noindex = true }) {
+  // Always the bare /playbook URL, whatever query string (?t=<token>, utm_*)
+  // the request actually carried — the ?t=<token> variant is the same page
+  // per subscriber, not a distinct one, and GSC flagged exactly this as
+  // "Duplicate without user-selected canonical" before this tag existed.
+  const canonical = `${origin(req)}/playbook`;
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -108,8 +118,8 @@ function page({ title, description, bodyHtml }) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">
-<meta name="robots" content="noindex">
-<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<link rel="canonical" href="${canonical}">
+${noindex ? '<meta name="robots" content="noindex">\n' : ''}<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
 <style>${STYLES}</style>
 <script src="/pixel.js" defer></script>
 </head>
@@ -211,9 +221,15 @@ router.get('/', async (req, res) => {
   if (!subscriber) {
     analytics.recordEvent({ type: 'playbook_view', ownerKey: `ip-${req.ip}`, source: 'teaser' });
     return res.send(page({
+      req,
       title: 'The GTA Family Weekend Playbook — DayHop',
       description: `${entries.length} GTA outings actually worth your Saturday — curated, honest, and free with the DayHop weekend brief.`,
-      bodyHtml: await teaserBody(entries)
+      bodyHtml: await teaserBody(entries),
+      // The one canonical /playbook URL every ad and social post links to —
+      // it should rank. noindex only belongs on the ?t=<token> full view
+      // below, which would otherwise be one near-duplicate URL per
+      // subscriber.
+      noindex: false
     }));
   }
 
@@ -227,6 +243,7 @@ router.get('/', async (req, res) => {
 
   analytics.recordEvent({ type: 'playbook_view', ownerKey: subscriber.owner_id || 'anon', source: 'full' });
   res.send(page({
+    req,
     title: 'The GTA Family Weekend Playbook — DayHop',
     description: `${entries.length} GTA outings actually worth your Saturday.`,
     bodyHtml: `

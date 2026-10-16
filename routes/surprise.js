@@ -4,8 +4,9 @@
 // location-aware grab bag built from the same grounding pipeline as
 // browse — synthetic prompt, NO Grok call, server-assigned sections:
 //
-//   Social gleanings 🔥              — the discovery autopilot's buzz-verified
-//                                      finds (never live buzz calls — too slow)
+//   Talk of the town 🔥              — this week's verified happenings for the
+//                                      hub nearest the user (services/talkOfTown.js),
+//                                      a pure read of the weekly store
 //   Top local locations 📍           — highest-rated places nearby
 //   Curated by the discovery engine ✨ — catalog picks + hidden gems
 //
@@ -22,6 +23,7 @@ const analytics = require('../services/analytics');
 const { normalizeMode } = require('../services/grok');
 const { gatherCandidates, sanitizeCoords, fallbackIdea, parseDateWindow, DEFAULT_CITY } = require('../services/candidates');
 const { enrichIdeaImages } = require('../services/ideaPhotos');
+const talkOfTown = require('../services/talkOfTown');
 
 // Wider pages sweep further out; the local sections adjust their distance
 // bands to match ("worth the drive" = genuinely beyond the local band).
@@ -31,6 +33,11 @@ const LOCAL_MAX_KM_CITY = 20;     // city-centroid distances are fuzzier
 const DRIVE_MIN_KM = 15;
 const DRIVE_MAX_KM = 80;
 const SECTION_CAP = 6;
+// Talk of the town leads the feed, so it has to look like a shelf and not a
+// leftover. Below this many verified picks the shelf is skipped entirely
+// rather than shipped thin — the old buzz shelf it replaces routinely
+// rendered two cards under a headline promising the talk of the town.
+const TOTT_MIN = 4;
 const MIN_FEED = 6;               // below this, the backstop shelf tops up
 const EXCLUDE_MAX = 200;
 
@@ -126,7 +133,18 @@ router.post('/', async (req, res) => {
     }
     const { candidates, weather, resolvedCity, advisories, advisoriesStatus } = gathered;
 
-    const ideas = buildSurpriseSections(candidates, { mode, near: Boolean(coords), wider });
+    // Talk of the town (services/talkOfTown.js) leads the feed: this week's
+    // verified happenings for the hub nearest the user. A pure read of the
+    // weekly store, never a live search, so it costs nothing per press and
+    // the surprise feed can't disagree with what browse is showing.
+    // noteBrowse() arms a one-off background refresh for a hub nobody has
+    // browsed from yet; it never delays this response.
+    const point = coords ||
+      (gathered.geo && gathered.geo.lat != null ? gathered.geo : null);
+    const tott = talkOfTown.active({ point, limit: SECTION_CAP, maxKm: DRIVE_MAX_KM });
+    talkOfTown.noteBrowse(point);
+
+    const ideas = buildSurpriseSections(candidates, { mode, near: Boolean(coords), wider, tott });
     await enrichIdeaImages(ideas, { city: resolvedCity || city, coords });
 
     const ownerKey = (req.user && req.user.id) ||
@@ -163,7 +181,7 @@ router.post('/', async (req, res) => {
 
 // Assign ranked candidates to the surprise shelves, first match wins.
 // Same used-Set discipline as browse's buildSections: a card never repeats.
-function buildSurpriseSections(candidates, { mode, near, wider }) {
+function buildSurpriseSections(candidates, { mode, near, wider, tott }) {
   const used = new Set();
   const ideas = [];
   const take = (label, list, n) => {
@@ -184,7 +202,25 @@ function buildSurpriseSections(candidates, { mode, near, wider }) {
   const isCalm = c => !isThrill(c) &&
     /garden|botanical|arboretum|trail|conservation|lookout|viewpoint|scenic|beach|waterfront|boardwalk|spa|sauna|springs|nature|greenhouse|gallery|museum|tea|picnic|sunset|quiet|peaceful|stroll/i.test(text(c));
   const prefer = mode === 'adventure' ? isThrill : isCalm;
-  const pool = [...candidates.filter(prefer), ...candidates.filter(c => !prefer(c))];
+  let pool = [...candidates.filter(prefer), ...candidates.filter(c => !prefer(c))];
+
+  // Talk of the town reaches further than surprise does: talkOfTown.active()
+  // admits anything within HUB_REACH_KM (180 km) of the hub, and this feed
+  // promises 80 (test/surpriseSections.test.js). The band is applied here,
+  // before anything else looks at the list, so the shelf cannot be the one
+  // that turns "surprise" into a road trip. Unknown distance stays eligible,
+  // same allowance the curated shelf makes.
+  const tottList = (Array.isArray(tott) ? tott : [])
+    .filter(t => t.distance_km == null || t.distance_km <= DRIVE_MAX_KM);
+
+  // The picks that survive own their titles, same rule browse.js applies: a
+  // candidate for the same happening from another source (the city calendar,
+  // Ticketmaster) leaves the pool so one event can't hold two slots. A pick
+  // dropped for distance above releases its twin back to the pool.
+  if (tottList.length) {
+    const owned = new Set(tottList.map(t => normTitle(t.title)));
+    pool = pool.filter(c => !owned.has(normTitle(c.title)));
+  }
 
   // Repeat presses with identical inputs should still feel different:
   // sample the picks from the top 2×cap of each sorted shelf.
@@ -197,16 +233,16 @@ function buildSurpriseSections(candidates, { mode, near, wider }) {
     return top;
   };
 
-  // 1) Social gleanings — buzz-verified finds from the discovery autopilot
-  // (buzz_score persisted at publish time) plus anything newly opened,
-  // engagement-ranked. Never a live social call.
-  const social = pool
-    .filter(c => c.newly_opened === true || c.buzz_score != null || c.auto === true)
-    .slice().sort((a, b) =>
-      (b.buzz_score || 0) - (a.buzz_score || 0) ||
-      (b.engagement_30d || 0) - (a.engagement_30d || 0) ||
-      Number(b.newly_opened === true) - Number(a.newly_opened === true));
-  take('Social gleanings 🔥', social, SECTION_CAP);
+  // 1) Talk of the town — this week's verified happenings for the user's hub,
+  // already ordered pinned then rank by talkOfTown.active(). Replaces the old
+  // "Social gleanings" shelf, which ranked whatever the discovery autopilot
+  // had published by a stale buzz_score and regularly rendered two cards.
+  // Below TOTT_MIN the shelf is skipped rather than shipped thin.
+  //
+  // Nothing is lost by dropping the buzz shelf: the newly-opened and
+  // autopilot finds it used to consume stay in the pool and flow into the
+  // shelves below instead of being pulled out into a headline of their own.
+  if (tottList.length >= TOTT_MIN) take('Talk of the town 🔥', tottList, SECTION_CAP);
 
   // 2) Top local locations — the best-rated real places around the user.
   // Wider pages flip this into "worth the drive": genuinely beyond the
@@ -228,8 +264,12 @@ function buildSurpriseSections(candidates, { mode, near, wider }) {
   // the pool). Rating-count floor stays high so this shelf reads "the
   // places people talk about", never "a food court that averages well".
   if (mode !== 'adventure') {
+    // Category is authoritative; the text fallback yields to isThrill for the
+    // same reason browse.js's does — a bouldering gym that mentions its cafe
+    // is not one of the city's serious restaurants.
     const isFood = c => c.category === 'food' ||
-      /restaurant|dining|bistro|brasserie|trattoria|osteria|izakaya|omakase|steakhouse|tasting menu|michelin|chef|eatery|supper club|wine bar|café|cafe|patisserie|bakery|brunch|dessert/i.test(text(c));
+      (!isThrill(c) &&
+        /restaurant|dining|bistro|brasserie|trattoria|osteria|izakaya|omakase|steakhouse|tasting menu|michelin|chef|eatery|supper club|wine bar|café|cafe|patisserie|bakery|brunch|dessert/i.test(text(c)));
     const tables = pool
       .filter(c => isFood(c) && c.rating != null && c.rating >= 4.4 && (c.rating_count || 0) >= 100)
       .slice().sort((a, b) => (b.rating - a.rating) || ((b.rating_count || 0) - (a.rating_count || 0)));
@@ -246,9 +286,16 @@ function buildSurpriseSections(candidates, { mode, near, wider }) {
   take('Curated by the discovery engine ✨', sample(curated, SECTION_CAP), SECTION_CAP);
 
   // Backstop: a thin area (or a deep Next page) never renders an anemic
-  // two-card surprise — top up from the ranked pool.
+  // two-card surprise — top up from the ranked pool. It draws from the whole
+  // pool rather than a shelf's narrow filter, but the 80 km promise binds it
+  // like every other shelf: it used to top up from the raw pool and would
+  // happily serve a 119 km catalog icon, which is the exact bug the shelves
+  // above were fixed for on 2026-08-15. It only ever passed the test because
+  // the shelves above happened to consume the near items first. A short feed
+  // beats a surprise that is secretly a road trip.
   if (ideas.length < MIN_FEED) {
-    take('More surprises 🎁', pool, MIN_FEED * 2 - ideas.length);
+    const inPromise = pool.filter(c => c.distance_km == null || c.distance_km <= DRIVE_MAX_KM);
+    take('More surprises 🎁', inPromise, MIN_FEED * 2 - ideas.length);
   }
   return ideas;
 }
@@ -261,9 +308,11 @@ function toFeedIdea(c) {
     maps_url: c.maps_url || null,
     website: c.website || null,
     rating: c.rating != null ? c.rating : null,
+    open_now: c.open_now != null ? c.open_now : null,
     price_from: c.price_from != null ? c.price_from : null,
     currency: c.currency || null,
     image_url: c.image_url || null,
+    image_credit: c.image_credit || undefined,
     date: c.date || null,
     venue: c.venue || null,
     civic: c.civic === true || undefined,
@@ -279,3 +328,6 @@ module.exports = router;
 // function over candidate objects, no network.
 module.exports.buildSurpriseSections = buildSurpriseSections;
 module.exports.DRIVE_MAX_KM = DRIVE_MAX_KM;
+// Exported for the card-badge invariant test (test/ideaOpenNow.test.js) —
+// pure function over a candidate object, no network.
+module.exports.toFeedIdea = toFeedIdea;

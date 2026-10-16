@@ -117,7 +117,7 @@ published `/blog` article already covers the topic, it's linked — BLG is
 still fully active through the Sep 27 billing date, so this uses it while
 it's paid for; no reactivation needed.
 
-Destination for all: `dayhop.quest?utm_source=zeely&utm_medium=social&utm_campaign=fall26-spots` (append `-giveaway` for the 3 Snyder's posts).
+Destination for all: `dayhop.quest?utm_source=zeely&utm_medium=social&utm_campaign=fall26-spots`.
 
 | # | Date | Post | Asset | Caption | Blog link | Social |
 |---|---|---|---|---|---|---|
@@ -133,13 +133,10 @@ Destination for all: `dayhop.quest?utm_source=zeely&utm_medium=social&utm_campai
 | 10 | Sep 24 | Dundas Peak | hamilton-spot-dundaspeak.jpg | "The view every Hamilton Instagram photo is secretly taken from." | — | IG |
 | 11 | Sep 25 | Sibbald Point, Lake Simcoe | lake-simcoe-spot-sibbald.jpg | "A real sand beach, 1 hour from Toronto, that isn't Wasaga." | /blog/free-toronto-days | IG |
 | 12 | Sep 25 | Rouge National Urban Park — Vista trails | markham-spot-vista.jpg | "Canada's biggest urban national park, and it's inside Markham." | — | IG, TT |
-| 13 | Sep 27 | **Giveaway announced** *(Zeely-generate: prize graphic)* | — | "GIVEAWAY: one family pass to Snyder's Family Farm — corn maze, pumpkin patch, hayride. Follow @dayhopofficial + tag 2 friends to enter. Winner drawn Sat Oct 3." | — | IG, TT |
 | 14 | Sep 28 | Rouge Carolinian forest (trillium fact) | markham-spot-trillium.jpg | "Less than 1% of Canada is this forest type. It's in Markham, and a trillium there takes 7 years just to bloom." | — | IG |
 | 15 | Sep 29 | Main Street Unionville | markham-spot-unionville.jpg | "A main street that looks like a movie set, and it's a GO Train away from downtown." | /blog/toronto-farmers-markets-guide | IG |
-| 16 | Sep 30 | **Giveaway reminder** *(Zeely-generate: countdown graphic)* | — | "3 days left to win a family pass to Snyder's Family Farm. Follow + tag 2 friends. Rules in bio." | — | IG, TT |
 | 17 | Oct 1 | Dundurn Castle | hamilton-spot-dundurn.jpg | "A real 19th-century castle you can tour, and it's inside Hamilton city limits." | — | IG |
 | 18 | Oct 2 | Princess Point, Cootes Paradise | hamilton-spot-cootes.jpg | "Paddle a marsh inside a city — Cootes Paradise doesn't get enough credit." | — | IG |
-| 19 | Oct 3 | **Giveaway winner announced** *(Zeely-generate: winner graphic)* | — | "Congrats to our Snyder's Family Farm pass winner! More local giveaways coming — follow @dayhopofficial so you don't miss the next one." | — | IG, TT |
 | 20 | Oct 4 | Scarborough Bluffs | toronto-spot-bluffs.jpg | "The cliffs everyone's seen in photos, and most GTA parents have never actually stood on." | /blog/first-timers-toronto-must-sees | IG |
 | 21 | Oct 5 | Distillery District | toronto-spot-distillery.jpg | "Cobblestones, no cars, and it's actually stroller-friendly — rare combo downtown." | /blog/new-in-toronto-2026 | IG |
 | 22 | Oct 6 | Kempenfelt Bay, Barrie | lake-simcoe-spot-barrie.jpg | "An hour north and the whole vibe changes — Barrie's waterfront on a fall afternoon." | — | IG |
@@ -154,10 +151,101 @@ Destination for all: `dayhop.quest?utm_source=zeely&utm_medium=social&utm_campai
 
 Zeely execution note: this session has no browser/API access to Zeely,
 Instagram, or TikTok — the table above is the content/schedule deliverable
-for hand-entry (founder or Claude-in-Chrome, already logged in). Rows 13,
-16, 19 are the Snyder's giveaway (see reply-to-Snyder's-email thread,
-Sep 2026) and should use the `-giveaway` UTM campaign suffix instead of
-`fall26-spots`.
+for hand-entry (founder or Claude-in-Chrome, already logged in).
+
+**2026-09-29: the Snyder's giveaway (former rows 13, 16, 19) is struck, and
+the dates on the remaining rows are dead.** The chain announced a giveaway on
+Sep 27, a reminder on Sep 30, and a winner on Oct 3. It was gated on Snyder's
+replying with a pass and valid dates, and that email was drafted Sep 19 and
+never sent, so no prize was ever agreed. Nothing was posted. Running the
+back half of the chain would have congratulated the winner of a contest that
+was never announced, for a prize a real business never offered. Struck rather
+than rescheduled: Zeely is cancelled as of Sep 27 (docs/tools.md), so the
+scheduler these 27 remaining posts were written for is going away.
+
+**Treat the Date column as ordering, not scheduling.** The remaining posts are
+evergreen and can go out by hand in any order. Do not bulk-load them against
+the printed dates; most are already in the past.
+
+## Thanksgiving planner test: Meta via Zeely, Oct 3 to 9, 2026
+
+**Decision:** founder, 2026-09-29. A capped test that knowingly overrides the
+D4 "hold paid" recommendation (social/ops/founder-decisions-2026-09-12.md).
+Goal: people try the free planner, not buy the guide.
+
+### Setup (enter in Zeely's Meta campaign launcher)
+
+| Setting | Value |
+|---|---|
+| Objective | Traffic, optimised for landing page views |
+| Budget | CA$2/day, CA$14 total cap |
+| Schedule | Sat Oct 3, 00:00 to Fri Oct 9, 23:59 (Toronto). Ends before the long weekend and before Zeely renews Oct 10 |
+| Location | Toronto + 40 km radius (covers York Region, Peel, Durham edge) |
+| Age | 25 to 54 |
+| Audience | Advantage+ with a parents signal (interest: Parenting, or "Parents with children 3 to 12") |
+| Placements | IG Reels, IG Stories, FB Reels |
+| CTA button | Learn more |
+
+Destination, one per variant:
+- A: `https://dayhop.quest/?utm_source=zeely&utm_medium=cpc&utm_campaign=thanksgiving-planner-oct26&utm_content=a`
+- B: `https://dayhop.quest/?utm_source=zeely&utm_medium=cpc&utm_campaign=thanksgiving-planner-oct26&utm_content=b`
+
+### Creative
+
+Paid is where a Zeely avatar belongs (shareability standard section 4): the
+AI label costs less here than in organic, where it hurts reach.
+
+**A. Zeely avatar video, 15 seconds, 9:16.** Avatar: casual parent, kitchen or couch.
+
+> Thanksgiving weekend. No plan yet? Same. So I typed "rainy Saturday, two
+> kids, nothing too far" into DayHop, and it built the whole day. Real
+> places near us. It's free. Try it before Saturday.
+
+**B. Zeely image ad, 4:5 and 9:16.** Text on image: "It's 9 AM Saturday. It's raining. They're already bored."
+
+Copy for both:
+- Primary text: Thanksgiving weekend, sorted. Tell DayHop what your family wants and it plans the day around real places near you. Free, no sign up needed to try.
+- Headline: Your long weekend, planned
+- Description: Free planner for GTA families
+
+Checked against the code 2026-09-29: guests can plan without an account
+(routes/generate.js), so "no sign up needed" holds. A drive-time line was cut
+because the plan does not clearly display drive times.
+
+### How we judge it
+
+Read the acquisition card rows `zeely | thanksgiving-planner-oct26` (split by
+utm_content) in /admin.
+
+- **Win:** 10 or more planning prompts from the campaign, about CA$1.40 each.
+- **Mid-test check, Tue Oct 6 (about CA$6 spent):** if one variant has twice
+  the landing page views of the other, pause the loser.
+- **Kill:** 0 planning prompts by Oct 6. Pause both; the problem is the landing page, not the ad.
+
+### After
+
+Cancel Zeely before Oct 10 once the campaign is running (docs/tools.md).
+The campaign lives in the Meta ad account and ends Oct 9 on its own.
+
+### As entered in Zeely (2026-09-30)
+
+Built in Zeely's Meta launcher on the partner account, left unlaunched for the
+founder to press Launch. Differences from the brief above, all forced by the tool:
+
+- **One campaign, one link.** Zeely allows a single destination per campaign, so
+  all three ads use `utm_content=ab`. Compare A vs B in Zeely/Meta per-ad stats,
+  not in /admin.
+- **Budget:** US$10/day minimum (not CA$2). Set to US$10 x 2 days = US$20 total.
+- **No start date.** It goes live once Meta approves (typically within 6 h) and
+  runs 2 days, so time the Launch press for the Thanksgiving lead-up.
+- **Targeting:** Toronto (city, Meta's default radius), age 25 to 54, all genders.
+  No interest (parents) or placement controls in Zeely.
+- **Visitors land on a Zeely warm-up page** (headline + primary text) before dayhop.quest.
+- **Creatives:** A = avatar video, 12 s, kitchen/rainy window, script verbatim.
+  B = Playground image in 9:16 and 4:5, text on image verbatim. All three use
+  the primary text and headline above; Zeely has no description field. CTA Learn more.
+- Zeely access runs to about Oct 30 after the Sep 30 cancellation, so the
+  "cancel before Oct 10" step no longer applies.
 
 ## Creative strategy benchmarks (source: Motion Creative Benchmarks 2026)
 
@@ -192,6 +280,9 @@ From the report's format leaderboards (Meta/IG, hit rate + spend-use ratio):
 - **Giveaway** hooks show a strong spend-use ratio (punch above their
   weight) — validates making the Snyder's Family Farm giveaway the
   flagship post of its week, not a side item.
+  *(2026-10-16: that giveaway was struck on 2026-09-29 and never ran; see
+  the note above. The format finding still stands for any future giveaway
+  a partner actually agrees to.)*
 - **Offer-First Banner** and **Demo** formats lead hit rate (8.6% and
   8.1%) — maps directly to the giveaway graphics (offer-first) and any
   screen-recorded product demo (swipe → shortlist → day plan).
