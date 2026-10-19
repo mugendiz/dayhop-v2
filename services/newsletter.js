@@ -406,7 +406,100 @@ async function getByToken(token) {
   return findByToken(token);
 }
 
-module.exports = { subscribe, confirm, unsubscribe, listSubscribed, listPending, markSent, stats, exportRows, unsubscribeUrl, baseUrl, getByToken, confirmUrl, complianceFooter };
+module.exports = { subscribe, confirm, unsubscribe, listSubscribed, listPending, markSent, stats, exportRows, unsubscribeUrl, baseUrl, getByToken, confirmUrl, complianceFooter, runConfirmNudge };
+// Confirm nudge (2026-10-19): 9 of the first 20 signups never clicked the
+// double-opt-in confirmation — nearly half the list died at the confirm
+// email. 24h after signup, rows still 'pending' get the confirmation email
+// re-sent exactly once (confirm_nudged_at). Unsubscribed rows are never
+// touched (the select is status='pending' only). CASL-safe: the confirmation
+// email completes the recipient's own signup request, and the nudge is one
+// reminder of that same request, not a new marketing send.
+const NUDGE_AFTER_MS = 24 * 60 * 60 * 1000;
+
+async function runConfirmNudge() {
+  if (!require('./email').isConfigured()) return { ok: false, reason: 'EMAIL_NOT_CONFIGURED', nudged: 0 };
+  const cutoff = new Date(Date.now() - NUDGE_AFTER_MS).toISOString();
+  let candidates = [];
+  if (hasServiceKey()) {
+    try {
+      const { data, error } = await dbClient.getClient().from(TABLE)
+        .select('email, token, created_at')
+        .eq('status', 'pending')
+        .is('confirm_nudged_at', null)
+        .lt('created_at', cutoff)
+        .order('created_at', { ascending: true })
+        .limit(50);
+      if (error) throw error;
+      candidates = data || [];
+    } catch (err) {
+      console.warn('[newsletter] nudge select failed:', err.message);
+      return { ok: false, reason: err.message, nudged: 0 };
+    }
+  } else {
+    await syncFromDb(false);
+    for (const row of subscribers.values()) {
+      if (row.status === 'pending' && !row.confirm_nudged_at && row.created_at < cutoff) {
+        candidates.push(row);
+        if (candidates.length >= 50) break;
+      }
+    }
+  }
+  let nudged = 0;
+  for (const cand of candidates) {
+    try {
+      const result = await sendEmail({
+        to: cand.email,
+        subject: 'One click, then we outside',
+        html: nudgeEmailHtml(cand.token),
+        text: nudgeEmailText(cand.token)
+        // Transactional: completes their signup request — no List-Unsubscribe.
+      });
+      if (!result.sent) {
+        console.warn('[newsletter] nudge send failed:', cand.email, result.reason);
+        continue;
+      }
+      const stamped = new Date().toISOString();
+      if (hasServiceKey()) {
+        const { error } = await dbClient.getClient().from(TABLE)
+          .update({ confirm_nudged_at: stamped })
+          .eq('email', cand.email)
+          .is('confirm_nudged_at', null);
+        if (error) throw error;
+      }
+      const mem = subscribers.get(cand.email);
+      if (mem) { mem.confirm_nudged_at = stamped; subscribers.set(cand.email, mem); }
+      nudged++;
+    } catch (err) {
+      console.warn('[newsletter] nudge failed for', cand.email, err.message);
+    }
+  }
+  if (candidates.length) console.log(`[newsletter] confirm nudge: ${candidates.length} candidates, ${nudged} nudged`);
+  return { ok: true, candidates: candidates.length, nudged };
+}
+
+// Nudge copy: same confirmation, warmer frame. House rule: no em-dashes.
+function nudgeEmailHtml(token) {
+  const url = confirmUrl(token);
+  return `<p>Hey,</p>
+<p>You signed up for DayHop's Weekend Playbook but never hit confirm, so you've been missing the Thursday brief.</p>
+<p><a href="${url}">Confirm my subscription</a></p>
+<p>Every Thursday: where to go this weekend, what's actually open, the weather call. Free, unsubscribe anytime.</p>
+<p>We outside,<br>The DayHop team</p>`;
+}
+
+function nudgeEmailText(token) {
+  const url = confirmUrl(token);
+  return `Hey,
+
+You signed up for DayHop's Weekend Playbook but never hit confirm, so you've been missing the Thursday brief.
+
+Confirm my subscription: ${url}
+
+Every Thursday: where to go this weekend, what's actually open, the weather call. Free, unsubscribe anytime.
+
+We outside,
+The DayHop team`;
+}
 // Exported for the house-style test (test/copyStyle.test.js) — pure
 // template functions, no network.
 // Exported for test/newsletterAbuse.test.js — the confirmation-resend

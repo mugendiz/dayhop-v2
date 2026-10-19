@@ -674,6 +674,23 @@ if (process.env.WARM_POOL !== 'off') {
   setInterval(warm, 10 * 60 * 1000).unref();
 }
 
+// Revenue-leak sweeps (2026-10-19): abandoned-checkout recovery + newsletter
+// confirm nudge. Every 15 minutes. Both are idempotent and fail-soft.
+// RECOVERY_SWEEP=off disables the pair (manual: admin endpoints below).
+// The recovery email itself additionally requires RECOVERY_EMAILS=on — the
+// copy is DRAFT until Andrew approves it, so a deploy alone never sends.
+if (process.env.RECOVERY_SWEEP !== 'off') {
+  const sweep = () => {
+    require('./services/heartbeat').record('recovery_sweep');
+    require('./services/checkoutRecovery').runRecoverySweep()
+      .catch(err => console.warn('[recovery] sweep failed:', err.message));
+    require('./services/newsletter').runConfirmNudge()
+      .catch(err => console.warn('[newsletter] nudge failed:', err.message));
+  };
+  setTimeout(sweep, 60 * 1000).unref();
+  setInterval(sweep, 15 * 60 * 1000).unref();
+}
+
 // Discovery autopilot: every SUNDAY AT MIDNIGHT (Toronto time) scan
 // Canada-wide local media, verify finds (Google Places + Grok), and
 // publish passers into the live catalog. The admin "Scan

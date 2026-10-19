@@ -87,11 +87,22 @@ router.post('/checkout', checkoutLimiter, async (req, res) => {
   }
   try {
     const origin = `${req.protocol}://${req.get('host')}`;
-    // Guests buy too: Stripe collects the email, fulfillment sends the PDF
-    // there. client_reference_id ties the sale to a signed-in owner when
-    // there is one (analytics only — the download link is the entitlement).
+    // Email-first checkout (2026-10-19): guests used to go straight to
+    // Stripe and bounce before typing an email there — 20 of 23 historical
+    // sessions have no customer email, which made recovery impossible. The
+    // buyer types their email on dayhop.quest first; Stripe gets it as
+    // customer_email (prefilled, still editable there), and the attempt is
+    // recorded for the 60-minute recovery sweep (services/checkoutRecovery).
+    // client_reference_id ties the sale to a signed-in owner when there is
+    // one (analytics only — the download link is the entitlement).
     const ownerId = (req.user && req.user.id) ||
       (typeof (req.body && req.body.owner_id) === 'string' ? req.body.owner_id.trim().slice(0, 80) : null);
+    const { normalizeEmail } = require('../services/checkoutRecovery');
+    const email = normalizeEmail(req.body && req.body.email) ||
+      normalizeEmail(req.user && req.user.email);
+    if (!email) {
+      return res.status(400).json({ error: 'NEED_EMAIL', message: 'Add your email so we can send your guide.' });
+    }
     const ret = RETURN_PATHS[req.body && req.body.return] || null;
     // Keyed-ad tracking: each channel sends its own src so conversions are
     // attributable per channel in analytics and in Stripe metadata.
@@ -112,7 +123,7 @@ router.post('/checkout', checkoutLimiter, async (req, res) => {
         }
       }],
       client_reference_id: ownerId || undefined,
-      customer_email: (req.user && req.user.email) || undefined,
+      customer_email: email,
       metadata: Object.assign({ guide: guide.slug }, src ? { src } : {}),
       // The invoice carries the guide slug so billing.js books this sale to
       // 'other_income' in the ledger instead of 'uncategorized'.
@@ -133,6 +144,12 @@ router.post('/checkout', checkoutLimiter, async (req, res) => {
       session = await stripe.checkout.sessions.create(params);
     }
     analytics.recordEvent({ type: 'guide_checkout_started', ownerKey: ownerId || 'anon', meta: Object.assign({ guide: guide.slug }, src ? { src } : {}) });
+    // Record the attempt for abandoned-checkout recovery. Fail-soft: a DB
+    // hiccup here must never block the sale in flight.
+    require('../services/checkoutRecovery').recordAttempt({
+      email, productType: 'guide', productLabel: guide.title,
+      guideSlug: guide.slug, stripeSessionId: session.id
+    }).catch(err => console.warn('[city-guides] attempt record failed (non-fatal):', err.message));
     res.json({ url: session.url });
   } catch (err) {
     console.error('[city-guides] checkout failed:', err.message);

@@ -462,6 +462,15 @@ async function fulfillCheckoutSessionOnce(session, source) {
     return `checkout ${session.id} already fulfilled (${source} skipped)`;
   }
   const outcome = await fulfillCheckoutSession(session);
+  // Abandoned-checkout recovery (2026-10-19): stamp completed_at so the
+  // 60-minute sweep never nudges a buyer who paid. Runs on BOTH the webhook
+  // and thanks-page paths (both funnel through here). Fail-soft — a missed
+  // stamp just means the sweep's Stripe re-verification skips the send.
+  try {
+    await require('./checkoutRecovery').markCompleted(session.id);
+  } catch (err) {
+    console.warn('[billing] recovery markCompleted failed (non-fatal):', err.message);
+  }
   await markProcessed(key, `checkout.session.completed:${source}`);
   return outcome;
 }

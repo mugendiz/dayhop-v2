@@ -211,14 +211,29 @@
 
     async function buy(btn) {
       const label = btn.textContent;
+      // Email-first checkout (2026-10-19): guests type their email here
+      // BEFORE Stripe, so an abandoned checkout is recoverable. The
+      // NEED_EMAIL round-trip only fires when the server truly lacks one.
+      const postCheckout = (email) => fetch('/api/cityguides/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign(
+          { slug: 'richmond-hill', owner_id: ownerId(), return: 'richmond-hill-letter', src },
+          email ? { email } : {}
+        ))
+      });
       btn.disabled = true; btn.textContent = 'Opening checkout…';
       try {
-        const res = await fetch('/api/cityguides/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slug: 'richmond-hill', owner_id: ownerId(), return: 'richmond-hill-letter', src })
-        });
-        const data = await res.json();
+        let res = await postCheckout();
+        let data = await res.json().catch(function () { return {}; });
+        if (res.status === 400 && data && data.error === 'NEED_EMAIL') {
+          btn.disabled = false; btn.textContent = label;
+          const email = await promptBuyerEmail(btn);
+          if (!email) return;
+          btn.disabled = true; btn.textContent = 'Opening checkout…';
+          res = await postCheckout(email);
+          data = await res.json().catch(function () { return {}; });
+        }
         if (data && data.url) { window.location.href = data.url; return; }
         throw new Error((data && data.message) || 'checkout failed');
       } catch (err) {
@@ -227,6 +242,39 @@
         banner.textContent = 'Could not start checkout. Please try again in a moment.';
         banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
+    }
+
+    // Inline email step: no popup (blocked), no modal (annoying). Resolves
+    // with the typed email, or null when dismissed.
+    function promptBuyerEmail(btn) {
+      return new Promise(function (resolve) {
+        if (btn.parentNode.querySelector('.dh-email-step')) { resolve(null); return; }
+        const wrap = document.createElement('div');
+        wrap.className = 'dh-email-step';
+        wrap.style.cssText = 'margin-top:8px;display:flex;gap:8px;';
+        const input = document.createElement('input');
+        input.type = 'email';
+        input.placeholder = 'Email for your guide';
+        input.setAttribute('aria-label', 'Email for your guide');
+        input.style.cssText = 'flex:1;min-width:0;padding:10px;border:1.5px solid #1c2420;border-radius:10px;font-size:1rem;';
+        const go = document.createElement('button');
+        go.type = 'button';
+        go.textContent = 'Continue';
+        go.style.cssText = 'padding:10px 14px;border-radius:10px;border:0;background:#e0654a;color:#fff;font-weight:700;cursor:pointer;white-space:nowrap;';
+        wrap.appendChild(input); wrap.appendChild(go);
+        const done = function (val) { wrap.remove(); resolve(val); };
+        go.addEventListener('click', function () {
+          const v = input.value.trim();
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) { input.focus(); input.style.borderColor = '#c0392b'; return; }
+          done(v);
+        });
+        input.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') go.click();
+          if (e.key === 'Escape') done(null);
+        });
+        btn.insertAdjacentElement('afterend', wrap);
+        input.focus();
+      });
     }
     document.querySelectorAll('.js-buy').forEach(b => b.addEventListener('click', () => buy(b)));
 

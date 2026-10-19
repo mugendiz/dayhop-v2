@@ -28,12 +28,26 @@ router.post('/checkout', requireUser, async (req, res) => {
     // Campaign attribution (utm_*/fbclid captured by pixel.js at landing)
     // flows into Stripe metadata so paying customers stay attributable.
     const utm = analytics.sanitizeAttrib(req.body && req.body.attrib);
+    // Email-first (2026-10-19): the signed-in user's email is primary, but
+    // the body carries a fallback — a user record without an email must not
+    // mint an unrecoverable session. 2 Pro checkouts were abandoned with no
+    // recovery path; every attempt is now recorded for the 60-minute sweep.
+    const { normalizeEmail } = require('../services/checkoutRecovery');
+    const email = normalizeEmail(req.user && req.user.email) ||
+      normalizeEmail(req.body && req.body.email);
+    if (!email) {
+      return res.status(400).json({ error: 'NEED_EMAIL', message: 'Add your email to start the Pro trial.' });
+    }
     const session = await billing.createCheckoutSession({
       ownerId: req.ownerId,
-      email: req.user && req.user.email,
+      email,
       origin,
       attrib: utm
     });
+    require('../services/checkoutRecovery').recordAttempt({
+      email, productType: 'pro', productLabel: 'DayHop Pro',
+      guideSlug: null, stripeSessionId: session.id
+    }).catch(err => console.warn('[billing] attempt record failed (non-fatal):', err.message));
     analytics.recordEvent({ type: 'upgrade_started', ownerKey: req.ownerId, meta: utm ? { utm } : null });
     require('../services/metaPixel').sendEvent('InitiateCheckout', {
       email: req.user && req.user.email,

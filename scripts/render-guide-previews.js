@@ -21,7 +21,17 @@ const path = require('path');
   const outDir = path.join(__dirname, '..', 'public', 'img', 'guide-previews');
   fs.mkdirSync(outDir, { recursive: true });
 
-  const EXTRA_PAGES = { 'richmond-hill': [4, 6] };
+  // Multi-page "Look inside" (2026-10-19): pages 2-5 show real content behind
+  // the cover. The /guides modal pagers through them; missing pages simply
+  // don't render a pager dot (the modal degrades to the cover alone).
+  const EXTRA_PAGES = {
+    'richmond-hill': [2, 3, 4, 5, 6],
+    'markham': [2, 3, 4, 5],
+    'newmarket': [2, 3, 4, 5],
+    'toronto': [2, 3, 4, 5],
+    'hamilton': [2, 3, 4, 5],
+    'lake-simcoe': [2, 3, 4, 5],
+  };
 
   for (const g of cityGuides.GUIDES.filter(g => g.status === 'live')) {
     const buffer = await cityGuides.getPdf(g.slug);
