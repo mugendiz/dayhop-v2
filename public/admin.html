@@ -543,13 +543,14 @@
     </div>
 
     <div class="card" id="orders-card">
-      <h2>Customers &amp; orders 🧾</h2>
-      <p class="rate" style="margin:0 0 10px">Every checkout from Stripe: date, product, bought or only attempted, and city.
-        No emails or names, and founder and team test checkouts are left out. Each person has an anonymous
-        code (C-…) so repeat attempts line up.</p>
+      <h2>User report 🧾</h2>
+      <p class="rate" style="margin:0 0 10px">Every checkout from Stripe (bought or only attempted), newsletter
+        signups and unsubscribes, and Pro starts and cancellations, month by month, with city. No emails or names,
+        and founder and team data is left out. Each person has one anonymous code (C-…) across every section.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
         <label class="rate" for="orders-since">Since</label>
         <input id="orders-since" type="date" style="font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:8px">
+        <button id="orders-ytd" class="mini-btn" type="button">This year</button>
         <button id="orders-pdf" class="mini-btn">Open PDF</button>
         <button id="orders-load" class="mini-btn">Show here</button>
         <button id="orders-csv" class="mini-btn">Download CSV</button>
@@ -1247,6 +1248,9 @@
         '</b> acquired, <b>' + s.attempted_only + '</b> attempted only. Founder and team checkouts removed: ' + (r.founder_excluded || 0) + '.</p>' +
         '<p class="rate" style="margin:0 0 8px">' + s.by_product.map(p => esc(p.product) + ': ' + p.acquired + ' acquired' +
           (p.revenue ? ' (' + esc(p.revenue) + ')' : '') + ', ' + p.attempted_only + ' attempted').join(' · ') + '</p>' +
+        '<p class="rate" style="margin:0 0 8px">Newsletter: ' + ((s.newsletter || {}).signed_up || 0) + ' signed up, ' +
+          ((s.newsletter || {}).unsubscribed || 0) + ' unsubscribed · Pro: ' + ((s.memberships || {}).started || 0) + ' started, ' +
+          ((s.memberships || {}).cancelled || 0) + ' cancelled</p>' +
         '<p class="rate" style="margin:0 0 10px">Cities: ' + s.by_city.map(c => esc(c.city) + ' ' + c.orders).join(' · ') + '</p>';
       const cols = ['date', 'time', 'customer', 'city', 'product', 'outcome', 'amount', 'discount', 'source'];
       $('orders-table').innerHTML = '<tr>' + cols.map(c => '<th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--line)">' + c + '</th>').join('') + '</tr>' +
@@ -1279,6 +1283,7 @@
       }
     }
     $('orders-pdf').addEventListener('click', () => openOrdersFile('pdf'));
+    $('orders-ytd').addEventListener('click', () => { $('orders-since').value = new Date().getFullYear() + '-01-01'; });
     $('orders-csv').addEventListener('click', () => openOrdersFile('csv'));
     $('orders-email').addEventListener('click', async () => {
       if (!lastAuth) return;

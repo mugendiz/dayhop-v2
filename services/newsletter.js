@@ -389,12 +389,24 @@ async function stats() {
   };
 }
 
+/**
+ * Every subscriber row, for the admin user report (services/orderReport.js),
+ * which turns emails into anonymous codes before anything leaves the server.
+ */
+async function exportRows() {
+  await syncFromDb(true);
+  return [...subscribers.values()].map(r => ({
+    email: r.email, status: r.status, consent_source: r.consent_source, owner_id: r.owner_id,
+    created_at: r.created_at, confirmed_at: r.confirmed_at, unsubscribed_at: r.unsubscribed_at
+  }));
+}
+
 /** Row lookup for token-gated surfaces (the Playbook). Null when unknown. */
 async function getByToken(token) {
   return findByToken(token);
 }
 
-module.exports = { subscribe, confirm, unsubscribe, listSubscribed, listPending, markSent, stats, unsubscribeUrl, baseUrl, getByToken, confirmUrl, complianceFooter };
+module.exports = { subscribe, confirm, unsubscribe, listSubscribed, listPending, markSent, stats, exportRows, unsubscribeUrl, baseUrl, getByToken, confirmUrl, complianceFooter };
 // Exported for the house-style test (test/copyStyle.test.js) — pure
 // template functions, no network.
 // Exported for test/newsletterAbuse.test.js — the confirmation-resend
