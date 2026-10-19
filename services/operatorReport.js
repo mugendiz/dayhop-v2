@@ -226,7 +226,7 @@ async function ordersAttachment() {
     const orderReport = require('./orderReport');
     const report = await orderReport.buildOrderReport();
     const pdf = await require('./orderReportPdf').buildOrderReportPdf(report);
-    return { report, attachment: { filename: `dayhop-orders-${report.generated_on}.pdf`, content: pdf } };
+    return { report, attachment: { filename: `dayhop-user-report-${report.generated_on}.pdf`, content: pdf } };
   } catch (err) {
     console.warn('[report] orders PDF skipped:', err.message);
     return null;
@@ -238,7 +238,7 @@ async function sendReport() {
   const orders = await ordersAttachment();
   if (orders) {
     const s = orders.report.summary;
-    text += `\n\nAttached: customers and orders PDF (${s.acquired} acquired, ${s.attempted_only} attempted, founder checkouts removed).`;
+    text += `\n\nAttached: user report PDF (${s.acquired} acquired, ${s.attempted_only} attempted, ${(s.newsletter && s.newsletter.unsubscribed) || 0} newsletter unsubscribes; founder data removed).`;
   }
   const res = await sendEmail({
     to: REPORT_TO,
@@ -249,7 +249,7 @@ async function sendReport() {
     attachments: orders ? [orders.attachment] : undefined
   });
   if (res.sent && orders) {
-    require('./analytics').recordEvent({ type: 'orders_report_emailed', ownerKey: 'system', meta: { orders: orders.report.summary.orders, via: 'monday_report' } });
+    require('./analytics').recordEvent({ type: 'orders_report_emailed', ownerKey: require('./orderReport').reportGuardKey(null), meta: { orders: orders.report.summary.orders, via: 'monday_report' } });
   }
   if (res.sent) console.log(`[report] Monday operator report sent to ${REPORT_TO}`);
   else console.warn('[report] operator report send failed:', res.reason);

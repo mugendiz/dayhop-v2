@@ -40,6 +40,11 @@ function isFounderSession(s, { emails = new Set(), owners = new Set() } = {}) {
   return Boolean(s.client_reference_id && owners.has(String(s.client_reference_id)));
 }
 
+function isFounderEmail(email, { emails = new Set() } = {}) {
+  const e = String(email || '').trim().toLowerCase();
+  return Boolean(e) && (emails.has(e) || e.endsWith('@dayhop.quest'));
+}
+
 async function founderIdentity(users) {
   const emails = new Set();
   const add = e => { if (e) emails.add(String(e).trim().toLowerCase()); };
@@ -101,6 +106,98 @@ function outcomeFor(s) {
   return { outcome: 'Attempted, checkout still open', acquired: false };
 }
 
+function personCode(who, refKey = 'dayhop') {
+  return 'C-' + crypto.createHmac('sha256', String(refKey)).update(String(who)).digest('hex').slice(0, 6);
+}
+
+const ymdOf = iso => (iso ? torontoStamp(Date.parse(iso) / 1000).date : '');
+const ymdOfUnix = sec => (sec ? torontoStamp(sec).date : '');
+
+/**
+ * One newsletter subscriber as a report row: when they signed up, confirmed
+ * and unsubscribed, never who. Pure.
+ */
+function shapeSubscriber(r, { cityForOwner = () => null, cityForCode = () => null, refKey = 'dayhop' } = {}) {
+  const customer = personCode(String(r.email || '').trim().toLowerCase() || r.token || r.created_at, refKey);
+  const city = (r.owner_id && cityForOwner(r.owner_id)) || cityForCode(customer) || 'Unknown';
+  const status = r.status === 'unsubscribed' ? 'Unsubscribed' : r.status === 'subscribed' ? 'Subscribed' : 'Signed up, never confirmed';
+  return {
+    customer, city,
+    signed_up: ymdOf(r.created_at),
+    confirmed: ymdOf(r.confirmed_at),
+    unsubscribed: ymdOf(r.unsubscribed_at),
+    status,
+    source: r.consent_source || ''
+  };
+}
+
+/**
+ * One Stripe subscription (customer expanded) as a report row: started,
+ * trial end, cancelled on, ends. A cancellation at period end counts as an
+ * unsubscribe on the day it was requested. Pure.
+ */
+function shapeMembership(sub, { cityForCode = () => null, refKey = 'dayhop' } = {}) {
+  const cust = sub.customer && typeof sub.customer === 'object' ? sub.customer : {};
+  const email = String(cust.email || '').trim().toLowerCase();
+  const customer = personCode(email || cust.id || sub.customer || sub.id, refKey);
+  const addressCity = cust.address && cust.address.city;
+  const cancelled = sub.canceled_at || null;
+  const endsAt = sub.ended_at || sub.cancel_at || (sub.cancel_at_period_end ? sub.current_period_end : null);
+  let status;
+  if (sub.status === 'canceled' || sub.ended_at) status = 'Ended';
+  else if (cancelled || sub.cancel_at_period_end) status = 'Cancelled, runs to its end date';
+  else if (sub.status === 'trialing') status = 'On free trial';
+  else if (sub.status === 'active') status = 'Active';
+  else status = String(sub.status || 'Unknown').replace(/_/g, ' ');
+  return {
+    customer,
+    city: cityForCode(customer) || addressCity || 'Unknown',
+    started: ymdOfUnix(sub.start_date || sub.created),
+    trial_ends: ymdOfUnix(sub.trial_end),
+    cancelled: ymdOfUnix(cancelled),
+    ends: ymdOfUnix(endsAt),
+    status
+  };
+}
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+/** "January 1, 2026 to October 19, 2026", or "All time to October 19, 2026". */
+function periodLabel(since, today) {
+  const nice = ymd => `${MONTHS[Number(ymd.slice(5, 7)) - 1]} ${Number(ymd.slice(8, 10))}, ${ymd.slice(0, 4)}`;
+  return `${since ? nice(since) : 'All time'} to ${nice(today)}`;
+}
+
+/** Month by month: checkouts, newsletter and memberships side by side. */
+function byMonth({ orders = [], newsletter = [], memberships = [], since = null, today }) {
+  const months = new Map();
+  const bump = (ymd, key, n = 1) => {
+    if (!ymd || (since && ymd < since) || ymd > today) return;
+    const m = ymd.slice(0, 7);
+    const row = months.get(m) || { month: m, acquired: 0, attempted: 0, revenue_cents: 0, currency: '', signups: 0, unsubscribes: 0, memberships_started: 0, memberships_cancelled: 0 };
+    row[key] += n;
+    months.set(m, row);
+  };
+  for (const r of orders) {
+    bump(r.date, r.acquired ? 'acquired' : 'attempted');
+    const m = /^([\d.]+) ([A-Z]+)$/.exec(r.amount || '');
+    if (r.acquired && m) { bump(r.date, 'revenue_cents', Math.round(Number(m[1]) * 100)); const row = months.get(r.date.slice(0, 7)); if (row) row.currency = m[2]; }
+  }
+  for (const r of newsletter) { bump(r.signed_up, 'signups'); bump(r.unsubscribed, 'unsubscribes'); }
+  for (const r of memberships) { bump(r.started, 'memberships_started'); bump(r.cancelled, 'memberships_cancelled'); }
+  // Every month of the period appears, empty ones included, so a quiet
+  // month reads as zero rather than as missing.
+  if (since) {
+    for (let y = Number(since.slice(0, 4)), mo = Number(since.slice(5, 7)); `${y}-${String(mo).padStart(2, '0')}` <= today.slice(0, 7); mo === 12 ? (y++, mo = 1) : mo++) {
+      const key = `${y}-${String(mo).padStart(2, '0')}`;
+      if (!months.has(key)) months.set(key, { month: key, acquired: 0, attempted: 0, revenue_cents: 0, currency: '', signups: 0, unsubscribes: 0, memberships_started: 0, memberships_cancelled: 0 });
+    }
+  }
+  return [...months.values()].sort((a, b) => a.month.localeCompare(b.month)).map(r => Object.assign(r, {
+    label: `${MONTHS[Number(r.month.slice(5, 7)) - 1].slice(0, 3)} ${r.month.slice(0, 4)}`,
+    revenue: r.revenue_cents ? money(r.revenue_cents, r.currency) : ''
+  }));
+}
+
 function money(cents, currency) {
   if (cents == null) return '';
   return `${(cents / 100).toFixed(2)} ${String(currency || '').toUpperCase()}`.trim();
@@ -120,11 +217,14 @@ function shapeSession(s, { cityForOwner = () => null, refKey = 'dayhop' } = {}) 
   const owner = s.client_reference_id || null;
   const fromActivity = owner ? cityForOwner(owner) : null;
   const city = fromActivity || address.city || null;
-  const who = s.customer || details.email || owner || s.id;
+  // Email first (lower-cased), so the same person carries the same code in
+  // the checkout, newsletter and membership sections.
+  const email = String(details.email || s.customer_email || '').trim().toLowerCase();
+  const who = email || s.customer || owner || s.id;
   const discount = s.total_details && s.total_details.amount_discount ? s.total_details.amount_discount : 0;
   return {
     date, time,
-    customer: 'C-' + crypto.createHmac('sha256', String(refKey)).update(String(who)).digest('hex').slice(0, 6),
+    customer: personCode(who, refKey),
     city: city || 'Unknown',
     country: address.country || null,
     city_source: fromActivity ? 'DayHop activity' : address.city ? 'Stripe billing address' : 'none',
@@ -206,19 +306,83 @@ async function buildOrderReport({ since = null, includeTest = false, includeFoun
   }
 
   const refKey = process.env.STRIPE_SECRET_KEY || 'dayhop';
+  const cityForOwner = id => cityByOwner.get(id) || null;
   const rows = sessions
-    .map(s => shapeSession(s, { cityForOwner: id => cityByOwner.get(id) || null, refKey }))
+    .map(s => shapeSession(s, { cityForOwner, refKey }))
     .sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
-  return { generated_on: torontoToday(), since, rows, summary: summarize(rows), founder_excluded: founderExcluded, truncated: scanned > MAX_SESSIONS };
+  // A person's city from their checkouts, for the sections that have none.
+  const cityByCode = new Map();
+  for (const r of rows) if (r.city !== 'Unknown' && !cityByCode.has(r.customer)) cityByCode.set(r.customer, r.city);
+  const cityForCode = code => cityByCode.get(code) || null;
+  const today = torontoToday();
+  const inWindow = (...dates) => dates.some(d => d && (!since || d >= since));
+
+  // Newsletter: signups, confirmations and unsubscribes in the period.
+  let newsletter = [];
+  try {
+    const subs = await require('./newsletter').exportRows();
+    newsletter = subs
+      .filter(r => includeFounder || !(isFounderEmail(r.email, founder) || (r.owner_id && founder.owners.has(String(r.owner_id)))))
+      .map(r => shapeSubscriber(r, { cityForOwner, cityForCode, refKey }))
+      .filter(r => inWindow(r.signed_up, r.confirmed, r.unsubscribed))
+      .sort((a, b) => (b.unsubscribed || b.confirmed || b.signed_up).localeCompare(a.unsubscribed || a.confirmed || a.signed_up));
+  } catch (err) {
+    console.warn('[order-report] newsletter section unavailable:', err.message);
+  }
+
+  // Memberships: starts and cancellations (an unsubscribe from Pro).
+  const memberships = [];
+  try {
+    let seen = 0;
+    for await (const sub of stripe.subscriptions.list({ status: 'all', limit: 100, expand: ['data.customer'] })) {
+      if (++seen > MAX_SESSIONS) break;
+      if (!includeTest && sub.livemode === false) continue;
+      const email = sub.customer && typeof sub.customer === 'object' ? sub.customer.email : null;
+      if (!includeFounder && isFounderEmail(email, founder)) { founderExcluded++; continue; }
+      const row = shapeMembership(sub, { cityForCode, refKey });
+      if (inWindow(row.started, row.cancelled, row.ends)) memberships.push(row);
+    }
+    memberships.sort((a, b) => (b.cancelled || b.started).localeCompare(a.cancelled || a.started));
+  } catch (err) {
+    console.warn('[order-report] membership section unavailable:', err.message);
+  }
+
+  const summary = summarize(rows);
+  const count = (list, key) => list.filter(r => r[key] && (!since || r[key] >= since)).length;
+  summary.newsletter = {
+    signed_up: count(newsletter, 'signed_up'),
+    confirmed: count(newsletter, 'confirmed'),
+    unsubscribed: count(newsletter, 'unsubscribed'),
+    subscribed_now: newsletter.filter(r => r.status === 'Subscribed').length
+  };
+  summary.memberships = {
+    started: count(memberships, 'started'),
+    cancelled: count(memberships, 'cancelled'),
+    active_now: memberships.filter(r => r.status === 'Active' || r.status === 'On free trial').length
+  };
+  summary.by_month = byMonth({ orders: rows, newsletter, memberships, since, today });
+  return {
+    generated_on: today, since, period: periodLabel(since, today),
+    rows, newsletter, memberships, summary,
+    founder_excluded: founderExcluded, truncated: scanned > MAX_SESSIONS
+  };
 }
 
 /** Plain-text summary for the email body and quick reading on a phone. */
 function formatSummary(report) {
   const s = report.summary;
-  const lines = [`DayHop customers and orders, ${report.since ? `since ${report.since}` : 'all time'} (generated ${report.generated_on})`, ''];
-  lines.push(`${s.orders} checkouts by ${s.people} people: ${s.acquired} acquired, ${s.attempted_only} attempted but not completed.`);
-  lines.push(`${s.people_who_acquired} of ${s.people} people ended up with something.`);
-  lines.push(`Founder and team checkouts removed: ${report.founder_excluded || 0}.`, '');
+  const nl = s.newsletter || {};
+  const mem = s.memberships || {};
+  const lines = [`DayHop user report, ${report.period || (report.since ? `since ${report.since}` : 'all time')} (generated ${report.generated_on})`, ''];
+  lines.push(`Checkouts: ${s.orders} by ${s.people} people. ${s.acquired} acquired, ${s.attempted_only} attempted but not completed.`);
+  lines.push(`Newsletter: ${nl.signed_up || 0} signed up, ${nl.confirmed || 0} confirmed, ${nl.unsubscribed || 0} unsubscribed.`);
+  lines.push(`Memberships: ${mem.started || 0} started, ${mem.cancelled || 0} cancelled.`);
+  lines.push(`Founder and team data removed: ${report.founder_excluded || 0} records.`, '');
+  if ((s.by_month || []).length) {
+    lines.push('MONTH BY MONTH (acquired / attempted / revenue / newsletter signups / unsubscribes / memberships started / cancelled)');
+    for (const m of s.by_month) lines.push(`  ${m.label}: ${m.acquired} / ${m.attempted} / ${m.revenue || '0'} / ${m.signups} / ${m.unsubscribes} / ${m.memberships_started} / ${m.memberships_cancelled}`);
+    lines.push('');
+  }
   lines.push('BY PRODUCT');
   for (const p of s.by_product) lines.push(`  ${p.product}: ${p.acquired} acquired${p.revenue ? ` (${p.revenue})` : ''}, ${p.attempted_only} attempted`);
   lines.push('', 'BY CITY');
@@ -227,10 +391,22 @@ function formatSummary(report) {
   for (const r of report.rows) {
     lines.push(`  ${r.date} ${r.time}  ${r.customer}  ${r.city}${r.country ? ` (${r.country})` : ''}  ${r.product}  ${r.outcome}${r.amount ? `  ${r.amount}` : ''}${r.discount ? `, ${r.discount} off` : ''}`);
   }
+  if ((report.newsletter || []).length) {
+    lines.push('', 'NEWSLETTER (signed up / confirmed / unsubscribed)');
+    for (const r of report.newsletter) lines.push(`  ${r.customer}  ${r.city}  ${r.signed_up} / ${r.confirmed || 'never'} / ${r.unsubscribed || 'still subscribed'}  ${r.status}`);
+  }
+  if ((report.memberships || []).length) {
+    lines.push('', 'MEMBERSHIPS (started / cancelled / ends)');
+    for (const r of report.memberships) lines.push(`  ${r.customer}  ${r.city}  ${r.started} / ${r.cancelled || 'not cancelled'} / ${r.ends || 'open'}  ${r.status}`);
+  }
   if (report.truncated) lines.push('', 'Stopped at 2000 checkouts; narrow the date to see older ones.');
-  lines.push('', 'The PDF and CSV attached have the same rows.');
+  lines.push('', 'The PDF and CSVs attached have the same rows.');
   return lines.join('\n');
 }
+
+const NEWSLETTER_COLUMNS = ['customer', 'city', 'signed_up', 'confirmed', 'unsubscribed', 'status', 'source'];
+const MEMBERSHIP_COLUMNS = ['customer', 'city', 'started', 'trial_ends', 'cancelled', 'ends', 'status'];
+const csvOf = (cols, rows) => [cols.join(','), ...rows.map(r => cols.map(c => csvCell(r[c])).join(','))].join('\r\n') + '\r\n';
 
 // ---------- delivery ----------
 // A file the phone can open. The admin panel fetched the PDF with an auth
@@ -267,27 +443,35 @@ function verifyFileLink(query, now = Date.now()) {
   return { format, since };
 }
 
-/** Email the report (summary text + PDF + CSV) to the operator inbox. */
+/** The once-a-day guard key for an emailed report of a given range. */
+const reportGuardKey = since => `system-orders-${since || 'all'}`;
+
+/** Email the report (summary text + PDF + CSVs) to the operator inbox. */
 async function emailReport({ since = null } = {}) {
   const report = await buildOrderReport({ since });
   const pdf = await require('./orderReportPdf').buildOrderReportPdf(report);
   const text = formatSummary(report);
+  const nl = report.summary.newsletter || {};
   const res = await require('./email').sendEmail({
     to: process.env.OPERATOR_REPORT_TO || 'dayhopadmin@gmail.com',
-    subject: `DayHop customers and orders: ${report.summary.acquired} acquired, ${report.summary.attempted_only} attempted`,
+    subject: `DayHop user report, ${report.period}: ${report.summary.acquired} acquired, ${report.summary.attempted_only} attempted, ${nl.unsubscribed || 0} unsubscribed`,
     text,
     html: `<pre style="font-family:ui-monospace,Menlo,monospace;font-size:13px;white-space:pre-wrap">${text
       .replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>`,
     attachments: [
-      { filename: `dayhop-orders-${report.generated_on}.pdf`, content: pdf },
-      { filename: `dayhop-orders-${report.generated_on}.csv`, content: Buffer.from(toCsv(report.rows), 'utf8') }
+      { filename: `dayhop-user-report-${report.generated_on}.pdf`, content: pdf },
+      { filename: `dayhop-checkouts-${report.generated_on}.csv`, content: Buffer.from(toCsv(report.rows), 'utf8') },
+      { filename: `dayhop-newsletter-${report.generated_on}.csv`, content: Buffer.from(csvOf(NEWSLETTER_COLUMNS, report.newsletter || []), 'utf8') },
+      { filename: `dayhop-memberships-${report.generated_on}.csv`, content: Buffer.from(csvOf(MEMBERSHIP_COLUMNS, report.memberships || []), 'utf8') }
     ]
   });
-  if (res.sent) require('./analytics').recordEvent({ type: 'orders_report_emailed', ownerKey: 'system', meta: { orders: report.summary.orders } });
+  if (res.sent) require('./analytics').recordEvent({ type: 'orders_report_emailed', ownerKey: reportGuardKey(since), meta: { orders: report.summary.orders } });
   return Object.assign({ orders: report.summary.orders }, res);
 }
 
 module.exports = {
-  buildOrderReport, shapeSession, summarize, toCsv, formatSummary, isFounderSession, COLUMNS,
-  signFileLink, verifyFileLink, emailReport, LINK_TTL_MS
+  buildOrderReport, shapeSession, shapeSubscriber, shapeMembership, byMonth, periodLabel,
+  summarize, toCsv, formatSummary, isFounderSession, isFounderEmail, personCode, COLUMNS,
+  NEWSLETTER_COLUMNS, MEMBERSHIP_COLUMNS,
+  signFileLink, verifyFileLink, emailReport, reportGuardKey, LINK_TTL_MS
 };

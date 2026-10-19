@@ -846,8 +846,36 @@ if (process.env.RESEND_API_KEY) {
   let lastSocialRun = 0;
   let lastSocialMonthRun = 0;
   const remindersSent = new Set();
-  const ORDER_REPORT_SEND_DATES = ['2026-10-19'];
-  let orderReportInFlight = false;
+  // One-off sends of the user report (services/orderReport.js) to the
+  // operator inbox, for when the founder asks for a range on a phone. From
+  // 9 AM on the date, once per range: the DB-backed event count keyed by the
+  // range is the guard, so a redeploy or restart never sends one twice.
+  // Oct 19: the all-time report, then "a user report from jan to date,
+  // including unsubscribes".
+  const USER_REPORT_SENDS = [{ on: '2026-10-19', since: '2026-01-01' }];
+  let userReportInFlight = false;
+  const sendDueUserReports = (parts, today) => {
+    const due = USER_REPORT_SENDS.filter(r => r.on === today && Number(parts.hour) >= 9);
+    if (!due.length || userReportInFlight) return;
+    userReportInFlight = true;
+    const orderReport = require('./services/orderReport');
+    (async () => {
+      for (const r of due) {
+        const n = await require('./services/analytics').countToday('orders_report_emailed', orderReport.reportGuardKey(r.since));
+        if (n > 0) continue;
+        const res = await orderReport.emailReport({ since: r.since });
+        console.log(`[orders] user report ${r.since || 'all time'} emailed: ${res.sent ? 'sent' : res.reason}`);
+      }
+    })()
+      .catch(err => console.warn('[orders] one-off user report failed:', err.message))
+      .finally(() => { userReportInFlight = false; });
+  };
+  // Also two minutes after boot, so a report asked for today lands within
+  // minutes of the deploy rather than at the next 20-minute tick.
+  setTimeout(() => {
+    const parts = torontoParts();
+    sendDueUserReports(parts, `${parts.year}-${parts.month}-${parts.day}`);
+  }, 2 * 60 * 1000).unref();
   // One-off operator reminders, Toronto-date-keyed. Fire at 9 AM alongside
   // the other operator email slots; each key sends at most once per process
   // (and the dates pass, so a restart can't spam much).
@@ -905,19 +933,7 @@ if (process.env.RESEND_API_KEY) {
         .catch(err => console.warn('[social-month] monthly plan failed:', err.message));
     }
     const today = `${parts.year}-${parts.month}-${parts.day}`;
-    // One-off sends of the customers and orders report (founder asked for
-    // the PDF on Oct 19 and could not open the admin panel's version). From
-    // 9 AM on the date, once: the DB-backed event count is the guard, so a
-    // redeploy or restart the same day never sends it twice, and the Monday
-    // brief carrying it already counts.
-    if (ORDER_REPORT_SEND_DATES.includes(today) && Number(parts.hour) >= 9 && !orderReportInFlight) {
-      orderReportInFlight = true;
-      require('./services/analytics').countToday('orders_report_emailed', 'system')
-        .then(n => n > 0 ? null : require('./services/orderReport').emailReport())
-        .then(r => { if (r) console.log(`[orders] report emailed: ${r.sent ? 'sent' : r.reason}`); })
-        .catch(err => console.warn('[orders] one-off report failed:', err.message))
-        .finally(() => { orderReportInFlight = false; });
-    }
+    sendDueUserReports(parts, today);
     for (const r of REMINDERS) {
       if (r.date === today && parts.hour === '09' && !remindersSent.has(r.date)) {
         remindersSent.add(r.date);

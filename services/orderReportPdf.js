@@ -21,7 +21,7 @@ function buildOrderReportPdf(report, { compress = true } = {}) {
     const doc = new PDFDocument({
       size: 'LETTER', layout: 'landscape', compress,
       margins: { top: 40, bottom: 40, left: 40, right: 40 },
-      info: { Title: 'DayHop customers and orders', Author: 'DayHop' }
+      info: { Title: 'DayHop user report', Author: 'DayHop' }
     });
     const chunks = [];
     doc.on('data', c => chunks.push(c));
@@ -35,12 +35,12 @@ function buildOrderReportPdf(report, { compress = true } = {}) {
 
     // ---------- header ----------
     doc.fill(MOSS).font('Helvetica-Bold').fontSize(11).text('DAYHOP', L, 40, { characterSpacing: 1.5 });
-    doc.fill(INK).font('Helvetica-Bold').fontSize(24).text('Customers and orders', L, 56);
-    doc.fill(INK_SOFT).font('Helvetica').fontSize(10.5).text(
-      `${report.since ? `Since ${report.since}` : 'All time'}. Generated ${report.generated_on}. ` +
-      `Founder and team checkouts removed: ${report.founder_excluded || 0}. ` +
-      'No emails or names; each C- code is one anonymous person, stable across their checkouts.',
-      L, 88, { width: W }
+    doc.fill(INK).font('Helvetica-Bold').fontSize(24).text('User report', L, 56);
+    doc.fill(INK).font('Helvetica-Bold').fontSize(12).text(latin1(report.period || (report.since ? `Since ${report.since}` : 'All time')), L, 86);
+    doc.fill(INK_SOFT).font('Helvetica').fontSize(9.5).text(
+      `Generated ${report.generated_on}. Founder and team data removed: ${report.founder_excluded || 0} records. ` +
+      'No emails or names; each C- code is one anonymous person, the same in every section.',
+      L, 102, { width: W }
     );
 
     // ---------- headline tiles ----------
@@ -49,19 +49,22 @@ function buildOrderReportPdf(report, { compress = true } = {}) {
     const revenueText = Object.keys(totals).length
       ? Object.entries(totals).map(([cur, c]) => `${(c / 100).toFixed(2)} ${cur}`).join(' + ')
       : '0.00';
+    const nl = s.newsletter || {};
+    const mem = s.memberships || {};
     const tiles = [
-      ['Checkouts', String(s.orders)],
-      ['People', String(s.people)],
       ['Acquired', String(s.acquired)],
       ['Attempted only', String(s.attempted_only)],
-      ['Revenue', revenueText]
+      ['Revenue', revenueText],
+      ['Signups', String(nl.signed_up || 0)],
+      ['Unsubscribes', String(nl.unsubscribed || 0)],
+      ['Pro cancelled', String(mem.cancelled || 0)]
     ];
-    const tileW = (W - 4 * 10) / 5;
-    let y = 120;
+    const tileW = (W - (tiles.length - 1) * 10) / tiles.length;
+    let y = 124;
     tiles.forEach(([label, value], i) => {
       const x = L + i * (tileW + 10);
       doc.roundedRect(x, y, tileW, 52, 6).fill(PAPER_DIM);
-      doc.fill(INK_SOFT).font('Helvetica').fontSize(9).text(label.toUpperCase(), x + 10, y + 9, { width: tileW - 20, characterSpacing: 0.5 });
+      doc.fill(INK_SOFT).font('Helvetica').fontSize(9).text(label.toUpperCase(), x + 10, y + 9, { width: tileW - 20, characterSpacing: 0.5, lineBreak: false, ellipsis: true });
       doc.fill(INK).font('Helvetica-Bold').fontSize(value.length > 14 ? 12 : 18).text(latin1(value), x + 10, y + 23, { width: tileW - 20, lineBreak: false, ellipsis: true });
     });
     y += 70;
@@ -105,6 +108,21 @@ function buildOrderReportPdf(report, { compress = true } = {}) {
       return ty + 14;
     }
 
+    // Month by month first: the shape of the period at a glance.
+    if ((s.by_month || []).length) {
+      y = table('Month by month', [
+        { key: 'label', label: 'Month', w: 80 },
+        { key: 'acquired', label: 'Acquired', w: 70 },
+        { key: 'attempted', label: 'Attempted', w: 70 },
+        { key: 'revenue', label: 'Revenue', w: 90 },
+        { key: 'signups', label: 'Newsletter signups', w: 120 },
+        { key: 'unsubscribes', label: 'Unsubscribes', w: 95 },
+        { key: 'memberships_started', label: 'Pro started', w: 85 },
+        { key: 'memberships_cancelled', label: 'Pro cancelled', w: W - 610 }
+      ], s.by_month, { startY: y });
+      if (y + 140 > bottom()) { doc.addPage(); y = doc.page.margins.top; }
+    }
+
     // Products and cities side by side.
     const half = (W - 20) / 2;
     const productRows = s.by_product.map(p => ({ product: p.product, acquired: p.acquired, revenue: p.revenue || '', attempted: p.attempted_only }));
@@ -138,12 +156,36 @@ function buildOrderReportPdf(report, { compress = true } = {}) {
       { key: 'date', label: 'Date', w: 64 },
       { key: 'time', label: 'Time', w: 38 },
       { key: 'customer', label: 'Customer', w: 62 },
-      { key: 'city', label: 'City', w: 104 },
-      { key: 'product', label: 'Product', w: 172 },
-      { key: 'outcome', label: 'Outcome', w: 158 },
-      { key: 'amount', label: 'Amount', w: 60 },
-      { key: 'discount', label: 'Discount', w: W - 658 }
+      { key: 'city', label: 'City', w: 100 },
+      { key: 'product', label: 'Product', w: 160 },
+      { key: 'outcome', label: 'Outcome', w: 140 },
+      { key: 'amount', label: 'Amount', w: 90 },
+      { key: 'discount', label: 'Discount', w: W - 654 }
     ], report.rows, { startY: y });
+
+    // Newsletter and memberships: signups, unsubscribes, cancellations.
+    const section = (title, cols, rows) => {
+      doc.addPage();
+      table(title, cols, rows, { startY: doc.page.margins.top });
+    };
+    section('Newsletter: signups and unsubscribes', [
+      { key: 'customer', label: 'Customer', w: 70 },
+      { key: 'city', label: 'City', w: 120 },
+      { key: 'signed_up', label: 'Signed up', w: 80 },
+      { key: 'confirmed', label: 'Confirmed', w: 80 },
+      { key: 'unsubscribed', label: 'Unsubscribed', w: 90 },
+      { key: 'status', label: 'Status', w: 150 },
+      { key: 'source', label: 'Where they signed up', w: W - 590 }
+    ], report.newsletter || []);
+    section('Pro memberships: starts and cancellations', [
+      { key: 'customer', label: 'Customer', w: 70 },
+      { key: 'city', label: 'City', w: 120 },
+      { key: 'started', label: 'Started', w: 80 },
+      { key: 'trial_ends', label: 'Trial ends', w: 80 },
+      { key: 'cancelled', label: 'Cancelled on', w: 90 },
+      { key: 'ends', label: 'Ends', w: 80 },
+      { key: 'status', label: 'Status', w: W - 520 }
+    ], report.memberships || []);
 
     if (report.truncated) {
       doc.fill(INK_SOFT).font('Helvetica').fontSize(9).text('Stopped at 2000 checkouts; narrow the date to see older ones.');
