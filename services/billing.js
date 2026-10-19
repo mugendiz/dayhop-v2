@@ -576,4 +576,4 @@ async function dispatchWebhookEvent(event) {
   }
 }
 
-module.exports = { isConfigured, status, isPro, getSubscription, getPriceInfo, createCheckoutSession, retrieveCheckoutSession, setCancelAtPeriodEnd, handleWebhook, fulfillCheckoutSessionOnce, adminSubscriptions, summarizeSubscription };
+module.exports = { isConfigured, getStripe, status, isPro, getSubscription, getPriceInfo, createCheckoutSession, retrieveCheckoutSession, setCancelAtPeriodEnd, handleWebhook, fulfillCheckoutSessionOnce, adminSubscriptions, summarizeSubscription };
