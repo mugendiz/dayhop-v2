@@ -684,22 +684,46 @@ router.post('/reports/orders/email', requireFinance, async (req, res) => {
   const orderReport = require('../services/orderReport');
   const since = ORDER_SINCE_RE.test(String((req.body && req.body.since) || '')) ? req.body.since : null;
   try {
-    const report = await orderReport.buildOrderReport({ since });
-    const text = orderReport.formatSummary(report);
-    const result = await require('../services/email').sendEmail({
-      to: process.env.OPERATOR_REPORT_TO || 'dayhopadmin@gmail.com',
-      subject: `DayHop customers and orders: ${report.summary.acquired} acquired, ${report.summary.attempted_only} attempted`,
-      text,
-      html: `<pre style="font-family:ui-monospace,Menlo,monospace;font-size:13px;white-space:pre-wrap">${text
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>`,
-      attachments: [
-        { filename: `dayhop-orders-${report.generated_on}.pdf`, content: await require('../services/orderReportPdf').buildOrderReportPdf(report) },
-        { filename: `dayhop-orders-${report.generated_on}.csv`, content: Buffer.from(orderReport.toCsv(report.rows), 'utf8') }
-      ]
-    });
-    res.json({ sent: Boolean(result.sent), reason: result.reason, orders: report.summary.orders });
+    const result = await orderReport.emailReport({ since });
+    res.json({ sent: Boolean(result.sent), reason: result.reason, orders: result.orders });
   } catch (err) {
     res.status(err.code === 'NOT_CONFIGURED' ? 503 : 502).json({ error: err.code || 'REPORT_FAILED', message: err.message });
+  }
+});
+
+// A signed, ten-minute link to the PDF or CSV, so the panel can simply
+// navigate to it and the phone receives a real file (see orderReport.js).
+router.post('/reports/orders/link', requireFinance, (req, res) => {
+  const orderReport = require('../services/orderReport');
+  const format = (req.body && req.body.format) === 'csv' ? 'csv' : 'pdf';
+  const since = ORDER_SINCE_RE.test(String((req.body && req.body.since) || '')) ? req.body.since : null;
+  try {
+    res.json({ url: orderReport.signFileLink({ format, since }) });
+  } catch (err) {
+    res.status(500).json({ error: 'LINK_FAILED', message: err.message });
+  }
+});
+
+// The link itself. No session needed: the signature is the permission, it
+// expires in ten minutes, and it can only ever produce this report.
+router.get('/reports/orders/file', async (req, res) => {
+  const orderReport = require('../services/orderReport');
+  const ok = orderReport.verifyFileLink(req.query);
+  if (!ok) return res.status(403).type('text/plain').send('This report link has expired. Open the report again from the admin panel.');
+  try {
+    const report = await orderReport.buildOrderReport({ since: ok.since });
+    res.set('Cache-Control', 'no-store');
+    if (ok.format === 'csv') {
+      res.set('Content-Type', 'text/csv; charset=utf-8');
+      res.set('Content-Disposition', `attachment; filename="dayhop-orders-${report.generated_on}.csv"`);
+      return res.send(orderReport.toCsv(report.rows));
+    }
+    const pdf = await require('../services/orderReportPdf').buildOrderReportPdf(report);
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Disposition', `inline; filename="dayhop-orders-${report.generated_on}.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    res.status(err.code === 'NOT_CONFIGURED' ? 503 : 502).type('text/plain').send('Could not build the report: ' + err.message);
   }
 });
 

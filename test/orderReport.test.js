@@ -126,3 +126,26 @@ test('the PDF renders every row and still carries no email or name', async () =>
     assert.ok(!hex.includes(Buffer.from(secret, 'latin1').toString('hex')), `leaked ${secret} as glyphs`);
   }
 });
+
+const { signFileLink, verifyFileLink, LINK_TTL_MS } = require('../services/orderReport');
+const linkQuery = url => Object.fromEntries(new URL(url, 'https://dayhop.quest').searchParams);
+
+test('a signed report link opens the right file and nothing else', () => {
+  const now = Date.parse('2026-10-19T15:00:00Z');
+  const url = signFileLink({ format: 'pdf', since: '2026-09-01', now });
+  assert.match(url, /^\/api\/admin\/reports\/orders\/file\?/);
+  assert.deepEqual(verifyFileLink(linkQuery(url), now + 1000), { format: 'pdf', since: '2026-09-01' });
+  const csv = signFileLink({ format: 'csv', now });
+  assert.deepEqual(verifyFileLink(linkQuery(csv), now), { format: 'csv', since: null });
+});
+
+test('an expired or altered report link is refused', () => {
+  const now = Date.parse('2026-10-19T15:00:00Z');
+  const q = linkQuery(signFileLink({ format: 'pdf', now }));
+  assert.equal(verifyFileLink(q, now + LINK_TTL_MS + 1), null, 'expired');
+  assert.equal(verifyFileLink(Object.assign({}, q, { format: 'csv' }), now), null, 'format swapped');
+  assert.equal(verifyFileLink(Object.assign({}, q, { since: '2020-01-01' }), now), null, 'range widened');
+  assert.equal(verifyFileLink(Object.assign({}, q, { exp: String(Number(q.exp) + 86400000) }), now), null, 'expiry extended');
+  assert.equal(verifyFileLink(Object.assign({}, q, { sig: 'x'.repeat(32) }), now), null, 'forged');
+  assert.equal(verifyFileLink({}, now), null);
+});

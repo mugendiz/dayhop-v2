@@ -846,6 +846,8 @@ if (process.env.RESEND_API_KEY) {
   let lastSocialRun = 0;
   let lastSocialMonthRun = 0;
   const remindersSent = new Set();
+  const ORDER_REPORT_SEND_DATES = ['2026-10-19'];
+  let orderReportInFlight = false;
   // One-off operator reminders, Toronto-date-keyed. Fire at 9 AM alongside
   // the other operator email slots; each key sends at most once per process
   // (and the dates pass, so a restart can't spam much).
@@ -903,6 +905,19 @@ if (process.env.RESEND_API_KEY) {
         .catch(err => console.warn('[social-month] monthly plan failed:', err.message));
     }
     const today = `${parts.year}-${parts.month}-${parts.day}`;
+    // One-off sends of the customers and orders report (founder asked for
+    // the PDF on Oct 19 and could not open the admin panel's version). From
+    // 9 AM on the date, once: the DB-backed event count is the guard, so a
+    // redeploy or restart the same day never sends it twice, and the Monday
+    // brief carrying it already counts.
+    if (ORDER_REPORT_SEND_DATES.includes(today) && Number(parts.hour) >= 9 && !orderReportInFlight) {
+      orderReportInFlight = true;
+      require('./services/analytics').countToday('orders_report_emailed', 'system')
+        .then(n => n > 0 ? null : require('./services/orderReport').emailReport())
+        .then(r => { if (r) console.log(`[orders] report emailed: ${r.sent ? 'sent' : r.reason}`); })
+        .catch(err => console.warn('[orders] one-off report failed:', err.message))
+        .finally(() => { orderReportInFlight = false; });
+    }
     for (const r of REMINDERS) {
       if (r.date === today && parts.hour === '09' && !remindersSent.has(r.date)) {
         remindersSent.add(r.date);
