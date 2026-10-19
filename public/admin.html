@@ -542,6 +542,22 @@
       <pre id="traction-block" style="background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px;font-size:12.5px;line-height:1.55;overflow-x:auto;margin:0">Loading…</pre>
     </div>
 
+    <div class="card" id="orders-card">
+      <h2>Customers &amp; orders 🧾</h2>
+      <p class="rate" style="margin:0 0 10px">Every checkout from Stripe: date, product, bought or only attempted, and city.
+        No emails or names. Each person has an anonymous code (C-…) so repeat attempts line up.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <label class="rate" for="orders-since">Since</label>
+        <input id="orders-since" type="date" style="font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:8px">
+        <button id="orders-load" class="mini-btn">Show report</button>
+        <button id="orders-csv" class="mini-btn">Download CSV</button>
+        <button id="orders-email" class="mini-btn">Email it to me</button>
+        <span class="rate" id="orders-msg"></span>
+      </div>
+      <div id="orders-summary"></div>
+      <div style="overflow-x:auto"><table id="orders-table" style="width:100%;font-size:12.5px;border-collapse:collapse"></table></div>
+    </div>
+
     <div class="card" id="accounting-card">
       <h2>Accounting 📒</h2>
       <p class="rate" style="margin:0 0 10px">The books: every real dollar in and out. Stripe income
@@ -1210,6 +1226,63 @@
     acctAllCats = [...new Set([...income, ...expense])];
   }
   let acctAllCats = [];
+
+  // Customers & orders (routes/admin.js /reports/orders). Loaded on demand:
+  // it reads every Stripe checkout session, so it is not fetched on login.
+  function ordersQuery() {
+    const since = $('orders-since').value;
+    return since ? '?since=' + since : '';
+  }
+  async function loadOrders() {
+    if (!lastAuth) return;
+    $('orders-msg').textContent = 'Reading Stripe…';
+    try {
+      const r = await fetch('/api/admin/reports/orders' + ordersQuery(), { headers: lastAuth.headers }).then(x => x.json());
+      if (r.error) throw new Error(r.message || r.error);
+      const s = r.summary;
+      $('orders-summary').innerHTML =
+        '<p style="margin:0 0 8px"><b>' + s.orders + '</b> checkouts by <b>' + s.people + '</b> people: <b>' + s.acquired +
+        '</b> acquired, <b>' + s.attempted_only + '</b> attempted only.</p>' +
+        '<p class="rate" style="margin:0 0 8px">' + s.by_product.map(p => esc(p.product) + ': ' + p.acquired + ' acquired' +
+          (p.revenue ? ' (' + esc(p.revenue) + ')' : '') + ', ' + p.attempted_only + ' attempted').join(' · ') + '</p>' +
+        '<p class="rate" style="margin:0 0 10px">Cities: ' + s.by_city.map(c => esc(c.city) + ' ' + c.orders).join(' · ') + '</p>';
+      const cols = ['date', 'time', 'customer', 'city', 'product', 'outcome', 'amount', 'discount', 'source'];
+      $('orders-table').innerHTML = '<tr>' + cols.map(c => '<th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--line)">' + c + '</th>').join('') + '</tr>' +
+        r.rows.slice(0, 200).map(row => '<tr>' + cols.map(c => '<td style="padding:4px 6px;border-bottom:1px solid var(--line)">' + esc(row[c] == null ? '' : row[c]) + '</td>').join('') + '</tr>').join('');
+      $('orders-msg').textContent = r.rows.length > 200 ? 'Showing the newest 200; the CSV has all ' + r.rows.length + '.' : '';
+    } catch (e) {
+      $('orders-msg').textContent = 'Could not build the report: ' + e.message;
+    }
+  }
+  if ($('orders-card')) {
+    $('orders-load').addEventListener('click', loadOrders);
+    $('orders-csv').addEventListener('click', async () => {
+      if (!lastAuth) return;
+      $('orders-msg').textContent = 'Preparing CSV…';
+      try {
+        const res = await fetch('/api/admin/reports/orders' + (ordersQuery() ? ordersQuery() + '&' : '?') + 'format=csv', { headers: lastAuth.headers });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const blob = await res.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'dayhop-orders.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+        $('orders-msg').textContent = 'Downloaded.';
+      } catch (e) { $('orders-msg').textContent = 'Download failed: ' + e.message; }
+    });
+    $('orders-email').addEventListener('click', async () => {
+      if (!lastAuth) return;
+      $('orders-msg').textContent = 'Sending…';
+      try {
+        const r = await fetch('/api/admin/reports/orders/email', {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, lastAuth.headers),
+          body: JSON.stringify({ since: $('orders-since').value || null })
+        }).then(x => x.json());
+        $('orders-msg').textContent = r.sent ? 'Sent to the operator inbox (' + r.orders + ' checkouts).' : 'Not sent: ' + (r.message || r.reason || 'unknown');
+      } catch (e) { $('orders-msg').textContent = 'Not sent: ' + e.message; }
+    });
+  }
 
   async function loadAccounting() {
     if (!lastAuth || !$('accounting-card')) return;

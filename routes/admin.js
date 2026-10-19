@@ -650,6 +650,47 @@ function requireLedger(req, res) {
   return false;
 }
 
+// Customers and orders (services/orderReport.js): every Stripe Checkout
+// session with date, product, bought or only attempted, and city. No email,
+// name or Stripe id ever leaves this route. ?since=YYYY-MM-DD narrows it,
+// ?format=csv downloads it; POST /email sends the CSV to the operator inbox.
+const ORDER_SINCE_RE = /^\d{4}-\d{2}-\d{2}$/;
+router.get('/reports/orders', requireFinance, async (req, res) => {
+  const orderReport = require('../services/orderReport');
+  const since = ORDER_SINCE_RE.test(String(req.query.since || '')) ? req.query.since : null;
+  try {
+    const report = await orderReport.buildOrderReport({ since });
+    if (req.query.format === 'csv') {
+      res.set('Content-Type', 'text/csv; charset=utf-8');
+      res.set('Content-Disposition', `attachment; filename="dayhop-orders-${report.generated_on}.csv"`);
+      return res.send(orderReport.toCsv(report.rows));
+    }
+    res.json(report);
+  } catch (err) {
+    res.status(err.code === 'NOT_CONFIGURED' ? 503 : 502).json({ error: err.code || 'REPORT_FAILED', message: err.message });
+  }
+});
+
+router.post('/reports/orders/email', requireFinance, async (req, res) => {
+  const orderReport = require('../services/orderReport');
+  const since = ORDER_SINCE_RE.test(String((req.body && req.body.since) || '')) ? req.body.since : null;
+  try {
+    const report = await orderReport.buildOrderReport({ since });
+    const text = orderReport.formatSummary(report);
+    const result = await require('../services/email').sendEmail({
+      to: process.env.OPERATOR_REPORT_TO || 'dayhopadmin@gmail.com',
+      subject: `DayHop customers and orders: ${report.summary.acquired} acquired, ${report.summary.attempted_only} attempted`,
+      text,
+      html: `<pre style="font-family:ui-monospace,Menlo,monospace;font-size:13px;white-space:pre-wrap">${text
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>`,
+      attachments: [{ filename: `dayhop-orders-${report.generated_on}.csv`, content: Buffer.from(orderReport.toCsv(report.rows), 'utf8') }]
+    });
+    res.json({ sent: Boolean(result.sent), reason: result.reason, orders: report.summary.orders });
+  } catch (err) {
+    res.status(err.code === 'NOT_CONFIGURED' ? 503 : 502).json({ error: err.code || 'REPORT_FAILED', message: err.message });
+  }
+});
+
 router.get('/accounting/summary', requireFinance, async (req, res) => {
   try {
     if (!requireLedger(req, res)) return;
