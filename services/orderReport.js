@@ -26,6 +26,35 @@ const cityGuides = require('./cityGuides');
 const { torontoToday } = require('./spotlight');
 
 const MAX_SESSIONS = 2000;
+
+// Founder and team checkouts are test purchases, not customers (founder
+// ask, Oct 19: "remove founder data"). A session is the founder's when its
+// email is a DayHop admin, team member, operator inbox, a FOUNDER_EMAILS
+// entry or any @dayhop.quest address, or when it was opened by an account
+// analytics already marks internal (INTERNAL_OWNERS, internal IPs). The
+// emails are compared here on the server and never written anywhere.
+function isFounderSession(s, { emails = new Set(), owners = new Set() } = {}) {
+  const seen = [s.customer_details && s.customer_details.email, s.customer_email]
+    .filter(Boolean).map(e => String(e).trim().toLowerCase());
+  if (seen.some(e => emails.has(e) || e.endsWith('@dayhop.quest'))) return true;
+  return Boolean(s.client_reference_id && owners.has(String(s.client_reference_id)));
+}
+
+async function founderIdentity(users) {
+  const emails = new Set();
+  const add = e => { if (e) emails.add(String(e).trim().toLowerCase()); };
+  String(process.env.ADMIN_EMAILS || '').split(',').forEach(add);
+  String(process.env.FOUNDER_EMAILS || '').split(',').forEach(add);
+  add(process.env.OPERATOR_REPORT_TO || 'dayhopadmin@gmail.com');
+  try { require('./entitlements').ADMIN_EMAILS.forEach(add); } catch { /* env list above still applies */ }
+  try { (await require('./outreach').listTeam()).forEach(m => add(m.email)); } catch (err) {
+    console.warn('[order-report] team list unavailable:', err.message);
+  }
+  emails.delete('');
+  const owners = new Set((users || []).filter(u => u.internal).map(u => String(u.owner_key)));
+  String(process.env.INTERNAL_OWNERS || '').split(',').map(x => x.trim()).filter(Boolean).forEach(o => owners.add(o));
+  return { emails, owners };
+}
 const TORONTO_TIME = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'America/Toronto', year: 'numeric', month: '2-digit', day: '2-digit',
   hour: '2-digit', minute: '2-digit', hour12: false
@@ -101,7 +130,9 @@ function shapeSession(s, { cityForOwner = () => null, refKey = 'dayhop' } = {}) 
     city_source: fromActivity ? 'DayHop activity' : address.city ? 'Stripe billing address' : 'none',
     signed_in: Boolean(owner),
     product, kind, outcome, acquired,
-    amount: money(s.amount_total, s.currency),
+    // An abandoned checkout still has a total; label it so it never reads
+    // as money received. Revenue in summarize() counts acquired rows only.
+    amount: acquired || !s.amount_total ? money(s.amount_total, s.currency) : `${money(s.amount_total, s.currency)} (unpaid)`,
     discount: discount ? money(discount, s.currency) : '',
     source: (s.metadata && (s.metadata.src || s.metadata.utm_source)) || ''
   };
@@ -144,36 +175,41 @@ function toCsv(rows) {
  * The report. `since` is a Toronto date (YYYY-MM-DD); default is everything
  * Stripe holds. Test-mode sessions are left out unless includeTest.
  */
-async function buildOrderReport({ since = null, includeTest = false } = {}) {
+async function buildOrderReport({ since = null, includeTest = false, includeFounder = false } = {}) {
   const billing = require('./billing');
   if (!billing.isConfigured()) throw Object.assign(new Error('Stripe is not configured'), { code: 'NOT_CONFIGURED' });
   const stripe = billing.getStripe();
 
   // City by account, from DayHop's own activity rollup.
   const cityByOwner = new Map();
+  let users = [];
   try {
-    const { users } = await require('./analytics').userActivity(5000);
+    ({ users } = await require('./analytics').userActivity(5000));
     for (const u of users) if (u.top_city) cityByOwner.set(u.owner_key, u.top_city);
   } catch (err) {
     console.warn('[order-report] activity cities unavailable:', err.message);
   }
+  const founder = await founderIdentity(users);
 
   const params = { limit: 100, expand: ['data.line_items'] };
   // Midnight Toronto standard time; in summer this starts an hour early,
   // which only ever includes an extra hour, never drops one.
   if (since) params.created = { gte: Math.floor(Date.parse(`${since}T05:00:00Z`) / 1000) };
   const sessions = [];
+  let founderExcluded = 0;
+  let scanned = 0;
   for await (const s of stripe.checkout.sessions.list(params)) {
+    if (++scanned > MAX_SESSIONS) break;
     if (!includeTest && s.livemode === false) continue;
+    if (!includeFounder && isFounderSession(s, founder)) { founderExcluded++; continue; }
     sessions.push(s);
-    if (sessions.length >= MAX_SESSIONS) break;
   }
 
   const refKey = process.env.STRIPE_SECRET_KEY || 'dayhop';
   const rows = sessions
     .map(s => shapeSession(s, { cityForOwner: id => cityByOwner.get(id) || null, refKey }))
     .sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
-  return { generated_on: torontoToday(), since, rows, summary: summarize(rows), truncated: sessions.length >= MAX_SESSIONS };
+  return { generated_on: torontoToday(), since, rows, summary: summarize(rows), founder_excluded: founderExcluded, truncated: scanned > MAX_SESSIONS };
 }
 
 /** Plain-text summary for the email body and quick reading on a phone. */
@@ -181,7 +217,8 @@ function formatSummary(report) {
   const s = report.summary;
   const lines = [`DayHop customers and orders, ${report.since ? `since ${report.since}` : 'all time'} (generated ${report.generated_on})`, ''];
   lines.push(`${s.orders} checkouts by ${s.people} people: ${s.acquired} acquired, ${s.attempted_only} attempted but not completed.`);
-  lines.push(`${s.people_who_acquired} of ${s.people} people ended up with something.`, '');
+  lines.push(`${s.people_who_acquired} of ${s.people} people ended up with something.`);
+  lines.push(`Founder and team checkouts removed: ${report.founder_excluded || 0}.`, '');
   lines.push('BY PRODUCT');
   for (const p of s.by_product) lines.push(`  ${p.product}: ${p.acquired} acquired${p.revenue ? ` (${p.revenue})` : ''}, ${p.attempted_only} attempted`);
   lines.push('', 'BY CITY');
@@ -191,8 +228,8 @@ function formatSummary(report) {
     lines.push(`  ${r.date} ${r.time}  ${r.customer}  ${r.city}${r.country ? ` (${r.country})` : ''}  ${r.product}  ${r.outcome}${r.amount ? `  ${r.amount}` : ''}${r.discount ? `, ${r.discount} off` : ''}`);
   }
   if (report.truncated) lines.push('', 'Stopped at 2000 checkouts; narrow the date to see older ones.');
-  lines.push('', 'The CSV attached has the same rows.');
+  lines.push('', 'The PDF and CSV attached have the same rows.');
   return lines.join('\n');
 }
 
-module.exports = { buildOrderReport, shapeSession, summarize, toCsv, formatSummary, COLUMNS };
+module.exports = { buildOrderReport, shapeSession, summarize, toCsv, formatSummary, isFounderSession, COLUMNS };

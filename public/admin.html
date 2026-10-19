@@ -545,11 +545,13 @@
     <div class="card" id="orders-card">
       <h2>Customers &amp; orders 🧾</h2>
       <p class="rate" style="margin:0 0 10px">Every checkout from Stripe: date, product, bought or only attempted, and city.
-        No emails or names. Each person has an anonymous code (C-…) so repeat attempts line up.</p>
+        No emails or names, and founder and team test checkouts are left out. Each person has an anonymous
+        code (C-…) so repeat attempts line up.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
         <label class="rate" for="orders-since">Since</label>
         <input id="orders-since" type="date" style="font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:8px">
-        <button id="orders-load" class="mini-btn">Show report</button>
+        <button id="orders-pdf" class="mini-btn">Open PDF</button>
+        <button id="orders-load" class="mini-btn">Show here</button>
         <button id="orders-csv" class="mini-btn">Download CSV</button>
         <button id="orders-email" class="mini-btn">Email it to me</button>
         <span class="rate" id="orders-msg"></span>
@@ -1242,7 +1244,7 @@
       const s = r.summary;
       $('orders-summary').innerHTML =
         '<p style="margin:0 0 8px"><b>' + s.orders + '</b> checkouts by <b>' + s.people + '</b> people: <b>' + s.acquired +
-        '</b> acquired, <b>' + s.attempted_only + '</b> attempted only.</p>' +
+        '</b> acquired, <b>' + s.attempted_only + '</b> attempted only. Founder and team checkouts removed: ' + (r.founder_excluded || 0) + '.</p>' +
         '<p class="rate" style="margin:0 0 8px">' + s.by_product.map(p => esc(p.product) + ': ' + p.acquired + ' acquired' +
           (p.revenue ? ' (' + esc(p.revenue) + ')' : '') + ', ' + p.attempted_only + ' attempted').join(' · ') + '</p>' +
         '<p class="rate" style="margin:0 0 10px">Cities: ' + s.by_city.map(c => esc(c.city) + ' ' + c.orders).join(' · ') + '</p>';
@@ -1256,6 +1258,23 @@
   }
   if ($('orders-card')) {
     $('orders-load').addEventListener('click', loadOrders);
+    $('orders-pdf').addEventListener('click', async () => {
+      if (!lastAuth) return;
+      // Open the tab now, inside the click, or a popup blocker eats it once
+      // the fetch below has gone async.
+      const tab = window.open('', '_blank');
+      $('orders-msg').textContent = 'Building PDF…';
+      try {
+        const res = await fetch('/api/admin/reports/orders' + (ordersQuery() ? ordersQuery() + '&' : '?') + 'format=pdf', { headers: lastAuth.headers });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const url = URL.createObjectURL(new Blob([await res.blob()], { type: 'application/pdf' }));
+        if (tab) tab.location = url; else window.location = url;
+        $('orders-msg').textContent = 'PDF opened in a new tab.';
+      } catch (e) {
+        if (tab) tab.close();
+        $('orders-msg').textContent = 'PDF failed: ' + e.message;
+      }
+    });
     $('orders-csv').addEventListener('click', async () => {
       if (!lastAuth) return;
       $('orders-msg').textContent = 'Preparing CSV…';

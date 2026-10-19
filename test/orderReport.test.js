@@ -43,6 +43,7 @@ test('attempted orders, trials and free codes are named for what they are', () =
   const out = over => shapeSession(Object.assign({}, base, over), { refKey: 'k' });
   assert.equal(out({ status: 'expired', payment_status: 'unpaid' }).outcome, 'Attempted, abandoned at checkout');
   assert.equal(out({ status: 'expired', payment_status: 'unpaid' }).acquired, false);
+  assert.equal(out({ status: 'expired', payment_status: 'unpaid' }).amount, '5.00 CAD (unpaid)', 'an abandoned total never reads as paid');
   assert.equal(out({ status: 'open', payment_status: 'unpaid' }).outcome, 'Attempted, checkout still open');
   assert.equal(out({ payment_status: 'no_payment_required', amount_total: 0 }).outcome, 'Acquired free (100% promo code)');
   const trial = out({ mode: 'subscription', metadata: {}, payment_status: 'no_payment_required', line_items: { data: [{ description: 'DayHop Pro' }] } });
@@ -94,4 +95,34 @@ test('summary counts acquired vs attempted, revenue by product, and cities', () 
 test('CSV quotes commas and quotes in product names', () => {
   const row = shapeSession(Object.assign({}, base, { metadata: {}, line_items: { data: [{ description: 'Guide, "deluxe"' }] } }), { refKey: 'k' });
   assert.match(toCsv([row]), /"Guide, ""deluxe"""/);
+});
+
+const { isFounderSession } = require('../services/orderReport');
+const { buildOrderReportPdf } = require('../services/orderReportPdf');
+
+test('founder and team checkouts are recognised by email, domain or internal account', () => {
+  const founder = { emails: new Set(['owner@example.com']), owners: new Set(['owner-uuid']) };
+  assert.equal(isFounderSession(Object.assign({}, base, { customer_details: { email: 'Owner@Example.com' } }), founder), true, 'case-insensitive');
+  assert.equal(isFounderSession(Object.assign({}, base, { customer_details: null, customer_email: 'owner@example.com', status: 'expired' }), founder), true, 'prefilled email on an abandoned checkout');
+  assert.equal(isFounderSession(Object.assign({}, base, { customer_details: { email: 'test@dayhop.quest' } }), founder), true, 'any DayHop address');
+  assert.equal(isFounderSession(Object.assign({}, base, { client_reference_id: 'owner-uuid', customer_details: {} }), founder), true, 'internal account');
+  assert.equal(isFounderSession(base, founder), false, 'a real buyer stays');
+});
+
+test('the PDF renders every row and still carries no email or name', async () => {
+  const rows = [
+    shapeSession(base, { refKey: 'k' }),
+    shapeSession(Object.assign({}, base, { status: 'expired', payment_status: 'unpaid' }), { refKey: 'k' })
+  ];
+  const report = { generated_on: '2026-10-19', since: null, rows, summary: summarize(rows), founder_excluded: 3, truncated: false };
+  const pdf = await buildOrderReportPdf(report, { compress: false });
+  assert.equal(pdf.subarray(0, 4).toString(), '%PDF');
+  // pdfkit writes page text as hex glyph strings, so check both forms.
+  const text = pdf.toString('latin1');
+  const hex = text.toLowerCase();
+  assert.ok(text.includes('DayHop customers and orders'), 'document title');
+  for (const secret of ['buyer@example.com', 'Jane Buyer', 'cus_SECRET123', 'cs_live_a1b2c3']) {
+    assert.ok(!text.includes(secret), `leaked ${secret}`);
+    assert.ok(!hex.includes(Buffer.from(secret, 'latin1').toString('hex')), `leaked ${secret} as glyphs`);
+  }
 });

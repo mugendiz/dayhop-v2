@@ -652,14 +652,23 @@ function requireLedger(req, res) {
 
 // Customers and orders (services/orderReport.js): every Stripe Checkout
 // session with date, product, bought or only attempted, and city. No email,
-// name or Stripe id ever leaves this route. ?since=YYYY-MM-DD narrows it,
-// ?format=csv downloads it; POST /email sends the CSV to the operator inbox.
+// name or Stripe id ever leaves this route, and founder and team checkouts
+// are left out. ?since=YYYY-MM-DD narrows it, ?format=pdf shows it as a PDF,
+// ?format=csv downloads it; POST /email sends both to the operator inbox.
 const ORDER_SINCE_RE = /^\d{4}-\d{2}-\d{2}$/;
 router.get('/reports/orders', requireFinance, async (req, res) => {
   const orderReport = require('../services/orderReport');
   const since = ORDER_SINCE_RE.test(String(req.query.since || '')) ? req.query.since : null;
   try {
     const report = await orderReport.buildOrderReport({ since });
+    if (req.query.format === 'pdf') {
+      const pdf = await require('../services/orderReportPdf').buildOrderReportPdf(report);
+      res.set('Content-Type', 'application/pdf');
+      // inline: the browser shows it; its own save button keeps a copy.
+      res.set('Content-Disposition', `inline; filename="dayhop-orders-${report.generated_on}.pdf"`);
+      res.set('Cache-Control', 'no-store');
+      return res.send(pdf);
+    }
     if (req.query.format === 'csv') {
       res.set('Content-Type', 'text/csv; charset=utf-8');
       res.set('Content-Disposition', `attachment; filename="dayhop-orders-${report.generated_on}.csv"`);
@@ -683,7 +692,10 @@ router.post('/reports/orders/email', requireFinance, async (req, res) => {
       text,
       html: `<pre style="font-family:ui-monospace,Menlo,monospace;font-size:13px;white-space:pre-wrap">${text
         .replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>`,
-      attachments: [{ filename: `dayhop-orders-${report.generated_on}.csv`, content: Buffer.from(orderReport.toCsv(report.rows), 'utf8') }]
+      attachments: [
+        { filename: `dayhop-orders-${report.generated_on}.pdf`, content: await require('../services/orderReportPdf').buildOrderReportPdf(report) },
+        { filename: `dayhop-orders-${report.generated_on}.csv`, content: Buffer.from(orderReport.toCsv(report.rows), 'utf8') }
+      ]
     });
     res.json({ sent: Boolean(result.sent), reason: result.reason, orders: report.summary.orders });
   } catch (err) {

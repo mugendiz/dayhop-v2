@@ -79,4 +79,4 @@ async function entitlementsFor(userOrId) {
   }
 }
 
-module.exports = { entitlementsFor, isAdmin, FREE_TIER, PRO_TIER, PREVIEW_TIER, ADMIN_TIER, MAX_TRIP_DAYS };
+module.exports = { entitlementsFor, isAdmin, FREE_TIER, PRO_TIER, PREVIEW_TIER, ADMIN_TIER, MAX_TRIP_DAYS, ADMIN_EMAILS };
