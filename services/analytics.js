@@ -83,6 +83,8 @@ const SERVER_EVENT_TYPES = new Set([
   // subscribe → confirmed (double opt-in) → weekly digest_sent; unsubscribes
   // tracked so list-health (churn) shows up on the admin dashboard.
   'newsletter_subscribe', 'newsletter_confirmed', 'newsletter_unsubscribed', 'digest_sent',
+  // Orders report emailed (services/orderReport.js): the once-a-day guard.
+  'orders_report_emailed',
   // Lead magnet: teaser vs full views of /playbook (source field says which).
   'playbook_view',
   // Digest tracking (routes/digestTrack.js): open pixel + signed click

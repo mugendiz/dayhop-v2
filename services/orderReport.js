@@ -232,4 +232,62 @@ function formatSummary(report) {
   return lines.join('\n');
 }
 
-module.exports = { buildOrderReport, shapeSession, summarize, toCsv, formatSummary, isFounderSession, COLUMNS };
+// ---------- delivery ----------
+// A file the phone can open. The admin panel fetched the PDF with an auth
+// header and handed the browser a blob, which mobile browsers save as a
+// nameless file nothing will open (founder, Oct 19: "its a js file cant
+// open it"). Instead the panel asks for a signed link, valid for ten
+// minutes, and simply navigates to it: the server answers with a real
+// application/pdf and a .pdf filename, which every phone opens natively.
+const LINK_TTL_MS = 10 * 60 * 1000;
+function linkSecret() {
+  const s = process.env.DIGEST_TRACK_SECRET || process.env.ADMIN_KEY || process.env.STRIPE_SECRET_KEY;
+  if (s) return s;
+  if (process.env.NODE_ENV === 'production') throw new Error('No signing secret configured for report links.');
+  return 'dayhop-dev-only';
+}
+const linkSig = (format, since, exp) =>
+  crypto.createHmac('sha256', linkSecret()).update(`orders|${format}|${since || ''}|${exp}`).digest('hex').slice(0, 32);
+
+function signFileLink({ format = 'pdf', since = null, now = Date.now() } = {}) {
+  const exp = now + LINK_TTL_MS;
+  const q = new URLSearchParams({ format, exp: String(exp), sig: linkSig(format, since, exp) });
+  if (since) q.set('since', since);
+  return `/api/admin/reports/orders/file?${q.toString()}`;
+}
+
+function verifyFileLink(query, now = Date.now()) {
+  const format = query.format === 'csv' ? 'csv' : query.format === 'pdf' ? 'pdf' : null;
+  const since = /^\d{4}-\d{2}-\d{2}$/.test(String(query.since || '')) ? query.since : null;
+  const exp = Number(query.exp);
+  if (!format || !Number.isFinite(exp) || exp < now) return null;
+  const want = linkSig(format, since, exp);
+  const got = String(query.sig || '');
+  if (got.length !== want.length || !crypto.timingSafeEqual(Buffer.from(got), Buffer.from(want))) return null;
+  return { format, since };
+}
+
+/** Email the report (summary text + PDF + CSV) to the operator inbox. */
+async function emailReport({ since = null } = {}) {
+  const report = await buildOrderReport({ since });
+  const pdf = await require('./orderReportPdf').buildOrderReportPdf(report);
+  const text = formatSummary(report);
+  const res = await require('./email').sendEmail({
+    to: process.env.OPERATOR_REPORT_TO || 'dayhopadmin@gmail.com',
+    subject: `DayHop customers and orders: ${report.summary.acquired} acquired, ${report.summary.attempted_only} attempted`,
+    text,
+    html: `<pre style="font-family:ui-monospace,Menlo,monospace;font-size:13px;white-space:pre-wrap">${text
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>`,
+    attachments: [
+      { filename: `dayhop-orders-${report.generated_on}.pdf`, content: pdf },
+      { filename: `dayhop-orders-${report.generated_on}.csv`, content: Buffer.from(toCsv(report.rows), 'utf8') }
+    ]
+  });
+  if (res.sent) require('./analytics').recordEvent({ type: 'orders_report_emailed', ownerKey: 'system', meta: { orders: report.summary.orders } });
+  return Object.assign({ orders: report.summary.orders }, res);
+}
+
+module.exports = {
+  buildOrderReport, shapeSession, summarize, toCsv, formatSummary, isFounderSession, COLUMNS,
+  signFileLink, verifyFileLink, emailReport, LINK_TTL_MS
+};

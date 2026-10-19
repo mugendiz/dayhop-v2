@@ -218,15 +218,39 @@ async function buildReport() {
   return lines.join('\n');
 }
 
+// The customers and orders PDF rides along every Monday (founder data
+// removed), so the report reaches the inbox without opening the admin
+// panel. Never blocks the brief: no Stripe, no attachment.
+async function ordersAttachment() {
+  try {
+    const orderReport = require('./orderReport');
+    const report = await orderReport.buildOrderReport();
+    const pdf = await require('./orderReportPdf').buildOrderReportPdf(report);
+    return { report, attachment: { filename: `dayhop-orders-${report.generated_on}.pdf`, content: pdf } };
+  } catch (err) {
+    console.warn('[report] orders PDF skipped:', err.message);
+    return null;
+  }
+}
+
 async function sendReport() {
-  const text = await buildReport();
+  let text = await buildReport();
+  const orders = await ordersAttachment();
+  if (orders) {
+    const s = orders.report.summary;
+    text += `\n\nAttached: customers and orders PDF (${s.acquired} acquired, ${s.attempted_only} attempted, founder checkouts removed).`;
+  }
   const res = await sendEmail({
     to: REPORT_TO,
     subject: `DayHop weekly: your Monday operator report`,
     text,
     html: `<pre style="font-family:ui-monospace,Menlo,monospace;font-size:13px;white-space:pre-wrap">${text
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>`
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>`,
+    attachments: orders ? [orders.attachment] : undefined
   });
+  if (res.sent && orders) {
+    require('./analytics').recordEvent({ type: 'orders_report_emailed', ownerKey: 'system', meta: { orders: orders.report.summary.orders, via: 'monday_report' } });
+  }
   if (res.sent) console.log(`[report] Monday operator report sent to ${REPORT_TO}`);
   else console.warn('[report] operator report send failed:', res.reason);
   return res;

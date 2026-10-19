@@ -1258,37 +1258,28 @@
   }
   if ($('orders-card')) {
     $('orders-load').addEventListener('click', loadOrders);
-    $('orders-pdf').addEventListener('click', async () => {
+    // Ask for a signed ten-minute link and navigate to it: the phone gets a
+    // real .pdf (or .csv) from the server, which it can open. A fetched blob
+    // handed to the browser was saved on phones as a nameless file nothing
+    // could open.
+    async function openOrdersFile(format) {
       if (!lastAuth) return;
-      // Open the tab now, inside the click, or a popup blocker eats it once
-      // the fetch below has gone async.
-      const tab = window.open('', '_blank');
-      $('orders-msg').textContent = 'Building PDF…';
+      $('orders-msg').textContent = format === 'pdf' ? 'Building PDF…' : 'Preparing CSV…';
       try {
-        const res = await fetch('/api/admin/reports/orders' + (ordersQuery() ? ordersQuery() + '&' : '?') + 'format=pdf', { headers: lastAuth.headers });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const url = URL.createObjectURL(new Blob([await res.blob()], { type: 'application/pdf' }));
-        if (tab) tab.location = url; else window.location = url;
-        $('orders-msg').textContent = 'PDF opened in a new tab.';
+        const r = await fetch('/api/admin/reports/orders/link', {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, lastAuth.headers),
+          body: JSON.stringify({ format, since: $('orders-since').value || null })
+        }).then(x => x.json());
+        if (!r.url) throw new Error(r.message || r.error || 'no link');
+        window.location.href = r.url;
+        $('orders-msg').textContent = format === 'pdf' ? 'Opening the PDF…' : 'Downloading the CSV…';
       } catch (e) {
-        if (tab) tab.close();
-        $('orders-msg').textContent = 'PDF failed: ' + e.message;
+        $('orders-msg').textContent = 'Could not open it: ' + e.message;
       }
-    });
-    $('orders-csv').addEventListener('click', async () => {
-      if (!lastAuth) return;
-      $('orders-msg').textContent = 'Preparing CSV…';
-      try {
-        const res = await fetch('/api/admin/reports/orders' + (ordersQuery() ? ordersQuery() + '&' : '?') + 'format=csv', { headers: lastAuth.headers });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const blob = await res.blob();
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'dayhop-orders.csv';
-        document.body.appendChild(a); a.click(); a.remove();
-        $('orders-msg').textContent = 'Downloaded.';
-      } catch (e) { $('orders-msg').textContent = 'Download failed: ' + e.message; }
-    });
+    }
+    $('orders-pdf').addEventListener('click', () => openOrdersFile('pdf'));
+    $('orders-csv').addEventListener('click', () => openOrdersFile('csv'));
     $('orders-email').addEventListener('click', async () => {
       if (!lastAuth) return;
       $('orders-msg').textContent = 'Sending…';
