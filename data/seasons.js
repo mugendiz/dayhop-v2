@@ -188,9 +188,15 @@ function isCatalogSeasonEligible(tag, month) {
  * the drive IS the plan. relevance.js lets these into the nearest band so they
  * compete on merit instead of being filed behind the coffee shops.
  */
+//
+// Saunas and Nordic spas count too: Thermëa is 50 km from Richmond Hill and
+// Othership 30, so on distance alone a winter browse never reaches them, and
+// the heat after a cold day is the same kind of on-purpose drive. The kids
+// demotion in relevance.js still applies, so a family feed does not get them.
 function isSeasonalDestination(candidate, ctx) {
   if (!ctx || ctx.season !== 'winter') return false;
-  return WINTER_OUTDOOR_RE.test(seasonText(candidate));
+  const text = seasonText(candidate);
+  return WINTER_OUTDOOR_RE.test(text) || SAUNA_THERMAL_RE.test(text);
 }
 
 /**

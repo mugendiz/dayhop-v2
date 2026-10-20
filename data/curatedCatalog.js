@@ -1747,7 +1747,8 @@ module.exports = [
   // site: Thermea terms + Whitby FAQ, Scandinave Thermal Journey + FAQ,
   // Othership FAQ). All are adults or near-adults only, and good_for_ages
   // says so plainly: this is the grown-ups' half of a cold weekend, not a
-  // family pick. seasonal stays null (open all year); data/seasons.js lifts
+  // family pick. Thermea and Scandinave carry worth_trip (48 and 140 km out,
+  // the Worth the drive band). seasonal stays null (open all year); data/seasons.js lifts
   // them October to mid-April through the sauna & thermal window. ----------
   {
     id: 'cur-thermea-whitby',
@@ -1760,7 +1761,7 @@ module.exports = [
     cost_tier: '$$$', good_for_ages: '19+',
     maps_url: mapsSearch('Thermea Spa Village Whitby'),
     booking_url: 'https://thermea.com/whitby',
-    wow: true, seasonal: null
+    wow: true, seasonal: null, worth_trip: true
   },
   {
     id: 'cur-scandinave-blue-mountain',

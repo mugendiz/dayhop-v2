@@ -34,12 +34,12 @@ const MODE_PROMPTS = {
 const PERIODS = [
   {
     id: 'deep-winter', from: '01-01', to: '02-29',
-    rr: 'outdoor skating rinks and skating trails, winter light festivals, cozy cafés and tea rooms, museums and art galleries, indoor conservatories and greenhouses, winter markets, hot chocolate spots, indoor swimming pools',
+    rr: 'outdoor skating rinks and skating trails, winter light festivals, cozy cafés and tea rooms, museums and art galleries, indoor conservatories and greenhouses, winter markets, hot chocolate spots, indoor swimming pools, saunas, bathhouses and Nordic spas',
     adventure: 'tobogganing and sledding hills, snow tubing parks, outdoor skating trails, cross-country ski and snowshoe trails, ski hills, indoor climbing gyms, trampoline parks, indoor karting'
   },
   {
     id: 'maple', from: '03-01', to: '04-05',
-    rr: 'maple syrup farms and sugar bush pancake houses, indoor conservatories and greenhouses, museums and art galleries, cozy cafés, early spring boardwalks, farmers markets',
+    rr: 'maple syrup farms and sugar bush pancake houses, indoor conservatories and greenhouses, museums and art galleries, cozy cafés, early spring boardwalks, farmers markets, saunas, bathhouses and Nordic spas',
     adventure: 'maple sugar bush tours, indoor climbing gyms, trampoline parks, late-season snowshoe and cross-country ski trails, indoor karting, escape rooms'
   },
   {
@@ -74,7 +74,7 @@ const PERIODS = [
   },
   {
     id: 'festive', from: '11-11', to: '12-31',
-    rr: 'holiday markets and christmas villages, festival of lights displays, outdoor skating rinks, museums and art galleries, indoor conservatories and greenhouses, cozy cafés and tea rooms',
+    rr: 'holiday markets and christmas villages, festival of lights displays, outdoor skating rinks, museums and art galleries, indoor conservatories and greenhouses, cozy cafés and tea rooms, saunas, bathhouses and Nordic spas',
     adventure: 'outdoor skating trails, early-season tobogganing hills, indoor climbing gyms, trampoline parks, indoor karting, escape rooms, light trail walks'
   }
 ];

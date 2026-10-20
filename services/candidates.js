@@ -803,7 +803,9 @@ function catalogCandidates(prompt, themes, limit, regionOpts) {
   // rank deep, then show a daily-rotating window. rotateDaily is seeded on
   // the Toronto calendar day, so a day's feed is stable and the route caches
   // stay valid.
-  const scored = relevance.scoreCandidates(normalized, { prompt, themes });
+  // dateWindow too: without it this cut scored against today, so a browse
+  // planned for December picked its catalog slice with October's seasons.
+  const scored = relevance.scoreCandidates(normalized, { prompt, themes, dateWindow: regionOpts && regionOpts.dateWindow });
   const deep = relevance.selectTop(scored, scored.length);
 
   const reserved = CATALOG_WORTH_TRIP_SLOTS + CATALOG_ROTATING_SLOTS;

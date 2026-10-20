@@ -252,3 +252,10 @@ test('sauna & thermal: a trail with a sauna stop keeps its footing in winter', (
   assert.ok(seasons.seasonAdjustment(trailSauna, ctx) > seasons.seasonAdjustment(trailOnly, ctx));
   assert.ok(seasons.seasonAdjustment(trailSauna, ctx) > 0, 'trail plus sauna should net positive in January');
 });
+
+test('sauna & thermal: a winter seasonal destination, like a ski hill, but not in fall', () => {
+  assert.equal(seasons.isSeasonalDestination(saunaEntry, seasons.getSeasonContext('2027-01-20')), true);
+  assert.equal(seasons.isSeasonalDestination(saunaEntry, seasons.getSeasonContext('2026-10-20')), false);
+  const daySpa = { title: 'Serenity Day Spa', tags: [], description: '', category: 'general' };
+  assert.equal(seasons.isSeasonalDestination(daySpa, seasons.getSeasonContext('2027-01-20')), false);
+});
