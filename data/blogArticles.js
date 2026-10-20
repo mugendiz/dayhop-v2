@@ -255,5 +255,134 @@ module.exports = [
 <p>Two rules are absolute. First, no invented events. Every card traces back to a real source, and when the AI curates, it selects and arranges rather than imagines. Second, the advisory system never fakes an all-clear. If we can't reach the weather-alert feed, we tell you the check didn't complete instead of showing you a green light we never verified. A planner you can't trust about a thunderstorm isn't a planner. It's a horoscope.</p>
 <p>That's the machinery. The experience stays simple: <a href="/">one sentence, one plan</a>, real places.</p>
 `
-  }
+  },
+{
+  slug: 'best-fall-colour-walks-kids-gta',
+  title: 'Best fall colour walks for kids in the GTA',
+  description:
+    'Peak colour lasts about two weeks. These GTA walks pair the best October colour with short loops, real washrooms, and a payoff at the end for small legs.',
+  hero_image_url: 'https://dayhop.quest/img/heroes/cur-rouge-vista.jpg',
+  tags: ['fall colour', 'kids', 'gta', 'trails', 'autumn'],
+  author: 'DayHop',
+  published_at: '2026-10-20T12:00:00Z',
+  html: `
+<p>Ontario fall colour is a short show. The maples go all in for roughly two weeks in mid to late October, and then the whole thing is on the ground. With kids, the winning walk is never just about the trees. It needs a short loop, a real washroom, and something at the end that a six year old counts as a payoff. These five deliver the colour and the logistics.</p>
+<h2>Rouge National Urban Park, Scarborough and Markham</h2>
+<p>Canada's first national urban park is the GTA's fall colour heavyweight, and it is free. On the Toronto side, the Vista and Orchard trails climb to lookouts over a valley that turns every shade of red and gold at once. On the Markham side, Bob Hunter Memorial Park gives you wide meadow and forest trails that are almost never crowded, even on a peak colour weekend. Trailheads have washrooms on the Toronto side. Go early on weekends, because the lots are not big and everybody in the east end has the same idea.</p>
+<h2>Dundas Valley Conservation Area, Hamilton</h2>
+<p>If you are willing to point the car west, this is the one locals describe with the word outrageous, and in October they are not exaggerating. The Trail Centre anchors a web of marked trails through deep hardwood forest, so you can pick a loop that matches your smallest walker's stamina and bail out early if the day goes sideways. There is a vehicle fee at the lot, washrooms at the centre, and the town of Dundas five minutes away for the post-walk bakery stop. That last part matters more than any trail feature.</p>
+<h2>Cedarvale Ravine and the Beltline, Toronto</h2>
+<p>The no car option. A crushed stone path runs through a ravine so full of maples that regulars call it a colour tunnel, and you can reach it from St. Clair West or Davisville subway station. The surface takes a stroller fine, the grade is gentle, and the whole thing feels like somebody hid a forest inside midtown. Link it with the Beltline trail and you can walk as far as small legs allow, then climb out to a streetcar whenever the snacks run out.</p>
+<h2>Milne Dam Conservation Park, Markham</h2>
+<p>The Rouge River widens into a lake behind a historic dam here, and the forested trails loop the water under some of the best colour in York Region. Herons work the shallows, the main paths are easy, and the full loop is a comfortable hour at adult pace, which means a realistic morning with kids and stops. Enter from the McCowan Road side for the quickest route to the dam overlook. Washrooms are seasonal, so plan a café stop in Unionville afterward. You were going to anyway.</p>
+<h2>Jefferson Forest and the Oak Ridges Corridor, Richmond Hill</h2>
+<p>Richmond Hill sits on the Oak Ridges Moraine, and its forests run quieter than the headline parks. Jefferson Forest, north of Stouffville Road on Bayview, is rooty dirt trail under tall hardwoods, the kind of walk where kids collect leaves the size of dinner plates. The Oak Ridges Corridor nearby rolls across the moraine crest with big sky views between the trees. Neither has facilities, so treat these as the bring a thermos, earn the quiet option for families whose kids are past the playground stage.</p>
+<h2>Before you go</h2>
+<p>Ontario Parks publishes a fall colour report through the season that tracks how far along the colour is by region, and it is worth a two minute check before you commit to a drive. Weekday mornings beat weekend afternoons everywhere on this list. Dress one layer warmer than the forecast suggests, because ravines and lakeshores run cold once the sun drops, and pack the snack before anyone asks for it.</p>
+<p>We walked every one of these routes and wrote them up properly in our <a href="/guides">City Guides</a>, with surfaces, washrooms, parking, and the honest stroller verdict on each. The guides are $20 each, and every updated edition is free forever, so the fall notes stay current as we re-walk them. If you want a taste first, the <a href="/guides">free Ontario Sampler</a> pulls a favourite spot from each guide, and the free Weekend Playbook newsletter sends the week's best outing every Thursday. We outside. See you under the maples.</p>
+<h2>Keep exploring</h2>
+<ul>
+<li><a href="/blog/stroller-friendly-trails-markham">Stroller-friendly trails near Markham</a></li>
+<li><a href="/blog/toronto-nature-spots-ttc-kids">Toronto nature spots you can reach by TTC with kids</a></li>
+<li><a href="/guides">Browse all six DayHop City Guides</a></li>
+</ul>
+`
+},
+{
+  slug: 'stroller-friendly-trails-markham',
+  title: 'Stroller-friendly trails near Markham',
+  description:
+    'Paved loops, real washrooms, and bailout routes: the Markham trails that actually work with a stroller, plus the ones to skip until the wheels come off.',
+  hero_image_url: 'https://dayhop.quest/img/guide-previews/markham.webp',
+  tags: ['stroller', 'markham', 'trails', 'kids', 'york region'],
+  author: 'DayHop',
+  published_at: '2026-10-21T12:00:00Z',
+  html: `
+<p>Stroller-friendly is a claim most trail guides make and few earn. With a stroller, you need four things: a surface your wheels survive, a grade you can push one-handed while holding a toddler's sleeve with the other, washrooms within reach, and a bailout route when nap time wins. Markham is surprisingly good at all four, thanks to two river systems running paved paths through the city. These are the walks that actually work.</p>
+<h2>Toogood Pond and the Bridle Trail, Unionville</h2>
+<p>The classic for a reason. The pond loop at the top of Main Street Unionville is stroller-friendly all the way around, with boardwalk stretches, turtles on logs, and a heritage street waiting at the end for the café stop that makes every outing with a baby feel like a win. When the nap stretches, continue north on the Bridle Trail along Bruce Creek on a gravel-paved mix that stays stroller-ok, then exit wherever you like. Parking at Toogood, washrooms in the park, ice cream on Main Street. This is the outing you repeat weekly.</p>
+<h2>Milliken Mills Park</h2>
+<p>A big stormwater lake that birds treat as habitat, ringed by a fully paved loop that takes every kind of wheel. The path is flat, wide, and looped, so there is no committing to an out-and-back that runs longer than the baby's mood. Washrooms sit at the community centre, there is a playground beside the path for the older sibling who has outgrown the seat, and fishing platforms over the water give the walk a destination. Early morning is bird time, which suits the hours babies keep anyway.</p>
+<h2>German Mills Creek trail, Thornhill</h2>
+<p>Paved throughout, with the kind of deep tree canopy that keeps a summer walk ten degrees cooler and an autumn walk dripping with colour. Start at the John Street end where parking is easy, and follow the creek south for as long as the stroller cooperates. The main path is stroller ok with room to pass joggers, and it connects south toward the East Don trail system if you ever get a walk where nobody wants to stop. Street and small lots at the trailheads.</p>
+<h2>Aaniin and Middlefield stormwater trails</h2>
+<p>The sleeper pick. Paved paths loop through the neighbourhood's pond system with a free lot at the community centre, washrooms inside the building, and transit that actually reaches it. These are short, flat, shady loops that suit the 45-minute window between feeds better than any headline trail. Perfect for the parent who just needs to be outside with the baby right now, not plan an expedition.</p>
+<h2>Cornell community trails</h2>
+<p>Paved neighbourhood connectors out to the Little Rouge fringe, all stroller ok, with the kind of evening light that makes a boring day feel complete. This is the after-dinner walk, the one that fits between supper and bedtime when the day needs saving. Park in the neighbourhood, keep it to twenty minutes, and let the baby fall asleep to motion. Some of the best outings are the smallest ones.</p>
+<h2>The ones to skip, for now</h2>
+<p>Honest notes, because the guide's job is telling you where not to go too. The Rouge Valley trails at Box Grove run on rough valley paths and are car-access only, so save them for the carrier years. Bob Hunter Memorial Park's mown grass loops are lovely but have no facilities and no real surface under the wheels, which matters when the weather turns. And Swan Lake's gravel loop is mostly level but reads better as a toddler-walking walk than a stroller push.</p>
+<p>Every one of these routes, plus the full amenity truth on surfaces, washrooms, parking, and playgrounds, is written up in the <a href="/guides#markham">Markham Nature Guide</a>. It is $20, and every updated edition is free forever, because playgrounds close and paths get repaved and the guide should keep up. Or grab the <a href="/guides">free Ontario Sampler</a> first and see how we write. We outside, and so is the stroller.</p>
+<h2>Keep exploring</h2>
+<ul>
+<li><a href="/blog/best-fall-colour-walks-kids-gta">Best fall colour walks for kids in the GTA</a></li>
+<li><a href="/blog/things-to-do-kids-richmond-hill-weekend">What to do with kids in Richmond Hill this weekend</a></li>
+<li><a href="/guides">Browse all six DayHop City Guides</a></li>
+</ul>
+`
+},
+{
+  slug: 'things-to-do-kids-richmond-hill-weekend',
+  title: 'What to do with kids in Richmond Hill this weekend',
+  description:
+    'A Richmond Hill weekend that works: a pond loop in the morning, moraine woods after lunch, and telescope time after dark. All local, mostly free.',
+  hero_image_url: 'https://dayhop.quest/img/guide-previews/richmond-hill.webp',
+  tags: ['richmond hill', 'weekend', 'kids', 'york region'],
+  author: 'DayHop',
+  published_at: '2026-10-22T12:00:00Z',
+  html: `
+<p>Richmond Hill keeps a secret better than any town in the GTA. It sits on the Oak Ridges Moraine, the ridge of sand and gravel the glaciers left behind, which means kettle lakes, cold creeks, and real forest inside a town most people only drive through. Here is a weekend shape that uses it properly: gentle morning, proper woods after lunch, and something after dark that kids actually remember.</p>
+<h2>Morning: Mill Pond Park</h2>
+<p>Start slow. Mill Pond, on Mill Street in the middle of town, has a stroller-friendly loop around a spring-fed pond, washrooms in season, and free parking between the lot and the street. Ducks expect company. The loop is short enough to finish before the first snack request escalates, and the coffee on town's west side is close enough to make a lap of it a ritual. All four seasons, this park just works.</p>
+<h2>Late morning: Phyllis Rawlinson Park</h2>
+<p>When the kids wake all the way up, drive ten minutes north to Leslie Street. Phyllis Rawlinson Park is meadow country: grass and gravel paths through tall grass, a free lot, and a feel you do not get inside a town of 200,000. Bring a ball, bring the kite that never quite worked at the beach, and let everybody run in a straight line for once. No agenda beyond lunch. That is the agenda.</p>
+<h2>After lunch: Jefferson Forest or the Oak Ridges Corridor</h2>
+<p>The afternoon walk should feel like you left. Jefferson Forest, off Bayview north of Stouffville Road, is rooty dirt trail under tall hardwoods, quiet enough that kids start whispering without being asked. In mid October the colour here is the best in town and the leaves on the ground are ankle deep in places. Families wanting an easier grade should try the Oak Ridges Corridor trails instead, where the moraine opens up into meadows and long views. Neither spot has facilities, so handle the essentials before you leave lunch.</p>
+<h2>Evening: David Dunlap Observatory</h2>
+<p>The closer. Canada's largest optical telescope lives under a great dome right here in Richmond Hill, and its public star nights put kids' eyes to glass that working astronomers used. Sessions book up, so check the schedule early in the week rather than Saturday afternoon. If the sky does not cooperate, the fallback is honest: Richmond Green, with its big flat paved paths and the sports complex as a warm-up stop, burns the last energy without anyone having to call it a compromise.</p>
+<h2>Lake weeks: Lake Wilcox</h2>
+<p>Save the lake for the warmest weekend afternoon. Lake Wilcox Park, up in Oak Ridges, has a paved promenade along the water, sandy spots for digging, and washrooms in the park, with free lots that fill on proper summer weekends. In October the summer crowds are gone and the lake does its best work as a mood: grey herons, low light, and a bench with no one asking for your seat. Pack the picnic blanket, not the swim bag. The season for one ended, the season for the other is perfect right now.</p>
+<h2>Make it a habit, not an event</h2>
+<p>The trick to Richmond Hill weekends is not finding the places. It is using them on rotation, so no single spot wears out. Pond weeks, forest weeks, lake weeks at Lake Wilcox when the promenade calls. We wrote the whole rotation up in the <a href="/guides/richmond-hill">Richmond Hill Nature Guide</a>: $20, with every updated edition free forever as seasons and facilities change. If you would rather start free, the <a href="/guides">Ontario Sampler</a> gives you one favourite from this guide and five others, and the <a href="/playbook">Weekend Playbook</a> lands every Thursday with the week's picks and the weather call. We outside. Make it weekly.</p>
+<h2>Keep exploring</h2>
+<ul>
+<li><a href="/blog/stargazing-near-toronto">Stargazing near Toronto: where the sky actually gets dark</a></li>
+<li><a href="/blog/best-fall-colour-walks-kids-gta">Best fall colour walks for kids in the GTA</a></li>
+<li><a href="/playbook">Get the free Weekend Playbook</a></li>
+</ul>
+`
+},
+{
+  slug: 'toronto-nature-spots-ttc-kids',
+  title: 'Toronto nature spots you can reach by TTC with kids',
+  description:
+    'No car, no problem. Real Toronto wilderness, all reachable on a Presto card: subway ravines, a ferry ride to the Islands, and a brick factory reborn as a trailhead.',
+  hero_image_url: 'https://dayhop.quest/img/heroes/cur-high-park-zoo.jpg',
+  tags: ['ttc', 'toronto', 'kids', 'transit', 'ravines'],
+  author: 'DayHop',
+  published_at: '2026-10-23T12:00:00Z',
+  html: `
+<p>Toronto's founding accident is the best thing that ever happened to family weekends. The city grew up around a network of ravines and a lakefront that were too flood-prone to build in, so the wilderness stayed, and the transit system grew up around it. The result: some of the best urban nature in the country is a subway ride away. Here is what actually works with kids, Presto card in hand.</p>
+<h2>High Park</h2>
+<p>Get off at High Park station on Line 2 and you are there. The city's big green lung holds the free High Park Zoo, which is the rare outing that costs nothing and never disappoints, plus trails that range from paved loops to proper ravine walking, and fall colour that rivals anywhere in the city. Paved and dirt mix underfoot, washrooms in the park, and the cherry blossoms in late April cause a citywide frenzy you should see at least once. With kids, the zoo anchors the morning and the Grenadier Pond loop closes the afternoon.</p>
+<h2>Evergreen Brick Works</h2>
+<p>A century-old brick factory in the Don Valley, reborn as a year-round market and the best trailhead in the ravine system. The free shuttle from Broadview station makes it fully car-free, and the site itself is stroller ok with washrooms on site. Walk twenty minutes in any direction and you are in total forest, with your phone still showing full signal. Saturday markets mean the outing doubles as lunch, which is the whole trick of a transit day: never plan an activity that is not also near food.</p>
+<h2>Cedarvale Ravine and the Beltline</h2>
+<p>The midtown secret. Cedarvale Ravine runs a crushed stone path under a maple canopy so dense that locals call it a colour tunnel, and you can walk in from St. Clair West or Davisville station with no parking logistics at all. The Beltline continues the deal east on an old rail line, giving you a flat straight shot the kids can scooter while you walk. When the legs or the mood run out, surface streets are right there with transit home. This is the outing for the parent who wants nature and the parent who wants logistics to each win.</p>
+<h2>The Humber River at Old Mill</h2>
+<p>Old Mill station drops you onto the Humber River Recreational Trail, a paved river valley walk that feels a world away from the subway platform. Through September and October, the river below runs with migrating salmon and the banks go purple with asters, which gives the walk a destination in exactly the months you are reading this. Paid and free parking options exist for driving friends, but the station is the whole point: river, salmon, and a warm-up stop in the old mill village, all without a car.</p>
+<h2>The Toronto Islands</h2>
+<p>Twenty minutes from downtown by ferry, with no cars allowed at the other end. The Jack Layton Ferry Terminal is a short walk from Union Station, and on the other side the Islands give you beaches, boardwalk trails, playgrounds, and a skyline view back at the city that never gets old. Bike rentals on the Island mean the older kids ride while the little ones stay in the stroller. Pack for wind. The lake breeze is the one honest surprise every first-timer meets.</p>
+<h2>Taylor Creek Park</h2>
+<p>The east end's easy win. Free lots off O'Connor for driving friends, but genuinely TTC-adjacent for everyone else, with paved paths that take every wheel and a marshy creek that ducks and herons use year-round. It is not the most dramatic spot on this list, and that is precisely its job: the dependable forty-five minute outing between the ambitious ones.</p>
+<h2>The transit playbook</h2>
+<p>Two rules make TTC nature days work. First, the Presto card rides everything but keep an eye on service alerts before you leave, because a weekend subway closure rewrites any plan. Second, give yourself one honest exception: Rouge National Urban Park, the fall colour champion of the east end, belongs to the GO train via Rouge Hill station, not the TTC. Worth knowing, and worth doing, just not on this list.</p>
+<p>Every route here, plus the honest transit notes on lots, buses, and the shuttle timing, is written up in the <a href="/guides#toronto">Toronto City Nature Spots guide</a>: $20, with every updated edition free forever, so the shuttle and ferry details stay current. Or start free with the <a href="/guides">Ontario Sampler</a> and the Thursday <a href="/playbook">Weekend Playbook</a>, which flags the weekend picks and the weather call. We outside, and the subway gets you there.</p>
+<h2>Keep exploring</h2>
+<ul>
+<li><a href="/blog/toronto-hidden-gems-insiders">The Toronto spots locals keep to themselves</a></li>
+<li><a href="/blog/first-timers-toronto-must-sees">First time in Toronto? The must-sees that are actually must-sees</a></li>
+<li><a href="/guides">Browse all six DayHop City Guides</a></li>
+</ul>
+`
+}
 ];
