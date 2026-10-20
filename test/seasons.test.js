@@ -226,3 +226,29 @@ test('only four seasonal strings are ever live at once', () => {
   const dec = prompts.periodFor('2026-12-31');
   assert.equal(prompts.nextPeriod(dec).id, 'deep-winter');
 });
+
+const saunaEntry = { title: 'Thermëa Nordic spa', tags: ['sauna', 'thermal'], description: 'Hot-cold circuit with outdoor baths.', category: 'general' };
+
+test('sauna & thermal: lifted from October through mid-April, not in summer', () => {
+  for (const ymd of ['2026-10-20', '2026-12-15', '2027-02-10', '2027-04-10']) {
+    const labels = seasons.getSeasonContext(ymd).windows.map(w => w.label);
+    assert.ok(labels.includes('sauna & thermal'), `${ymd} should be in the sauna window`);
+    assert.ok(seasons.seasonAdjustment(saunaEntry, seasons.getSeasonContext(ymd)) >= 3, `${ymd} sauna boost`);
+  }
+  assert.equal(seasons.seasonAdjustment(saunaEntry, seasons.getSeasonContext('2026-07-15')), 0);
+});
+
+test('sauna & thermal: a bare day spa or salon is not lifted', () => {
+  const ctx = seasons.getSeasonContext('2026-12-15');
+  for (const title of ['Serenity Day Spa', 'Polished Nail Spa & Lounge', 'Space camp']) {
+    assert.equal(seasons.seasonAdjustment({ title, tags: [], description: '', category: 'general' }, ctx), 0, title);
+  }
+});
+
+test('sauna & thermal: a trail with a sauna stop keeps its footing in winter', () => {
+  const ctx = seasons.getSeasonContext('2027-01-20');
+  const trailOnly = { title: 'Rouge Valley trail', tags: ['trail'], description: '', category: 'general' };
+  const trailSauna = { title: 'Rouge Valley trail, then the sauna', tags: ['trail', 'sauna'], description: '', category: 'general' };
+  assert.ok(seasons.seasonAdjustment(trailSauna, ctx) > seasons.seasonAdjustment(trailOnly, ctx));
+  assert.ok(seasons.seasonAdjustment(trailSauna, ctx) > 0, 'trail plus sauna should net positive in January');
+});

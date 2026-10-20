@@ -221,6 +221,10 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
     }
     if (intent.kids && candidate.category === 'kids') score += 2;
     if (intent.kids && /\b(kid|family|children|all ages)\b/i.test(candidate.good_for_ages || '')) score += 1;
+    // A family that asked for the kids must not be handed a 19+ spa: the
+    // Nordic spas carry a cold-season boost that would otherwise float them
+    // into exactly that feed. 16+ and up counts as adults-only here.
+    if (intent.kids && /^\s*(1[6-9]|[2-9]\d)\s*\+/.test(candidate.good_for_ages || '')) score -= 6;
     if (intent.romantic) {
       if (['patios', 'food', 'culture'].includes(candidate.category)) score += 1.5;
       if (/\b(romantic|sunset|view|rooftop|wine|live music|candlelit|stroll|garden)\b/i

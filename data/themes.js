@@ -41,6 +41,21 @@ const THEMES = [
       'tubing', 'racing', 'vr']
   },
   {
+    // Heat after the cold: saunas, Nordic spas, thermal baths. Listed ahead
+    // of the general themes so "a sauna after a cold hike" keeps the sauna
+    // on a tie. Bare 'spa' is not a trigger: this matcher is prefix-based,
+    // so it would fire on "spaghetti" and "space". The places queries say
+    // "thermal" and "Nordic" so a search brings back hot-cold circuits, not
+    // nail salons.
+    theme: 'warm-up',
+    triggers: ['sauna', 'nordic spa', 'scandinavian spa', 'thermal', 'hot spring', 'hot springs',
+      'bathhouse', 'bath house', 'banya', 'hammam', 'steam room', 'cold plunge', 'warm up',
+      'hydrotherapy'],
+    placesQueries: ['nordic spa thermal baths', 'public sauna', 'bathhouse sauna cold plunge'],
+    categories: ['general'],
+    tags: ['sauna', 'nordic spa', 'thermal', 'hot springs', 'bathhouse', 'cold plunge', 'steam room']
+  },
+  {
     theme: 'kids-outdoor',
     triggers: ['kids', 'kid', 'toddler', 'children', 'child', 'family', 'playground',
       'park', 'stroller', 'year-old', 'daughter', 'son'],

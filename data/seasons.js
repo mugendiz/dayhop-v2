@@ -45,6 +45,12 @@ const WINTER_LOCAL_RE = /\b(toboggan(ing)?|sled(ding|ging)?|sliding hill|snow ?m
 // local play above plus the things you travel for (ski hills, Nordic centres).
 const WINTER_OUTDOOR_RE = /\b(skat(e|ing)|ice rink|ice trail|toboggan(ing)?|sled(ding|ging)?|sliding hill|snow ?man|snow ?fort|snow ?ball|snow ?play|snow ?maze|winter playground|snow ?tub(e|ing)|snowshoe|cross.?country ski|xc ski|ski hill|ski resort|snowboard|winter (village|festival|lights?)|light (festival|trail|show)|ice fishing|winter hik(e|ing))\b/i;
 
+// Heat in the cold months: saunas, Nordic spas, thermal baths, bathhouses.
+// Ontario has no natural hot springs, so "hot springs" in a title is almost
+// always a thermal spa, and it belongs here too. Bare "spa" is left out on
+// purpose: it would lift every nail salon and day spa in the GTA.
+const SAUNA_THERMAL_RE = /\b(saunas?|nordic spa|scandinavian spa|scandinave|therm[eë]a|thermal (spa|baths?|pools?|circuit)|hot ?springs?|bath ?house|banya|hammam|cold plunge|steam room|hydrotherapy|hot.?cold circuit)\b/i;
+
 // ---------- dated Ontario windows (MM-DD, inclusive; may wrap the year) ----------
 const WINDOWS = [
   { label: 'maple syrup', from: '03-01', to: '04-15', weight: 3,
@@ -68,7 +74,12 @@ const WINDOWS = [
     re: /\b(halloween|haunted|spooky|pumpkins? after dark)\b/i },
   { label: 'holiday season', from: '11-20', to: '12-31', weight: 3,
     re: /\b(christmas|holiday market|santa|nutcracker|menorah|winter (village|wonderland)|festive|tree lighting)\b/i },
-  { label: 'snow & ice', from: '12-01', to: '03-10', weight: 3, re: WINTER_OUTDOOR_RE }
+  { label: 'snow & ice', from: '12-01', to: '03-10', weight: 3, re: WINTER_OUTDOOR_RE },
+  // The whole cold half of the year, not just deep winter: a sauna is at its
+  // best on a raw October evening and stays the answer until the thaw. Same
+  // weight as the other windows, so it leads a cold browse without burying
+  // skating on a snowy Saturday.
+  { label: 'sauna & thermal', from: '10-01', to: '04-15', weight: 3, re: SAUNA_THERMAL_RE }
 ];
 
 // "MM-DD in [from, to]" with year-wrap support (e.g. 12-01 → 03-10).
@@ -192,4 +203,4 @@ function isLocalWinterPlay(candidate) {
   return WINTER_LOCAL_RE.test(seasonText(candidate));
 }
 
-module.exports = { seasonOf, getSeasonContext, seasonAdjustment, isCatalogSeasonEligible, isSeasonalDestination, isLocalWinterPlay, WINDOWS };
+module.exports = { seasonOf, getSeasonContext, seasonAdjustment, isCatalogSeasonEligible, isSeasonalDestination, isLocalWinterPlay, WINDOWS, SAUNA_THERMAL_RE };

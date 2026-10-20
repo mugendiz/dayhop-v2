@@ -1741,5 +1741,51 @@ module.exports = [
     cost_tier: 'free', good_for_ages: 'all ages',
     maps_url: mapsSearch('Forks of the Credit Road Caledon'),
     wow: true, seasonal: null
+  },
+
+  // ---------- Saunas & Nordic spas (verified 2026-10-20 on each venue's own
+  // site: Thermea terms + Whitby FAQ, Scandinave Thermal Journey + FAQ,
+  // Othership FAQ). All are adults or near-adults only, and good_for_ages
+  // says so plainly: this is the grown-ups' half of a cold weekend, not a
+  // family pick. seasonal stays null (open all year); data/seasons.js lifts
+  // them October to mid-April through the sauna & thermal window. ----------
+  {
+    id: 'cur-thermea-whitby',
+    title: "Thermëa Whitby: a Nordic spa village 45 minutes from the city",
+    category: 'general',
+    tags: ['sauna', 'nordic spa', 'thermal', 'hot springs', 'steam room', 'cold plunge', 'relax', 'date', 'couples', 'winter', 'adults'],
+    location: "Whitby",
+    venue: "Thermëa Spa Village Whitby",
+    description: "Over 25 heat, cold and rest stations: dry and steam saunas, hot and cold outdoor baths, fire pits. Book ahead. 19+ only, with occasional family days for kids 8+.",
+    cost_tier: '$$$', good_for_ages: '19+',
+    maps_url: mapsSearch('Thermea Spa Village Whitby'),
+    booking_url: 'https://thermea.com/whitby',
+    wow: true, seasonal: null
+  },
+  {
+    id: 'cur-scandinave-blue-mountain',
+    title: "Scandinave Spa Blue Mountain: hot pools and a waterfall plunge in the forest",
+    category: 'general',
+    tags: ['sauna', 'nordic spa', 'thermal', 'hot springs', 'steam room', 'cold plunge', 'waterfall', 'relax', 'date', 'couples', 'winter', 'blue mountain', 'adults'],
+    location: "Blue Mountains, Collingwood",
+    venue: "Scandinave Spa Blue Mountain",
+    description: "Outdoor hot pools, dry saunas, a eucalyptus steam room and a waterfall cold plunge in the escarpment woods. Silence rule, phones in lockers. 16+ (waiver under 18).",
+    cost_tier: '$$$', good_for_ages: '16+',
+    maps_url: mapsSearch('Scandinave Spa Blue Mountain'),
+    booking_url: 'https://www.scandinave.com/blue-mountain/',
+    wow: true, seasonal: null, worth_trip: true
+  },
+  {
+    id: 'cur-othership-toronto',
+    title: "Othership: sauna and ice bath rounds downtown",
+    category: 'general',
+    tags: ['sauna', 'cold plunge', 'ice bath', 'bathhouse', 'thermal', 'relax', 'date', 'couples', 'winter', 'indoor', 'adults'],
+    location: "Adelaide St W & Yorkville, Toronto",
+    venue: "Othership",
+    description: "A social bathhouse built on hot cedar sauna rounds and 0 to 4°C ice baths, with guided first visits. Two downtown sites, Adelaide and Yorkville. 18+.",
+    cost_tier: '$$', good_for_ages: '18+',
+    maps_url: mapsSearch('Othership 473 Adelaide St W Toronto'),
+    booking_url: 'https://www.othership.us/',
+    wow: false, seasonal: null
   }
 ];

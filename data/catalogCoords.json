@@ -558,5 +558,20 @@
     "lat": 43.8109038,
     "lng": -79.9815602,
     "resolved": "Forks of the Credit Road, Caledon, Ontario, Canada"
+  },
+  "cur-thermea-whitby": {
+    "lat": 43.9145067,
+    "lng": -78.96625499999999,
+    "resolved": "Thermëa Spa Village Whitby, Whitby, Ontario, Canada"
+  },
+  "cur-scandinave-blue-mountain": {
+    "lat": 44.5008443,
+    "lng": -80.2892768,
+    "resolved": "Scandinave Spa Blue Mountain, Blue Mountains, Collingwood, Ontario, Canada"
+  },
+  "cur-othership-toronto": {
+    "lat": 43.6464705,
+    "lng": -79.3969024,
+    "resolved": "Othership, Adelaide St W & Yorkville, Toronto, Ontario, Canada"
   }
 }

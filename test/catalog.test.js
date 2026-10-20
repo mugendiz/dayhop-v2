@@ -59,3 +59,14 @@ test('opened_at entries are real dates and not future', () => {
     assert.ok(e.opened_at <= today, `${e.id}: opened_at in the future`);
   }
 });
+
+test('adults-only spas sink for a kids prompt and lead a sauna prompt', () => {
+  const { scoreCandidates } = require('../services/relevance');
+  const spa = catalog.find(e => e.id === 'cur-thermea-whitby');
+  const park = { title: 'Rouge Valley family trail', category: 'kids', tags: ['trail', 'family'], description: '', good_for_ages: 'all ages' };
+  const run = prompt => scoreCandidates([{ ...spa }, { ...park }], { prompt }).map(c => c.score);
+  const [spaKids, parkKids] = run('something with the kids this weekend');
+  assert.ok(spaKids < parkKids, `kids prompt: spa ${spaKids} should trail park ${parkKids}`);
+  const [spaSauna, parkSauna] = run('sauna this weekend');
+  assert.ok(spaSauna > parkSauna, `sauna prompt: spa ${spaSauna} should lead park ${parkSauna}`);
+});
