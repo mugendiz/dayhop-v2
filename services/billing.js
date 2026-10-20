@@ -471,6 +471,10 @@ async function fulfillCheckoutSessionOnce(session, source) {
   } catch (err) {
     console.warn('[billing] recovery markCompleted failed (non-fatal):', err.message);
   }
+  // Testimonial ask (2026-10-20): queue the one "how did it work out?"
+  // email for 7 days out. Guide purchases only, once per buyer email, and
+  // nothing sends unless TESTIMONIAL_EMAILS=on. Never throws.
+  await require('./testimonialAsk').recordPurchase(session);
   await markProcessed(key, `checkout.session.completed:${source}`);
   return outcome;
 }

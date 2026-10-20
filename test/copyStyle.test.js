@@ -122,6 +122,17 @@ test('outreach.js: opener bump, closing note, and coupon reply have no dash punc
   assertNoViolations(outreach.couponMessage(OUTREACH_ROW).text, 'outreach.js couponMessage');
 });
 
+const testimonialAsk = require('../services/testimonialAsk');
+
+test('testimonialAsk.js: the 7-day "how did it work out?" email has no dash punctuation', () => {
+  for (const label of ['Richmond Hill Nature Guide', 'Complete Ontario Collection', undefined]) {
+    const { subject, text, html } = testimonialAsk.askEmail({ guide_label: label });
+    assertNoViolations(subject, `testimonialAsk.js askEmail subject (${label})`);
+    assertNoViolations(text, `testimonialAsk.js askEmail text (${label})`);
+    assertNoViolations(html, `testimonialAsk.js askEmail html (${label})`);
+  }
+});
+
 // ---------- pages ----------
 const advertise = require('../routes/advertise');
 

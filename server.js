@@ -686,6 +686,10 @@ if (process.env.RECOVERY_SWEEP !== 'off') {
       .catch(err => console.warn('[recovery] sweep failed:', err.message));
     require('./services/newsletter').runConfirmNudge()
       .catch(err => console.warn('[newsletter] nudge failed:', err.message));
+    // Testimonial ask: one email 7 days after a guide purchase. Sends only
+    // with TESTIMONIAL_EMAILS=on (copy is DRAFT, see services/testimonialAsk.js).
+    require('./services/testimonialAsk').runAskSweep()
+      .catch(err => console.warn('[testimonial-ask] sweep failed:', err.message));
   };
   setTimeout(sweep, 60 * 1000).unref();
   setInterval(sweep, 15 * 60 * 1000).unref();
