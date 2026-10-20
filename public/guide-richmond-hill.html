@@ -81,6 +81,29 @@
     .close-block .price-line { font-size: 1.12rem; margin-bottom: 4px; }
     .planner-line { margin-top: 16px; color: var(--ink-soft); }
     footer { text-align: center; color: var(--ink-soft); font-size: .82rem; padding: 24px; border-top: 1px solid var(--line); margin-top: 48px; }
+    /* Reader quote beside each button: real, consented quotes only
+       (data/testimonials.js). With none, the hero shows the refund promise. */
+    .js-proof:empty { display: none; }
+    .js-proof { max-width: 440px; margin: 0 auto 14px; text-align: left; }
+    .quote { border-left: 3px solid var(--marigold); padding: 4px 0 4px 12px; font-style: italic; }
+    .quote cite { display: block; font-style: normal; font-family: var(--display); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); margin-top: 3px; }
+    .assure { text-align: center; font-size: .95rem; color: var(--moss); }
+    .assure b { font-family: var(--display); letter-spacing: .02em; }
+    .bundle-line { margin-top: 16px; background: var(--paper-dim); border-radius: 12px; padding: 12px 16px; font-size: 1rem; }
+    .bundle-line:empty { display: none; }
+    .bundle-line s { color: var(--ink-soft); }
+    .bundle-line b { font-family: var(--display); }
+    /* Sticky buy bar: in once the hero button scrolls away, out again
+       when the closing button is on screen (no two CTAs at once). */
+    .sticky-buy { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: #fff; border-top: 1px solid var(--line); box-shadow: 0 -8px 24px rgba(16,42,46,.10); padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); display: flex; align-items: center; justify-content: center; gap: 16px; transform: translateY(110%); transition: transform .22s ease; }
+    .sticky-buy.show { transform: none; }
+    .sticky-buy .sb-text { font-size: .98rem; line-height: 1.3; }
+    .sticky-buy .sb-text b { font-family: var(--display); }
+    .sticky-buy .sb-sub { display: block; font-size: .84rem; color: var(--ink-soft); }
+    .sticky-buy .buy { white-space: nowrap; padding: 11px 16px; font-size: .9rem; }
+    @media (max-width: 520px) { .sticky-buy { gap: 10px; } .sticky-buy .sb-sub { display: none; } }
+    @media (prefers-reduced-motion: reduce) { .sticky-buy { transition: none; } }
+    body.has-sticky { padding-bottom: 76px; }
   </style>
 </head>
 <body>
@@ -102,8 +125,9 @@
     <span class="kicker">DayHop · Field Guide</span>
     <img class="cover-shot" src="/img/guide-previews/richmond-hill.webp" alt="Cover of the Richmond Hill Nature Guide, August 2026 edition">
     <h1>Still deciding Saturday at 11? The half-day is already written. $20.</h1>
-    <p class="subhead">21 field-checked Richmond Hill places. Ranked tables. Live map links. August 2026 edition.</p>
-    <div class="cta-wrap">
+    <p class="subhead">29 pages. 21 field-checked Richmond Hill places. 4 ready-made days, 14 stops in order. Live map links. August 2026 edition.</p>
+    <div class="cta-wrap" id="hero-cta">
+      <div class="js-proof" data-fallback="1"></div>
       <button class="buy js-buy" type="button">Get the guide: $20</button>
       <p class="promo-line" hidden></p>
       <a class="sample-link" href="#sample">Read one free sample day ↓</a>
@@ -150,11 +174,12 @@
         <div class="is">
           <h3>$20 is</h3>
           <ul>
-            <li>August 2026 PDF</li>
-            <li>21 places</li>
+            <li>A 29-page August 2026 PDF</li>
+            <li>21 places, every one with parking and washroom notes</li>
             <li>Trail table and amenity index</li>
             <li>Almanac and sun clock</li>
-            <li>Four ready-made days</li>
+            <li>Four ready-made days, 14 stops in order</li>
+            <li>Four "if you only have…" plans, 3 hours to a rainy day</li>
             <li>Tappable names / QR to Maps</li>
             <li>Updated file this season if a gate changes</li>
           </ul>
@@ -167,6 +192,7 @@
           </ul>
         </div>
       </div>
+      <p class="bundle-line" id="bundle-line"></p>
     </section>
 
     <!-- Block 5 — for / not for -->
@@ -179,7 +205,8 @@
     <!-- Block 6 — close -->
     <section class="close-block">
       <p class="price-line">$20 CAD. 14-day refund. Email <a href="mailto:admin@dayhop.quest">admin@dayhop.quest</a>.</p>
-      <div class="cta-wrap">
+      <div class="cta-wrap" id="close-cta">
+        <div class="js-proof"></div>
         <button class="buy js-buy" type="button">Get the guide: $20</button>
         <p class="promo-line" hidden></p>
       </div>
@@ -190,6 +217,11 @@
     DayHop · Richmond Hill, Ontario, Canada · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · admin@dayhop.quest<br>
     Personal-use license: one purchaser, please don't redistribute the file.
   </footer>
+
+  <div class="sticky-buy" id="sticky-buy" aria-hidden="true">
+    <span class="sb-text"><b>Richmond Hill Nature Guide, $20</b><span class="sb-sub">29 pages · 21 places · 4 ready-made days</span></span>
+    <button class="buy js-buy" type="button" tabindex="-1">Get the guide</button>
+  </div>
 
   <script>
     // The offer line comes from /api/config (services/promo.js) — the same
@@ -276,7 +308,62 @@
         input.focus();
       });
     }
-    document.querySelectorAll('.js-buy').forEach(b => b.addEventListener('click', () => buy(b)));
+    const closeBtn = document.querySelector('#close-cta .js-buy');
+    const stickyBar = document.getElementById('sticky-buy');
+    document.querySelectorAll('.js-buy').forEach(b => b.addEventListener('click', () => {
+      // The sticky button hands off to the closing button, so the inline
+      // email step opens in the page and not inside the slim bar.
+      if (stickyBar.contains(b)) {
+        closeBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        buy(closeBtn);
+        return;
+      }
+      buy(b);
+    }));
+
+    // Sticky bar: shown while neither in-page button is on screen and the
+    // reader is past the hero.
+    (function () {
+      const heroBtn = document.querySelector('#hero-cta .js-buy');
+      const stickyBtn = stickyBar.querySelector('.js-buy');
+      // Positions are read on scroll, not via IntersectionObserver: a jump
+      // (the "sample day" anchor) carries the hero button from below the
+      // fold to above it without ever crossing, and an observer never fires.
+      const sync = () => {
+        const close = closeBtn.getBoundingClientRect();
+        const on = heroBtn.getBoundingClientRect().bottom < 0 && !(close.top < innerHeight && close.bottom > 0);
+        stickyBar.classList.toggle('show', on);
+        stickyBar.setAttribute('aria-hidden', on ? 'false' : 'true');
+        stickyBtn.tabIndex = on ? 0 : -1;
+        document.body.classList.toggle('has-sticky', on);
+      };
+      addEventListener('scroll', sync, { passive: true });
+      addEventListener('resize', sync);
+      sync();
+    })();
+
+    // Reader quotes beside the buttons, and the collection math, from the
+    // same registry /guides uses. Real, consented quotes only; with none,
+    // the hero carries the refund promise and the closing block stays as is.
+    fetch('/api/cityguides').then(r => r.json()).then(data => {
+      const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      const quotes = (data.testimonials || []).filter(t => t.guide === 'richmond-hill')
+        .concat((data.testimonials || []).filter(t => t.guide !== 'richmond-hill'));
+      document.querySelectorAll('.js-proof').forEach((el, i) => {
+        const q = quotes[i] || quotes[0];
+        if (q) {
+          el.innerHTML = '<blockquote class="quote">“' + esc(q.quote) + '”<cite>' + esc(q.name) + (q.city ? ', ' + esc(q.city) : '') + '</cite></blockquote>';
+        } else if (el.dataset.fallback) {
+          el.innerHTML = '<p class="assure"><b>14-day guarantee:</b> not what you hoped? Write us and we refund it.</p>';
+        }
+      });
+      const b = (data.guides || []).find(g => g.type === 'bundle');
+      if (b && b.separate_price > b.price) {
+        document.getElementById('bundle-line').innerHTML =
+          'Want the whole shelf? <b>All ' + b.includes + ' guides, $' + b.price + '</b>, against <s>$' + b.separate_price + '</s> one at a time. ' +
+          'You keep $' + (b.separate_price - b.price) + '. <a href="/guides#ontario-collection">See the collection →</a>';
+      }
+    }).catch(() => { /* the letter stands on its own without them */ });
 
     if (new URLSearchParams(location.search).get('purchase') === 'cancelled') {
       banner.className = 'banner banner--sad';

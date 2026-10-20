@@ -1,0 +1,26 @@
+{
+  "markham": {
+    "pages": 33,
+    "places": 38
+  },
+  "richmond-hill": {
+    "pages": 29,
+    "places": 21
+  },
+  "newmarket": {
+    "pages": 27,
+    "places": 20
+  },
+  "toronto": {
+    "pages": 29,
+    "places": 25
+  },
+  "hamilton": {
+    "pages": 28,
+    "places": 34
+  },
+  "lake-simcoe": {
+    "pages": 25,
+    "places": 28
+  }
+}

@@ -47,8 +47,38 @@ function signingSecret() {
   return s;
 }
 
+// Recorded page counts (scripts/guide-page-counts.js). Missing file or row
+// just means the page count is left off the card, never a guessed number.
+let PAGE_COUNTS = {};
+try { PAGE_COUNTS = require('../data/cityGuides/pageCounts.json'); } catch (e) { /* not built yet */ }
+
+// What is actually inside a guide, counted from its authored content: the
+// /guides cards answer "will I like it" with these numbers. Only live
+// guides get one; a coming-soon title has nothing to count yet.
+function contentsOf(g) {
+  const c = g.content();
+  const len = k => (Array.isArray(c[k]) ? c[k].filter(s => !s.facetOf).length : 0);
+  const days = Array.isArray(c.itineraries) ? c.itineraries : [];
+  const rec = PAGE_COUNTS[g.slug];
+  return {
+    pages: rec ? rec.pages : null,
+    places: countSpots(g),
+    trails: len('trails'),
+    drives: len('drives'),
+    fishing: len('fishing'),
+    day_plans: days.length,
+    stops: days.reduce((n, d) => n + (Array.isArray(d.steps) ? d.steps.length : 0), 0),
+    quick_plans: Array.isArray(c.quick) ? c.quick.length : 0,
+    almanac: Array.isArray(c.almanac) && c.almanac.length > 0,
+    bonus: c.bonus && Array.isArray(c.bonus.entries) && c.bonus.entries.length ? c.bonus.title : null
+  };
+}
+
 function list() {
-  const liveCount = GUIDES.filter(g => g.status === 'live').length;
+  const live = GUIDES.filter(g => g.status === 'live');
+  const liveCount = live.length;
+  const liveContents = live.map(contentsOf);
+  const sum = k => liveContents.reduce((n, x) => n + (x[k] || 0), 0);
   const bundleEntry = {
     slug: BUNDLE.slug,
     title: BUNDLE.title,
@@ -57,7 +87,17 @@ function list() {
     type: 'bundle',
     includes: liveCount,
     price: BUNDLE.price_cents / 100,
-    currency: CURRENCY.toUpperCase()
+    // The anchor, spelled out on the card: what the same guides cost one
+    // at a time. Derived, so a seventh guide moves it without a copy edit.
+    separate_price: liveCount * PRICE_CENTS / 100,
+    currency: CURRENCY.toUpperCase(),
+    contents: {
+      pages: liveContents.every(x => x.pages) ? sum('pages') : null,
+      places: sum('places'),
+      day_plans: sum('day_plans'),
+      stops: sum('stops'),
+      quick_plans: sum('quick_plans')
+    }
   };
   return [bundleEntry].concat(GUIDES.map(g => ({
     slug: g.slug,
@@ -67,7 +107,8 @@ function list() {
     city_keys: g.city_keys,
     price: PRICE_CENTS / 100,
     currency: CURRENCY.toUpperCase(),
-    spot_count: g.status === 'live' ? countSpots(g) : null
+    spot_count: g.status === 'live' ? countSpots(g) : null,
+    contents: g.status === 'live' ? contentsOf(g) : null
   })));
 }
 
@@ -2462,7 +2503,7 @@ async function fulfillPurchase(session) {
 
 module.exports = {
   GUIDES, BUNDLE, PRICE_CENTS, CURRENCY,
-  list, bySlug, matchCity,
+  list, bySlug, matchCity, contentsOf,
   signToken, verifyToken,
   getPdf, getSamplerPdf, fulfillPurchase
 };

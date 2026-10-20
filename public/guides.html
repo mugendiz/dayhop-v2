@@ -85,9 +85,10 @@
         conic-gradient(from var(--angle), var(--coral), var(--marigold), var(--moss), var(--ink), var(--coral)) border-box;
       padding: 22px; display: grid; grid-template-columns: 1fr 300px; gap: 8px 24px; align-items: center; }
     .card--bundle > * { margin: 0 !important; }
+    .card--bundle > *:not(.fan) { grid-column: 1; }
     .card--bundle h2 { font-size: 1.5rem; }
     .card--bundle .deal { font-family: var(--display); color: var(--coral); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: .8rem; }
-    .fan { grid-row: 1 / span 5; grid-column: 2; position: relative; height: 210px; }
+    .fan { grid-row: 1 / span 7; grid-column: 2; position: relative; height: 210px; }
     .fan img { position: absolute; width: 120px; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 10px 24px rgba(16,42,46,.18); top: 10px; }
     @media (max-width: 720px) { .card--bundle { grid-template-columns: 1fr; } .fan { display: none; } }
     .card h2 { font-family: var(--display); font-size: 1.18rem; letter-spacing: .01em; }
@@ -136,6 +137,38 @@
     .pager .dots { display: flex; gap: 6px; }
     .pager .dot { width: 8px; height: 8px; border-radius: 50%; background: #d8d2c4; border: 0; padding: 0; cursor: pointer; }
     .pager .dot.on { background: var(--coral); }
+    /* What's inside: the counted contents, so "will I like it" gets numbers. */
+    .inside { list-style: none; padding: 0; margin: 2px 0 4px; font-size: .95rem; color: var(--ink); }
+    .inside li { padding: 3px 0 3px 18px; position: relative; line-height: 1.35; }
+    .inside li::before { content: ''; position: absolute; left: 2px; top: .62em; width: 7px; height: 7px; border-radius: 50%; background: var(--moss); }
+    .inside li b { font-family: var(--display); font-weight: 700; }
+    .inside-head { font-family: var(--display); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+    /* Bundle anchor: the one-at-a-time total, struck, beside the real price. */
+    .math { display: grid; grid-template-columns: auto auto; justify-content: start; gap: 2px 18px; background: var(--paper-dim); border-radius: 10px; padding: 10px 14px; font-size: .98rem; }
+    .math .was { text-decoration: line-through; color: var(--ink-soft); }
+    .math .now { font-family: var(--display); font-weight: 700; color: var(--coral-dark); font-size: 1.15rem; }
+    .math .keep { grid-column: 1 / -1; font-family: var(--display); font-weight: 700; color: var(--moss); font-size: .82rem; letter-spacing: .08em; text-transform: uppercase; padding-top: 4px; }
+    .card--bundle .inside { columns: 2; column-gap: 24px; }
+    @media (max-width: 520px) { .card--bundle .inside { columns: 1; } }
+    /* Reader quote beside the button. Renders only from real, consented
+       quotes (data/testimonials.js); with none, the guarantee stands in. */
+    .quote { border-left: 3px solid var(--marigold); padding: 4px 0 4px 12px; font-style: italic; color: var(--ink); font-size: .98rem; }
+    .quote cite { display: block; font-style: normal; font-family: var(--display); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); margin-top: 3px; }
+    .assure { font-size: .9rem; color: var(--moss); }
+    .assure b { font-family: var(--display); letter-spacing: .02em; }
+    .modal-foot .quote { margin-bottom: 10px; font-size: .92rem; }
+    /* Sticky buy bar: appears once the collection's own button scrolls out
+       of view, so the offer is always one tap away. */
+    .sticky-buy { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: #fff; border-top: 1px solid var(--line); box-shadow: 0 -8px 24px rgba(16,42,46,.10); padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); display: flex; align-items: center; justify-content: center; gap: 16px; transform: translateY(110%); transition: transform .22s ease; }
+    .sticky-buy.show { transform: none; }
+    .sticky-buy .sb-text { font-size: .98rem; line-height: 1.3; }
+    .sticky-buy .sb-text b { font-family: var(--display); }
+    .sticky-buy .sb-text s { color: var(--ink-soft); }
+    .sticky-buy .sb-sub { display: block; font-size: .84rem; color: var(--ink-soft); }
+    .sticky-buy .buy { white-space: nowrap; padding: 11px 16px; }
+    @media (max-width: 520px) { .sticky-buy { gap: 10px; } .sticky-buy .sb-sub { display: none; } .sticky-buy .buy { font-size: .85rem; padding: 10px 12px; } }
+    @media (prefers-reduced-motion: reduce) { .sticky-buy { transition: none; } }
+    body.has-sticky { padding-bottom: 76px; }
   </style>
 </head>
 <body>
@@ -237,10 +270,16 @@
         <button type="button" id="pg-next" aria-label="Next page">›</button>
       </div>
       <div class="modal-foot">
+        <div id="preview-proof"></div>
         <button class="buy" id="preview-continue" type="button">Continue to checkout</button>
         <p class="fine">Secure checkout by Stripe · instant PDF by email · free updated editions · 14-day make-it-right guarantee</p>
       </div>
     </div>
+  </div>
+
+  <div class="sticky-buy" id="sticky-buy" aria-hidden="true">
+    <span class="sb-text" id="sb-text"></span>
+    <button class="buy" id="sb-buy" type="button" tabindex="-1">Get all six</button>
   </div>
 
   <script>
@@ -307,6 +346,9 @@
       previewDialog.setAttribute('aria-label', g.title + ', look inside preview');
       continueBtn.disabled = false;
       continueBtn.textContent = 'Continue to checkout';
+      // The modal's fine print already carries the guarantee, so only a real
+      // reader quote earns space above this button.
+      document.getElementById('preview-proof').innerHTML = quotes.length ? proofFor(g.slug) : '';
       const base = '/img/guide-previews/' + g.slug;
       const candidates = [base + '.webp'].concat([2, 3, 4, 5, 6].map(n => base + '-p' + n + '.webp'));
       const found = (await Promise.all(candidates.map(probePage))).filter(Boolean);
@@ -406,6 +448,77 @@
       });
     }
 
+    // ---------- what's inside, proof, and the anchor ----------
+    let quotes = [];
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const money = n => '$' + (Number.isInteger(n) ? n : n.toFixed(2));
+
+    function insideList(c) {
+      if (!c) return '';
+      const rows = [];
+      rows.push((c.pages ? '<b>' + c.pages + ' pages</b>, ' : '') + '<b>' + c.places + '</b> field-checked places');
+      if (c.trails) rows.push('<b>' + c.trails + '</b> trails with distance and surface');
+      if (c.day_plans) rows.push('<b>' + c.day_plans + '</b> ready-made days, <b>' + c.stops + '</b> stops in order');
+      if (c.quick_plans) rows.push('<b>' + c.quick_plans + '</b> "if you only have…" plans, 3 hours to a rainy day');
+      if (c.drives) rows.push('<b>' + c.drives + '</b> scenic drives');
+      if (c.fishing) rows.push('<b>' + c.fishing + '</b> legal fishing spots');
+      if (c.almanac) rows.push('Month-by-month almanac with sunrise and sunset');
+      if (c.bonus) rows.push('Bonus: ' + esc(c.bonus.toLowerCase()));
+      return '<span class="inside-head">What\'s inside</span><ul class="inside">' + rows.map(r => '<li>' + r + '</li>').join('') + '</ul>';
+    }
+
+    // A real reader quote for this guide (or any, failing that). With none
+    // on file, the 14-day guarantee is the honest thing to put by the button.
+    function proofFor(slug) {
+      const q = quotes.find(t => t.guide === slug) || quotes[0];
+      if (q) {
+        return '<blockquote class="quote">“' + esc(q.quote) + '”<cite>' + esc(q.name) + (q.city ? ', ' + esc(q.city) : '') + '</cite></blockquote>';
+      }
+      return '<p class="assure"><b>14-day guarantee:</b> not what you hoped? Write us and we refund it.</p>';
+    }
+
+    function bundleMath(g) {
+      const sep = g.separate_price, now = g.price;
+      if (!sep || !(sep > now)) return '';
+      const keep = sep - now;
+      return '<div class="math">' +
+        '<span>' + g.includes + ' guides one at a time</span><span class="was">' + g.includes + ' × ' + money(sep / g.includes) + ' = ' + money(sep) + '</span>' +
+        '<span>The collection</span><span class="now">' + money(now) + '</span>' +
+        '<span class="keep">You keep ' + money(keep) + ', ' + Math.round(keep / sep * 100) + '% off. Less than three guides cost.</span>' +
+        '</div>';
+    }
+
+    // Sticky bar: watches the collection's own button and slides in once it
+    // has scrolled up out of view. Hidden again while the preview is open.
+    function setupSticky(g, bundleBtn) {
+      const bar = document.getElementById('sticky-buy');
+      const sbBuy = document.getElementById('sb-buy');
+      const c = g.contents || {};
+      document.getElementById('sb-text').innerHTML =
+        '<b>All ' + g.includes + ' guides, ' + money(g.price) + '</b> <s>' + money(g.separate_price) + '</s>' +
+        '<span class="sb-sub">' + (c.pages ? c.pages + ' pages · ' : '') + c.places + ' places · ' + c.day_plans + ' ready-made days</span>';
+      // Hands off to the collection's own button, so the inline email step
+      // opens on the card and not inside the slim bar.
+      sbBuy.addEventListener('click', () => {
+        bundleBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        buy(g.slug, bundleBtn);
+      });
+      // Read on scroll rather than via IntersectionObserver: a jump (a
+      // #markham link) can carry the button past the fold without ever
+      // crossing it, and an observer only fires on a crossing.
+      const sync = () => {
+        const on = bundleBtn.getBoundingClientRect().bottom < 0 && !backdrop.classList.contains('open');
+        bar.classList.toggle('show', on);
+        bar.setAttribute('aria-hidden', on ? 'false' : 'true');
+        sbBuy.tabIndex = on ? 0 : -1;
+        document.body.classList.toggle('has-sticky', on);
+      };
+      addEventListener('scroll', sync, { passive: true });
+      addEventListener('resize', sync);
+      new MutationObserver(sync).observe(backdrop, { attributes: true, attributeFilter: ['class'] });
+      sync();
+    }
+
     async function render() {
       let data;
       const tok = authToken();
@@ -414,6 +527,7 @@
       }
       catch (e) { grid.innerHTML = '<p>Could not load the guides. Refresh to try again.</p>'; return; }
       grid.innerHTML = '';
+      quotes = Array.isArray(data.testimonials) ? data.testimonials : [];
       for (const g of data.guides) {
         const card = document.createElement('div');
         const isBundle = g.type === 'bundle';
@@ -432,26 +546,35 @@
           card.innerHTML =
             '<span class="deal">Best value · six guides for less than the price of three</span>' +
             '<h2></h2><p class="sub"></p>' +
-            '<p class="meta">' + (g.includes || 6) + ' complete guides · 160+ field-checked places · every future edition free</p>' +
+            bundleMath(g) +
+            (g.contents
+              ? '<span class="inside-head">What\'s inside all ' + g.includes + '</span><ul class="inside">' +
+                (g.contents.pages ? '<li><b>' + g.contents.pages + ' pages</b> across ' + g.includes + ' guides</li>' : '') +
+                '<li><b>' + g.contents.places + '</b> field-checked places</li>' +
+                '<li><b>' + g.contents.day_plans + '</b> ready-made days, <b>' + g.contents.stops + '</b> stops</li>' +
+                '<li><b>' + g.contents.quick_plans + '</b> "if you only have…" plans</li>' +
+                '<li>Every future edition free</li></ul>'
+              : '<p class="meta">' + (g.includes || 6) + ' complete guides · every future edition free</p>') +
             (data.admin
               ? '<p class="fine">Your admin account already has every guide unlocked below.</p>'
-              : '<button class="buy" type="button">Get the collection</button><p class="fine">Instant PDFs by email · free updated editions</p>') +
+              : proofFor(g.slug) + '<button class="buy" type="button">Get the collection · ' + money(g.price) + '</button><p class="fine">Instant PDFs by email · free updated editions</p>') +
             '<div class="fan" aria-hidden="true">' + fan + '</div>';
         } else {
           card.innerHTML =
             (live ? '<div class="cover"><img src="/img/guide-previews/' + g.slug + '.webp" alt="Cover of ' + g.title.replace(/"/g, '') + '" loading="lazy"></div>' : '') +
             '<h2></h2><p class="sub"></p>' +
-            (live ? '<p class="meta">' + (g.spot_count ? g.spot_count + ' field-checked places · ' : '') + 'trails · views · water · fishing · day plans</p>' : '') +
+            (live ? (g.contents ? insideList(g.contents) : '<p class="meta">' + (g.spot_count ? g.spot_count + ' field-checked places · ' : '') + 'trails · views · water · fishing · day plans</p>') : '') +
             (live && g.admin_token
               ? '<button class="buy" type="button">Open PDF: admin</button><p class="fine">Unlocked for your admin account</p>'
               : live
-                ? '<button class="buy" type="button">Get the guide</button><p class="fine">Instant PDF by email · free updated editions</p>'
+                ? proofFor(g.slug) + '<button class="buy" type="button">Get the guide · ' + money(g.price) + '</button><p class="fine">Instant PDF by email · free updated editions</p>'
                 : '<button class="soon" type="button" disabled>Coming soon</button><p class="fine">Being verified on the ground. Not for sale until it is.</p>');
         }
         card.querySelector('h2').textContent = g.title;
         card.querySelector('.sub').textContent = g.subtitle;
         if (isBundle && !data.admin) {
           card.querySelector('.buy').addEventListener('click', e => buy(g.slug, e.target));
+          setupSticky(g, card.querySelector('.buy'));
         } else if (!isBundle && live && g.admin_token) {
           card.querySelector('.buy').addEventListener('click', () => {
             window.open('/api/cityguides/download?t=' + encodeURIComponent(g.admin_token) + '&inline=1', '_blank');

@@ -47,13 +47,22 @@ function getStripe() {
   return _stripe;
 }
 
+// Reader quotes for the buy buttons. Only consented entries leave the
+// server, and only the fields the page shows.
+function publishableTestimonials() {
+  return require('../data/testimonials')
+    .filter(t => t && t.consent === true && t.quote && t.name)
+    .map(t => ({ quote: t.quote, name: t.name, city: t.city || null, guide: t.guide || null }));
+}
+router.publishableTestimonials = publishableTestimonials;
+
 router.get('/', (req, res) => {
   const admin = isAdminReq(req);
   const guides = cityGuides.list().map(g =>
     admin && g.status === 'live'
       ? Object.assign({}, g, { admin_token: cityGuides.signToken(g.slug) })
       : g);
-  res.json({ guides, currency: cityGuides.CURRENCY.toUpperCase(), admin });
+  res.json({ guides, testimonials: publishableTestimonials(), currency: cityGuides.CURRENCY.toUpperCase(), admin });
 });
 
 // Checkout sessions cost a Stripe API call each — keep drive-by scripts from
