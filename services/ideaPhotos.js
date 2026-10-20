@@ -21,7 +21,7 @@ async function enrichIdeaImages(ideas, { city, coords } = {}) {
   const missing = ideas
     .filter(i => i && !i.image_url && (i.venue || i.title))
     .slice(0, MAX_LOOKUPS);
-  if (!missing.length) return ideas;
+  if (!missing.length) return inlinePaid(ideas);
 
   let next = 0;
   let warned = false;
@@ -46,7 +46,16 @@ async function enrichIdeaImages(ideas, { city, coords } = {}) {
     }
   });
   await Promise.all(workers);
+  return inlinePaid(ideas);
+}
+
+// Last step on every path: cards whose photo someone already resolved get
+// the image URI written in directly (one batched cache read, no Google
+// call), so they skip /api/photo and can never hit the daily photo cap.
+async function inlinePaid(ideas) {
+  try { await maps.inlineCachedPhotos(ideas); }
+  catch (err) { console.warn('[ideaPhotos] inline of cached photos failed:', err.message); }
   return ideas;
 }
 
-module.exports = { enrichIdeaImages };
+module.exports = { enrichIdeaImages, inlinePaid };

@@ -122,6 +122,42 @@ async function cached({ key, ttlMs, fetch }) {
   }
 }
 
+/**
+ * peekMany(keys) → Map(key → value) for every key with a fresh cached value.
+ * Never fetches and never spends: it is how a feed asks "which of these 40
+ * photos has someone already paid for?" in ONE L2 round trip instead of 40.
+ * L1 answers first; the rest go to L2 in a single `in` query, and hits are
+ * promoted to L1 so the next feed on this instance skips the database too.
+ */
+async function peekMany(keys) {
+  const out = new Map();
+  const now = Date.now();
+  const missing = [];
+  for (const k of new Set(keys)) {
+    const hit = l1.get(k);
+    if (hit && hit.expires > now) out.set(k, hit.value);
+    else missing.push(k);
+  }
+  if (!missing.length || !hasServiceKey()) return out;
+  try {
+    // Chunked: PostgREST puts the list in the URL, and photo keys are long.
+    for (let i = 0; i < missing.length; i += 40) {
+      const { data, error } = await dbClient.getClient()
+        .from('api_cache').select('key, payload, expires_at').in('key', missing.slice(i, i + 40));
+      if (error) throw error;
+      for (const row of data || []) {
+        const expires = Date.parse(row.expires_at);
+        if (!(expires > now) || !row.payload || !('v' in row.payload)) continue;
+        l1Set(row.key, { value: row.payload.v, expires });
+        out.set(row.key, row.payload.v);
+      }
+    }
+  } catch (err) {
+    warnOnce('L2 peek', err);
+  }
+  return out;
+}
+
 // ---------- daily spend guard ----------
 // USD per call by SKU (Google Maps Platform list prices, Mar 2025 model,
 // 0–100k tier). Free monthly allowances (1k Enterprise / 5k Pro / 10k
@@ -149,9 +185,14 @@ const budgetUsd = () => {
 // speculative photo lookups ($0.032) have drained the main pot. Sept 5 2026:
 // the shared pot is why mobile tiles showed "mostly placeholders" — the
 // cheap resolves ran after the page painted and always lost the race.
+// Oct 20 2026: $0.35 → $1.00. At ≈ 50 photos/day the slice ran dry three
+// days running (Oct 18–20) and most cards fell back to stock. It was that
+// small because each place was re-bought weekly and once per photo ref (42%
+// of resolves were repeats); photos are now keyed by place for 30 days
+// (googleMaps.getPhotoUri), so $1 ≈ 140 photos/day buys new places only.
 const photoBudgetUsd = () => {
   const n = Number(process.env.PHOTO_DAILY_BUDGET_USD);
-  return Number.isFinite(n) && n >= 0 ? n : 0.35; // ≈ 50 fresh photos/day, 7-day cached
+  return Number.isFinite(n) && n >= 0 ? n : 1.0;
 };
 
 // Three buckets: 'live' (user-triggered, governed by the USD cap), 'photo'
@@ -283,4 +324,4 @@ function _reset() {
   usage = { day: TORONTO_DAY.format(new Date()), calls: {}, usd: 0, photoUsd: 0, blocked: 0, index: {}, loaded: true };
 }
 
-module.exports = { cached, spend, usageStatus, loadUsage, COST_USD, _reset };
+module.exports = { cached, peekMany, spend, usageStatus, loadUsage, COST_USD, _reset };

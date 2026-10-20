@@ -95,3 +95,36 @@ Corridor radar never goes live (it is per-user).
    (`searchPlacesWithThemes`) — one fewer call per cold gather.
 3. Prune `api_cache` monthly:
    `delete from public.api_cache where expires_at < now() - interval '30 days';`
+
+## Card photos: one resolve per place, shared (2026-10-20)
+
+**Incident:** most feed cards showed stock placeholders. `place_photo` hit
+its $0.35/day slice (`PHOTO_DAILY_BUDGET_USD`, ≈ 50 photos) on Oct 18, 19
+and 20, and every card after that 404'd on `/api/photo` and fell back to
+stock. The slice was small partly because it was wasted: photo URIs were
+cached per photo *ref*, which changes every time a search (or a venue-index
+refresh) returns the place again, and only for 7 days. Of 587 cached
+resolves, 249 were repeats of 116 places.
+
+Now:
+- **Keyed by place, 30 days.** Card photos cache under
+  `maps:photo-place:<placeId>|800` (`googleMaps.photoCacheKey`), the same
+  30-day window the venue index keeps Places content. Detail-gallery photos
+  (`&g=1`) keep the per-photo key, so a gallery still shows six pictures.
+- **Inlined into feeds.** `ideaPhotos.enrichIdeaImages` ends with
+  `googleMaps.inlineCachedPhotos`: one batched `apiCache.peekMany` read, and
+  every card someone already paid for ships with the image URI itself. It
+  never touches `/api/photo` again and cannot hit the cap. Only never-seen
+  places go through the proxy, and the first viewer's resolve serves all.
+- **Warmed nightly.** After the 03:xx venue-index refresh,
+  `services/photoWarm.js` resolves the top 8 places per browse prompt (both
+  modes, evergreen + season) in the core GTA cells that are not cached yet,
+  up to `PHOTO_WARM_DAILY` (default 60 ≈ $0.42), charged to the index
+  bucket. `PHOTO_WARM=off` disables it.
+- **Cap raised** to $1.00/day (≈ 140 new places) now that it only buys new
+  places.
+- `scripts/migrate-photo-keys.js` copied the paid URIs from the old keys
+  (run once on 2026-10-20: 169 places).
+
+Never store or rehost the image bytes themselves: Google's terms allow the
+URI to be cached, not the photo.

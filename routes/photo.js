@@ -16,7 +16,8 @@ router.get('/', async (req, res) => {
   }
 
   try {
-    const uri = await maps.getPhotoUri(name);
+    // g=1 marks a detail-gallery photo: cached per photo, not per place.
+    const uri = await maps.getPhotoUri(name, { lead: req.query.g !== '1' });
     // 7 days, matching the server-side photo-URI cache: a returning
     // browser never re-asks for a card image it already resolved.
     res.set('Cache-Control', 'public, max-age=604800');

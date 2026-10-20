@@ -411,8 +411,10 @@ async function getPlaceDetails(placeId) {
         maps_url: p.googleMapsUri || null,
         open_now: p.currentOpeningHours?.openNow ?? null,
         open_hours: p.regularOpeningHours?.weekdayDescriptions || null,
+        // The first is the place's lead photo (same per-place cache as its
+        // card); the rest are marked g=1 so each keeps its own picture.
         photos: (p.photos || []).slice(0, 6)
-          .map(ph => ph.name ? `/api/photo?name=${encodeURIComponent(ph.name)}` : null)
+          .map((ph, i) => ph.name ? `/api/photo?name=${encodeURIComponent(ph.name)}${i ? '&g=1' : ''}` : null)
           .filter(Boolean)
       };
     }
@@ -456,18 +458,68 @@ async function findPhotoUrl({ query, lat, lng }) {
   });
 }
 
+// ---------- card photos: one resolve per PLACE, shared by every viewer ----------
+// A photo resource name ("places/<id>/photos/<ref>") changes every time a
+// search returns the place again, so keying the cache on it re-bought the
+// same venue's picture after each venue-index refresh: of 587 cached
+// resolves on Oct 20 2026, 249 were repeats of 116 places. A card only ever
+// shows the place's lead photo, so card photos are keyed by place id and
+// kept 30 days, the same window the venue index keeps Places content.
+// Detail-gallery photos (?g=1, several per place) keep the per-photo key.
+const LEAD_PHOTO_TTL = 30 * DAY;
+const GALLERY_PHOTO_TTL = 7 * DAY;
+const PHOTO_WIDTH = 800;
+
+function photoCacheKey(photoName, { lead = true, maxWidthPx = PHOTO_WIDTH } = {}) {
+  const placeId = String(photoName).split('/')[1];
+  return lead && placeId
+    ? `maps:photo-place:${placeId}|${maxWidthPx}`
+    : `maps:photo-uri:${photoName}|${maxWidthPx}`;
+}
+
+// The cache key behind a card's "/api/photo?name=…" URL, or null when the
+// URL is anything else (a self-hosted hero, a partner image, a gallery photo).
+function leadKeyFromUrl(url) {
+  if (typeof url !== 'string' || !url.startsWith('/api/photo?')) return null;
+  const q = new URLSearchParams(url.slice('/api/photo?'.length));
+  const name = q.get('name');
+  if (!name || q.get('g') === '1' || !/^places\/[^/]+\/photos\/[^/]+$/.test(name)) return null;
+  return photoCacheKey(name);
+}
+
+/**
+ * Swap "/api/photo?name=…" card URLs for the image URI someone already paid
+ * for, in place, with one batched cache read and no Google call. A warm card
+ * then loads straight from Google's image host (through /api/img's resizer)
+ * and never touches /api/photo; only cards nobody has resolved yet still go
+ * through the proxy, where the first viewer's resolve serves everyone after.
+ */
+async function inlineCachedPhotos(items) {
+  const list = (items || []).filter(i => i && leadKeyFromUrl(i.image_url));
+  if (!list.length) return 0;
+  const found = await apiCache.peekMany(list.map(i => leadKeyFromUrl(i.image_url)));
+  let n = 0;
+  for (const i of list) {
+    const uri = found.get(leadKeyFromUrl(i.image_url));
+    if (typeof uri === 'string' && uri.startsWith('https://')) { i.image_url = uri; n++; }
+  }
+  return n;
+}
+
 /**
  * Resolve a Places photo resource name ("places/…/photos/…") to its image
- * URI. Google's photo URIs are long-lived; cached 7 days so a card image
- * is bought once per week across all viewers, not once per process.
+ * URI. Card (lead) photos are cached per place for 30 days, gallery photos
+ * per photo for 7, so a picture is bought once across all viewers.
+ * opts.bucket 'index' charges the nightly warm (services/photoWarm.js)
+ * instead of the per-day viewer photo slice.
  */
-async function getPhotoUri(photoName, { maxWidthPx = 800 } = {}) {
+async function getPhotoUri(photoName, { maxWidthPx = PHOTO_WIDTH, lead = true, bucket = 'photo' } = {}) {
   assertConfigured();
   const value = await apiCache.cached({
-    key: `maps:photo-uri:${photoName}|${maxWidthPx}`,
-    ttlMs: 7 * DAY,
+    key: photoCacheKey(photoName, { lead, maxWidthPx }),
+    ttlMs: lead ? LEAD_PHOTO_TTL : GALLERY_PHOTO_TTL,
     fetch: async () => {
-      apiCache.spend('place_photo', { bucket: 'photo' });
+      apiCache.spend('place_photo', { bucket });
       const res = await axios.get(`${PLACES_BASE}/${photoName}/media`, {
         params: { maxWidthPx, skipHttpRedirect: true, key: process.env.GOOGLE_MAPS_API_KEY },
         timeout: 8000
@@ -485,5 +537,6 @@ async function getPhotoUri(photoName, { maxWidthPx = 800 } = {}) {
 
 module.exports = {
   geocode, searchPlaces, searchPlacesLite, searchPlacesFresh, getPlaceDetails, getPhotoUri, findPhotoUrl, reverseGeocode, autocompletePlaces,
+  inlineCachedPhotos, leadKeyFromUrl, photoCacheKey,
   usageStatus: apiCache.usageStatus
 };

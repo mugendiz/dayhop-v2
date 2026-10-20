@@ -661,7 +661,12 @@ require('./services/apiCache').loadUsage().catch(() => {});
         const maxCalls = Number(process.env.VENUE_INDEX_DAILY_CALLS) || 30;
         venueIndex.refreshStale({ maxCalls })
           .then(r => console.log(`[venue-index] nightly refresh: ${r.fetched} rows fetched, ${r.remaining} still stale of ${r.total}`))
-          .catch(err => console.warn('[venue-index] nightly refresh failed:', err.message));
+          .catch(err => console.warn('[venue-index] nightly refresh failed:', err.message))
+          // Then warm tomorrow's top card photos (services/photoWarm.js), so
+          // the first visitor of the day sees real pictures, not stock.
+          .then(() => process.env.PHOTO_WARM === 'off' ? null : require('./services/photoWarm').warmPhotos())
+          .then(r => r && console.log(`[photo-warm] ${r.resolved} resolved, ${r.cached} already cached, ${r.failed} failed of ${r.candidates} top cards`))
+          .catch(err => console.warn('[photo-warm] failed:', err.message));
       }
     }, 20 * 60 * 1000).unref();
   }
