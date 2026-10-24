@@ -281,7 +281,9 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   const themes = matchThemes(prompt);
   // Capped at 3 (was 4): each theme query is a metered Text Search, and the
   // 4th theme's results overlapped the first three almost entirely.
-  const themeQueries = themes.flatMap(t => t.placesQueries).slice(0, 3);
+  // Stated constraints pick the theme searches: the activity's own first,
+  // and none a young child rules out (services/constraints.searchesFor).
+  const themeQueries = constraintsSvc.searchesFor(constraints, themes.flatMap(t => t.placesQueries)).slice(0, 3);
 
   // The season's own question, asked alongside the prompt. Ranking can only
   // reorder what was fetched, and the evergreen feed prompt asks for beaches
