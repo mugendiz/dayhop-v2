@@ -297,9 +297,10 @@ function dateHintFor(dateWindow) {
 
 // The best of the ranked pool that Grok did NOT pick, appended after the
 // curated selection as "more finds". Capped at MAX_MORE_FINDS, and only
-// candidates that matched the prompt (relevance.js stamps prompt_match);
-// on a request with stated constraints every candidate in the pool has
-// already passed them (services/constraints.js). This used to pad every
+// candidates that matched the prompt (relevance.js stamps prompt_match) or
+// were proven to meet its stated constraints (services/constraints.js: a
+// playground found by its Places type need not repeat the prompt's words).
+// Unknown-suitability candidates never ride in here. This used to pad every
 // feed to 32 from the top of the pool whatever it was, so when Grok kept 12
 // honest picks the other 20 slots filled with cafes, climbing gyms and
 // library programs. Fewer good picks beats a padded feed. `more_find` lets
@@ -311,7 +312,7 @@ function appendMoreFinds(ideas, candidates) {
   for (const c of candidates) {
     if (extra.length >= MAX_MORE_FINDS) break;
     if (used.has(String(c.id))) continue;
-    if (!c.prompt_match || c.wildcard) continue;
+    if (!(c.prompt_match || c.constraint_fit === 'proven') || c.wildcard) continue;
     used.add(String(c.id));
     extra.push(Object.assign(fallbackIdea(c), { more_find: true }));
   }

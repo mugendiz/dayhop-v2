@@ -75,6 +75,21 @@ test('age suitability: explicit ages decide, then what the place is', () => {
   assert.equal(constraints.ageSuitability({ title: 'Richmond Hill Heritage Centre', description: 'Local history museum.' }, 4), null, 'unknown, not proven');
 });
 
+test('driving venues that call themselves playgrounds stay out for a 4 year old (live run, 2026-10-24)', () => {
+  // After the first fix shipped, the live feed for the same prompt still
+  // carried these two: the Places listing for Drift Zone reads like an
+  // indoor playground, and the catalog calls RC Paradise one. The brief
+  // classes both as go-karting.
+  const rc = require('../data/curatedCatalog').find(c => c.id === 'cur-rc-paradise');
+  assert.equal(constraints.ageSuitability(rc, 4), false);
+  assert.equal(constraints.ageSuitability({ title: 'Drift Zone Aurora', category: 'kids',
+    description: 'Spacious indoor playground with toddler zones and gentle play structures' }, 4), false);
+  assert.equal(constraints.ageSuitability(rc, 9), true, 'an older child can drive');
+  // Neighbours that must not be caught by the wider words.
+  assert.equal(constraints.ageSuitability({ title: 'Driftwood beach playground', category: 'kids' }, 4), true);
+  assert.equal(constraints.ageSuitability({ title: 'R.C. Harris Water Treatment Plant', description: 'Family friendly landmark' }, 4), true);
+});
+
 // ---------- the fixture through the production ranking ----------
 
 // Stub geocoder: the library branch, downtown and Treetop Trekking resolve
@@ -233,6 +248,19 @@ test('more finds: capped, prompt matches only, every one labeled', () => {
   assert.ok(!more.some(i => i.id === 'c4'), 'a wildcard was appended');
   assert.deepEqual(appendMoreFinds(picks, cands.map(c => Object.assign({}, c, { prompt_match: false }))), picks,
     'nothing relevant left means nothing appended');
+});
+
+test('more finds on a constrained request: proven matches count, unknown suitability does not', () => {
+  // The live run got zero more finds: playgrounds found by their Places type
+  // passed the constraints but did not repeat the prompt's words.
+  const { appendMoreFinds } = require('../routes/generate');
+  const cands = [
+    { id: 'pick', title: 'Picked playground', prompt_match: true, constraint_fit: 'proven' },
+    { id: 'typed', title: 'Toogood Pond Park', prompt_match: false, constraint_fit: 'proven' },
+    { id: 'unsure', title: 'Heritage Centre', prompt_match: false, constraint_fit: 'unknown' }
+  ];
+  const more = appendMoreFinds([{ id: 'pick', title: 'Picked playground' }], cands).filter(i => i.more_find);
+  assert.deepEqual(more.map(i => i.id), ['typed']);
 });
 
 // ---------- price tier ----------
