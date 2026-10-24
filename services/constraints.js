@@ -106,8 +106,11 @@ const textOf = c => [c.title, c.description, c.venue, (c.tags || []).join(' '), 
 
 // Places a young child cannot use or should not be taken to, by what the
 // listing says it is. Specific phrases on purpose: "climbing structures" is
-// a playground, "climbing gym" and "bouldering" are not.
-const YOUNG_UNSUITABLE_RE = /\b(climbing gym|bouldering|boulders|rock climbing|climbing wall|top rope|go-?karts?|karting|drift karts?|rc (?:car|racing|track)s?|paintball|laser tag|axe throwing|escape rooms?|horseback|trail rides?|ziplines?|zip-lines?|aerial (?:park|course)s?|ropes course|treetop|skydiv\w*|bungee|night markets?|nightclubs?|bars?|lounges?|pubs?|brewery|breweries|taprooms?|winery|wine bar|cocktails?|hookah|casino|spa)\b/;
+// a playground, "climbing gym" and "bouldering" are not. Driving venues
+// often call themselves playgrounds ("Indoor RC playground", Drift Zone
+// with a kids' description), so "drift" (not "driftwood"), RC vehicles and
+// "remote-control" count as driving whatever else the listing says.
+const YOUNG_UNSUITABLE_RE = /\b(climbing gym|bouldering|boulders|rock climbing|climbing wall|top rope|go-?karts?|karting|drift(?:ing)?|rc (?:cars?|racing|tracks?|trucks?|crawlers?|playgrounds?)|remote[- ]control|paintball|laser tag|axe throwing|escape rooms?|horseback|trail rides?|ziplines?|zip-lines?|aerial (?:park|course)s?|ropes course|treetop|skydiv\w*|bungee|night markets?|nightclubs?|bars?|lounges?|pubs?|brewery|breweries|taprooms?|winery|wine bar|cocktails?|hookah|casino|spa)\b/;
 const KID_EVIDENCE_RE = /\b(kids?|children|child|toddlers?|preschool|family|families|all ages|little ones|playgrounds?|soft play|indoor play|splash ?pad|story ?time)\b/;
 
 /**
