@@ -65,21 +65,26 @@ const ACTIVITIES = [
     label: 'playgrounds and indoor play',
     ask: /\b(playgrounds?|play ?grounds?|play ?structures?|tot ?lots?|jungle ?gyms?|soft play|indoor play(?:grounds?|spaces?|cent(?:re|er)s?)?|play ?(?:cent(?:re|er)s?|spaces?|areas?|zones?|parks?))\b/,
     match: /\b(playgrounds?|play ?grounds?|play ?structures?|tot ?lots?|jungle ?gyms?|soft play|indoor play|play ?(?:cent(?:re|er)|space|area|zone|land|lab|park|cafe)|splash ?pads?|spray ?parks?)\b/,
-    types: ['playground', 'indoor_playground']
+    types: ['playground', 'indoor_playground'],
+    // Places searches that answer it, from the theme vocabulary the venue
+    // index already buys (data/themes.js), so asking them costs nothing new.
+    searches: ['playground park', 'indoor playground kids', 'splash pad']
   },
   {
     id: 'splash_pad',
     label: 'splash pads',
     ask: /\b(splash ?pads?|spray ?parks?|wading pools?)\b/,
     match: /\b(splash ?pads?|spray ?parks?|wading pools?|water play)\b/,
-    types: []
+    types: [],
+    searches: ['splash pad']
   },
   {
     id: 'petting_zoo',
     label: 'petting zoos and farms',
     ask: /\b(petting zoos?|animal farms?)\b/,
     match: /\b(petting zoo|animal farm|farm animals|barnyard)\b/,
-    types: ['farm']
+    types: ['farm'],
+    searches: ['petting zoo farm', 'petting farm']
   }
 ];
 
@@ -110,7 +115,7 @@ const textOf = c => [c.title, c.description, c.venue, (c.tags || []).join(' '), 
 // often call themselves playgrounds ("Indoor RC playground", Drift Zone
 // with a kids' description), so "drift" (not "driftwood"), RC vehicles and
 // "remote-control" count as driving whatever else the listing says.
-const YOUNG_UNSUITABLE_RE = /\b(climbing gym|bouldering|boulders|rock climbing|climbing wall|top rope|go-?karts?|karting|drift(?:ing)?|rc (?:cars?|racing|tracks?|trucks?|crawlers?|playgrounds?)|remote[- ]control|paintball|laser tag|axe throwing|escape rooms?|horseback|trail rides?|ziplines?|zip-lines?|aerial (?:park|course)s?|ropes course|treetop|skydiv\w*|bungee|night markets?|nightclubs?|bars?|lounges?|pubs?|brewery|breweries|taprooms?|winery|wine bar|cocktails?|hookah|casino|spa)\b/;
+const YOUNG_UNSUITABLE_RE = /\b(climbing gym|bouldering|boulders|rock climbing|climbing wall|top rope|go[- ]?karts?|karting|drift(?:ing)?|rc (?:cars?|racing|tracks?|trucks?|crawlers?|playgrounds?)|remote[- ]control|paintball|laser tag|axe throwing|escape rooms?|horseback|trail rides?|ziplines?|zip-lines?|aerial (?:park|course)s?|ropes course|treetop|skydiv\w*|bungee|night markets?|nightclubs?|bars?|lounges?|pubs?|brewery|breweries|taprooms?|winery|wine bar|cocktails?|hookah|casino|spa)\b/;
 const KID_EVIDENCE_RE = /\b(kids?|children|child|toddlers?|preschool|family|families|all ages|little ones|playgrounds?|soft play|indoor play|splash ?pad|story ?time)\b/;
 
 /**
@@ -169,6 +174,26 @@ function applyHardConstraints(scored, constraints) {
   return { entries, dropped };
 }
 
+/**
+ * The theme searches worth running for these constraints, in order: the
+ * stated activity's own searches first, then the theme searches a young
+ * child does not rule out. "The most adventurous playgrounds ... with a 4
+ * year old" matched the adrenaline theme first, so all three theme slots
+ * went to ziplines, bouldering gyms and go-kart tracks, every result was
+ * then filtered away, and "playground park" was never searched.
+ */
+// What a young child is searched for when the prompt names no activity
+// ("4 year old" is not a theme trigger word, so the kids theme never ran).
+const YOUNG_CHILD_SEARCHES = ['playground park', 'indoor playground kids', 'petting zoo farm'];
+
+function searchesFor(c, queries) {
+  if (!c || !c.active) return queries;
+  const a = ACTIVITIES.find(x => x.id === c.activity);
+  const first = [...new Set([...(a ? a.searches : []), ...(c.young ? YOUNG_CHILD_SEARCHES : [])])];
+  const rest = queries.filter(q => !first.includes(q) && !(c.young && YOUNG_UNSUITABLE_RE.test(q)));
+  return first.concat(rest);
+}
+
 /** Plain-language summary for Grok and for the results header. */
 function describeConstraints(c) {
   if (!c || !c.active) return null;
@@ -179,6 +204,6 @@ function describeConstraints(c) {
 }
 
 module.exports = {
-  parseChildAges, parseConstraints, ageSuitability, activityMatch, applyHardConstraints, describeConstraints,
+  parseChildAges, parseConstraints, ageSuitability, activityMatch, applyHardConstraints, describeConstraints, searchesFor,
   YOUNG_UNSUITABLE_RE, ACTIVITIES
 };

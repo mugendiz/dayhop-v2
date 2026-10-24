@@ -90,6 +90,21 @@ test('driving venues that call themselves playgrounds stay out for a 4 year old 
   assert.equal(constraints.ageSuitability({ title: 'R.C. Harris Water Treatment Plant', description: 'Family friendly landmark' }, 4), true);
 });
 
+test('theme searches follow the stated constraints (live run, 2026-10-24)', () => {
+  // "Adventurous" matched the adrenaline theme first, so the three theme
+  // slots went to ziplines, bouldering and go-karts, all filtered away, and
+  // the live feed had six ideas. The playground searches must run instead.
+  const queriesFor = p => constraints.searchesFor(constraints.parseConstraints(p),
+    matchThemes(p).flatMap(t => t.placesQueries)).slice(0, 3);
+  assert.deepEqual(queriesFor(PROMPT), ['playground park', 'indoor playground kids', 'splash pad']);
+  const young = queriesFor('adventurous things to do with a 4 year old');
+  assert.ok(young.includes('playground park'));
+  assert.ok(!young.some(q => constraints.YOUNG_UNSUITABLE_RE.test(q)), `a thrill search ran for a 4 year old: ${young}`);
+  // Open prompts are untouched.
+  assert.deepEqual(queriesFor('adventurous day out'), matchThemes('adventurous day out').flatMap(t => t.placesQueries).slice(0, 3));
+  assert.ok(constraints.YOUNG_UNSUITABLE_RE.test('go kart racing track'), '"go kart" with a space');
+});
+
 // ---------- the fixture through the production ranking ----------
 
 // Stub geocoder: the library branch, downtown and Treetop Trekking resolve
