@@ -1298,6 +1298,14 @@ button.date-clear-btn { padding: 13px 4px; }
 
 .feed-section-header:first-child { margin-top: 0; }
 
+/* Nearest-first: how many places it left out, and the way back. */
+.feed-unplaced-note {
+  grid-column: 1 / -1;
+  margin: 12px 0 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
 .idea-card h3 {
   font-size: 19px;
   font-weight: 700;
@@ -4269,6 +4277,12 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
     background: rgba(251,247,238,0.92); color: var(--ink);
     font: 600 10px/1 var(--mono); padding: 4px 6px; border-radius: 999px;
   }
+  .idea-tile .tile-cost--unknown { background: rgba(251,247,238,0.78); color: var(--ink-soft); font-weight: 500; }
+  .idea-tile .tile-km {
+    position: absolute; top: 26px; left: 6px;
+    background: rgba(16,42,46,0.78); color: #fff;
+    font: 600 10px/1 var(--mono); padding: 4px 6px; border-radius: 999px;
+  }
   .idea-tile .tile-badge {
     position: absolute; top: 4px; right: 4px; font-size: 14px;
     filter: drop-shadow(0 1px 1px rgba(0,0,0,0.4));
@@ -4280,14 +4294,8 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
     font-size: 15px; line-height: 30px; padding: 0;
     box-shadow: 0 2px 6px rgba(0,0,0,0.25);
   }
+  .idea-tile .tile-save.is-saved { background: var(--coral-dark); color: #fff; }
   .idea-tile.tile--saving { box-shadow: 0 0 0 3px var(--moss), var(--shadow); }
-  .idea-tile.tile--glyph img { display: none; }
-  .tile-glyph { display: none; }
-  .tile--glyph .tile-glyph {
-    display: flex; position: absolute; inset: 0; align-items: center; justify-content: center;
-    padding: 8px; text-align: center; color: #fff; font: 700 13px/1.2 var(--body);
-    background: var(--moss);
-  }
   .favs-coach {
     background: var(--glass-ink); color: var(--paper);
     -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
@@ -4368,7 +4376,6 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
   .favs-tile img { width: 100%; height: 100%; object-fit: cover; object-position: center 35%; display: block; }
   .favs-tile:active { transform: scale(0.94); }
   .favs-tile:focus-visible { outline: 3px solid var(--coral); outline-offset: 2px; }
-  .favs-tile .tile-glyph { font-size: 10px; padding: 3px; }
   .favs-empty { text-align: center; color: var(--ink-soft); padding: 40px 12px; font-size: 14px; }
   .favs-footer { margin-top: auto; padding-top: 12px; }
   .favs-footer .primary-btn { width: 100%; }
@@ -4390,8 +4397,14 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
   .tile-modal.panel--open .panel-sheet--bottom { transform: translateY(0); }
   .tile-close { position: absolute; top: 10px; right: 10px; z-index: 2; }
   .tile-modal-photo {
+    position: relative;
     border-radius: 16px; overflow: hidden; aspect-ratio: 16 / 9; max-height: 30vh; background: var(--moss);
     box-shadow: var(--shadow-soft);
+  }
+  .tile-photo-note {
+    position: absolute; left: 8px; bottom: 8px;
+    background: rgba(16,42,46,0.72); color: #fff;
+    font: 600 11px/1 var(--body); padding: 5px 8px; border-radius: 999px;
   }
   .tile-modal-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .tile-modal-title { font-family: var(--display); font-size: 21px; line-height: 1.15; margin: 12px 40px 4px 0; }
