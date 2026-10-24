@@ -430,9 +430,12 @@ async function getPlaceDetails(placeId) {
  * and restarts. The curated catalog should never reach here at all —
  * scripts/photo-catalog.js bakes its photos into data/catalogPhotos.json.
  */
+// Cache key for a findPhotoUrl lookup; ideaPhotos peeks these for free.
+const photoSearchKey = query => `maps:photo-search:${String(query).trim().toLowerCase()}`;
+
 async function findPhotoUrl({ query, lat, lng }) {
   assertConfigured();
-  const key = `maps:photo-search:${String(query).trim().toLowerCase()}`;
+  const key = photoSearchKey(query);
   return apiCache.cached({
     key,
     ttlMs: 14 * DAY,
@@ -537,6 +540,6 @@ async function getPhotoUri(photoName, { maxWidthPx = PHOTO_WIDTH, lead = true, b
 
 module.exports = {
   geocode, searchPlaces, searchPlacesLite, searchPlacesFresh, getPlaceDetails, getPhotoUri, findPhotoUrl, reverseGeocode, autocompletePlaces,
-  inlineCachedPhotos, leadKeyFromUrl, photoCacheKey,
+  inlineCachedPhotos, leadKeyFromUrl, photoCacheKey, photoSearchKey,
   usageStatus: apiCache.usageStatus
 };

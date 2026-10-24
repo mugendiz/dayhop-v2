@@ -12,10 +12,14 @@ const grok = require('../services/grok');
 const analytics = require('../services/analytics');
 const { entitlementsFor } = require('../services/entitlements');
 const {
-  gatherCandidates, sanitizeCoords, shortAddress, fallbackIdea, parseDateWindow, DEFAULT_CITY
+  gatherCandidates, sanitizeCoords, shortAddress, fallbackIdea, parseDateWindow, normalizeCostTier, DEFAULT_CITY
 } = require('../services/candidates');
 const { formatRange } = require('../services/spotlight');
 const { enrichIdeaImages } = require('../services/ideaPhotos');
+const { describeConstraints } = require('../services/constraints');
+
+// One "near me" radius for every source when the user shares a location.
+const NEAR_ME_KM = 60;
 
 // Who is asking, for usage limits + analytics: authenticated user id, else
 // the caller's IP. The client's self-issued guest id must never be the
@@ -110,7 +114,14 @@ router.post('/', async (req, res) => {
   // The candidate fan-out starts immediately; the free-tier gate resolves in
   // parallel and is enforced before any Grok spend. A gated request wastes
   // one gather (rare), an allowed one saves the gate's full serial latency.
-  const gatherPromise = gatherCandidates(prompt, targetLocation, eventKeyword, filter, userCoords, mode, dateWindow);
+  // A typed request: a source's guaranteed pool slots go only to candidates
+  // that answer it. With the user's location shared, "near me" is held to one
+  // cap for every source (60 km, the wildcard radius), and anything that still
+  // cannot be placed after geocoding is left out instead of shelved as
+  // "Distance unknown".
+  const gatherOpts = Object.assign({ diversityFloor: 'gated' },
+    userCoords ? { nearMeKm: NEAR_ME_KM, requireDistance: true } : {});
+  const gatherPromise = gatherCandidates(prompt, targetLocation, eventKeyword, filter, userCoords, mode, dateWindow, gatherOpts);
   gatherPromise.catch(() => {}); // handled below; a gated early-return must not leave an unhandled rejection
 
   // Free-tier daily limit (entitlements resolve to unlimited for Pro and for
@@ -134,8 +145,9 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const { candidates, weather, usedGrounding, resolvedCity, advisories, advisoriesStatus } =
+    const { candidates, weather, usedGrounding, resolvedCity, advisories, advisoriesStatus, constraints } =
       await gatherPromise;
+    const hardConstraints = describeConstraints(constraints);
     const cityForGrok = resolvedCity || targetLocation;
     const dateHint = dateHintFor(dateWindow);
 
@@ -145,7 +157,9 @@ router.post('/', async (req, res) => {
       advisories: advisories || [],
       advisories_status: advisoriesStatus || 'unavailable',
       near: userCoords ? resolvedCity || null : null,
-      date_window: dateWindow || null
+      date_window: dateWindow || null,
+      // Optional: what the feed was filtered by, for the results header.
+      constraints: hardConstraints ? { summary: hardConstraints, age: constraints.age, activity: constraints.activity } : undefined
     };
     // Campaign attribution rides along (sanitized) so the acquisition rollup
     // can answer "did that ad click ever reach the product loop".
@@ -162,7 +176,7 @@ router.post('/', async (req, res) => {
       }
     };
     const curatedArgs = {
-      prompt, filter, mode, city: cityForGrok, candidates, weather, advisories, dateHint, userCoords
+      prompt, filter, mode, city: cityForGrok, candidates, weather, advisories, dateHint, userCoords, hardConstraints
     };
 
     // Two-phase: answer NOW with the ranked pool, curate in the background.
@@ -222,7 +236,7 @@ router.post('/', async (req, res) => {
 // background job: Grok selection (photo warmup concurrent — every idea Grok
 // can pick comes from `candidates`, so by merge time the photos are already
 // attached), merge, "more finds", residual photo enrichment.
-async function buildCuratedIdeas({ prompt, filter, mode, city, candidates, weather, advisories, dateHint, userCoords }) {
+async function buildCuratedIdeas({ prompt, filter, mode, city, candidates, weather, advisories, dateHint, userCoords, hardConstraints }) {
   const photoWarmup = enrichIdeaImages(candidates.slice(0, 16), { city, coords: userCoords })
     .catch(() => {});
   let selected = null;
@@ -231,7 +245,7 @@ async function buildCuratedIdeas({ prompt, filter, mode, city, candidates, weath
     selected = await grok.generateGroundedIdeas({
       prompt, filter, mode, city,
       candidates: candidates.map(toGrokCandidate),
-      weather, advisories, dateHint
+      weather, advisories, dateHint, hardConstraints
     });
   } catch (err) {
     // We already hold a relevance-ranked pool of real places — serve the
@@ -282,17 +296,22 @@ function dateHintFor(dateWindow) {
 }
 
 // The best of the ranked pool that Grok did NOT pick, appended after the
-// curated selection as "more finds": every one is a real, quality-gated
-// place already fetched and scored for this request, so a feed of 12
-// becomes a feed of ~30 at zero extra API cost. `more_find` lets the
-// client group them under their own section header.
-const MAX_TOTAL_IDEAS = 32;
+// curated selection as "more finds". Capped at MAX_MORE_FINDS, and only
+// candidates that matched the prompt (relevance.js stamps prompt_match);
+// on a request with stated constraints every candidate in the pool has
+// already passed them (services/constraints.js). This used to pad every
+// feed to 32 from the top of the pool whatever it was, so when Grok kept 12
+// honest picks the other 20 slots filled with cafes, climbing gyms and
+// library programs. Fewer good picks beats a padded feed. `more_find` lets
+// the client keep them under their own labeled section in every sort.
+const MAX_MORE_FINDS = 6;
 function appendMoreFinds(ideas, candidates) {
   const used = new Set(ideas.map(i => String(i.id)));
   const extra = [];
   for (const c of candidates) {
-    if (ideas.length + extra.length >= MAX_TOTAL_IDEAS) break;
+    if (extra.length >= MAX_MORE_FINDS) break;
     if (used.has(String(c.id))) continue;
+    if (!c.prompt_match || c.wildcard) continue;
     used.add(String(c.id));
     extra.push(Object.assign(fallbackIdea(c), { more_find: true }));
   }
@@ -320,6 +339,9 @@ function mergeWithCandidates(selectedIdeas, candidates) {
         open_now: original.open_now != null ? original.open_now : null,
         price_from: original.price_from != null ? original.price_from : null,
         currency: original.currency || null,
+        // The source's tier or price first (real data), then Grok's reading
+        // of the listing; null means unknown and the tile says "price varies".
+        cost_tier: normalizeCostTier(original.cost_tier, original.price_from) || normalizeCostTier(idea.cost_tier, null),
         image_url: original.image_url || null,
         image_credit: original.image_credit || undefined,
         date: original.date || null,
@@ -660,3 +682,6 @@ module.exports = router;
 // Exported for the card-badge invariant test (test/ideaOpenNow.test.js) —
 // pure function over candidate objects, no network.
 module.exports.mergeWithCandidates = mergeWithCandidates;
+// Exported for the planner-feed regression test (test/plannerFeed.test.js).
+module.exports.appendMoreFinds = appendMoreFinds;
+module.exports.MAX_MORE_FINDS = MAX_MORE_FINDS;

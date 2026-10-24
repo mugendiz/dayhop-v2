@@ -7,6 +7,7 @@
 
 const { isAroundSpotlight, torontoToday } = require('./spotlight');
 const seasons = require('../data/seasons');
+const { parseConstraints } = require('./constraints');
 
 const STOPWORDS = new Set([
   'a', 'an', 'and', 'the', 'to', 'of', 'in', 'on', 'at', 'for', 'with', 'my',
@@ -109,14 +110,20 @@ function readIntent(prompt) {
  * shapes), the active category filter, and the R&R/Adventure mode.
  * Returns [{ candidate, score }].
  */
-function scoreCandidates(candidates, { prompt, themes = [], filter, mode, advisoryPressure, spotlight, dateWindow, weather } = {}) {
+function scoreCandidates(candidates, { prompt, themes = [], filter, mode, advisoryPressure, spotlight, dateWindow, weather, constraints } = {}) {
   const tokens = tokenize(prompt);
   const intent = readIntent(prompt);
+  // Stated constraints (services/constraints.js). The age guard: Adventure
+  // mode's thrill boosts exist to steer an open request, not to reinterpret
+  // "playgrounds with a 4 year old" as a climbing-gym request. With a young
+  // child named, the thrill category and thrill vocabulary get nothing.
+  const stated = constraints || parseConstraints(prompt);
+  const thrillGuard = mode === 'adventure' && stated.young;
   // Seasonal pressure follows the PLANNED day when the date picker is set —
   // a February browse planned for May scores like May.
   const seasonCtx = seasons.getSeasonContext((dateWindow && dateWindow.start) || torontoToday());
   const modeBoost = MODE_CATEGORY_BOOST[mode] || null;
-  const modeWords = mode === 'adventure' ? ADVENTURE_WORDS : (mode === 'rr' ? RR_CALM_WORDS : null);
+  const modeWords = thrillGuard ? null : (mode === 'adventure' ? ADVENTURE_WORDS : (mode === 'rr' ? RR_CALM_WORDS : null));
   const themeTags = new Set();
   const themeCategories = new Set();
   for (const theme of themes) {
@@ -159,24 +166,32 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
     }
 
     // Direct prompt-token overlap: title matches count double.
-    score += 2 * textHits(tokens, candidate.title);
-    score += textHits(tokens, candidate.description);
-    score += textHits(tokens, candidate.venue);
-    score += textHits(tokens, candidate.category);
+    const tokenHits = 2 * textHits(tokens, candidate.title)
+      + textHits(tokens, candidate.description)
+      + textHits(tokens, candidate.venue)
+      + textHits(tokens, candidate.category);
+    score += tokenHits;
 
     // Theme vocabulary: candidate tags/category vs matched theme tags.
     const candTags = (candidate.tags || []).map(t => String(t).toLowerCase());
-    if (candTags.some(t => themeTags.has(t)) || themeCategories.has(candidate.category)) {
-      score += 3;
-    }
+    const themeMatch = candTags.some(t => themeTags.has(t)) || themeCategories.has(candidate.category);
+    if (themeMatch) score += 3;
     // Curated tags also count against raw prompt tokens.
-    score += Math.min(2, candTags.filter(t => tokens.has(t)).length);
+    const tagHits = Math.min(2, candTags.filter(t => tokens.has(t)).length);
+    score += tagHits;
 
     // Came from a theme-expanded Places query — already intent-matched.
     if (candidate.theme_hit) score += 3;
 
     // Active category chip.
-    if (filter && filter !== 'all' && candidate.category === filter) score += 3;
+    const filterMatch = Boolean(filter && filter !== 'all' && candidate.category === filter);
+    if (filterMatch) score += 3;
+
+    // Does this candidate answer the request at all? selectTop only hands a
+    // source its guaranteed slots for candidates that do, and "more finds"
+    // only draws from them (routes/generate.js).
+    const matched = tokenHits > 0 || tagHits > 0 || themeMatch || Boolean(candidate.theme_hit) || filterMatch;
+    candidate.prompt_match = matched;
 
     // Quality signals.
     if (candidate.rating >= 4.5 && (candidate.rating_count || 0) >= 100) score += 1.5;
@@ -206,7 +221,9 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
 
     // Mode personality: the active mode's home categories rise, and titles
     // that speak the mode's vocabulary rise further.
-    if (modeBoost && modeBoost[candidate.category]) score += modeBoost[candidate.category];
+    if (modeBoost && modeBoost[candidate.category] && !(thrillGuard && candidate.category === 'adventures')) {
+      score += modeBoost[candidate.category];
+    }
     if (modeWords) {
       const modeText = `${candidate.title || ''} ${candidate.description || ''}`;
       if (modeWords.test(modeText)) score += 2;
@@ -283,7 +300,7 @@ function scoreCandidates(candidates, { prompt, themes = [], filter, mode, adviso
     // indoors: exposed candidates sink, indoor refuges rise.
     score += advisoryAdjustment(candidate, advisoryPressure);
 
-    return { candidate, score };
+    return { candidate, score, matched };
   });
 }
 
@@ -319,7 +336,12 @@ const NO_FLOOR_SOURCES = new Set(['getyourguide']);
 // others later" actually means. Far ideas are never dropped — they queue up
 // behind the close ones.
 const DISTANCE_BANDS_KM = [15, 35, 70];
-const UNKNOWN_DISTANCE_BAND = 1; // no coords: don't crowd the close band, don't bury it either
+// No coords: after every known band. This used to be band 1, so an unplaced
+// library program or night market rode above a 20 km playground in the
+// server's order while the client's nearest-first sort put it last; the two
+// orders disagreed about the same feed. A place we cannot locate is not
+// nearby, so it goes last on both.
+const UNKNOWN_DISTANCE_BAND = DISTANCE_BANDS_KM.length + 1;
 function distanceBand(km) {
   if (km == null) return UNKNOWN_DISTANCE_BAND;
   for (let i = 0; i < DISTANCE_BANDS_KM.length; i++) {
@@ -328,16 +350,37 @@ function distanceBand(km) {
   return DISTANCE_BANDS_KM.length;
 }
 
-function selectTop(scored, cap = 60) {
-  const sorted = [...scored].sort((a, b) => b.score - a.score);
+// The diversity floor is for keeping good sources audible, not for keeping
+// irrelevant ones alive. A source's guaranteed slots only go to candidates
+// that answer the request (a prompt token, a theme tag, a theme search, the
+// active chip) or that score within FLOOR_MARGIN of the best candidate in
+// the pool. That gate is how library knitting circles and cafes stopped
+// riding into a playground query on a guaranteed slot.
+const FLOOR_MARGIN = 4;
+
+/**
+ * opts.floor: 'gated' applies the relevance gate above (the planner, which
+ * answers a typed request); 'open' (default) keeps the unconditional floor
+ * for browse, surprise and the digest, which answer no specific request and
+ * want every source's events on their shelves.
+ * Entries may carry `tier` (services/constraints.js): lower tiers always
+ * rank first, whatever the score.
+ */
+function selectTop(scored, cap = 60, opts = {}) {
+  const tierOf = e => (e.tier == null ? 0 : e.tier);
+  const sorted = [...scored].sort((a, b) => (tierOf(a) - tierOf(b)) || (b.score - a.score));
   const picked = new Set();
   const perSource = new Map();
+  const gated = opts.floor === 'gated';
+  const topScore = sorted.length ? Math.max(...sorted.map(e => e.score)) : 0;
+  const earnsFloor = e => !gated || e.matched === true || e.score >= topScore - FLOOR_MARGIN;
 
-  // Pass 1: diversity floor — up to 2 best per source.
+  // Pass 1: diversity floor — up to 2 best per source, among the relevant.
   for (const entry of sorted) {
     if (picked.size >= cap) break;
     const src = entry.candidate.source || 'unknown';
     if (NO_FLOOR_SOURCES.has(src)) continue;
+    if (!earnsFloor(entry)) continue;
     const count = perSource.get(src) || 0;
     if (count < 2) {
       picked.add(entry);
@@ -360,6 +403,8 @@ function selectTop(scored, cap = 60) {
 
   // Nearest band first; relevance still decides the order inside a band, and
   // the original index breaks exact ties so the sort stays deterministic.
+  // A constraint tier outranks distance: a proven playground 20 km out still
+  // comes before one whose suitability is unknown 2 km out.
   return chosen
     .map((entry, index) => ({
       entry,
@@ -367,7 +412,7 @@ function selectTop(scored, cap = 60) {
       // Seasonal destinations ride in the nearest band: the drive is the plan.
       band: entry.candidate.seasonal_destination ? 0 : distanceBand(entry.candidate.distance_km)
     }))
-    .sort((a, b) => (a.band - b.band) || (b.entry.score - a.entry.score) || (a.index - b.index))
+    .sort((a, b) => (tierOf(a.entry) - tierOf(b.entry)) || (a.band - b.band) || (b.entry.score - a.entry.score) || (a.index - b.index))
     .map(x => Object.assign(x.entry.candidate, { distance_band: x.band }));
 }
 
@@ -382,4 +427,4 @@ function haversineKm(a, b) {
   return Math.round(R * 2 * Math.asin(Math.sqrt(h)) * 10) / 10;
 }
 
-module.exports = { scoreCandidates, selectTop, tokenize, haversineKm, distanceBand, DISTANCE_BANDS_KM };
+module.exports = { scoreCandidates, selectTop, tokenize, readIntent, haversineKm, distanceBand, DISTANCE_BANDS_KM, UNKNOWN_DISTANCE_BAND, FLOOR_MARGIN };
