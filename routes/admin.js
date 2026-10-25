@@ -454,6 +454,41 @@ router.post('/unban', requireAdmin, async (req, res) => {
   }
 });
 
+// ---------- Dream Homes (2026-10-25) ----------
+// Hand-entered real open houses for the homepage rail. Every staff role
+// sees the list; only owner and deputy change it.
+const requireDreamEditor = requireRole('owner', 'deputy');
+const dreamHomes = require('../services/dreamHomes');
+const dreamFail = (res, err) => res.status(err.status || 500).json({ error: err.status === 400 ? 'INVALID' : err.status === 404 ? 'NOT_FOUND' : 'DREAM_HOMES_FAILED', message: err.message, errors: err.errors });
+
+router.get('/dream-homes', requireStaff, async (req, res) => {
+  try {
+    res.json({ role: req.adminRole, can_edit: ['owner', 'deputy'].includes(req.adminRole), homes: await dreamHomes.listAdmin() });
+  } catch (err) { dreamFail(res, err); }
+});
+// body: { home: {...}, publish?: true } → saved as a draft unless publish
+router.post('/dream-homes', requireDreamEditor, async (req, res) => {
+  try {
+    const b = req.body || {};
+    res.json({ home: await dreamHomes.save(null, b.home, { actor: req.adminActor, publish: b.publish === true }) });
+  } catch (err) { dreamFail(res, err); }
+});
+router.post('/dream-homes/:id', requireDreamEditor, async (req, res) => {
+  try {
+    const b = req.body || {};
+    res.json({ home: await dreamHomes.save(req.params.id, b.home, { actor: req.adminActor, publish: typeof b.publish === 'boolean' ? b.publish : null }) });
+  } catch (err) { dreamFail(res, err); }
+});
+router.post('/dream-homes/:id/publish', requireDreamEditor, async (req, res) => {
+  try { res.json({ home: await dreamHomes.setPublished(req.params.id, true, { actor: req.adminActor }) }); } catch (err) { dreamFail(res, err); }
+});
+router.post('/dream-homes/:id/unpublish', requireDreamEditor, async (req, res) => {
+  try { res.json({ home: await dreamHomes.setPublished(req.params.id, false, { actor: req.adminActor }) }); } catch (err) { dreamFail(res, err); }
+});
+router.post('/dream-homes/:id/delete', requireDreamEditor, async (req, res) => {
+  try { await dreamHomes.remove(req.params.id); res.json({ ok: true }); } catch (err) { dreamFail(res, err); }
+});
+
 // ---------- CRM + roles (2026-08-18) ----------
 const outreachSvc = require('../services/outreach');
 

@@ -160,7 +160,7 @@
           location: 'Leslie Street Spit, Toronto',
           why: 'A car-free peninsula jutting 5 km into Lake Ontario. Skyline views, cottonwood trails, and more birds than people.',
           duration_minutes: 120,
-          cost_tier: 'Free',
+          cost_tier: 'free',
           category: 'general',
           image_url: categoryImage('general'),
           maps_url: 'https://maps.google.com/?q=Tommy+Thompson+Park,+Toronto'
@@ -194,7 +194,7 @@
           location: 'Unwin Ave, Port Lands',
           why: 'A locals\' beach with real sand, calm water, and shady trees. The unhurried way to close out a Saturday.',
           duration_minutes: 120,
-          cost_tier: 'Free',
+          cost_tier: 'free',
           category: 'water',
           image_url: categoryImage('water'),
           maps_url: 'https://maps.google.com/?q=Cherry+Beach,+Toronto'
@@ -232,6 +232,8 @@
     isPro: false,
     entitlements: null,      // limits from /api/billing/status (free vs pro)
     lastPrompt: '',
+    lastMode: null,          // mode the last prompt ran in (results header)
+    lastConstraints: null,   // { summary, age, activity } the server filtered by
     lastWeather: null,
     lastAdvisories: [],          // active advisories for the current area
     lastAdvisoriesStatus: null,  // 'ok' | 'partial' | 'unavailable'
@@ -1716,6 +1718,7 @@
     // so the impression observer never accumulates dead targets.
     if (shelfSeenObserver) shelfSeenObserver.disconnect();
     feed.innerHTML = '';
+    resetTileArt();
     const ideas = visibleIdeas();
 
     let stopIndex = 0;
@@ -1764,15 +1767,9 @@
     }
 
     if (state.sortBy === 'distance') {
-      // Nearest first: a flat sorted list. Sorting inside the server's
-      // sections would leave far-away "Within 15 minutes" cards above nearby
-      // "More to explore" ones and read as broken. Items without a computed
-      // distance sink to their own shelf instead of silently mixing in.
-      const near = ideas.filter(i => i.distance_km != null).sort((a, b) => a.distance_km - b.distance_km);
-      const far = ideas.filter(i => i.distance_km == null);
-      const showHeaders = near.length > 0 && far.length > 0;
-      appendSection('Closest first 📍', near, showHeaders);
-      appendSection('Distance unknown', far, showHeaders);
+      const { sections, unplaced } = distanceSections(ideas, state.browseMode);
+      sections.forEach(sec => appendSection(sec.label, sec.ideas, sec.headers));
+      if (unplaced > 0) feed.appendChild(buildUnplacedNote(unplaced));
     } else if (state.browseMode && ideas.some(i => i.section)) {
       // Browse feed: server-assigned sections, in server order. STOP numbers
       // continue across sections so the trail metaphor stays intact.
@@ -1817,6 +1814,53 @@
 
     updateFeedChrome(ideas);
     if (grid && ideas.length) favsCoachMark(); // once per device, first tile feed
+  }
+
+  // Nearest-first sections. A place with no distance cannot be placed in a
+  // nearest-first list, so it is left out of this sort (renderFeed adds one
+  // line saying how many, with a way back) instead of shelved as "Distance
+  // unknown" under a "near me" search. Browse is one flat sorted list:
+  // sorting inside the server's sections would leave far-away "Within 15
+  // minutes" cards above nearby "More to explore" ones and read as broken.
+  // Prompt results keep their labeled sections, each sorted nearest first,
+  // so "more finds" stay under their own header in this sort too.
+  // Returns { sections: [{ label, ideas, headers }], unplaced }.
+  function distanceSections(ideas, browseMode) {
+    const byKm = (a, b) => a.distance_km - b.distance_km;
+    const located = ideas.filter(i => i.distance_km != null);
+    const unplaced = ideas.length - located.length;
+    if (browseMode) return { sections: [{ label: 'Closest first 📍', ideas: located.sort(byKm), headers: false }], unplaced };
+    const onTarget = located.filter(i => !i.section && !i.wow_reason && !i.more_find).sort(byKm);
+    const beyond = located.filter(i => !i.section && i.wow_reason && !i.more_find).sort(byKm);
+    const more = located.filter(i => !i.section && i.more_find).sort(byKm);
+    const appended = located.filter(i => i.section);
+    const headers = (onTarget.length > 0 && beyond.length > 0) || more.length > 0 || appended.length > 0;
+    const sections = [
+      { label: 'Right on target', ideas: onTarget, headers },
+      { label: 'Beyond what you asked ✨', ideas: beyond, headers },
+      { label: 'More great finds nearby', ideas: more, headers }
+    ];
+    const bySection = new Map();
+    appended.forEach(idea => {
+      if (!bySection.has(idea.section)) bySection.set(idea.section, []);
+      bySection.get(idea.section).push(idea);
+    });
+    bySection.forEach((group, label) => sections.push({ label, ideas: group.sort(byKm), headers: true }));
+    return { sections, unplaced };
+  }
+
+  // Nearest-first leaves out what has no distance; say so, with a way back.
+  function buildUnplacedNote(n) {
+    const note = document.createElement('p');
+    note.className = 'feed-unplaced-note';
+    note.textContent = `${n} ${n === 1 ? 'place has' : 'places have'} no distance and ${n === 1 ? 'is' : 'are'} not in this list. `;
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'linklike';
+    back.textContent = 'Show all in recommended order';
+    back.addEventListener('click', () => setSort('recommended'));
+    note.appendChild(back);
+    return note;
   }
 
   // A section header (or the best-match hero, which carries the same rule)
@@ -2429,6 +2473,7 @@
       }
     }
     badge.textContent = state.shortlist.length;
+    syncTileHearts();
     document.getElementById('build-day-btn').disabled = state.shortlist.length === 0;
     state.savedGuide = null; // shortlist changed → any saved export is stale
   }
@@ -5003,6 +5048,8 @@
       state.nextPages = 0;
       state.dismissedIds = new Set();
       state.lastPrompt = prompt;
+      state.lastMode = state.mode;
+      state.lastConstraints = data.constraints || null;
       state.lastWeather = data.weather || null;
       state.lastAdvisories = data.advisories || [];
       state.lastAdvisoriesStatus = data.advisories_status || null;
@@ -5057,6 +5104,7 @@
         if (!Array.isArray(data.ideas) || !data.ideas.length) return;
         if (state.browseMode || state.lastPrompt !== prompt) return; // re-check after the await
         state.allIdeas = data.ideas;
+        renderResultsHeader();
         renderFeed(false);
         showToast('✨ Picks curated for you');
       } catch (e) { /* network blip — the pool feed stands on its own */ }
@@ -5562,7 +5610,11 @@
       ? `Here's what matches "${snippet}"`
       : "Here's what matches your plan";
 
-    const bits = [`${state.allIdeas.length} ideas`, `Personalized for ${where}`];
+    // The mode the search ran in, and what it was held to: a parent who
+    // typed "with a 4 year old" in Adventure mode can see the age won.
+    const bits = [`${state.allIdeas.length} ideas`, `${state.lastMode === 'adventure' ? 'Adventure' : 'R&R'} mode`];
+    if (state.lastConstraints && state.lastConstraints.summary) bits.push(`Only ${state.lastConstraints.summary}`);
+    bits.push(`Personalized for ${where}`);
     if (state.lastWeather) {
       bits.push(`Adjusted for ${state.lastWeather.temp_c}°C, ${state.lastWeather.description}`);
     }
@@ -6191,8 +6243,9 @@
 
   // ---- images ----
   // Tile art: the idea's own photo through the resize proxy, sized to ~2× the
-  // tile; the category stock shot when there is none; a moss glyph tile if
-  // even that fails to load (never a grey box).
+  // tile; the category stock shot when there is none; an illustrated
+  // placeholder if even that fails to load (never a grey box or a bare
+  // gradient).
   function tileImageUrl(idea, w) {
     return proxiedImage(idea.image_url || categoryImage(idea.category, w), w);
   }
@@ -6204,14 +6257,93 @@
     const img = tile.querySelector('img');
     if (!img) return;
     img.addEventListener('error', () => {
-      if (img.dataset.fallback === '1') {
-        tile.classList.add('tile--glyph');
-        tile.querySelector('.tile-glyph').textContent = tileGlyph(idea.category) + ' ' + String(idea.title || '').split(' ')[0];
-        img.remove();
-        return;
-      }
+      if (img.dataset.fallback === '1') { img.src = illustratedTile(idea, 0); return; }
       img.dataset.fallback = '1';
       img.src = categoryImage(idea.category, w);
+    });
+  }
+
+  // Feed tiles. There is one stock shot per category, so a feed of nine
+  // photo-less playgrounds used to show the same picture nine times. Within
+  // one feed render each picture is used once: a real photo, else the
+  // category's stock shot if no other tile has it yet, else a placeholder
+  // drawn for that tile. tileArtFor remembers which one a tile got, so the
+  // detail view can say a stock shot is not the place (WeakMap: nothing of
+  // this reaches persisted shortlist items).
+  let tileArtUsed = new Set();
+  let tileArtDrawn = 0;
+  const tileArtFor = new WeakMap();
+  function resetTileArt() { tileArtUsed = new Set(); tileArtDrawn = 0; }
+  function pickTileArt(idea, w, skipPhoto) {
+    if (!skipPhoto && idea.image_url && !tileArtUsed.has(idea.image_url)) {
+      tileArtUsed.add(idea.image_url);
+      return { kind: 'photo', src: proxiedImage(idea.image_url, w) };
+    }
+    const stockKey = 'stock:' + (CATEGORY_IMAGES[idea.category] ? idea.category : 'general');
+    if (!tileArtUsed.has(stockKey)) {
+      tileArtUsed.add(stockKey);
+      return { kind: 'stock', src: proxiedImage(categoryImage(idea.category, w), w) };
+    }
+    return { kind: 'illustration', src: illustratedTile(idea, tileArtDrawn++) };
+  }
+  function wireFeedTileImage(tile, idea, w) {
+    const img = tile.querySelector('img');
+    if (!img) return;
+    img.addEventListener('error', () => {
+      const art = tileArtFor.get(idea);
+      if (!art || art.kind === 'illustration') return; // an inline SVG does not fail
+      const next = art.kind === 'photo'
+        ? pickTileArt(idea, w, true)
+        : { kind: 'illustration', src: illustratedTile(idea, tileArtDrawn++) };
+      tileArtFor.set(idea, next);
+      img.src = next.src;
+    });
+  }
+
+  // A placeholder drawn for one tile: the category glyph over soft shapes.
+  // The n-th placeholder of a render steps round the colour wheel by the
+  // golden angle from a start seeded by the idea id, so no two in a feed
+  // share a colour, and three shape sets vary the pattern.
+  function illustratedTile(idea, n) {
+    let h = 0;
+    for (const ch of String(idea.id || idea.title || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const hue = Math.round((h % 360) + n * 137.508) % 360;
+    const bg = `hsl(${hue},34%,34%)`;
+    const fg = `hsl(${(hue + 32) % 360},42%,50%)`;
+    const shapes = [
+      `<circle cx="80" cy="18" r="30" fill="${fg}"/><circle cx="10" cy="92" r="24" fill="${fg}" opacity=".55"/>`,
+      `<path d="M0 68 Q25 48 50 66 T100 60 V100 H0Z" fill="${fg}"/><path d="M0 84 Q30 70 60 82 T100 78 V100 H0Z" fill="${fg}" opacity=".55"/>`,
+      `<rect x="58" y="-12" width="44" height="44" rx="9" transform="rotate(18 80 10)" fill="${fg}"/><rect x="-8" y="62" width="36" height="36" rx="9" transform="rotate(-14 10 80)" fill="${fg}" opacity=".55"/>`
+    ][(h + n) % 3];
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice"><rect width="100" height="100" fill="${bg}"/>${shapes}<text x="46" y="55" font-size="22" text-anchor="middle" dominant-baseline="central">${tileGlyph(idea.category)}</text></svg>`;
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+
+  // One badge on every tile: the lowercase tier, or "price varies" when the
+  // source gave no price (a tile without a badge read as "free" next to its
+  // neighbours).
+  const COST_TIERS = ['free', '$', '$$', '$$$'];
+  function costLabel(tier) {
+    const t = String(tier == null ? '' : tier).trim().toLowerCase();
+    return COST_TIERS.includes(t) ? t : 'price varies';
+  }
+
+  // The tile heart shows shortlist state: outline until saved, filled once
+  // saved. syncTileHearts runs from updateShortlistCount, the one call every
+  // save, unsave and Undo already makes, so no heart can drift.
+  function isShortlisted(id) {
+    return state.shortlist.some(i => String(i.id) === String(id));
+  }
+  function setTileHeart(btn, saved) {
+    btn.classList.toggle('is-saved', saved);
+    btn.setAttribute('aria-pressed', saved ? 'true' : 'false');
+    btn.setAttribute('aria-label', saved ? 'Saved. Tap to remove from my favs' : 'Save to my favs');
+    btn.textContent = saved ? '♥' : '♡';
+  }
+  function syncTileHearts() {
+    document.querySelectorAll('.idea-tile[data-idea-id]').forEach(tile => {
+      const btn = tile.querySelector('.tile-save');
+      if (btn) setTileHeart(btn, isShortlisted(tile.dataset.ideaId));
     });
   }
 
@@ -6323,7 +6455,7 @@
     tile.setAttribute('role', 'listitem');
     tile.setAttribute('aria-label', idea.title || 'Saved place');
     tile.style.setProperty('--i', index);
-    tile.innerHTML = `<img src="${escapeAttr(tileImageUrl(idea, 240))}" alt="" loading="lazy" decoding="async"><span class="tile-glyph" aria-hidden="true"></span>`;
+    tile.innerHTML = `<img src="${escapeAttr(tileImageUrl(idea, 240))}" alt="" loading="lazy" decoding="async">`;
     wireTileImage(tile, idea, 240);
     tile.addEventListener('click', () => openTileModal(idea, { surface: 'favs', list }));
     // Long-press = move sheet (the modal's ⋯ opens the same options).
@@ -6346,19 +6478,28 @@
     tile.setAttribute('role', 'group');
     tile.setAttribute('aria-label', idea.title);
     tile.style.setProperty('--stop-index', index);
-    const cost = idea.cost_tier ? String(idea.cost_tier) : '';
+    const cost = costLabel(idea.cost_tier);
+    const art = pickTileArt(idea, 360);
+    tileArtFor.set(idea, art);
+    // Nearest-first: every tile says how far (the sort leaves out places
+    // with no distance, so there is always a number to show).
+    const km = state.sortBy === 'distance' && idea.distance_km != null
+      ? `<span class="tile-km">📍 ${escapeHtml(String(idea.distance_km))} km</span>` : '';
     tile.innerHTML = `
-      <img src="${escapeAttr(tileImageUrl(idea, 360))}" alt="" loading="lazy" decoding="async">
-      <span class="tile-glyph" aria-hidden="true"></span>
+      <img src="${escapeAttr(art.src)}" alt="" loading="lazy" decoding="async">
       ${bestMatch ? '<span class="tile-badge">🎯</span>' : (idea.sponsored ? '<span class="tile-badge">⭐</span>' : (idea.wow_reason ? '<span class="tile-badge">✨</span>' : ''))}
-      ${cost ? `<span class="tile-cost">${escapeHtml(cost)}</span>` : ''}
+      <span class="tile-cost${cost === 'price varies' ? ' tile-cost--unknown' : ''}">${escapeHtml(cost)}</span>
+      ${km}
       <span class="tile-name">${escapeHtml(idea.title || '')}</span>
-      <button class="tile-save" type="button" aria-label="Save to my favs">♥</button>
+      <button class="tile-save" type="button"></button>
     `;
-    wireTileImage(tile, idea, 360);
-    tile.querySelector('.tile-save').addEventListener('click', (e) => {
+    wireFeedTileImage(tile, idea, 360);
+    const heart = tile.querySelector('.tile-save');
+    setTileHeart(heart, isShortlisted(idea.id));
+    heart.addEventListener('click', (e) => {
       e.stopPropagation();
-      favsSaveFromFeed(idea, tile, 'button');
+      if (isShortlisted(idea.id)) favsUnsaveFromFeed(idea);
+      else favsSaveFromFeed(idea, tile, 'button');
     });
     tile.addEventListener('click', (e) => {
       if (e.target.closest('button')) return;
@@ -6410,6 +6551,18 @@
     };
     tile.addEventListener('touchend', end);
     tile.addEventListener('touchcancel', end);
+  }
+
+  function favsUnsaveFromFeed(idea) {
+    const list = favsActiveList();
+    if (list && list.itemIds.some(x => String(x) === String(idea.id))) favsRemoveFromList(list, idea);
+    else {
+      state.shortlist = state.shortlist.filter(i => i.id !== idea.id);
+      persist();
+      serverShortlistRemove(idea.id);
+      updateShortlistCount();
+    }
+    renderFeed();
   }
 
   function favsSaveFromFeed(idea, tile, via) {
@@ -6538,12 +6691,19 @@
     const location = [idea.venue, idea.location].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · ');
     const facts = [];
     if (idea.distance_km != null) facts.push(`📍 ${idea.distance_km} km`);
-    if (idea.cost_tier) facts.push(String(idea.cost_tier) === 'free' ? 'free' : escapeHtml(idea.cost_tier));
+    facts.push(escapeHtml(costLabel(idea.cost_tier)));
     if (idea.duration_minutes) facts.push(formatDuration(idea.duration_minutes));
     const others = isFavs ? state.lists.filter(l => l.id !== list.id) : [];
+    // The feed tile's art, larger. A stock shot or a drawn placeholder says
+    // so: it is not a picture of this place.
+    const art = (!isFavs && tileArtFor.get(idea)) || { kind: idea.image_url ? 'photo' : 'stock' };
+    const photoSrc = art.kind === 'photo' ? tileImageUrl(idea, 720)
+      : art.kind === 'stock' ? proxiedImage(categoryImage(idea.category, 720), 720) : art.src;
+    const artNote = art.kind === 'stock' ? 'Illustrative photo, not this place'
+      : art.kind === 'illustration' ? 'No photo of this place yet' : '';
     content.innerHTML = `
       ${deck ? `<p class="tile-progress">${left === 0 ? 'Last one' : `${left} more after this`} · ${deck.saved} saved</p>` : ''}
-      <div class="tile-modal-photo"><img src="${escapeAttr(tileImageUrl(idea, 720))}" alt="" decoding="async"></div>
+      <div class="tile-modal-photo"><img src="${escapeAttr(photoSrc)}" alt="" decoding="async">${artNote ? `<span class="tile-photo-note">${artNote}</span>` : ''}</div>
       <h3 id="tile-title" class="tile-modal-title">${escapeHtml(idea.title || '')}</h3>
       ${location ? `<p class="tile-modal-loc">${escapeHtml(location)}</p>` : ''}
       <div class="tile-modal-facts">${facts.map(f => `<span>${f}</span>`).join('')}<span id="tile-weather" class="tile-weather" hidden></span></div>
@@ -6803,7 +6963,131 @@
     });
   }
 
+  // ---------- Dream Home rail ----------
+  // Real open houses an admin entered by hand (/api/dream-homes): open now
+  // first, then by next window. Status is re-checked here every minute
+  // from the window times, so a card never says "Open now" after the
+  // house has closed, and a home whose last window ended leaves the rail.
+  const dreamState = { homes: [] };
+  const DREAM_DRAWING = `<div class="dream-drawing" role="img" aria-label="Drawing of a house, not a photo of this home">
+      <svg viewBox="0 0 72 60" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true" style="color:var(--ink-soft)">
+        <path d="M6 28 36 6l30 22"/><path d="M12 24v32h48V24"/><path d="M30 56V40h12v16"/><rect x="18" y="32" width="8" height="8"/><rect x="46" y="32" width="8" height="8"/><path d="M50 16V8h6v12"/>
+      </svg>
+      <small>Drawing, not a photo of this home</small>
+    </div>`;
+
+  function dreamLive(h, now = Date.now()) {
+    const ws = (h.windows || []).filter(w => Date.parse(w.end_at) > now);
+    if (!ws.length) return null;
+    const open = ws.find(w => Date.parse(w.start_at) <= now);
+    return { open: Boolean(open), next: open || ws[0], windows: ws };
+  }
+  const dreamPrice = p => (p != null ? '$' + Number(p).toLocaleString('en-CA') : '');
+  function dreamPhotoHtml(h, w) {
+    if (!h.photo || !h.photo.url) return DREAM_DRAWING;
+    return `<img src="${escapeAttr(proxiedImage(h.photo.url, w))}" alt="Outside ${escapeAttr(h.address)}" loading="lazy"
+      onerror="this.onerror=null;this.insertAdjacentHTML('beforebegin', window.__dreamDrawing);this.remove()">`;
+  }
+  // Google's display rule: show the photo's author, linked, beside it.
+  function dreamCreditHtml(h) {
+    if (!h.photo || !h.photo.url) return '<p class="dream-credit">No photo of this address yet, so you are looking at a drawing.</p>';
+    if (h.photo.source !== 'google') return '';
+    const a = h.photo.attribution;
+    const who = a && a.name ? (a.uri ? `<a href="${escapeAttr(a.uri)}" target="_blank" rel="noopener noreferrer">${escapeHtml(a.name)}</a>` : escapeHtml(a.name)) : 'a Google Maps contributor';
+    return `<p class="dream-credit">Photo: ${who}, via Google Maps. It shows the street outside, not the listing.</p>`;
+  }
+
+  function renderDreamRail() {
+    const section = document.getElementById('dream-homes');
+    const rail = document.getElementById('dream-rail');
+    if (!section || !rail) return;
+    const now = Date.now();
+    const live = dreamState.homes
+      .map(h => ({ h, s: dreamLive(h, now) }))
+      .filter(x => x.s)
+      .sort((a, b) => (a.s.open === b.s.open
+        ? Date.parse(a.s.open ? a.s.next.end_at : a.s.next.start_at) - Date.parse(b.s.open ? b.s.next.end_at : b.s.next.start_at)
+        : a.s.open ? -1 : 1));
+    section.hidden = false;
+    if (!live.length) {
+      rail.innerHTML = `<p class="dream-empty">Dream homes appear here as this weekend's open houses are added.</p>`;
+      return;
+    }
+    rail.innerHTML = live.map(({ h, s }) => `
+      <button type="button" class="dream-card" role="listitem" data-dream="${escapeAttr(h.id)}"
+        aria-label="${escapeAttr(`${h.area}, ${dreamPrice(h.price)} asking price, ${s.open ? 'open now' : s.next.label}`)}">
+        <div class="dream-photo">
+          ${dreamPhotoHtml(h, 480)}
+          <span class="dream-badge${s.open ? ' dream-badge--open' : ''}">${s.open ? 'Open now' : escapeHtml(s.next.label)}</span>
+        </div>
+        <div class="dream-body">
+          <p class="dream-area">${escapeHtml(h.area)}</p>
+          <p class="dream-price"><strong>${escapeHtml(dreamPrice(h.price))}</strong> asking price</p>
+        </div>
+      </button>`).join('');
+    rail.querySelectorAll('[data-dream]').forEach(btn => btn.addEventListener('click', () => {
+      const h = dreamState.homes.find(x => x.id === btn.dataset.dream);
+      if (h) openDreamDetail(h);
+    }));
+  }
+
+  function openDreamDetail(h) {
+    const s = dreamLive(h);
+    const ideaId = 'dreamhome-' + h.id;
+    const saved = Boolean(state.shortlist.find(i => i.id === ideaId));
+    document.getElementById('detail-title').textContent = h.area;
+    document.getElementById('detail-content').innerHTML = `
+      <div class="dream-detail-photo">${dreamPhotoHtml(h, 900)}</div>
+      ${dreamCreditHtml(h)}
+      <p class="dream-detail-price">${escapeHtml(dreamPrice(h.price))} <span>asking price</span></p>
+      <p class="dream-detail-address">${escapeHtml(h.address)} · ${escapeHtml(h.area)}</p>
+      <p class="dream-note-label">Open house</p>
+      <ul class="dream-windows">${(s ? s.windows : []).map(w => {
+        const isOpen = Date.parse(w.start_at) <= Date.now();
+        return `<li>${isOpen ? '<span class="dream-badge dream-badge--open">Open now</span>' : ''}<span>${escapeHtml(w.day)}, ${escapeHtml(w.label.replace(/^\S+\s/, ''))}</span></li>`;
+      }).join('') || '<li>This open house has ended.</li>'}</ul>
+      ${h.note ? `<p class="dream-note-label">Why this one inspires</p><p class="dream-note">${escapeHtml(h.note)}</p>` : ''}
+      <div class="dream-actions">
+        <a class="primary-btn" href="${escapeAttr(h.maps_url)}" target="_blank" rel="noopener noreferrer">Directions</a>
+        <a class="ghost-btn" href="${escapeAttr(h.source_url)}" target="_blank" rel="noopener noreferrer">See the listing</a>
+        <button type="button" class="ghost-btn" id="dream-save-btn"${saved ? ' disabled' : ''}>${saved ? 'Saved ✓' : 'Save'}</button>
+      </div>
+      <p class="dream-fine">Open house times and prices change. Verify with the listing agent before you go.</p>
+      <p class="dream-fine">DayHop is not a real estate brokerage and does not sell homes. This is a dreaming and visiting guide, not buying advice.</p>`;
+    const save = document.getElementById('dream-save-btn');
+    if (save) save.addEventListener('click', () => {
+      if (state.shortlist.find(i => i.id === ideaId)) return;
+      const next = s && s.next;
+      addToShortlist({
+        id: ideaId,
+        title: `Open house: ${h.area}`,
+        category: 'general',
+        venue: h.address,
+        location: h.area,
+        why: h.note || `${dreamPrice(h.price)} asking price.${next ? ` Open house ${next.label}.` : ''}`,
+        image_url: h.photo && h.photo.url ? h.photo.url : null,
+        url: h.source_url,
+        booking_url: h.source_url,
+        maps_url: h.maps_url,
+        date: next ? next.start_at.slice(0, 10) : null
+      }, null);
+      save.textContent = 'Saved ✓';
+      save.disabled = true;
+    });
+    openPanel('detail-panel');
+  }
+
+  function initDreamHomes() {
+    window.__dreamDrawing = DREAM_DRAWING; // <img onerror> swaps a dead photo for the drawing
+    fetch('/api/dream-homes')
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error('dream homes ' + r.status))))
+      .then(d => { dreamState.homes = Array.isArray(d.homes) ? d.homes : []; renderDreamRail(); })
+      .catch(() => { /* the section stays hidden; the planner is unaffected */ });
+    setInterval(() => { if (dreamState.homes.length) renderDreamRail(); }, 60 * 1000);
+  }
+
   function init() {
+    initDreamHomes();
     initHolidayStrip();
     loadPersisted();
     renderDraftResume(); // an unsaved plan from last time greets them by name

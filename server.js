@@ -346,6 +346,9 @@ app.use('/api/cityguides', cityGuidesLimiter, require('./routes/cityGuides'));
 // Personalized trip guides (routes/personalGuides.js): the same POST cap;
 // the status poll and signed downloads are GETs and carry their own limits.
 app.use('/api/personal-guides', cityGuidesLimiter, require('./routes/personalGuides'));
+// Dream Home rail (routes/dreamHomes.js): one cheap read of hand-entered
+// open houses; the admin writes are under /api/admin/dream-homes.
+app.use('/api/dream-homes', require('./routes/dreamHomes'));
 
 // A plan-less POST /api/guides triggers a Grok call server-side — the save
 // path must not be a free unmetered AI endpoint just because /generate is.

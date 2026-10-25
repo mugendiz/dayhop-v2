@@ -192,6 +192,7 @@ Hard rules:
 - Only recommend items that appear in the provided candidate list. Do not invent venues that are not in the candidates.
 - IF "advisories_context" is present, advisories are in effect: serve the user's request, but honestly — every outdoor/open-air pick's "why" MUST end with a short practical clause acknowledging the advisory (e.g. "— one to save for when the smoke clears" or "— go early before the heat peaks"). Never claim an outdoor place is protected or unaffected (no "sheltered from the smoke" for an open park), and never call an outdoor pick perfect for today. Also include 2-3 of the best indoor or genuinely covered candidates as advisory-safe alternatives, even if the request leaned outdoor. Warm and practical, never alarmist: one short clause per affected pick is enough.
 ${modeDirective(mode)}
+- IF "hard_constraints" is present, it is what the user stated outright (a child's age, a kind of place). Every pick, stretch picks included, must satisfy it, and it overrides the mode guidance above: in Adventure mode with a young child, "adventurous" means the most exciting version of what was asked for (the biggest playground, the best indoor play centre), never a thrill activity the child cannot do. Never pick a place a child of the stated age cannot use or should not be taken to.
 - If the candidates don't cover something the user asked for, say so honestly in that idea's "why" rather than fabricating a match — or simply omit that angle.
 - Use the live weather context to favor indoor or outdoor picks appropriately, and mention it briefly in "why" when it materially affected the choice.
 - Preserve each selected item's "id" and "source" fields exactly as given so we can re-attach booking/map links.
@@ -482,8 +483,9 @@ async function generateIdeas({ prompt, city = DEFAULT_CITY, region = DEFAULT_REG
  * @param {string} opts.city
  * @param {Array} opts.candidates - normalized candidate objects, each tagged with a `source`
  * @param {Object} [opts.weather] - output of services/weather.getConditions
+ * @param {string} [opts.hardConstraints] - constraints.describeConstraints() of the prompt
  */
-async function generateGroundedIdeas({ prompt, filter, city = DEFAULT_CITY, candidates, weather, advisories, dateHint, mode }) {
+async function generateGroundedIdeas({ prompt, filter, city = DEFAULT_CITY, candidates, weather, advisories, dateHint, mode, hardConstraints }) {
   if (!prompt || !prompt.trim()) {
     const err = new Error('Prompt is required');
     err.code = 'INVALID_INPUT';
@@ -506,6 +508,10 @@ async function generateGroundedIdeas({ prompt, filter, city = DEFAULT_CITY, cand
     weather_context: weatherHint || undefined,
     advisories_context: advisoriesHint || undefined,
     date_context: dateHint || undefined,
+    // Plain-language constraints the pool was already filtered by
+    // (services/constraints.js), e.g. "playgrounds and indoor play, suitable
+    // for a 4 year old". The system prompt says they outrank the mode.
+    hard_constraints: hardConstraints || undefined,
     candidates: candidates.slice(0, 60).map(slimCandidate) // safety belt; caller pre-ranks to 60
   });
 

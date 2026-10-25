@@ -183,7 +183,19 @@ function qualityGate(scored) {
 //   excludeIds    — Set of candidate ids already shown to this user
 //   excludeTitles — Set of normTitle'd titles already shown (catches the
 //                   same venue arriving under a different source's id)
+//   diversityFloor — 'gated' gives a source's guaranteed slots only to
+//                   candidates relevant to the prompt (routes/generate.js);
+//                   default 'open' (relevance.selectTop)
+//   nearMeKm      — one distance cap for every source when the user shared
+//                   their location for a request (routes/generate.js)
+//   requireDistance — geocode candidates that arrived with an address but
+//                   no coordinates, then drop any still without a distance
+//                   (a "near me" request cannot be answered with a place
+//                   nobody can locate)
 async function gatherCandidates(prompt, locationText, eventKeyword, filter, userCoords, mode, dateWindow = null, opts = {}) {
+  // Explicit constraints (services/constraints.js): a stated child age and
+  // activity noun filter the pool instead of nudging its scores.
+  const constraints = constraintsSvc.parseConstraints(prompt);
   let geo = null;
   let weather = null;
   // With shared coordinates the locality comes from reverse geocoding and
@@ -269,7 +281,9 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   const themes = matchThemes(prompt);
   // Capped at 3 (was 4): each theme query is a metered Text Search, and the
   // 4th theme's results overlapped the first three almost entirely.
-  const themeQueries = themes.flatMap(t => t.placesQueries).slice(0, 3);
+  // Stated constraints pick the theme searches: the activity's own first,
+  // and none a young child rules out (services/constraints.searchesFor).
+  const themeQueries = constraintsSvc.searchesFor(constraints, themes.flatMap(t => t.placesQueries)).slice(0, 3);
 
   // The season's own question, asked alongside the prompt. Ranking can only
   // reorder what was fetched, and the evergreen feed prompt asks for beaches
@@ -289,10 +303,17 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   // against Places returned six toboggan hills. The season's question outranks
   // generic theme expansion anyway — same reason the indoor-refuge query below
   // unshifts.
-  {
+  // Filler searches (the season's question, the dining query, the indoor
+  // refuge) widen the pool; they do not answer the prompt, so their results
+  // must not carry theme_hit (+3 "already intent-matched"). They did, which is
+  // how six cafes from the dining query ranked as intent matches for a
+  // playground request. A request that names an activity skips the season
+  // and dining fillers entirely: every result would fail the activity filter.
+  const fillerQueries = new Set();
+  if (!constraints.activity) {
     const planned = (dateWindow && dateWindow.start) || torontoToday();
     const seasonQuery = seasonalPrompt(mode === 'adventure' ? 'adventure' : 'rr', planned);
-    if (seasonQuery && !themeQueries.includes(seasonQuery)) themeQueries.unshift(seasonQuery);
+    if (seasonQuery && !themeQueries.includes(seasonQuery)) { themeQueries.unshift(seasonQuery); fillerQueries.add(seasonQuery); }
   }
 
   // Under a warning+ "stay out of the open air" advisory (smoke, dangerous
@@ -303,14 +324,16 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   // and refuge results must survive it.
   if (advisoryPressure.avoid_outdoor >= 2) {
     themeQueries.unshift(INDOOR_REFUGE_QUERY);
+    fillerQueries.add(INDOOR_REFUGE_QUERY);
   }
 
   // Dining is universal: one always-on query keeps the "New & notable
   // dining" shelf fed in BOTH modes (the Adventure prompts contain no food
   // vocabulary at all, so without this the shelf starves there). Cached 6h
   // per grid like every other text search.
-  if (!themeQueries.some(q => /restaurant|food|dessert|brunch|patio|cafe/i.test(q))) {
+  if (!constraints.activity && !themeQueries.some(q => /restaurant|food|dessert|brunch|patio|cafe/i.test(q))) {
     themeQueries.push(DINING_QUERY);
+    fillerQueries.add(DINING_QUERY);
   }
 
   // One parallel batch: each source is independently optional — a failed or
@@ -318,7 +341,7 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   const sources = [
     {
       name: 'google_places',
-      run: () => geo ? searchPlacesWithThemes(prompt, opts.skipThemes ? [] : themeQueries, geo, Boolean(userCoords), opts.radiusKm ? opts.radiusKm * 1000 : null) : []
+      run: () => geo ? searchPlacesWithThemes(prompt, opts.skipThemes ? [] : themeQueries, geo, Boolean(userCoords), opts.radiusKm ? opts.radiusKm * 1000 : null, fillerQueries) : []
     },
     {
       // Fetch a deep top-20 and surface a daily-rotating window of 6 — the
@@ -524,7 +547,50 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
   // higher than a place 19 km across the region, and the wider search
   // radius made that hole very visible.
   const origin = userCoords || (geo ? { lat: geo.lat, lng: geo.lng } : null);
+  const candidates = await rankPool(pool, {
+    prompt, themes, filter, mode, advisoryPressure, spotlight, dateWindow, origin, constraints, opts,
+    // Only set when the plan is for today (weatherApplies above) — steering a
+    // future date by this morning's forecast would be a quiet lie.
+    weather
+  });
+  return {
+    candidates,
+    weather,
+    usedGrounding: candidates.length > 0,
+    resolvedCity,
+    advisories: advisoryResult.advisories,
+    advisoriesStatus: advisoryResult.status,
+    spotlight,
+    dateWindow: dateWindow || null,
+    geo: geo ? { lat: geo.lat, lng: geo.lng } : null,
+    constraints
+  };
+}
+
+// ---------- ranking the gathered pool ----------
+// Everything after the fan-out: stated constraints, placing and distance,
+// the near-me caps, scoring, the quality gate, the pool cap and the
+// wildcards. Split out of gatherCandidates so a captured pool can be replayed
+// through the exact production ranking without the live sources
+// (test/plannerFeed.test.js). Returns the ranked candidates.
+async function rankPool(pool, { prompt, themes = [], filter, mode, advisoryPressure, spotlight, dateWindow, weather, origin, constraints, opts = {} }) {
+  constraints = constraints || constraintsSvc.parseConstraints(prompt);
+  // Stated constraints remove what cannot fit before anything is spent on it
+  // (geocoding below, scoring, Grok). The scored pass in
+  // applyHardConstraints repeats the test and assigns the ranking tiers.
+  if (constraints.active) {
+    pool = pool.filter(c =>
+      constraintsSvc.activityMatch(c, constraints.activity) &&
+      constraintsSvc.ageSuitability(c, constraints.age) !== false);
+  }
   if (origin) {
+    // Events and catalog entries often arrive with an address but no
+    // coordinates (every library program, every curated event). Without a
+    // distance they slipped past every proximity rule and landed in a
+    // "Distance unknown" shelf on a "near me" request. Place them first,
+    // on near-me requests only: browse, surprise and the digest keep their
+    // latency and spend as they were.
+    if (opts.requireDistance) await placeUnlocated(pool);
     for (const c of pool) {
       if (c.lat != null && c.lng != null) {
         c.distance_km = relevance.haversineKm(origin, { lat: c.lat, lng: c.lng });
@@ -536,6 +602,20 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
     // entries (e.g. Arrowhead's ice trail) stay — a human vouched for the
     // drive being worth it.
     pool = pool.filter(c => !(c.source === 'google_places' && c.distance_km != null && c.distance_km > 120));
+    // A request made with the user's location: ONE cap for every source,
+    // unless the prompt asks for a drive. The 120 km rule above only ever
+    // applied to Places, and only to candidates that had a distance.
+    if (opts.nearMeKm) {
+      const intent = relevance.readIntent(prompt);
+      if (!intent.worthTrip && !intent.winterAsk) {
+        pool = pool.filter(c => c.distance_km == null || c.distance_km <= opts.nearMeKm);
+      }
+    }
+    if (opts.requireDistance) {
+      const before = pool.length;
+      pool = pool.filter(c => c.distance_km != null);
+      if (pool.length < before) console.log(`[candidates] near-me request: ${before - pool.length} candidates with no locatable address left out`);
+    }
   }
 
   // Discovery Phase 3 feedback loop: newly-opened items carry their last-30d
@@ -554,36 +634,62 @@ async function gatherCandidates(prompt, locationText, eventKeyword, filter, user
 
   // Quality gate BEFORE the cap, so the pool fills with excellent
   // candidates instead of capping first and filtering what's left.
-  const gated = qualityGate(relevance.scoreCandidates(pool, {
-    prompt, themes, filter, mode, advisoryPressure, spotlight, dateWindow,
-    // Only set when the plan is for today (weatherApplies above) — steering a
-    // future date by this morning's forecast would be a quiet lie.
-    weather
-  }));
-  const candidates = relevance.selectTop(gated, CANDIDATE_POOL_CAP);
+  const scored = relevance.scoreCandidates(pool, {
+    prompt, themes, filter, mode, advisoryPressure, spotlight, dateWindow, constraints, weather
+  });
+  const constrained = constraintsSvc.applyHardConstraints(scored, constraints);
+  if (constrained.dropped.length) {
+    console.log(`[candidates] constraints (${constraintsSvc.describeConstraints(constraints)}): ${constrained.dropped.length} left out`);
+  }
+  const gated = qualityGate(constrained.entries);
+  const candidates = relevance.selectTop(gated, CANDIDATE_POOL_CAP, { floor: opts.diversityFloor || 'open' });
 
   // Wildcards: up to 3 daily-rotating picks from quality-gated material that
   // MISSED the cap — the deliberate "stumble on something" slots. Kept close
   // (≤60 km when distance is known) so a wildcard is a plausible day, not a
-  // road trip. Marked so the feed can shelve them distinctly.
+  // road trip. Marked so the feed can shelve them distinctly. Never on a
+  // request with stated constraints: a random stumble is the opposite of
+  // what was asked.
   const inPool = new Set(candidates.map(c => c.id));
-  const rejects = gated
+  const rejects = constraints.active ? [] : gated
     .map(e => e.candidate)
     .filter(c => !inPool.has(c.id) && (c.distance_km == null || c.distance_km <= 60));
   for (const w of rotateDaily(rejects, 3)) {
     candidates.push(Object.assign({}, w, { wildcard: true }));
   }
-  return {
-    candidates,
-    weather,
-    usedGrounding: candidates.length > 0,
-    resolvedCity,
-    advisories: advisoryResult.advisories,
-    advisoriesStatus: advisoryResult.status,
-    spotlight,
-    dateWindow: dateWindow || null,
-    geo: geo ? { lat: geo.lat, lng: geo.lng } : null
-  };
+  return candidates;
+}
+
+// ---------- placing unlocated candidates ----------
+// Bounded so a cold request never waits long or spends much: at most
+// GEOCODE_PER_REQUEST lookups, all inside GEOCODE_DEADLINE_MS. Each lookup
+// is a $0.005 geocode, cached 30 days per address (services/googleMaps.js)
+// and charged against the daily Maps budget like every other call, so a
+// library branch is paid for once a month, not once per request.
+const GEOCODE_PER_REQUEST = 12;
+const GEOCODE_DEADLINE_MS = 2500;
+const REGION_ONLY_RE = /^\s*(toronto|the gta|gta|greater toronto area|ontario|canada|online|virtual|various locations?|tba)\s*$/i;
+
+/** The address to geocode for a candidate, or null when it has none worth trying. */
+function geocodeText(c) {
+  const addr = String(c.address || '').trim();
+  const venue = String(c.venue || '').trim();
+  const loc = String(c.location || '').trim();
+  let text = '';
+  if (addr && !REGION_ONLY_RE.test(addr) && (/\d/.test(addr) || addr.includes(','))) text = addr;
+  else if (venue && !REGION_ONLY_RE.test(venue)) text = [venue, loc || addr].filter(x => x && x !== venue).join(', ');
+  if (!text || REGION_ONLY_RE.test(text)) return null;
+  return /\b(ontario|on)\b/i.test(text) ? text : `${text}, Ontario`;
+}
+
+async function placeUnlocated(pool) {
+  if (!process.env.GOOGLE_MAPS_API_KEY) return;
+  const todo = pool.filter(c => (c.lat == null || c.lng == null) && geocodeText(c)).slice(0, GEOCODE_PER_REQUEST);
+  if (!todo.length) return;
+  const work = Promise.all(todo.map(c => maps.geocode(geocodeText(c))
+    .then(g => { if (g && g.lat != null) { c.lat = g.lat; c.lng = g.lng; c.geocoded = true; } })
+    .catch(() => { /* stays unplaced; a near-me request leaves it out */ })));
+  await Promise.race([work, new Promise(r => setTimeout(r, GEOCODE_DEADLINE_MS).unref?.())]);
 }
 
 // Shared normalization for title-based exclusion (same shape as dedupKey's).
@@ -596,6 +702,7 @@ function normTitle(s) {
 // autopilot and the "Talk of the town" picker apply the exact same rules
 // (plus the drinking-only gate) at publish time. Re-exported below.
 const { isIndoorOnlyBarOrRestaurant, isHalloweenThemed } = require('./venueGates');
+const constraintsSvc = require('./constraints');
 
 // Coordinates from the browser (already rounded client-side). Anything
 // malformed is silently ignored — the request proceeds city-based.
@@ -650,7 +757,8 @@ function isUnverifiableStorefront(place) {
     (place.types || []).every(t => GENERIC_TYPES.has(t));
 }
 
-async function searchPlacesWithThemes(prompt, themeQueries, geo, hyperLocal = false, radiusOverride = null) {
+async function searchPlacesWithThemes(prompt, themeQueries, geo, hyperLocal = false, radiusOverride = null, fillerQueries = new Set()) {
+  const hitFor = query => ({ theme_hit: !fillerQueries.has(query) });
   // ONE prompt search per gather. Hyper-local (shared coords) used to add a
   // second 20 km prompt search on top of the 5 km one; it returned mostly
   // the same venues for one more metered call. Locality bias is a bias, not
@@ -684,11 +792,11 @@ async function searchPlacesWithThemes(prompt, themeQueries, geo, hyperLocal = fa
     // else: free text WITH themes — the index-served theme rows carry the pool.
     for (const query of themeQueries) {
       const hits = idx.byQuery[query];
-      searches.push(hits ? Promise.resolve(tag(hits, { theme_hit: true })) : live(query, 10, { theme_hit: true }));
+      searches.push(hits ? Promise.resolve(tag(hits, hitFor(query))) : live(query, 10, hitFor(query)));
     }
   } else {
     searches.push(live(prompt, 16));
-    for (const query of themeQueries) searches.push(live(query, 10, { theme_hit: true }));
+    for (const query of themeQueries) searches.push(live(query, 10, hitFor(query)));
   }
   const results = await Promise.all(searches);
   // The trade gate stands down only when the user explicitly asked for one.
@@ -995,6 +1103,29 @@ function shortAddress(address) {
   return parts.length > 2 ? parts[parts.length - 3] : parts.join(', ');
 }
 
+// ---------- price tier ----------
+// One lowercase enum everywhere: 'free' | '$' | '$$' | '$$$', or null when
+// the price is genuinely unknown (the tile then says "Price varies"). Sources
+// disagreed ("Free" in fallback data, "free" from the server, null from every
+// event feed), so some tiles had a badge and their neighbours did not. A
+// source price fills the tier when the source gave no tier: under CA$25 is $,
+// under CA$75 is $$, anything above is $$$.
+const COST_TIERS = new Set(['free', '$', '$$', '$$$']);
+function normalizeCostTier(tier, priceFrom) {
+  const t = String(tier == null ? '' : tier).trim().toLowerCase();
+  if (COST_TIERS.has(t)) return t;
+  if (/^(free|no charge|\$0)$/.test(t)) return 'free';
+  if (/^\$+$/.test(t)) return t.length >= 3 ? '$$$' : t;
+  const price = Number(priceFrom);
+  if (priceFrom != null && priceFrom !== '' && Number.isFinite(price)) {
+    if (price <= 0) return 'free';
+    if (price < 25) return '$';
+    if (price < 75) return '$$';
+    return '$$$';
+  }
+  return null;
+}
+
 // A candidate rendered as an idea card without Grok's curation — used when
 // the AI selection step fails but the grounded pool is healthy, and by the
 // instant browse feed which never involves Grok.
@@ -1007,7 +1138,7 @@ function fallbackIdea(c) {
     why: c.description || '',
     location: c.venue || shortAddress(c.address || c.location) || '',
     good_for_ages: c.good_for_ages || null,
-    cost_tier: c.cost_tier || null
+    cost_tier: normalizeCostTier(c.cost_tier, c.price_from)
   };
 }
 
@@ -1028,3 +1159,8 @@ module.exports.catalogCandidates = catalogCandidates;
 module.exports.SOURCE_CAPS = SOURCE_CAPS;
 module.exports.isEventOver = isEventOver;
 module.exports.overlapsWindow = overlapsWindow;
+module.exports.normalizeCostTier = normalizeCostTier;
+module.exports.geocodeText = geocodeText;
+module.exports.placeUnlocated = placeUnlocated;
+module.exports.qualityGate = qualityGate;
+module.exports.rankPool = rankPool;

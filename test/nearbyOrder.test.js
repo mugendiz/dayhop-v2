@@ -27,10 +27,12 @@ test('distanceBand puts each km in the right bucket, edges included', () => {
   assert.equal(relevance.distanceBand(36), 2);
   assert.equal(relevance.distanceBand(70), 2);
   assert.equal(relevance.distanceBand(71), 3);
-  // Unknown distance sits with the short-drive band: it must not crowd out
-  // things we know are close, and must not be buried either.
-  assert.equal(relevance.distanceBand(null), 1);
-  assert.equal(relevance.distanceBand(undefined), 1);
+  // Unknown distance goes after every known band (Oct 2026). It used to sit
+  // in band 1, so an unplaced library program rode above a 20 km playground
+  // on the server while the client's nearest-first sort put it last.
+  assert.equal(relevance.distanceBand(null), 4);
+  assert.equal(relevance.distanceBand(undefined), 4);
+  assert.equal(relevance.UNKNOWN_DISTANCE_BAND, 4);
 });
 
 test('a close place outranks a far one that scores much higher', () => {
