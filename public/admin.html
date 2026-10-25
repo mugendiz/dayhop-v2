@@ -515,7 +515,11 @@
           <button type="button" class="mini-btn" id="dh-cancel">Cancel</button>
         </div>
       </div></form>
-      <div style="margin-top:12px"><button class="mini-btn" id="dh-new" hidden>Add a dream home</button></div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="mini-btn" id="dh-new" hidden>Add a dream home</button>
+        <button class="mini-btn" id="dh-find" hidden title="One Grok web and X search for the next two weeks. Each find is checked on its source page and saved as a draft for you to review.">Find open houses</button>
+      </div>
+      <div id="dh-find-status" class="rate" style="margin-top:8px"></div>
     </div>
     </section>
 
@@ -874,6 +878,7 @@
       dhHomes = data.homes || [];
       dhCanEdit = Boolean(data.can_edit);
       renderDreamHomes();
+      if (!dhFindTimer) dhPollFind(); // show a search still running from another tab
     } catch (e) {
       $('dh-rows').innerHTML = '<tr><td colspan="7" class="rate">Could not load dream homes: ' + esc(e.message) + '</td></tr>';
     }
@@ -885,11 +890,13 @@
 
   function renderDreamHomes() {
     $('dh-new').hidden = !dhCanEdit;
+    $('dh-find').hidden = !dhCanEdit;
     $('dh-actions-h').hidden = !dhCanEdit;
     if (!dhCanEdit) $('dh-msg').textContent = 'Read only for your role. Owners and deputies add and publish homes.';
     $('dh-rows').innerHTML = dhHomes.length ? dhHomes.map(h =>
       '<tr>' +
-        '<td>' + esc(h.address) + (h.photo_override ? '' : (h.photo && h.photo.url ? '' : ' <span class="rate">(drawing, no Google photo)</span>')) + '</td>' +
+        '<td>' + esc(h.address) + (h.photo_override ? '' : (h.photo && h.photo.url ? '' : ' <span class="rate">(drawing, no Google photo)</span>')) +
+          (h.found_by === 'grok' && !h.published ? '<br><span style="color:#1471B8;font-size:12px;font-weight:600">Found by Grok, checked on its source. Open the listing, then publish.</span>' : '') + '</td>' +
         '<td>' + esc(h.area || '') + '</td>' +
         '<td>' + (h.price != null ? '$' + Number(h.price).toLocaleString('en-CA') : '<span class="rate">missing</span>') + '</td>' +
         '<td style="white-space:nowrap">' + dhWindowsText(h) + '</td>' +
@@ -956,7 +963,48 @@
     } catch (e) { $('dh-msg').textContent = e.message; }
   }
 
+  // ---- Find open houses (background job; poll until it finishes) ----
+  let dhFindTimer = null, dhSawRunning = false;
+  const r0 = job => job.result || {};
+  function dhRenderFind(job) {
+    const box = $('dh-find-status');
+    if (!job || job.state === 'idle') { box.textContent = ''; return; }
+    if (job.state === 'running') {
+      box.textContent = 'Searching the web and X for open houses, then checking each one on its source page. This takes a minute or two…';
+      $('dh-find').disabled = true;
+      return;
+    }
+    $('dh-find').disabled = false;
+    if (job.state === 'failed') { box.textContent = 'The search failed: ' + String(job.error || 'unknown error').replace(/\.+$/, '') + '. Try again in a few minutes.'; return; }
+    if (r0(job).note && !(r0(job).added || []).length) { box.textContent = r0(job).note + ' Try again later in the week, when more open houses are posted.'; return; }
+    const r = job.result || {};
+    const skipped = r.skipped || [];
+    box.innerHTML = '<strong>' + (r.added || []).length + ' new draft' + ((r.added || []).length === 1 ? '' : 's') + '</strong> from ' + (r.found || 0) +
+      ' finds (' + esc(r.from || '') + ' to ' + esc(r.to || '') + '). Review each listing, then publish.' +
+      (skipped.length ? '<details style="margin-top:6px"><summary>' + skipped.length + ' skipped</summary><ul style="margin:6px 0 0 18px;padding:0">' +
+        skipped.map(s => '<li>' + esc(s.address || '(no address)') + ': ' + esc(s.reason) + '</li>').join('') + '</ul></details>' : '');
+  }
+  async function dhPollFind() {
+    clearTimeout(dhFindTimer);
+    try {
+      const job = await fetch('/api/admin/dream-homes/find/status', { headers: lastAuth.headers }).then(r => r.json());
+      dhRenderFind(job);
+      if (job.state === 'running') { dhSawRunning = true; dhFindTimer = setTimeout(dhPollFind, 4000); }
+      else if (job.state === 'done' && dhSawRunning) { dhSawRunning = false; loadDreamHomes(); } // once, for the new drafts
+    } catch (e) { dhFindTimer = setTimeout(dhPollFind, 8000); }
+  }
+
   function wireDreamHomes() {
+    $('dh-find').addEventListener('click', async () => {
+      try {
+        const job = await dhSend('/find');
+        dhRenderFind(job);
+        if (job.state !== 'running' && job.finished_at) {
+          $('dh-find-status').insertAdjacentHTML('afterbegin', '<em>A search ran in the last five minutes; here is its result.</em> ');
+        }
+        dhPollFind();
+      } catch (e) { $('dh-find-status').textContent = e.message; }
+    });
     $('dh-new').addEventListener('click', () => dhOpenForm(null));
     $('dh-add-window').addEventListener('click', () => dhWindowRow(null));
     $('dh-cancel').addEventListener('click', () => { $('dh-form').hidden = true; });

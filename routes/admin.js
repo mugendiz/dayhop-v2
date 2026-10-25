@@ -473,6 +473,17 @@ router.post('/dream-homes', requireDreamEditor, async (req, res) => {
     res.json({ home: await dreamHomes.save(null, b.home, { actor: req.adminActor, publish: b.publish === true }) });
   } catch (err) { dreamFail(res, err); }
 });
+// "Find open houses": one Grok web + X search, each find checked against
+// its source page, kept finds saved as drafts (services/dreamHomeFinder.js).
+// Runs in the background; the tab polls /find/status. One at a time, with
+// a five-minute cooldown, so a double tap never buys two searches.
+router.post('/dream-homes/find', requireDreamEditor, (req, res) => {
+  const job = require('../services/dreamHomeFinder').startFind({ actor: req.adminActor });
+  res.status(202).json(job);
+});
+router.get('/dream-homes/find/status', requireStaff, (req, res) => {
+  res.json(require('../services/dreamHomeFinder').findStatus());
+});
 router.post('/dream-homes/:id', requireDreamEditor, async (req, res) => {
   try {
     const b = req.body || {};

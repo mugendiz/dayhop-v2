@@ -282,8 +282,17 @@ async function setPublished(id, published, { actor = 'admin' } = {}) {
   return save(id, existing, { actor, publish: published });
 }
 
+// Bookkeeping fields that are not part of the admin form ("found_by").
+async function mark(id, fields) {
+  const existing = await get(id);
+  if (!existing) return null;
+  const rec = Object.assign({}, existing, fields);
+  await put(rec);
+  return rec;
+}
+
 module.exports = {
-  listPublic, listAdmin, save, setPublished, remove, get,
+  listPublic, listAdmin, save, setPublished, remove, get, mark,
   normalize, statusOf, publicView, torontoMs, windowLabel,
   _mem: mem
 };
