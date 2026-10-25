@@ -479,6 +479,10 @@ async function fulfillCheckoutSession(session) {
   // One-time purchases (city guide PDFs) share this event with Pro
   // signups — branch BEFORE the subscription path, or a $20 guide would
   // activate a Pro membership. The ledger entry rides invoice.paid.
+  if (session.mode === 'payment' && session.metadata && session.metadata.guide === 'personal') {
+    // Personalized trip guide: built in the background after payment.
+    return require('./personalGuideFulfill').fulfill(session);
+  }
   if (session.mode === 'payment' && session.metadata && session.metadata.guide) {
     return require('./cityGuides').fulfillPurchase(session);
   }

@@ -281,9 +281,15 @@ module.exports = [
     tags: ['pool', 'swim', 'swimming', 'wave pool', 'indoor', 'water', 'kids', 'rainy day'],
     location: "Richmond Hill",
     venue: "The Wave Pool",
-    description: "Richmond Hill's indoor wave pool with a 137-foot waterslide, Tarzan rope and toddler splash area — waves roll every 30 minutes, rain or shine.",
+    // Checked against richmondhill.ca (The Wave Pool, Swimming, Drop-In
+    // Programs pages) on 2026-10-22. The old line claimed a 137-foot slide,
+    // a Tarzan rope and waves every 30 minutes; the city confirms none of
+    // that. Drop-ins need no prior registration; passes are not valid for
+    // wave swims; the slide needs 39 in. and 40 lb.
+    description: "Year-round indoor wave pool with a waterslide and a warm, shallow small pool for little ones. Drop-in wave swims at set times, pay at the door; passes do not count.",
     cost_tier: '$', good_for_ages: 'all ages',
     maps_url: mapsSearch('The Wave Pool Richmond Hill'),
+    booking_url: 'https://www.richmondhill.ca/en/things-to-do/The-Wave-Pool.aspx',
     wow: true, seasonal: null
   },
   {

@@ -43,7 +43,9 @@ const PAGE_ALIASES = {
   '/index.html': '/',
   '/guides.html': '/guides',
   '/guide-richmond-hill.html': '/guides/richmond-hill',
-  '/guide-richmond-hill-thanks.html': '/guides/richmond-hill/thanks'
+  '/guide-richmond-hill-thanks.html': '/guides/richmond-hill/thanks',
+  '/guide-personal.html': '/guides/personal',
+  '/guide-personal-thanks.html': '/guides/personal/thanks'
 };
 app.use((req, res, next) => {
   const to = PAGE_ALIASES[req.path];
@@ -341,6 +343,9 @@ const cityGuidesLimiter = rateLimit({
   message: { error: 'RATE_LIMITED', message: 'Slow down a little.' }
 });
 app.use('/api/cityguides', cityGuidesLimiter, require('./routes/cityGuides'));
+// Personalized trip guides (routes/personalGuides.js): the same POST cap;
+// the status poll and signed downloads are GETs and carry their own limits.
+app.use('/api/personal-guides', cityGuidesLimiter, require('./routes/personalGuides'));
 
 // A plan-less POST /api/guides triggers a Grok call server-side — the save
 // path must not be a free unmetered AI endpoint just because /generate is.
@@ -523,6 +528,14 @@ app.get('/guides/richmond-hill', (req, res) => {
 });
 app.get('/guides/richmond-hill/thanks', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'guide-richmond-hill-thanks.html'));
+});
+
+// Personalized trip guide: order page + its post-purchase page.
+app.get('/guides/personal', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'guide-personal.html'));
+});
+app.get('/guides/personal/thanks', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'guide-personal-thanks.html'));
 });
 
 // Server-rendered blog (SEO surface) + sitemap. Must sit above the SPA

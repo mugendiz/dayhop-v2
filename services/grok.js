@@ -724,6 +724,30 @@ Return ONLY this JSON, no markdown fences, no commentary:
 const GROK_RESPONSES_URL = process.env.GROK_RESPONSES_URL ||
   GROK_API_URL.replace(/\/v1\/chat\/completions\/?$/, '/v1/responses');
 
+// The outermost JSON object in a reply the model narrates around: from the
+// first "{" to the brace that closes it, skipping braces inside strings.
+// "First { to last }" broke on Oct 23 2026, when a trip-guide answer was
+// followed by prose that itself contained a "}".
+function firstJsonObject(text) {
+  const s = String(text || '');
+  const start = s.indexOf('{');
+  if (start < 0) return s;
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === '{') depth++;
+    else if (c === '}' && --depth === 0) return s.slice(start, i + 1);
+  }
+  return s.slice(start); // unbalanced: let extractJson report it
+}
+
 async function callGrokSearch(input, { instructions, tools, temperature = 0.2, timeoutMs = 90000 } = {}) {
   assertConfigured();
   let response;
@@ -751,15 +775,14 @@ async function callGrokSearch(input, { instructions, tools, temperature = 0.2, t
     .map(c => c.text).join('\n') || d.output_text || '';
   // The model narrates around the JSON and appends [[n]](url) citations —
   // pull the outermost object out of the prose before parsing.
-  const first = text.indexOf('{');
-  const last = text.lastIndexOf('}');
-  const jsonText = first >= 0 && last > first ? text.slice(first, last + 1) : text;
+  const jsonText = firstJsonObject(text);
   const citations = [...new Set((text.match(/https?:\/\/[^\s)\]"']+/g) || []))].slice(0, 40);
   return { data: extractJson(jsonText), citations, usage: d.usage || null, raw_text: text };
 }
 
 module.exports = {
   callGrokSearch, // live web/X search via /v1/responses (services/talkOfTown.js)
+  firstJsonObject,
   normalizeMode,
   generateIdeas,
   generateGroundedIdeas,

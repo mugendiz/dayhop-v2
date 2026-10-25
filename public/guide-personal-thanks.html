@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Building your guide | DayHop</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <style>
+    @font-face { font-family: 'National Park'; src: url('/fonts/NationalPark-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+    @font-face { font-family: 'Crimson Pro'; src: url('/fonts/CrimsonPro-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+    @font-face { font-family: 'Crimson Pro'; src: url('/fonts/CrimsonPro-Italic.ttf') format('truetype'); font-weight: 400; font-style: italic; font-display: swap; }
+    :root { --ink: #102A2E; --ink-soft: #41585C; --coral: #E1502F; --coral-dark: #C43F22; --moss: #3F6F5C; --paper: #FBF7EE; --paper-dim: #F2ECDC; --line: #E3DCC9;
+      --display: 'National Park', -apple-system, 'Segoe UI', sans-serif; --body: 'Crimson Pro', Georgia, serif; }
+    * { box-sizing: border-box; margin: 0; }
+    body { font-family: var(--body); background: var(--paper); color: var(--ink); line-height: 1.55; font-size: 1.08rem; }
+    a { color: var(--coral); }
+    .top { padding: 14px 20px; border-bottom: 1px solid var(--line); }
+    .logo { font-family: var(--display); font-weight: 700; font-size: 1.3rem; color: var(--ink); text-decoration: none; }
+    main { max-width: 620px; margin: 0 auto; padding: 48px 20px 64px; text-align: center; }
+    h1 { font-family: var(--display); font-size: 1.9rem; line-height: 1.15; }
+    .sub { color: var(--ink-soft); font-style: italic; margin-top: 10px; }
+    .steps { list-style: none; padding: 0; margin: 28px auto 0; text-align: left; max-width: 380px; }
+    .steps li { padding: 8px 0 8px 30px; position: relative; color: var(--ink-soft); }
+    .steps li::before { content: ''; position: absolute; left: 4px; top: 15px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line); }
+    .steps li.on { color: var(--ink); }
+    .steps li.on::before { border-color: var(--moss); background: var(--moss); }
+    .steps li.now::before { border-color: var(--coral); animation: pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse { 50% { background: var(--coral); } }
+    @media (prefers-reduced-motion: reduce) { .steps li.now::before { animation: none; background: var(--coral); } }
+    .buy { display: inline-block; font-family: var(--display); background: var(--coral); color: #fff; border-radius: 10px; padding: 14px 22px; font-size: 1rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; text-decoration: none; margin-top: 26px; min-height: 48px; }
+    .buy:hover { background: var(--coral-dark); }
+    .note { margin-top: 18px; color: var(--ink-soft); font-size: .98rem; }
+    .warn { margin-top: 22px; background: #FBEAE4; border: 1px solid var(--coral); color: var(--coral-dark); border-radius: 12px; padding: 12px 14px; }
+  </style>
+</head>
+<body>
+  <div class="top"><a class="logo" href="/">DayHop</a></div>
+  <main>
+    <h1 id="title">Thank you. Your guide is being built.</h1>
+    <p class="sub" id="sub">This usually takes a few minutes. You can close this page: it will also arrive by email.</p>
+    <ul class="steps" id="steps">
+      <li data-at="0">Payment received</li>
+      <li data-at="10">Reading the history of the place</li>
+      <li data-at="30">Finding what is on during your dates</li>
+      <li data-at="60">Mapping trails, bike routes and campgrounds</li>
+      <li data-at="100">Planning your days and setting the pages</li>
+    </ul>
+    <div id="ready" hidden>
+      <a class="buy" id="dl" href="#">Download your guide</a>
+      <p class="note" id="mailnote"></p>
+    </div>
+    <p class="warn" id="warn" hidden></p>
+  </main>
+  <script>
+    const sid = new URLSearchParams(location.search).get('session_id');
+    const t0 = Date.now();
+    const steps = [...document.querySelectorAll('#steps li')];
+    const warn = document.getElementById('warn');
+    function paintSteps(done) {
+      const secs = (Date.now() - t0) / 1000;
+      steps.forEach((li, i) => {
+        const reached = done || secs >= Number(li.dataset.at);
+        const next = steps[i + 1];
+        li.classList.toggle('on', reached && (done || !next || secs >= Number(next.dataset.at)));
+        li.classList.toggle('now', !done && reached && next && secs < Number(next.dataset.at));
+      });
+    }
+    let timer = setInterval(() => paintSteps(false), 1000);
+    paintSteps(false);
+
+    async function poll() {
+      if (!sid) { warn.textContent = 'This link is missing its order number. Check your email for your guide, or write to admin@dayhop.quest.'; warn.hidden = false; return; }
+      try {
+        const res = await fetch('/api/personal-guides/status?session_id=' + encodeURIComponent(sid));
+        const d = await res.json().catch(() => ({}));
+        if (d.state === 'ready' && d.token) {
+          clearInterval(timer); paintSteps(true);
+          document.getElementById('title').textContent = 'Your ' + (d.city || '') + ' guide is ready.';
+          document.getElementById('sub').textContent = 'Keep it, print it, write in it.';
+          const dl = document.getElementById('dl');
+          dl.href = '/api/personal-guides/download?t=' + encodeURIComponent(d.token);
+          document.getElementById('mailnote').textContent = d.email ? 'A copy is on its way to ' + d.email + ', with a link that works for a year.' : 'Keep this page or your email: the link works for a year.';
+          document.getElementById('ready').hidden = false;
+          return;
+        }
+        if (d.state === 'failed') {
+          warn.textContent = 'Something went wrong building your guide. We have been told and will send it by email; if it has not arrived within the hour, write to admin@dayhop.quest.';
+          warn.hidden = false;
+        }
+        if (res.status === 402) {
+          warn.textContent = 'We are still waiting for the payment to confirm. This page will update on its own.';
+          warn.hidden = false;
+        } else if (d.state === 'building') {
+          warn.hidden = true;
+        }
+      } catch (e) { /* network blip: keep polling */ }
+      if (Date.now() - t0 < 30 * 60 * 1000) setTimeout(poll, 6000);
+    }
+    poll();
+  </script>
+</body>
+</html>

@@ -2505,5 +2505,6 @@ module.exports = {
   GUIDES, BUNDLE, PRICE_CENTS, CURRENCY,
   list, bySlug, matchCity, contentsOf,
   signToken, verifyToken,
-  getPdf, getSamplerPdf, fulfillPurchase
+  getPdf, getSamplerPdf, fulfillPurchase,
+  registerFonts, signingSecret
 };

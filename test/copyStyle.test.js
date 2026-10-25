@@ -136,6 +136,8 @@ const STATIC_PAGES = [
   'guide.html',
   'guide-richmond-hill.html',
   'guide-richmond-hill-thanks.html',
+  'guide-personal.html',
+  'guide-personal-thanks.html',
   'index.html',
   'privacy.html',
   'terms.html'

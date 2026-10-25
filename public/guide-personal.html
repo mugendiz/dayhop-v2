@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Trip Guide: $20 | DayHop</title>
+  <meta name="description" content="Name an Ontario city and your dates. Get a keepsake guide to that exact trip: its history, what is on while you are there, must-sees, trails, bike routes, campgrounds and RV sites, and day plans. $20, by email.">
+  <link rel="canonical" href="https://dayhop.quest/guides/personal">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="DayHop">
+  <meta property="og:title" content="A guide made for your trip | DayHop">
+  <meta property="og:description" content="Any Ontario city, your dates: history, events on your days, must-sees, trails, bikes, campgrounds and day plans. $20.">
+  <meta property="og:url" content="https://dayhop.quest/guides/personal">
+  <meta property="og:image" content="https://dayhop.quest/img/guide-previews/personal-cover.webp">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <style>
+    @font-face { font-family: 'National Park'; src: url('/fonts/NationalPark-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+    @font-face { font-family: 'National Park'; src: url('/fonts/NationalPark-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+    @font-face { font-family: 'Crimson Pro'; src: url('/fonts/CrimsonPro-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+    @font-face { font-family: 'Crimson Pro'; src: url('/fonts/CrimsonPro-Italic.ttf') format('truetype'); font-weight: 400; font-style: italic; font-display: swap; }
+    :root {
+      --ink: #102A2E; --ink-soft: #41585C; --coral: #E1502F; --coral-dark: #C43F22; --marigold: #FFB627;
+      --moss: #3F6F5C; --paper: #FBF7EE; --paper-dim: #F2ECDC; --line: #E3DCC9;
+      --display: 'National Park', -apple-system, 'Segoe UI', sans-serif;
+      --body: 'Crimson Pro', Georgia, serif;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body { font-family: var(--body); background: var(--paper); color: var(--ink); line-height: 1.55; font-size: 1.05rem; }
+    a { color: var(--coral); }
+    .top { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+    .logo { font-family: var(--display); font-weight: 700; font-size: 1.3rem; color: var(--ink); text-decoration: none; letter-spacing: .02em; }
+    .back { font-size: .95rem; color: var(--ink-soft); text-decoration: none; }
+    .motif { display: block; width: 100%; height: 92px; }
+    main { max-width: 860px; margin: 0 auto; padding: 20px 20px 64px; }
+    .kicker { font-family: var(--display); font-size: .8rem; letter-spacing: .32em; color: var(--ink-soft); text-transform: uppercase; border-bottom: 2px solid var(--moss); display: inline-block; padding-bottom: 6px; margin-bottom: 14px; }
+    h1 { font-family: var(--display); font-weight: 700; font-size: 2.3rem; line-height: 1.12; letter-spacing: .01em; }
+    .lede { color: var(--ink-soft); margin: 12px 0 0; max-width: 62ch; font-size: 1.18rem; font-style: italic; }
+    h2 { font-family: var(--display); font-size: 1.25rem; letter-spacing: .02em; margin: 0 0 10px; }
+    section { margin-top: 40px; }
+    /* The order form: the page's one coral button. */
+    .order { background: #fff; border: 2px solid var(--moss); border-radius: 16px; padding: 20px; margin-top: 24px; }
+    .order .row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; }
+    @media (max-width: 640px) { .order .row { grid-template-columns: 1fr 1fr; } .order .row .city { grid-column: 1 / -1; } }
+    label { display: block; font-family: var(--display); font-size: .74rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 5px; }
+    input, textarea { width: 100%; padding: 11px 12px; border: 1.5px solid var(--line); border-radius: 10px; font-size: 1.02rem; background: var(--paper); font-family: var(--body); color: var(--ink); min-height: 44px; }
+    textarea { resize: vertical; line-height: 1.4; }
+    input:focus, textarea:focus { outline: none; border-color: var(--moss); }
+    .order .name { margin-top: 12px; }
+    .buy { font-family: var(--display); background: var(--coral); color: #fff; border: 0; border-radius: 10px; padding: 14px 18px; font-size: 1rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; width: 100%; margin-top: 14px; min-height: 48px; }
+    .buy:hover { background: var(--coral-dark); }
+    .buy:disabled { opacity: .6; cursor: default; }
+    .fine { color: var(--ink-soft); font-size: .9rem; margin-top: 8px; text-align: center; }
+    .err { color: var(--coral-dark); font-size: .95rem; margin-top: 8px; min-height: 1.2em; }
+    .assure { font-size: .95rem; color: var(--moss); margin-top: 10px; text-align: center; }
+    .assure b { font-family: var(--display); letter-spacing: .02em; }
+    .banner { border-radius: 12px; padding: 12px 14px; margin: 16px 0 0; background: #FBEAE4; color: var(--coral-dark); border: 1px solid var(--coral); }
+    .inside { list-style: none; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 22px; }
+    @media (max-width: 640px) { .inside { grid-template-columns: 1fr; } }
+    .inside li { padding-left: 18px; position: relative; }
+    .inside li::before { content: ''; position: absolute; left: 2px; top: .62em; width: 7px; height: 7px; border-radius: 50%; background: var(--moss); }
+    .inside b { font-family: var(--display); font-size: .95rem; letter-spacing: .01em; }
+    .pages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px; }
+    @media (max-width: 640px) { .pages { grid-template-columns: 1fr 1fr; } }
+    .pages figure { margin: 0; }
+    .pages img { width: 100%; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 22px rgba(16,42,46,.10); display: block; }
+    .pages figcaption { font-family: var(--display); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); text-align: center; margin-top: 7px; }
+    .honest { background: var(--paper-dim); border-radius: 12px; padding: 16px 18px; color: var(--ink-soft); font-size: .98rem; }
+    .honest strong { color: var(--moss); font-family: var(--display); letter-spacing: .02em; }
+    .faq h3 { font-family: var(--display); font-size: 1.02rem; margin: 16px 0 4px; }
+    .faq p { color: var(--ink-soft); font-size: .96rem; max-width: 70ch; }
+    footer { text-align: center; color: var(--ink-soft); font-size: .82rem; padding: 24px; border-top: 1px solid var(--line); margin-top: 40px; }
+    .sticky-buy { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: #fff; border-top: 1px solid var(--line); box-shadow: 0 -8px 24px rgba(16,42,46,.10); padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); display: flex; align-items: center; justify-content: center; gap: 16px; transform: translateY(110%); transition: transform .22s ease; }
+    .sticky-buy.show { transform: none; }
+    .sticky-buy b { font-family: var(--display); }
+    .sticky-buy .buy { width: auto; margin: 0; white-space: nowrap; padding: 11px 16px; font-size: .9rem; min-height: 44px; }
+    @media (prefers-reduced-motion: reduce) { .sticky-buy { transition: none; } }
+    body.has-sticky { padding-bottom: 76px; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <a class="logo" href="/">DayHop</a>
+    <a class="back" href="/guides">← All city guides</a>
+  </div>
+  <svg class="motif" viewBox="0 0 940 92" preserveAspectRatio="none" aria-hidden="true">
+    <g fill="none" stroke="#3F6F5C" stroke-width="1">
+      <path d="M-10 14 Q 60 6, 120 14 T 250 12 T 380 16 T 510 12 T 640 15 T 770 11 T 950 14"/>
+      <path d="M-10 32 Q 70 24, 140 32 T 280 30 T 420 34 T 560 29 T 700 33 T 950 31"/>
+      <path d="M-10 68 Q 65 60, 130 68 T 265 66 T 400 70 T 535 65 T 670 69 T 950 67"/>
+      <path d="M-10 86 Q 75 78, 145 86 T 285 84 T 425 88 T 565 83 T 705 87 T 950 85"/>
+    </g>
+    <path d="M-10 50 Q 68 41, 135 50 T 272 48 T 409 52 T 546 47 T 683 51 T 950 49" fill="none" stroke="#E1502F" stroke-width="1.6"/>
+  </svg>
+  <main>
+    <span class="kicker">DayHop · Your Trip Guide</span>
+    <h1>A guide made for your trip, and nobody else's.</h1>
+    <p class="lede">Name an Ontario city or town and your dates. We build a book for exactly that trip: the story of the place, what is on while you are there, the must-sees you did not know to ask for, trails, bike routes, where to sleep with a tent, van or RV, and a plan for each day. Yours to keep.</p>
+
+    <div class="banner" id="banner" role="status" hidden></div>
+
+    <form class="order" id="order" novalidate>
+      <div class="row">
+        <div class="city">
+          <label for="city">Where are you going?</label>
+          <input id="city" name="city" list="places" autocomplete="off" placeholder="Kingston, Niagara-on-the-Lake, Tobermory…" required>
+          <datalist id="places"></datalist>
+        </div>
+        <div>
+          <label for="start">First day</label>
+          <input id="start" name="start" type="date" required>
+        </div>
+        <div>
+          <label for="end">Last day</label>
+          <input id="end" name="end" type="date" required>
+        </div>
+      </div>
+      <div class="name">
+        <label for="name">Whose trip is it? (printed on the cover, optional)</label>
+        <input id="name" name="name" maxlength="40" placeholder="Sam &amp; Lee">
+      </div>
+      <div class="name">
+        <label for="notes">Tell us about your crew (optional, makes it yours)</label>
+        <textarea id="notes" name="notes" maxlength="400" rows="3" placeholder="Who is coming, ages, what each of you loves, and what you would rather skip. For example: one 6 year old who loves animals; I like calm mornings and clean washrooms; my partner wants trails and mud."></textarea>
+      </div>
+      <button class="buy" id="buy" type="submit">Build my guide · $20</button>
+      <p class="err" id="err" role="alert" aria-live="polite"></p>
+      <p class="fine">Secure checkout by Stripe · PDF by email within about 15 minutes · re-download for a year</p>
+      <p class="assure"><b>14-day guarantee:</b> if it did not help your trip, write us and we refund it.</p>
+    </form>
+
+    <section>
+      <h2>What's inside</h2>
+      <ul class="inside">
+        <li><b>Then and now.</b> The history of the place you are about to stand in, from Wikipedia, credited.</li>
+        <li><b>Must-sees.</b> The places you should not leave without seeing, whether or not you asked.</li>
+        <li><b>On during your trip.</b> Events on your exact dates, with times, and the rest of that month.</li>
+        <li><b>Your days.</b> A plan for each day: a morning outside, a midday stop, a place to eat, the evening's event.</li>
+        <li><b>Parks, trails and water.</b> Conservation areas, lookouts and named hiking trails nearby.</li>
+        <li><b>By bike.</b> Signed cycling routes and where to rent a bike.</li>
+        <li><b>By car, together.</b> Scenic drives and day trips an hour or two out.</li>
+        <li><b>Sleeping under the sky.</b> Campgrounds, RV and van sites, dump stations, highway service centres.</li>
+        <li><b>Eat, culture, play.</b> The best-reviewed tables, museums, family stops and adventures.</li>
+        <li><b>Keepsake pages.</b> A trip journal, a list of places you made it to, and room for ticket stubs.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Look inside a real one</h2>
+      <p>This is the guide our system built for Kingston, November 6 to 9: 28 pages.</p>
+      <div class="pages">
+        <figure><img src="/img/guide-previews/personal-cover.webp" alt="Cover: Kingston, November 6 to November 9, 2026, made for Sam and Lee" loading="lazy"><figcaption>Your cover</figcaption></figure>
+        <figure><img src="/img/guide-previews/personal-history.webp" alt="Kingston, then and now: history page" loading="lazy"><figcaption>Then and now</figcaption></figure>
+        <figure><img src="/img/guide-previews/personal-days.webp" alt="Your days: a plan for each day of the trip" loading="lazy"><figcaption>Your days</figcaption></figure>
+        <figure><img src="/img/guide-previews/personal-sleep.webp" alt="Sleeping under the sky: campgrounds, RV sites and dump stations" loading="lazy"><figcaption>Under the sky</figcaption></figure>
+      </div>
+      <p style="margin-top:12px"><a href="/samples/dayhop-kingston-trip-guide-sample.pdf" target="_blank" rel="noopener">Open the whole Kingston sample (PDF)</a></p>
+    </section>
+
+    <section class="honest">
+      <strong>How it is made:</strong> your guide is assembled for your dates from live sources: the DayHop catalog, Google Maps listings, event listings, OpenStreetMap and Wikipedia. Every name links to live directions. It is not walked and checked by us like our six city guides, so check hours and bookings before you set out. Nothing in it is made up: every entry is a real listing.
+    </section>
+
+    <section class="faq">
+      <h2>Questions</h2>
+      <h3>Which places can I choose?</h3>
+      <p>Any city, town or neighbourhood in Ontario on the list as you type: from Toronto neighbourhoods to Tobermory, Kingston to Thunder Bay.</p>
+      <h3>How long can the trip be?</h3>
+      <p>One day to five weeks, starting today or up to a year from now.</p>
+      <h3>When does it arrive?</h3>
+      <p>Usually within 15 minutes, by email, with a link that re-downloads it for a year. The thank-you page shows it the moment it is ready.</p>
+      <h3>What if events are announced after I buy?</h3>
+      <p>Write to admin@dayhop.quest the week before you leave and we will rebuild your guide with the latest listings, free.</p>
+      <h3>Can I use it in my own city?</h3>
+      <p>Yes. Pick a weekend at home and see it the way a visitor would. That is most of the fun.</p>
+    </section>
+  </main>
+  <footer>DayHop · Richmond Hill, Ontario, Canada · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · admin@dayhop.quest</footer>
+
+  <div class="sticky-buy" id="sticky-buy" aria-hidden="true">
+    <span><b>Your trip guide, $20</b></span>
+    <button class="buy" id="sb-buy" type="button" tabindex="-1">Build my guide</button>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const form = $('order'), err = $('err'), buyBtn = $('buy');
+
+    // Dates: today (Toronto) to a year out; the last day follows the first.
+    function ymd(d) { return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+    const today = new Date();
+    const yearOut = new Date(today.getTime() + 365 * 86400000);
+    $('start').min = ymd(today); $('start').max = ymd(yearOut);
+    $('end').min = ymd(today); $('end').max = ymd(yearOut);
+    $('start').addEventListener('change', () => {
+      const s = $('start').value;
+      if (!s) return;
+      $('end').min = s;
+      if (!$('end').value || $('end').value < s) {
+        const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + 2);
+        $('end').value = ymd(d);
+      }
+    });
+
+    // Place list for the picker (the same Ontario list the planner uses).
+    fetch('/api/personal-guides/places').then(r => r.json()).then(d => {
+      const dl = $('places');
+      (d.places || []).forEach(n => { const o = document.createElement('option'); o.value = n; dl.appendChild(o); });
+    }).catch(() => {});
+
+    function ownerId() { try { return localStorage.getItem('dayhop_owner_id') || undefined; } catch (e) { return undefined; } }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err.textContent = '';
+      const body = { city: $('city').value.trim(), start: $('start').value, end: $('end').value || $('start').value, name: $('name').value.trim(), notes: $('notes').value.trim(), owner_id: ownerId() };
+      if (!body.city) { err.textContent = 'Where are you going? Pick a place from the list.'; $('city').focus(); return; }
+      if (!body.start) { err.textContent = 'Choose the first day of your trip.'; $('start').focus(); return; }
+      buyBtn.disabled = true; buyBtn.textContent = 'Opening checkout…';
+      try {
+        const res = await fetch('/api/personal-guides/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json().catch(() => ({}));
+        if (data.url) { location.href = data.url; return; }
+        err.textContent = data.message || 'Could not start checkout. Please try again.';
+      } catch (x) {
+        err.textContent = 'Could not start checkout. Please try again.';
+      }
+      buyBtn.disabled = false; buyBtn.textContent = 'Build my guide · $20';
+    });
+
+    if (new URLSearchParams(location.search).get('purchase') === 'cancelled') {
+      $('banner').textContent = 'Checkout cancelled. Your card was not charged.';
+      $('banner').hidden = false;
+    }
+
+    // Sticky bar once the form scrolls away; it brings the form back.
+    const bar = $('sticky-buy'), sb = $('sb-buy');
+    const sync = () => {
+      const on = form.getBoundingClientRect().bottom < 0;
+      bar.classList.toggle('show', on);
+      bar.setAttribute('aria-hidden', on ? 'false' : 'true');
+      sb.tabIndex = on ? 0 : -1;
+      document.body.classList.toggle('has-sticky', on);
+    };
+    addEventListener('scroll', sync, { passive: true });
+    addEventListener('resize', sync);
+    sb.addEventListener('click', () => { form.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => $('city').focus(), 400); });
+    sync();
+  </script>
+</body>
+</html>

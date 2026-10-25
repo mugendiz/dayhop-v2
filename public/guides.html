@@ -137,6 +137,13 @@
     .pager .dots { display: flex; gap: 6px; }
     .pager .dot { width: 8px; height: 8px; border-radius: 50%; background: #d8d2c4; border: 0; padding: 0; cursor: pointer; }
     .pager .dot.on { background: var(--coral); }
+    /* Entry to the personalized trip guide (/guides/personal). */
+    .personal { display: block; margin: 22px 0 6px; padding: 16px 18px; border: 1.5px solid var(--moss); border-radius: 14px; background: #fff; color: var(--ink); text-decoration: none; }
+    .personal:hover { border-color: var(--coral); }
+    .personal strong { display: block; font-family: var(--display); font-size: 1.12rem; margin: 2px 0 4px; }
+    .personal span { color: var(--ink-soft); font-size: .98rem; }
+    .personal u { color: var(--coral); }
+    .personal-k { display: block; font-family: var(--display); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--moss) !important; }
     /* What's inside: the counted contents, so "will I like it" gets numbers. */
     .inside { list-style: none; padding: 0; margin: 2px 0 4px; font-size: .95rem; color: var(--ink); }
     .inside li { padding: 3px 0 3px 18px; position: relative; line-height: 1.35; }
@@ -230,6 +237,12 @@
       <figure><img src="/img/guides-page/spread-quick.jpg" alt="'If you only have…' page with plans for 3 hours, half a day, a full day, and a rainy day" loading="lazy"><figcaption>Four ready answers for four sizes of day.</figcaption></figure>
       <figure><img src="/img/guides-page/spread-places.jpg" alt="Trail entries with distance, surface, parking and washroom notes" loading="lazy"><figcaption>Distances, surfaces, parking, and washrooms on every entry.</figcaption></figure>
     </div>
+
+    <a class="personal" href="/guides/personal">
+      <span class="personal-k">New · any Ontario place, your dates</span>
+      <strong>Going somewhere else? Get a guide made for your trip.</strong>
+      <span>History, what is on while you are there, must-sees, trails, bike routes, campgrounds and RV sites, and a plan for each day. $20, by email. <u>Build yours</u></span>
+    </a>
 
     <div class="banner" id="banner" role="status"></div>
     <div class="grid" id="grid"><p style="color:var(--ink-soft)">Loading guides…</p></div>
