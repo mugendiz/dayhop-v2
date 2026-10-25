@@ -976,6 +976,79 @@ button.date-clear-btn { padding: 13px 4px; }
   color: var(--ink-soft);
 }
 
+/* ---------- Dream Home rail ---------- */
+.dream { margin: 26px 0 6px; }
+.dream-kicker {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--coral-dark); margin: 0 0 6px;
+}
+.dream-head h2 { font-size: 22px; line-height: 1.25; max-width: 640px; margin: 0; }
+.dream-sub { color: var(--ink-soft); font-size: 14.5px; margin: 6px 0 0; max-width: 640px; }
+.dream-rail {
+  display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory;
+  margin: 14px -24px 0; padding: 4px 24px 10px; scrollbar-width: none;
+}
+.dream-rail::-webkit-scrollbar { display: none; }
+.dream-card {
+  flex: 0 0 236px; scroll-snap-align: start; text-align: left; padding: 0; overflow: hidden;
+  background: white; border: 1px solid var(--line-strong); border-radius: var(--radius);
+  box-shadow: var(--shadow-soft); color: var(--ink); font: inherit; cursor: pointer;
+  transition: transform 0.15s var(--ease), box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.dream-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--coral); }
+.dream-card:active { transform: translateY(0) scale(0.98); }
+.dream-card:focus-visible { outline: 3px solid var(--coral); outline-offset: 2px; }
+.dream-photo { position: relative; height: 142px; background: var(--paper-dim); }
+.dream-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dream-badge {
+  position: absolute; left: 10px; top: 10px; padding: 4px 9px; border-radius: var(--radius-pill);
+  font-size: 11.5px; font-weight: 600; background: var(--glass-strong); color: var(--ink);
+  backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+}
+.dream-badge--open { background: var(--moss); color: white; }
+.dream-badge--open::before {
+  content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: #9BE7B8; margin-right: 6px; vertical-align: 1px; animation: dreamLive 1.6s ease-in-out infinite;
+}
+@keyframes dreamLive { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .dream-badge--open::before { animation: none; } }
+.dream-body { padding: 11px 13px 13px; }
+.dream-area { font-weight: 600; font-size: 15px; margin: 0; }
+.dream-price { font-size: 13.5px; color: var(--ink-soft); margin: 3px 0 0; }
+.dream-price strong { color: var(--ink); font-weight: 600; }
+.dream-empty {
+  flex: 1 1 auto; border: 1px dashed var(--line-strong); border-radius: var(--radius);
+  padding: 18px; color: var(--ink-soft); font-size: 14.5px; background: var(--glass);
+}
+/* The drawn stand-in when Google has no photo of the address: a house in
+   line work, labeled so nobody mistakes it for the home. */
+.dream-drawing { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; background: linear-gradient(160deg, var(--paper-dim), #EADFC8); }
+.dream-drawing svg { width: 72px; height: 60px; }
+.dream-drawing small { font-size: 10.5px; color: var(--ink-soft); font-family: var(--mono); letter-spacing: 0.04em; }
+.dream-detail-photo { height: 220px; border-radius: var(--radius-md); overflow: hidden; background: var(--paper-dim); }
+.dream-detail-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dream-detail-photo .dream-drawing svg { width: 110px; height: 92px; }
+.dream-credit { font-size: 12px; color: var(--ink-soft); margin: 6px 0 0; }
+.dream-credit a { color: inherit; }
+.dream-detail-price { font-size: 20px; font-weight: 600; margin: 14px 0 2px; }
+.dream-detail-price span { font-size: 14px; font-weight: 400; color: var(--ink-soft); }
+.dream-detail-address { margin: 0; color: var(--ink-soft); }
+.dream-windows { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-direction: column; gap: 6px; }
+.dream-windows li { display: flex; align-items: center; gap: 8px; font-size: 14.5px; }
+.dream-windows .dream-badge { position: static; }
+.dream-note-label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--moss); margin: 16px 0 4px; }
+.dream-note { margin: 0; font-size: 15px; line-height: 1.55; }
+.dream-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 10px; }
+.dream-actions a, .dream-actions button { flex: 1 1 140px; text-align: center; text-decoration: none; }
+.dream-fine { font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; margin: 10px 0 0; }
+@media (max-width: 420px) {
+  .dream-rail { margin: 12px -16px 0; padding: 4px 16px 10px; }
+}
+@media (max-width: 600px) {
+  .dream-card { flex-basis: 74vw; max-width: 260px; }
+  .dream-head h2 { font-size: 19px; }
+}
+
 /* ---------- Discovery feed ---------- */
 .section-header {
   display: flex;

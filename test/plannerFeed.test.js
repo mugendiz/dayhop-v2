@@ -80,7 +80,14 @@ test('driving venues that call themselves playgrounds stay out for a 4 year old 
   // carried these two: the Places listing for Drift Zone reads like an
   // indoor playground, and the catalog calls RC Paradise one. The brief
   // classes both as go-karting.
-  const rc = require('../data/curatedCatalog').find(c => c.id === 'cur-rc-paradise');
+  // The catalog entry as it read (removed 2026-10-25 while the venue is
+  // closed); the wording is what the filter has to see through.
+  const rc = {
+    id: 'cur-rc-paradise', title: 'RC Paradise — indoor remote-control playground', category: 'kids', venue: 'RC Paradise',
+    tags: ['rc', 'remote', 'control', 'cars', 'trucks', 'drift', 'racing', 'rock', 'crawler', 'construction', 'diggers', 'indoor', 'rainy', 'kids', 'family', 'birthday', 'vehicles'],
+    description: 'Indoor RC playground — drive drift cars, rock crawlers, and real working RC diggers on custom tracks. No experience needed; little vehicle fans lose their minds here.',
+    good_for_ages: 'all ages'
+  };
   assert.equal(constraints.ageSuitability(rc, 4), false);
   assert.equal(constraints.ageSuitability({ title: 'Drift Zone Aurora', category: 'kids',
     description: 'Spacious indoor playground with toddler zones and gentle play structures' }, 4), false);

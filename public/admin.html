@@ -170,6 +170,7 @@
       <button data-tab="growth">Growth</button>
       <button data-tab="crm">CRM</button>
       <button data-tab="ops">Ops</button>
+      <button data-tab="dreamhomes">Dream Homes</button>
     </nav>
 
     <section class="tab-panel active" id="tab-overview">
@@ -481,6 +482,40 @@
         then it stops. Replies land at admin@dayhop.quest — mark the row <strong>Replied</strong>, then
         <strong>Send code</strong> fires the FOUNDING email on the same thread. Pausing a row stops
         everything instantly; opt-out suppresses it forever.</p>
+    </div>
+    </section>
+
+    <section class="tab-panel" id="tab-dreamhomes">
+    <div class="card overflow" id="dreamhomes-card">
+      <h2>Dream Homes 🏡</h2>
+      <p class="rate" style="margin:0 0 10px">Real open houses you saw on a public listing page, typed in by hand. Live homes show on
+        the homepage, open now first; a home drops off by itself when its last open house ends. Never paste a listing
+        photo: the photo comes from Google Maps for the address, or a drawing when there is none.</p>
+      <p class="rate" id="dh-msg" style="margin:0 0 10px"></p>
+      <table>
+        <thead><tr><th>Home</th><th>Neighbourhood</th><th>Price</th><th>Open houses</th><th>Status</th><th>Source</th><th id="dh-actions-h">Actions</th></tr></thead>
+        <tbody id="dh-rows"><tr><td colspan="7" class="rate">Loading…</td></tr></tbody>
+      </table>
+      <form id="dh-form" hidden style="margin-top:16px;max-width:640px"><div style="display:grid;gap:10px">
+        <h3 id="dh-form-title" style="margin:6px 0 0">Add a dream home</h3>
+        <label>Address <span style="color:#C43F22">*</span><br><input id="dh-address" required maxlength="200" placeholder="Street address, city" style="width:100%"></label>
+        <label>Neighbourhood, city <span style="color:#C43F22">*</span><br><input id="dh-area" maxlength="120" placeholder="Mill Pond, Richmond Hill" style="width:100%"></label>
+        <label>Approximate asking price, dollars <span style="color:#C43F22">*</span><br><input id="dh-price" inputmode="numeric" placeholder="1249000" style="width:100%"></label>
+        <fieldset style="border:1px solid var(--line);border-radius:8px;padding:8px 10px">
+          <legend>Open house times (Toronto time) <span style="color:#C43F22">*</span></legend>
+          <div id="dh-windows"></div>
+          <button type="button" class="mini-btn" id="dh-add-window">Add another time</button>
+        </fieldset>
+        <label>Source listing page <span style="color:#C43F22">*</span><br><input id="dh-source" type="url" placeholder="https://… the public listing page" style="width:100%"></label>
+        <label>Dream note (optional, one or two sentences)<br><textarea id="dh-note" maxlength="320" rows="2" style="width:100%" placeholder="What makes this one worth the walk through"></textarea></label>
+        <label>Photo override (optional; only a photo you have the rights to)<br><input id="dh-photo" type="url" placeholder="https://…" style="width:100%"></label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="submit" class="mini-btn" data-publish="0">Save draft</button>
+          <button type="submit" class="mini-btn" data-publish="1" style="background:#12855C;color:white">Publish</button>
+          <button type="button" class="mini-btn" id="dh-cancel">Cancel</button>
+        </div>
+      </div></form>
+      <div style="margin-top:12px"><button class="mini-btn" id="dh-new" hidden>Add a dream home</button></div>
     </div>
     </section>
 
@@ -821,6 +856,127 @@
     } catch (e) {
       $('crm-summary').textContent = 'Could not load the pipeline: ' + e.message;
     }
+  }
+
+  // ---------- Dream Homes ----------
+  // Every staff role sees the table; owner and deputy get the form and the
+  // row actions (the server enforces the same split).
+  let dhHomes = [], dhCanEdit = false, dhEditingId = null;
+  const DH_STATUS = { draft: 'Draft', open: 'Live, open now', upcoming: 'Live', expired: 'Expired' };
+  const DH_COLOR = { draft: 'var(--soft)', open: '#12855C', upcoming: '#12855C', expired: '#C98500' };
+
+  async function loadDreamHomes() {
+    if (!lastAuth) return;
+    try {
+      const res = await fetch('/api/admin/dream-homes', { headers: lastAuth.headers });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || ('Error ' + res.status));
+      dhHomes = data.homes || [];
+      dhCanEdit = Boolean(data.can_edit);
+      renderDreamHomes();
+    } catch (e) {
+      $('dh-rows').innerHTML = '<tr><td colspan="7" class="rate">Could not load dream homes: ' + esc(e.message) + '</td></tr>';
+    }
+  }
+
+  function dhWindowsText(h) {
+    return (h.windows || []).map(w => esc(w.date + ' ' + w.start + ' to ' + w.end)).join('<br>') || '<span class="rate">none</span>';
+  }
+
+  function renderDreamHomes() {
+    $('dh-new').hidden = !dhCanEdit;
+    $('dh-actions-h').hidden = !dhCanEdit;
+    if (!dhCanEdit) $('dh-msg').textContent = 'Read only for your role. Owners and deputies add and publish homes.';
+    $('dh-rows').innerHTML = dhHomes.length ? dhHomes.map(h =>
+      '<tr>' +
+        '<td>' + esc(h.address) + (h.photo_override ? '' : (h.photo && h.photo.url ? '' : ' <span class="rate">(drawing, no Google photo)</span>')) + '</td>' +
+        '<td>' + esc(h.area || '') + '</td>' +
+        '<td>' + (h.price != null ? '$' + Number(h.price).toLocaleString('en-CA') : '<span class="rate">missing</span>') + '</td>' +
+        '<td style="white-space:nowrap">' + dhWindowsText(h) + '</td>' +
+        '<td style="color:' + DH_COLOR[h.status] + ';font-weight:600">' + esc(DH_STATUS[h.status] || h.status) + '</td>' +
+        '<td>' + (h.source_url ? '<a href="' + esc(h.source_url) + '" target="_blank" rel="noopener">listing</a>' : '<span class="rate">missing</span>') + '</td>' +
+        (dhCanEdit ? '<td style="white-space:nowrap">' +
+          '<button class="mini-btn" data-dh-edit="' + esc(h.id) + '">Edit</button> ' +
+          (h.published
+            ? '<button class="mini-btn" data-dh-act="unpublish" data-id="' + esc(h.id) + '">Unpublish</button> '
+            : '<button class="mini-btn" data-dh-act="publish" data-id="' + esc(h.id) + '">Publish</button> ') +
+          '<button class="mini-btn" data-dh-act="delete" data-id="' + esc(h.id) + '">Delete</button></td>' : '') +
+      '</tr>').join('')
+      : '<tr><td colspan="7" class="rate">No dream homes yet.' + (dhCanEdit ? ' Add the first one below.' : '') + '</td></tr>';
+    document.querySelectorAll('[data-dh-edit]').forEach(b => b.addEventListener('click', () => dhOpenForm(dhHomes.find(h => h.id === b.dataset.dhEdit))));
+    document.querySelectorAll('[data-dh-act]').forEach(b => b.addEventListener('click', () => dhAction(b.dataset.dhAct, b.dataset.id)));
+  }
+
+  function dhWindowRow(w) {
+    const d = document.createElement('div');
+    d.className = 'dh-window';
+    d.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap';
+    d.innerHTML = '<input type="date" class="dh-date" value="' + esc((w && w.date) || '') + '">' +
+      '<input type="time" class="dh-start" step="900" value="' + esc((w && w.start) || '14:00') + '"> to ' +
+      '<input type="time" class="dh-end" step="900" value="' + esc((w && w.end) || '16:00') + '">' +
+      '<button type="button" class="mini-btn" aria-label="Remove this time">✕</button>';
+    d.querySelector('button').addEventListener('click', () => d.remove());
+    $('dh-windows').appendChild(d);
+  }
+
+  function dhOpenForm(h) {
+    dhEditingId = h ? h.id : null;
+    $('dh-form-title').textContent = h ? 'Edit dream home' : 'Add a dream home';
+    $('dh-address').value = h ? h.address || '' : '';
+    $('dh-area').value = h ? h.area || '' : '';
+    $('dh-price').value = h && h.price != null ? h.price : '';
+    $('dh-source').value = h ? h.source_url || '' : '';
+    $('dh-note').value = h ? h.note || '' : '';
+    $('dh-photo').value = h ? h.photo_override || '' : '';
+    $('dh-windows').innerHTML = '';
+    (h && h.windows && h.windows.length ? h.windows : [null]).forEach(dhWindowRow);
+    $('dh-form').hidden = false;
+    $('dh-msg').textContent = '';
+    $('dh-address').focus();
+  }
+
+  async function dhSend(path, body) {
+    const res = await fetch('/api/admin/dream-homes' + path, {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, lastAuth.headers),
+      body: JSON.stringify(body || {})
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || ('Error ' + res.status));
+    return data;
+  }
+
+  async function dhAction(act, id) {
+    const h = dhHomes.find(x => x.id === id);
+    if (act === 'delete' && !confirm('Delete ' + (h ? h.address : 'this home') + '? This cannot be undone.')) return;
+    try {
+      await dhSend('/' + encodeURIComponent(id) + '/' + act);
+      $('dh-msg').textContent = (act === 'delete' ? 'Deleted.' : act === 'publish' ? 'Published.' : 'Unpublished.');
+      loadDreamHomes();
+    } catch (e) { $('dh-msg').textContent = e.message; }
+  }
+
+  function wireDreamHomes() {
+    $('dh-new').addEventListener('click', () => dhOpenForm(null));
+    $('dh-add-window').addEventListener('click', () => dhWindowRow(null));
+    $('dh-cancel').addEventListener('click', () => { $('dh-form').hidden = true; });
+    $('dh-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const publish = e.submitter && e.submitter.dataset.publish === '1';
+      const home = {
+        address: $('dh-address').value, area: $('dh-area').value, price: $('dh-price').value,
+        source_url: $('dh-source').value, note: $('dh-note').value, photo_override: $('dh-photo').value,
+        windows: [...document.querySelectorAll('#dh-windows .dh-window')].map(r => ({
+          date: r.querySelector('.dh-date').value, start: r.querySelector('.dh-start').value, end: r.querySelector('.dh-end').value
+        }))
+      };
+      try {
+        await dhSend(dhEditingId ? '/' + encodeURIComponent(dhEditingId) : '', { home, publish });
+        $('dh-form').hidden = true;
+        $('dh-msg').textContent = publish ? 'Published. It is on the homepage now.' : 'Saved as a draft.';
+        loadDreamHomes();
+      } catch (err) { $('dh-msg').textContent = err.message; }
+    });
   }
 
   let crmOpenId = null; // prospect whose detail row is expanded
@@ -1460,6 +1616,7 @@
     wireAccountingButtons();
     wireTabs();
     wireDialogs();
+    wireDreamHomes();
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', wireChrome);
@@ -1884,6 +2041,7 @@
       loadNewsletter();
       loadSubscriptions(headers);
       loadCrm();
+      loadDreamHomes();
       loadTeam();
       loadSponsors();
       loadTraction();
@@ -1942,6 +2100,7 @@
       renderSummaryStrip();
       $('source').textContent = 'Reduced ' + who.role + ' view · generated ' + data.generated_at;
       loadCrm();
+      loadDreamHomes();
       return true;
     } catch (e) { return false; }
   }

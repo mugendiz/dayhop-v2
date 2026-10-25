@@ -341,6 +341,9 @@ const cityGuidesLimiter = rateLimit({
   message: { error: 'RATE_LIMITED', message: 'Slow down a little.' }
 });
 app.use('/api/cityguides', cityGuidesLimiter, require('./routes/cityGuides'));
+// Dream Home rail (routes/dreamHomes.js): one cheap read of hand-entered
+// open houses; the admin writes are under /api/admin/dream-homes.
+app.use('/api/dream-homes', require('./routes/dreamHomes'));
 
 // A plan-less POST /api/guides triggers a Grok call server-side — the save
 // path must not be a free unmetered AI endpoint just because /generate is.

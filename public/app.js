@@ -6963,7 +6963,131 @@
     });
   }
 
+  // ---------- Dream Home rail ----------
+  // Real open houses an admin entered by hand (/api/dream-homes): open now
+  // first, then by next window. Status is re-checked here every minute
+  // from the window times, so a card never says "Open now" after the
+  // house has closed, and a home whose last window ended leaves the rail.
+  const dreamState = { homes: [] };
+  const DREAM_DRAWING = `<div class="dream-drawing" role="img" aria-label="Drawing of a house, not a photo of this home">
+      <svg viewBox="0 0 72 60" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true" style="color:var(--ink-soft)">
+        <path d="M6 28 36 6l30 22"/><path d="M12 24v32h48V24"/><path d="M30 56V40h12v16"/><rect x="18" y="32" width="8" height="8"/><rect x="46" y="32" width="8" height="8"/><path d="M50 16V8h6v12"/>
+      </svg>
+      <small>Drawing, not a photo of this home</small>
+    </div>`;
+
+  function dreamLive(h, now = Date.now()) {
+    const ws = (h.windows || []).filter(w => Date.parse(w.end_at) > now);
+    if (!ws.length) return null;
+    const open = ws.find(w => Date.parse(w.start_at) <= now);
+    return { open: Boolean(open), next: open || ws[0], windows: ws };
+  }
+  const dreamPrice = p => (p != null ? '$' + Number(p).toLocaleString('en-CA') : '');
+  function dreamPhotoHtml(h, w) {
+    if (!h.photo || !h.photo.url) return DREAM_DRAWING;
+    return `<img src="${escapeAttr(proxiedImage(h.photo.url, w))}" alt="Outside ${escapeAttr(h.address)}" loading="lazy"
+      onerror="this.onerror=null;this.insertAdjacentHTML('beforebegin', window.__dreamDrawing);this.remove()">`;
+  }
+  // Google's display rule: show the photo's author, linked, beside it.
+  function dreamCreditHtml(h) {
+    if (!h.photo || !h.photo.url) return '<p class="dream-credit">No photo of this address yet, so you are looking at a drawing.</p>';
+    if (h.photo.source !== 'google') return '';
+    const a = h.photo.attribution;
+    const who = a && a.name ? (a.uri ? `<a href="${escapeAttr(a.uri)}" target="_blank" rel="noopener noreferrer">${escapeHtml(a.name)}</a>` : escapeHtml(a.name)) : 'a Google Maps contributor';
+    return `<p class="dream-credit">Photo: ${who}, via Google Maps. It shows the street outside, not the listing.</p>`;
+  }
+
+  function renderDreamRail() {
+    const section = document.getElementById('dream-homes');
+    const rail = document.getElementById('dream-rail');
+    if (!section || !rail) return;
+    const now = Date.now();
+    const live = dreamState.homes
+      .map(h => ({ h, s: dreamLive(h, now) }))
+      .filter(x => x.s)
+      .sort((a, b) => (a.s.open === b.s.open
+        ? Date.parse(a.s.open ? a.s.next.end_at : a.s.next.start_at) - Date.parse(b.s.open ? b.s.next.end_at : b.s.next.start_at)
+        : a.s.open ? -1 : 1));
+    section.hidden = false;
+    if (!live.length) {
+      rail.innerHTML = `<p class="dream-empty">Dream homes appear here as this weekend's open houses are added.</p>`;
+      return;
+    }
+    rail.innerHTML = live.map(({ h, s }) => `
+      <button type="button" class="dream-card" role="listitem" data-dream="${escapeAttr(h.id)}"
+        aria-label="${escapeAttr(`${h.area}, ${dreamPrice(h.price)} asking price, ${s.open ? 'open now' : s.next.label}`)}">
+        <div class="dream-photo">
+          ${dreamPhotoHtml(h, 480)}
+          <span class="dream-badge${s.open ? ' dream-badge--open' : ''}">${s.open ? 'Open now' : escapeHtml(s.next.label)}</span>
+        </div>
+        <div class="dream-body">
+          <p class="dream-area">${escapeHtml(h.area)}</p>
+          <p class="dream-price"><strong>${escapeHtml(dreamPrice(h.price))}</strong> asking price</p>
+        </div>
+      </button>`).join('');
+    rail.querySelectorAll('[data-dream]').forEach(btn => btn.addEventListener('click', () => {
+      const h = dreamState.homes.find(x => x.id === btn.dataset.dream);
+      if (h) openDreamDetail(h);
+    }));
+  }
+
+  function openDreamDetail(h) {
+    const s = dreamLive(h);
+    const ideaId = 'dreamhome-' + h.id;
+    const saved = Boolean(state.shortlist.find(i => i.id === ideaId));
+    document.getElementById('detail-title').textContent = h.area;
+    document.getElementById('detail-content').innerHTML = `
+      <div class="dream-detail-photo">${dreamPhotoHtml(h, 900)}</div>
+      ${dreamCreditHtml(h)}
+      <p class="dream-detail-price">${escapeHtml(dreamPrice(h.price))} <span>asking price</span></p>
+      <p class="dream-detail-address">${escapeHtml(h.address)} · ${escapeHtml(h.area)}</p>
+      <p class="dream-note-label">Open house</p>
+      <ul class="dream-windows">${(s ? s.windows : []).map(w => {
+        const isOpen = Date.parse(w.start_at) <= Date.now();
+        return `<li>${isOpen ? '<span class="dream-badge dream-badge--open">Open now</span>' : ''}<span>${escapeHtml(w.day)}, ${escapeHtml(w.label.replace(/^\S+\s/, ''))}</span></li>`;
+      }).join('') || '<li>This open house has ended.</li>'}</ul>
+      ${h.note ? `<p class="dream-note-label">Why this one inspires</p><p class="dream-note">${escapeHtml(h.note)}</p>` : ''}
+      <div class="dream-actions">
+        <a class="primary-btn" href="${escapeAttr(h.maps_url)}" target="_blank" rel="noopener noreferrer">Directions</a>
+        <a class="ghost-btn" href="${escapeAttr(h.source_url)}" target="_blank" rel="noopener noreferrer">See the listing</a>
+        <button type="button" class="ghost-btn" id="dream-save-btn"${saved ? ' disabled' : ''}>${saved ? 'Saved ✓' : 'Save'}</button>
+      </div>
+      <p class="dream-fine">Open house times and prices change. Verify with the listing agent before you go.</p>
+      <p class="dream-fine">DayHop is not a real estate brokerage and does not sell homes. This is a dreaming and visiting guide, not buying advice.</p>`;
+    const save = document.getElementById('dream-save-btn');
+    if (save) save.addEventListener('click', () => {
+      if (state.shortlist.find(i => i.id === ideaId)) return;
+      const next = s && s.next;
+      addToShortlist({
+        id: ideaId,
+        title: `Open house: ${h.area}`,
+        category: 'general',
+        venue: h.address,
+        location: h.area,
+        why: h.note || `${dreamPrice(h.price)} asking price.${next ? ` Open house ${next.label}.` : ''}`,
+        image_url: h.photo && h.photo.url ? h.photo.url : null,
+        url: h.source_url,
+        booking_url: h.source_url,
+        maps_url: h.maps_url,
+        date: next ? next.start_at.slice(0, 10) : null
+      }, null);
+      save.textContent = 'Saved ✓';
+      save.disabled = true;
+    });
+    openPanel('detail-panel');
+  }
+
+  function initDreamHomes() {
+    window.__dreamDrawing = DREAM_DRAWING; // <img onerror> swaps a dead photo for the drawing
+    fetch('/api/dream-homes')
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error('dream homes ' + r.status))))
+      .then(d => { dreamState.homes = Array.isArray(d.homes) ? d.homes : []; renderDreamRail(); })
+      .catch(() => { /* the section stays hidden; the planner is unaffected */ });
+    setInterval(() => { if (dreamState.homes.length) renderDreamRail(); }, 60 * 1000);
+  }
+
   function init() {
+    initDreamHomes();
     initHolidayStrip();
     loadPersisted();
     renderDraftResume(); // an unsaved plan from last time greets them by name
