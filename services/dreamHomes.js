@@ -291,8 +291,48 @@ async function mark(id, fields) {
   return rec;
 }
 
+// ---------- homes entered from chat ----------
+// Claude has no admin login, so a home a founder asks it to add is written
+// into data/dreamHomeSeeds.js and saved here once, on boot, as a draft marked
+// found_by "claude" for an admin to check and publish. A marker row per seed
+// key ("dreamhome-seed:", outside the "dreamhome:" rows all() lists) keeps a
+// draft an admin deleted from coming back on the next deploy.
+const SEED_PREFIX = 'dreamhome-seed:';
+const seedMem = new Set();
+
+async function seedDone(key) {
+  if (!hasDb()) return seedMem.has(key);
+  const { data, error } = await db.getClient().from('api_cache').select('key').eq('key', SEED_PREFIX + key).maybeSingle();
+  if (error) throw new Error(`dream home seed read failed: ${error.message}`);
+  return Boolean(data);
+}
+
+async function markSeedDone(key, id) {
+  if (!hasDb()) { seedMem.add(key); return; }
+  const { error } = await db.getClient().from('api_cache').upsert({
+    key: SEED_PREFIX + key,
+    payload: { v: { id, at: new Date().toISOString() } },
+    expires_at: new Date(Date.now() + TEN_YEARS_MS).toISOString(),
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'key' });
+  if (error) throw new Error(`dream home seed write failed: ${error.message}`);
+}
+
+/** Save each seed not yet saved as a draft. → ids of the drafts added. */
+async function applySeeds(seeds) {
+  const added = [];
+  for (const s of seeds || []) {
+    if (!s || !s.key || await seedDone(s.key)) continue;
+    const saved = await save(null, s.home, { actor: 'claude', publish: false });
+    await mark(saved.id, { found_by: 'claude', found_at: new Date().toISOString(), found_check: s.check || '' });
+    await markSeedDone(s.key, saved.id);
+    added.push(saved.id);
+  }
+  return added;
+}
+
 module.exports = {
-  listPublic, listAdmin, save, setPublished, remove, get, mark,
+  listPublic, listAdmin, save, setPublished, remove, get, mark, applySeeds,
   normalize, statusOf, publicView, torontoMs, windowLabel,
-  _mem: mem
+  _mem: mem, _seedMem: seedMem
 };

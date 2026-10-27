@@ -695,6 +695,16 @@ if (process.env.WARM_POOL !== 'off') {
   setInterval(warm, 10 * 60 * 1000).unref();
 }
 
+// Dream Homes entered from chat (data/dreamHomeSeeds.js): each saved once as
+// a draft for an admin to publish. DREAM_SEEDS=off skips it.
+if (process.env.DREAM_SEEDS !== 'off') {
+  setTimeout(() => {
+    require('./services/dreamHomes').applySeeds(require('./data/dreamHomeSeeds'))
+      .then(ids => { if (ids.length) console.log(`[dream-homes] ${ids.length} draft(s) added from data/dreamHomeSeeds.js`); })
+      .catch(err => console.warn('[dream-homes] seeding failed:', err.message));
+  }, 15 * 1000).unref();
+}
+
 // Revenue-leak sweeps (2026-10-19): abandoned-checkout recovery + newsletter
 // confirm nudge. Every 15 minutes. Both are idempotent and fail-soft.
 // RECOVERY_SWEEP=off disables the pair (manual: admin endpoints below).

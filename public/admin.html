@@ -896,7 +896,8 @@
     $('dh-rows').innerHTML = dhHomes.length ? dhHomes.map(h =>
       '<tr>' +
         '<td>' + esc(h.address) + (h.photo_override ? '' : (h.photo && h.photo.url ? '' : ' <span class="rate">(drawing, no Google photo)</span>')) +
-          (h.found_by === 'grok' && !h.published ? '<br><span style="color:#1471B8;font-size:12px;font-weight:600">Found by Grok, checked on its source. Open the listing, then publish.</span>' : '') + '</td>' +
+          (h.found_by === 'grok' && !h.published ? '<br><span style="color:#1471B8;font-size:12px;font-weight:600">Found by Grok, checked on its source. Open the listing, then publish.</span>' : '') +
+          (h.found_by === 'claude' && !h.published ? '<br><span style="color:#1471B8;font-size:12px;font-weight:600">Added by Claude from public listings.</span>' + (h.found_check ? '<br><span style="font-size:12px">' + esc(h.found_check) + '</span>' : '') : '') + '</td>' +
         '<td>' + esc(h.area || '') + '</td>' +
         '<td>' + (h.price != null ? '$' + Number(h.price).toLocaleString('en-CA') : '<span class="rate">missing</span>') + '</td>' +
         '<td style="white-space:nowrap">' + dhWindowsText(h) + '</td>' +
