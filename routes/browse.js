@@ -121,6 +121,10 @@ router.post('/', async (req, res) => {
     const layout = feedLayout();
 
     const ideas = buildSections(pool, { near: Boolean(coords), weather, part, mode, advisories, spotlight, dateWindow, sponsor: sponsorPick, tott, layout }).slice(0, FEED_CAP + 6);
+    // Every filter chip should open onto something: a chip category with
+    // fewer than two ideas is topped up from the pool, then from the
+    // in-season curated catalog (no new API calls).
+    ideas.push(...chipCoverage(ideas, pool, mode, { isGta: GTA_TOWNS.test(String(resolvedCity || city || '')), dateWindow }));
 
     // Corridor radar: the client remembers spots this user regularly browses
     // from ("my end of Yonge Street") and sends them along — high-rated
@@ -719,6 +723,41 @@ function rightNowLabel(part, weather, shelter) {
 
 // fallbackIdea gives the base card shape; browse cards additionally carry
 // the booking/maps links and richness mergeWithCandidates would attach.
+// The category chips each mode shows (public/app.js MODES[...].filters).
+const CHIP_CATEGORIES = {
+  rr: ['water', 'culture', 'kids', 'patios', 'food', 'cruises'],
+  adventure: ['adventures', 'water', 'cruises', 'kids', 'food']
+};
+
+/**
+ * Ideas to add so every chip has at least two: from the candidate pool
+ * first, then the in-season curated catalog (cheap, already in memory).
+ * Labelled with the catch-all shelf, which the client renames by category
+ * ("On the water", "Kid-friendly favourites"...). Pure apart from the
+ * catalog read.
+ */
+function chipCoverage(ideas, pool, mode, { isGta, dateWindow } = {}) {
+  const cats = CHIP_CATEGORIES[mode === 'adventure' ? 'adventure' : 'rr'];
+  const have = new Set(ideas.map(i => String(i.id)));
+  const count = c => ideas.filter(i => i.category === c).length;
+  const out = [];
+  let catalog = null;
+  for (const cat of cats) {
+    let need = 2 - count(cat);
+    if (need <= 0) continue;
+    const add = c => { if (need > 0 && !have.has(String(c.id))) { have.add(String(c.id)); out.push(Object.assign(toBrowseIdea(c), { section: 'More to explore 🧭' })); need--; } };
+    pool.filter(c => c.category === cat).forEach(add);
+    if (need > 0) {
+      if (!catalog) {
+        try { catalog = require('../services/candidates').catalogCandidates('', [], 400, { isGta, dateWindow }); }
+        catch { catalog = []; }
+      }
+      catalog.filter(c => c.category === cat).forEach(add);
+    }
+  }
+  return out;
+}
+
 function toBrowseIdea(c) {
   return Object.assign(fallbackIdea(c), {
     booking_url: c.booking_url || null,
@@ -786,3 +825,4 @@ module.exports.daypartOrder = daypartOrder;
 // Exported for the card-badge invariant test (test/ideaOpenNow.test.js) —
 // pure function over a candidate object, no network.
 module.exports.toBrowseIdea = toBrowseIdea;
+module.exports.chipCoverage = chipCoverage;

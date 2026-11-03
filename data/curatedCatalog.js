@@ -304,6 +304,44 @@ module.exports = [
     maps_url: mapsSearch('Tall Ship Kajama Toronto'),
     wow: true, seasonal: 'summer'
   },
+  // Winter "on the water" (checked 2026-11-03): without these the Cruises
+  // chip had nothing from November to April, when the Kajama and Voyage to
+  // the Falls are out of season.
+  // City of Toronto (toronto.ca ferry routes & schedules): ferries run year
+  // round from the Jack Layton Ferry Terminal; mid-October to mid-April they
+  // serve Ward's Island only. Fare per the City: $9.57 return (check the
+  // City's ticket page, it is under review).
+  {
+    id: 'cur-wards-island-winter-ferry',
+    title: "Winter ferry to Ward's Island, the skyline from the lake",
+    category: 'cruises',
+    tags: ['ferry', 'boat', 'island', 'harbour', 'water', 'skyline', 'winter', 'cheap'],
+    location: "Toronto Island, Toronto",
+    venue: "Jack Layton Ferry Terminal",
+    description: "The City ferry runs all winter to Ward's Island: a short, cheap crossing with the whole skyline behind you, then quiet island paths and frozen-lake views.",
+    cost_tier: '$', good_for_ages: 'all ages',
+    booking_url: 'https://www.toronto.ca/explore-enjoy/toronto-island-ferries/ferry-routes-schedules/',
+    maps_url: mapsSearch('Jack Layton Ferry Terminal Toronto'),
+    lat: 43.6406, lng: -79.3755,
+    wow: false, seasonal: 'winter'
+  },
+  // City Cruises Toronto (formerly Mariposa, cityexperiences.com holiday
+  // page, live 2026-11-03): seasonal holiday dining cruises on the harbour.
+  // No 2026 dates or prices posted yet, so the card sends people there.
+  {
+    id: 'cur-city-cruises-holiday',
+    title: "Holiday dining cruise on Toronto harbour",
+    category: 'cruises',
+    tags: ['cruise', 'boat', 'harbour', 'dinner', 'holiday', 'christmas', 'skyline', 'winter'],
+    location: "Harbourfront, Toronto",
+    venue: "City Cruises Toronto",
+    description: "Dinner on the water with the skyline lit for the season. City Cruises runs holiday sailings on the harbour; check the official page for this year's dates and age limits.",
+    cost_tier: '$$$', good_for_ages: 'check the listing',
+    booking_url: 'https://www.cityexperiences.com/toronto/city-cruises/holiday/',
+    maps_url: mapsSearch('City Cruises Toronto Queens Quay'),
+    lat: 43.6386, lng: -79.3822,
+    wow: true, seasonal: 'winter'
+  },
   {
     id: 'cur-scarborough-bluffs-paddle',
     title: "Paddle beneath the Scarborough Bluffs",
