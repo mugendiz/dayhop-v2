@@ -1374,9 +1374,18 @@ a.dream-card { text-decoration: none; }
   font-size: 19px;
   color: var(--ink);
   margin-top: 10px;
-  padding-bottom: 4px;
+  padding: 8px 0 4px;
   border-bottom: 2px dotted var(--line-strong);
+  /* Sticky: the section you are scrolling through stays named at the top
+     until the next heading pushes it off. */
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--paper);
 }
+/* Break cards (Playbook, "This spot could be yours", guide promo, fun
+   fact) span the full width of the two-column feed. */
+.card-feed > .capture-card { grid-column: 1 / -1; }
 
 .feed-section-header:first-child { margin-top: 0; }
 

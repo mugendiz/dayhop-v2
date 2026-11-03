@@ -269,6 +269,7 @@
   // every shelf past Top 5 → slot 6 → Talk of the town behind "More ideas".
   state.browseLayout = 'full';
   state.feedUnfolded = false;
+  state.feedPage = 0; // paged browse: FEED_PAGE ideas per page
 
   // ---------- Persistence (survive refresh) ----------
   const STORAGE_KEY = 'dayhop_state_v2';
@@ -1716,6 +1717,18 @@
     });
   }
 
+  // Browse shows the best FEED_PAGE ideas per page; Next turns the page.
+  const FEED_PAGE = 30;
+  // Server shelves that only mean "the rest" get split by category instead,
+  // so every heading on the page says what is under it. Named shelves (Top 5
+  // picks, Talk of the town, Hidden gems, Worth the drive...) keep theirs.
+  const CATCH_ALL_SHELVES = /^(Restorative picks|Top thrills|More ideas)\b/i;
+  function feedSectionTitle(idea) {
+    if (idea.section && !CATCH_ALL_SHELVES.test(idea.section)) return idea.section;
+    const cat = idea.category || 'general';
+    return COLLECTION_TITLES[cat] || CATEGORY_LABELS[cat] || 'Local favourites';
+  }
+
   function renderFeed(animate = false) {
     const feed = document.getElementById('discovery-feed');
     // Full rebuild: stop watching the cards that are about to leave the DOM
@@ -1729,7 +1742,8 @@
     // Top-5 layout: server-flagged fold:true ideas (and a header whose whole
     // shelf is folded) render hidden until "More ideas" (unfoldFeed). They
     // stay in the DOM so unfolding is instant and STOP numbers hold.
-    const folded = state.browseMode && state.browseLayout === 'top5' && !state.feedUnfolded;
+    // Paged browse (FEED_PAGE at a time) replaces the Top-5 fold.
+    const folded = false;
     const appendSection = (label, group, showHeaders, bestIds) => {
       if (group.length === 0) return;
       if (showHeaders) {
@@ -1774,19 +1788,22 @@
       const { sections, unplaced } = distanceSections(ideas, state.browseMode);
       sections.forEach(sec => appendSection(sec.label, sec.ideas, sec.headers));
       if (unplaced > 0) feed.appendChild(buildUnplacedNote(unplaced));
-    } else if (state.browseMode && ideas.some(i => i.section)) {
-      // Browse feed: server-assigned sections, in server order. STOP numbers
-      // continue across sections so the trail metaphor stays intact.
+    } else if (state.browseMode) {
+      // Browse feed, one page at a time: the FEED_PAGE best ideas in the
+      // server's ranking, grouped under named sections. Next shows the next
+      // page (no infinite scroll). STOP numbers continue across pages.
+      const page = state.feedPage || 0;
+      stopIndex = page * FEED_PAGE;
+      const slice = ideas.slice(page * FEED_PAGE, (page + 1) * FEED_PAGE);
       const order = [];
       const groups = new Map();
-      ideas.forEach(idea => {
-        const label = idea.section || 'More ideas';
+      slice.forEach(idea => {
+        const label = feedSectionTitle(idea);
         if (!groups.has(label)) { groups.set(label, []); order.push(label); }
         groups.get(label).push(idea);
       });
-      order.forEach(label => appendSection(label, groups.get(label), order.length > 1));
-      // Break cards slot into the folded run; they arrive with unfoldFeed().
-      if (!(folded && ideas.some(i => i.fold))) insertFeedBreakCards(feed);
+      order.forEach(label => appendSection(label, groups.get(label), true));
+      insertPagedBreakCards(feed);
     } else {
       // Prompt results: the direct answers first (minus the hero, which is
       // already on stage), then the "didn't know you could do that" picks,
@@ -1929,20 +1946,21 @@
     // surprise well runs dry for this feed.
     // Top-5 layout: while shelves are folded, "More ideas" stands in for
     // "Next" — one control at the bottom, never two.
-    const foldedNow = state.browseMode && state.browseLayout === 'top5' && !state.feedUnfolded &&
-      ideas.some(i => i.fold);
+    // Paged browse: Next turns to the next FEED_PAGE while loaded ideas
+    // remain, then asks the server for more (capped at NEXT_PAGE_CAP).
     const feedMore = document.getElementById('feed-more');
-    if (feedMore) feedMore.hidden = !foldedNow || state.isGenerating;
+    if (feedMore) feedMore.hidden = true;
+    const morePagesLoaded = state.browseMode && ideas.length > ((state.feedPage || 0) + 1) * FEED_PAGE;
     const feedNext = document.getElementById('feed-next');
-    if (feedNext) feedNext.hidden = !hasIdeas || state.isGenerating || state.nextExhausted || foldedNow;
+    if (feedNext) feedNext.hidden = !hasIdeas || state.isGenerating || (state.nextExhausted && !morePagesLoaded);
+    const nextLabel = document.querySelector('#feed-next-btn .btn-label');
+    if (nextLabel) nextLabel.textContent = state.browseMode ? 'Next 30 →' : 'Next: more awesome stuff →';
 
     // The nearest-first toggle only earns its spot when there are distances
     // to sort by (feeds without coords would just dump everything under
     // "Distance unknown").
     const sortChip = document.getElementById('sort-distance-chip');
     if (sortChip) sortChip.hidden = !hasIdeas || !state.allIdeas.some(i => i.distance_km != null);
-
-    renderCollections();
   }
 
   // "More ideas": reveal the folded shelves in place (Top-5 layout). The
@@ -4041,6 +4059,42 @@
     return el;
   }
 
+  // Paged browse (FEED_PAGE per page): three breaks on every page. A
+  // Playbook card after card 10, the full-width "This spot could be yours"
+  // venue card after card 20, and a second Playbook card closing the page.
+  // A reader we already have the email for (signed in, subscribed or
+  // snoozed) gets the city guide promo, then a fun fact, in the Playbook
+  // slots instead.
+  function insertPagedBreakCards(feed) {
+    const cards = [...feed.querySelectorAll('.idea-card, .idea-tile')];
+    if (cards.length < 6) return;
+    const dayOffset = new Date().getDate();
+    const playbook = i => {
+      if (captureEligible()) {
+        return i === 0
+          ? buildCaptureCard('feed_card', 'Get the free GTA Weekend Playbook 📖',
+            '70+ family outings actually worth your Saturday, plus five fresh picks every Thursday morning, weather-checked and closure-checked.',
+            'Send my Playbook')
+          : buildCaptureCard('feed_card', 'Still scrolling? Take the Playbook with you 📖',
+            'The 70+ GTA outings we keep coming back to, in one free guide, plus a short Thursday email with the weekend\'s best picks.',
+            'Send my Playbook');
+      }
+      const guide = i === 0 && matchGuideForCity();
+      return guide ? buildGuidePromoCard(guide) : buildFunFactCard(FUN_FACTS[(dayOffset + i) % FUN_FACTS.length]);
+    };
+    const plan = [[10, playbook(0)], [20, buildAdCard()], [Infinity, playbook(1)]];
+    for (const [pos, card] of plan) {
+      let anchor = pos < cards.length ? cards[pos] : null;
+      // Never split a section header from its first card.
+      if (anchor && anchor.previousElementSibling && anchor.previousElementSibling.classList &&
+          anchor.previousElementSibling.classList.contains('feed-section-header')) {
+        anchor = anchor.previousElementSibling;
+      }
+      if (anchor) anchor.parentNode.insertBefore(card, anchor);
+      else feed.appendChild(card);
+    }
+  }
+
   function insertFeedBreakCards(feed) {
     const cards = [...feed.querySelectorAll('.idea-card')];
     if (cards.length < 6) return;
@@ -4163,6 +4217,7 @@
     state.nextPages = 0;
     state.browseLayout = data.layout === 'top5' ? 'top5' : 'full';
     state.feedUnfolded = false;
+    state.feedPage = 0;
     state.dismissedIds = new Set();
     state.lastPrompt = '';
     state.lastWeather = data.weather || null;
@@ -5071,6 +5126,7 @@
       state.surpriseMode = false;
       state.nextExhausted = false;
       state.nextPages = 0;
+      state.feedPage = 0;
       state.dismissedIds = new Set();
       state.lastPrompt = prompt;
       state.lastMode = state.mode;
@@ -5189,7 +5245,25 @@
   // session can ever ask the server for.
   const NEXT_PAGE_CAP = 3;
 
-  async function handleNext({ auto = false } = {}) {
+  // Next, paged: in browse, show the next FEED_PAGE already loaded; when the
+  // loaded ideas run out, fetch more (handleNext, still capped) and turn the
+  // page onto them. Prompt results keep appending as before.
+  async function handleNextPage() {
+    if (!state.browseMode) return handleNext();
+    const page = state.feedPage || 0;
+    if (visibleIdeas().length <= (page + 1) * FEED_PAGE) {
+      const before = state.allIdeas.length;
+      await handleNext({ paged: true });
+      if (state.allIdeas.length === before) return;
+    }
+    state.feedPage = page + 1;
+    renderFeed(true);
+    track('feed_next_page', { source: `page-${state.feedPage + 1}` });
+    const top = document.getElementById('results-header') || document.getElementById('discovery-feed');
+    if (top && top.scrollIntoView) top.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  }
+
+  async function handleNext({ auto = false, paged = false } = {}) {
     if (state.isLoadingMore || state.isGenerating || state.nextExhausted) return;
     state.isLoadingMore = true;
     const btn = document.getElementById('feed-next-btn');
@@ -5211,9 +5285,10 @@
       const fresh = data.ideas || [];
       if (fresh.length) {
         state.allIdeas = state.allIdeas.concat(fresh);
-        // Append, never rebuild: cards already on screen keep their DOM,
+        // Paged browse turns the page itself (handleNextPage); otherwise
+        // append, never rebuild: cards already on screen keep their DOM,
         // listeners, and decoded images.
-        const firstNew = appendIdeasToFeed(fresh);
+        const firstNew = paged ? null : appendIdeasToFeed(fresh);
         // Only an explicit button press earns a scroll — auto-loaded pages
         // must never yank a feed the user is already scrolling through.
         if (!auto && firstNew && firstNew.scrollIntoView) {
@@ -5590,7 +5665,7 @@
     worldcup: 'World Cup watch parties near you',
     patios: 'Lively patios & rooftops',
     kids: 'Kid-friendly favourites',
-    water: 'Beaches, pools & splash pads',
+    water: 'By the water',
     food: 'Good eats nearby',
     culture: 'Culture & hidden gems',
     adventures: 'Big experiences',
@@ -5657,6 +5732,7 @@
 
   function setFilter(category) {
     state.currentFilter = category;
+    state.feedPage = 0; // a filter starts from the best page again
     document.querySelectorAll('.filter-chip').forEach(c => {
       if (c.id === 'sort-distance-chip') return; // the sort toggle keeps its own active state
       c.classList.toggle('active', c.dataset.filter === category);
@@ -5673,54 +5749,6 @@
     }
     if (order === 'distance') track('feed_sort_distance');
     renderFeed(true);
-  }
-
-  function renderCollections() {
-    const el = document.getElementById('collections');
-    const pool = ideasInPlay();
-    // Collections are shortcuts into the unfiltered feed — hide them while a
-    // filter is active or before/without enough results to group.
-    if (state.currentFilter !== 'all' || pool.length === 0) {
-      el.hidden = true;
-      return;
-    }
-
-    const byCategory = new Map();
-    for (const idea of pool) {
-      const cat = idea.category || 'general';
-      if (!byCategory.has(cat)) byCategory.set(cat, []);
-      byCategory.get(cat).push(idea);
-    }
-    const groups = [...byCategory.entries()]
-      .filter(([, ideas]) => ideas.length >= 2)
-      .sort((a, b) => b[1].length - a[1].length)
-      .slice(0, 4);
-
-    if (groups.length < 2) { // one big group = the feed itself, nothing to curate
-      el.hidden = true;
-      return;
-    }
-
-    el.innerHTML = '';
-    for (const [category, ideas] of groups) {
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'collection-card';
-      const thumbs = ideas.slice(0, 3).map(i =>
-        `<img src="${escapeAttr(i.image_url || categoryImage(i.category, 200, i.title))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(i.category, 200, i.title))}'">`).join('');
-      card.innerHTML = `
-        <span class="collection-thumbs">${thumbs}</span>
-        <span class="collection-text">
-          <strong>${escapeHtml(COLLECTION_TITLES[category] || CATEGORY_LABELS[category] || category)}</strong>
-          <span>${ideas.length} idea${ideas.length === 1 ? '' : 's'}</span>
-        </span>`;
-      card.addEventListener('click', () => {
-        setFilter(category);
-        document.getElementById('discovery-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-      el.appendChild(card);
-    }
-    el.hidden = false;
   }
 
   function renderWeatherStrip(weather) {
@@ -7194,7 +7222,7 @@
 
     // Next: append more unrelated-but-awesome (and wider-out) picks below
     // whatever feed is showing.
-    document.getElementById('feed-next-btn').addEventListener('click', handleNext);
+    document.getElementById('feed-next-btn').addEventListener('click', handleNextPage);
     document.getElementById('feed-more-btn').addEventListener('click', unfoldFeed);
 
     // No infinite scroll (removed 2026-09-03): auto-loading fired a wider
