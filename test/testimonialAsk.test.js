@@ -48,3 +48,33 @@ test('testimonial ask: the email names the guide and asks for consent in plain w
     assert.match(body, /hit reply/i);
   }
 });
+
+test('testimonial ask: a personal trip guide waits for the trip, not the purchase', async () => {
+  const trip = (email, end) => session(email, { metadata: { guide: 'personal', city: 'Kingston', start: end, end } });
+  const day = n => new Date(Date.now() - n * DAY).toISOString().slice(0, 10);
+  // Bought 20 days ago for a trip that ended 2 days ago: not due yet.
+  await ask.recordPurchase(trip('soon@example.com', day(2)), { purchasedAt: ago(20) });
+  // Bought 25 days ago for a trip that ended 9 days ago: due.
+  await ask.recordPurchase(trip('back@example.com', day(9)), { purchasedAt: ago(25) });
+  const emails = (await ask.selectCandidates()).map(r => r.email);
+  assert.ok(emails.includes('back@example.com'));
+  assert.ok(!emails.includes('soon@example.com'));
+  const { subject, text } = ask.askEmail({ guide_label: 'trip guide for Kingston' });
+  assert.equal(subject, 'How did the trip go?');
+  assert.match(text, /since your trip/);
+});
+
+test('testimonial ask: a failed send releases the claim for a later sweep', async () => {
+  delete process.env.RESEND_API_KEY; // sendEmail then reports sent:false
+  await ask.recordPurchase(session('retry@example.com'), { purchasedAt: ago(10) });
+  const row = (await ask.selectCandidates()).find(r => r.email === 'retry@example.com');
+  assert.equal(await ask.claimAndSend(row), false);
+  const again = (await ask.selectCandidates()).find(r => r.email === 'retry@example.com');
+  assert.ok(again, 'still a candidate after the failed send');
+  assert.equal(again.attempts, 1);
+});
+
+test('testimonial ask: every ask offers a way to never be asked again', () => {
+  const { text, html } = ask.askEmail({ guide_label: 'Richmond Hill Nature Guide' });
+  for (const body of [text, html]) assert.match(body, /reply "stop"/);
+});

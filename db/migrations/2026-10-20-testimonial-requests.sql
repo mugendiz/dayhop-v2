@@ -17,10 +17,14 @@ create table if not exists public.testimonial_requests (
   guide_label       text not null default '',
   stripe_session_id text,
   purchased_at      timestamptz not null default now(),
-  asked_at          timestamptz
+  -- When the 7 days start: the purchase, or a personal trip guide's last
+  -- trip day (services/testimonialAsk.js askFromOf).
+  ask_from          timestamptz not null default now(),
+  asked_at          timestamptz,
+  attempts          integer not null default 0
 );
 
 create index if not exists testimonial_requests_sweep_idx
-  on public.testimonial_requests (asked_at, purchased_at);
+  on public.testimonial_requests (asked_at, ask_from);
 
 alter table public.testimonial_requests enable row level security;
