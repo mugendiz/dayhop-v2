@@ -57,7 +57,7 @@ function html({ base, title, description, ogImage, canonical, lastCheck }) {
 </head>
 <body>
 <header class="gn-top">
-  <div class="gn-brand"><a class="gn-logo" href="/" aria-label="DayHop home">DayHop</a><span class="gn-title">Go Now</span></div>
+  <div class="gn-brand"><a class="gn-logo" href="/" aria-label="DayHop home">DayHop</a><span class="gn-title">Go now: Washroom Map</span></div>
   <div class="gn-chips" aria-label="Show only">
     <button class="gn-chip" data-f="open" aria-pressed="false" aria-label="Open washrooms only">${ICON.wc}<span>Open now</span></button>
     <button class="gn-chip" data-f="changing" aria-pressed="false">${ICON.ct}<span>Changing table</span></button>
@@ -101,7 +101,7 @@ page.get('/go', async (req, res, next) => {
     recordView(req, 'go', req.query.p ? 'place' : 'map');
     const base = origin(req);
     const m = goNow.meta();
-    let title = 'Go Now: open washrooms, changing tables, stroller access | DayHop';
+    let title = 'Go now: Washroom Map. Open washrooms, changing tables, stroller access | DayHop';
     let description = 'The nearest washroom and what is known about it: open or closed, changing table, stroller access. Live for Toronto park washrooms, seeded across Ontario, unknown when unknown.';
     let ogImage = `${base}/api/go/card/default.png`;
     let canonical = '/go';
@@ -109,7 +109,7 @@ page.get('/go', async (req, res, next) => {
     if (ID_RE.test(id)) {
       const p = await goNow.byId(id).catch(() => null);
       if (p) {
-        title = `${p.name}: ${statusWord(p)} | DayHop Go Now`;
+        title = `${p.name}: ${statusWord(p)} | DayHop Washroom Map`;
         description = `${statusWord(p)}. ${yesNo(p.changing_table, 'Changing table', 'No changing table')}. ${yesNo(p.stroller_friendly, 'Stroller friendly', 'Not stroller friendly')}. Checked ${fmtDate(p.last_checked)}.`;
         ogImage = `${base}/api/go/card/${encodeURIComponent(p.id)}.png`;
         canonical = `/go?p=${encodeURIComponent(p.id)}`;
@@ -126,7 +126,7 @@ api.get('/near', async (req, res, next) => {
   try {
     const lat = Number(req.query.lat), lng = Number(req.query.lng);
     if (!(lat > 41 && lat < 57.5 && lng > -95.5 && lng < -74)) {
-      return res.status(400).json({ error: 'OUTSIDE_ONTARIO', message: 'Go Now covers Ontario.' });
+      return res.status(400).json({ error: 'OUTSIDE_ONTARIO', message: 'The Washroom Map covers Ontario.' });
     }
     const f = req.query.f;
     const results = await goNow.nearest({
@@ -210,7 +210,7 @@ function cardSvg(p) {
 <g transform="translate(882 102) scale(4)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7v6M5 21l2-8 2 8M15 21v-6h-1l2-8h2l2 8h-1v6"/></g>
 <circle cx="910" cy="118" r="6" fill="#fff"/><circle cx="950" cy="118" r="6" fill="#fff"/>
 <text x="90" y="150" font-family="${F}" font-size="64" font-weight="800" fill="#ffffff">DayHop</text>
-<text x="90" y="215" font-family="${F}" font-size="42" font-weight="600" fill="#CFE3D8">Go Now</text>
+<text x="90" y="215" font-family="${F}" font-size="42" font-weight="600" fill="#CFE3D8">Go now: Washroom Map</text>
 ${name}${subEl}${rowEls}${checked}
 <rect x="0" y="1200" width="1080" height="150" fill="#102A2E"/>
 <text x="90" y="1290" font-family="${F}" font-size="42" font-weight="700" fill="#ffffff">Find the nearest one: dayhop.quest/go</text>

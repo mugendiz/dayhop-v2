@@ -1,0 +1,123 @@
+// routes/heroCarousel.js — DayHop V2
+// The homepage carousel under the prompt, and the pages its slides open.
+//
+//   GET /api/carousel   the slides, in order:
+//                         1. Top spots for fall colours  → /fall-colours
+//                         2. Talk of the town (this week) → /talk-of-the-town
+//                            Only when the weekly store has live picks; an
+//                            empty shelf hides the slide rather than show a
+//                            blank card.
+//                         3. Santa Claus parades 2026     → /santa-parades
+//   GET /fall-colours   the catalog places tagged for fall colours, each
+//                       linking to its own /places page.
+//
+// Every slide carries a thumbnail and the text the share sheet sends
+// (public/share-sheet.js): sharing is the first step toward social planning.
+
+const express = require('express');
+const { ENTRIES, slugOf, splitTitle, undash, heroOf } = require('./placePages');
+const { page, escapeHtml: esc, origin, recordView } = require('./blog');
+
+const page$ = express.Router();
+const api = express.Router();
+
+const FALL_RE = /fall colou?rs?|foliage|autumn/i;
+const fallEntries = () => ENTRIES.filter(e => (e.tags || []).some(t => FALL_RE.test(t)));
+const thumbOf = e => {
+  const h = heroOf(e);
+  if (h) return h.image_url;
+  const { name } = splitTitle(e.title);
+  return `/art/placeholder.svg?c=adventures&t=${encodeURIComponent(name)}`;
+};
+
+/** The carousel slides. tott: the live Talk of the town picks (may be empty). Pure. */
+function slides(tott = []) {
+  const fall = fallEntries();
+  const fallWithPhoto = fall.find(e => heroOf(e)) || fall[0];
+  const out = [];
+  if (fall.length) {
+    out.push({
+      key: 'fall', kicker: 'Top locations',
+      title: 'Fall colours worth the drive',
+      sub: `${fall.length} hand-checked lookouts, gorges and trails around the GTA`,
+      thumb: thumbOf(fallWithPhoto), url: '/fall-colours',
+      share: `The best fall colour spots around the GTA, ${fall.length} picks on DayHop`
+    });
+  }
+  if (tott.length) {
+    const top = tott[0];
+    out.push({
+      key: 'tott', kicker: 'Talk of the town',
+      title: undash(top.title),
+      sub: tott.length > 1 ? `Plus ${tott.length - 1} more things everyone's going to this week` : 'What everyone is going to this week',
+      thumb: top.image_url && /^https:\/\//.test(top.image_url) ? top.image_url : `/art/placeholder.svg?c=events&t=${encodeURIComponent(top.title)}`,
+      url: '/talk-of-the-town',
+      share: `What everyone's going to this week around Toronto: ${undash(top.title)} and more`
+    });
+  }
+  out.push({
+    key: 'parades', kicker: 'Free this week',
+    title: 'Santa Claus parades 2026',
+    sub: 'Every GTA date, time and route, checked',
+    thumb: '/img/parades/santa-waving.jpg', url: '/santa-parades',
+    share: 'Every GTA Santa Claus parade for 2026, with times, routes and a map'
+  });
+  return out;
+}
+
+function liveTott() {
+  try {
+    const talkOfTown = require('../services/talkOfTown');
+    return talkOfTown.active({ point: { lat: 43.6532, lng: -79.3832 }, limit: talkOfTown.SHELF_SIZE });
+  } catch { return []; }
+}
+
+api.get('/', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.json({ slides: slides(liveTott()) });
+});
+
+// ---------- /fall-colours ----------
+function fallBody() {
+  const cards = fallEntries().map(e => {
+    const { name, tagline } = splitTitle(e.title);
+    const h = heroOf(e);
+    return `<li class="fc-card">
+  <a href="/places/${esc(slugOf(e))}">
+    <img src="${esc(thumbOf(e))}" alt="${esc(h ? name : '')}" loading="lazy" width="640" height="400">
+    <span class="fc-text"><b>${esc(undash(name))}</b>${tagline ? `<span>${esc(undash(tagline))}</span>` : ''}<span class="fc-where">${esc(String(e.location || '').split(',').pop().trim())}</span></span>
+  </a>
+</li>`;
+  }).join('\n');
+  return `<style>
+.fc-grid{list-style:none;margin:22px 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px}
+.fc-card a{display:block;background:#fff;border:1px solid var(--line);border-radius:0 var(--radius) var(--radius) 0;overflow:hidden;text-decoration:none;color:var(--ink);box-shadow:0 4px 14px rgba(16,42,46,.08)}
+.fc-card img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;background:var(--paper-dim)}
+.fc-text{display:flex;flex-direction:column;gap:4px;padding:12px 14px 14px}
+.fc-text b{font-size:17px}
+.fc-text span{font-size:14px;color:var(--ink-soft)}
+.fc-where{font-size:12px!important;letter-spacing:.06em;text-transform:uppercase}
+</style>
+<h1>Fall colours worth the drive 🍁</h1>
+<p class="sub">Lookouts, gorges, escarpment trails and a steam train, each checked by hand and each with its own page for hours, cost and directions. Leaves turn first up north and on the escarpment, later in the city's ravines, so check the official page before you set out.</p>
+<ul class="fc-grid">
+${cards}
+</ul>
+<p>Want a whole day around one of these? <a href="/?utm_source=fall-colours">Plan it free →</a></p>`;
+}
+
+page$.get('/fall-colours', (req, res) => {
+  recordView(req, 'fall', 'index');
+  const n = fallEntries().length;
+  const h = fallEntries().map(heroOf).find(Boolean);
+  res.set('Cache-Control', 'public, max-age=600');
+  res.send(page({
+    req, title: 'Fall colours worth the drive around the GTA | DayHop',
+    description: `${n} hand-checked fall colour spots around Toronto and the GTA: lookouts, gorges, escarpment trails and more.`,
+    canonicalPath: '/fall-colours', ogType: 'article',
+    ogImage: h ? `${origin(req)}${h.image_url}` : undefined,
+    bodyHtml: fallBody()
+  }));
+});
+
+module.exports = { page: page$, api, slides, fallBody, fallEntries };

@@ -103,7 +103,7 @@ test('page, API and share card', async () => {
     assert.match(page, /<meta property="og:image" content="[^"]*\/api\/go\/card\/default\.png">/);
     assert.doesNotMatch(page, /Go Pro|upgrade|checkout/i, 'no upsells on this page');
     const shared = await (await fetch(`${base}/go?p=to-101`)).text();
-    assert.match(shared, /<title>Open With Table: Open \| DayHop Go Now<\/title>/);
+    assert.match(shared, /<title>Open With Table: Open \| DayHop Washroom Map<\/title>/);
     assert.match(shared, /\/api\/go\/card\/to-101\.png/);
 
     const card = await fetch(`${base}/api/go/card/to-101.png`);

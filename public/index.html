@@ -225,6 +225,22 @@
     </form>
     <p class="prompt-hint" id="prompt-error" role="alert" aria-live="polite"></p>
 
+    <!-- Carousel under the prompt (routes/heroCarousel.js, public/hero-carousel.js):
+         1 fall colours, 2 Talk of the town (when the shelf has picks),
+         3 Santa parades. Tapping a slide opens the share sheet. Hidden
+         until the slides load. -->
+    <section class="hero-carousel" id="hero-carousel" aria-roledescription="carousel" aria-label="This week on DayHop" hidden>
+      <div class="hc-head">
+        <p class="hc-label">This week · tap to share</p>
+        <div class="hc-nav">
+          <button type="button" class="hc-prev" aria-label="Previous">‹</button>
+          <button type="button" class="hc-next" aria-label="Next">›</button>
+        </div>
+      </div>
+      <div class="hc-track"></div>
+      <div class="hc-dots" role="group" aria-label="Choose a slide"></div>
+    </section>
+
 
     <p class="proof-strip">Built for the GTA · every plan checked against today's weather · 3 free plans a day</p>
     <!-- Free-tier meter: "N of 3 free plans left today" — JS fills & shows. -->
@@ -234,34 +250,21 @@
            JS fills with the highest-severity active advisory. -->
       <div class="advisory-strip" id="advisory-strip" role="status" aria-live="polite" hidden></div>
 
-    <!-- Free tool under the prompt area: Santa parades (routes/parades.js).
-         Last in the left column so its bottom edge lines up with its twin,
-         Go Now, at the bottom of the right column; the two tiles mirror
-         each other across the hero. -->
-    <a class="tool-tile tool-tile--left" href="/santa-parades?utm_source=home&amp;utm_medium=tiles&amp;utm_campaign=parades">
-      <span class="tool-tile-icon" aria-hidden="true">🎅</span>
-      <span class="tool-tile-text">
-        <span class="tool-tile-kicker">Free this week</span>
-        <span class="tool-tile-title">Santa parades 2026</span>
-        <span class="tool-tile-sub">Every GTA date, time and route, checked</span>
-      </span>
-      <span class="tool-tile-cta" aria-hidden="true">→</span>
-    </a>
 
     </div><!-- /.hero-left -->
 
     <!-- Featured event: the soonest upcoming dated event from the Toronto
          feeds (open data + civic calendars + partners), rendered by app.js
          once the browse payload lands. Hidden until there's one to show. -->
-    <!-- Right column: the featured card, then Go Now (routes/goNow.js), the
-         mirror of the Santa parades tile under the prompt. -->
+    <!-- Right column: the featured card, then the Washroom Map
+         (routes/goNow.js). -->
     <div class="hero-right">
     <aside class="hero-featured" id="hero-featured" aria-label="Featured event" hidden></aside>
     <a class="tool-tile tool-tile--right" href="/go?utm_source=home&amp;utm_medium=tiles&amp;utm_campaign=go">
       <span class="tool-tile-icon" aria-hidden="true">🚻</span>
       <span class="tool-tile-text">
         <span class="tool-tile-kicker">Free, live in the GTA</span>
-        <span class="tool-tile-title">Go Now</span>
+        <span class="tool-tile-title">Go now: Washroom Map</span>
         <span class="tool-tile-sub">Open washrooms and changing tables near you</span>
       </span>
       <span class="tool-tile-cta" aria-hidden="true">→</span>
@@ -705,6 +708,8 @@
      META_PIXEL_ID is configured server-side). First in defer order so
      window.dayhopAttrib exists before app.js/auth.js fire any events. -->
 <script src="/pixel.js" defer></script>
+<script src="/share-sheet.js" defer></script>
+<script src="/hero-carousel.js" defer></script>
 <script src="/app.js" defer></script>
 <script src="/auth.js" defer></script>
 <!-- Motion stack: motion.js now injects Lenis + GSAP/ScrollTrigger itself,

@@ -90,12 +90,12 @@ tr.pz-unconf td{color:#6b7c7e}
 // start point (services/goNow.js), computed per request; optional.
 function logisticsLine(p, logistics) {
   const goLink = `/go?lat=${p.lat}&amp;lng=${p.lng}&amp;utm_source=parades`;
-  if (p.slug === 'toronto') return `🚻 Route not posted yet. <a href="${goLink}">Find open washrooms downtown on Go Now</a>`;
+  if (p.slug === 'toronto') return `🚻 Route not posted yet. <a href="${goLink}">Find open washrooms downtown on the Washroom Map</a>`;
   const w = logistics && logistics[p.slug];
-  if (!w) return `🚻 <a href="${goLink}">Washrooms near the start on Go Now</a>`;
+  if (!w) return `🚻 <a href="${goLink}">Washrooms near the start on the Washroom Map</a>`;
   const d = w.dist < 1000 ? `${Math.round(w.dist / 10) * 10} m` : `${(w.dist / 1000).toFixed(1)} km`;
   const named = !/^public (washroom|toilets?)$/i.test(String(w.name).trim());
-  return `🚻 Nearest public washroom we know of${named ? `: ${esc(w.name)},` : ' is'} about ${d} from the start (open or closed status not live). <a href="${goLink}">More on Go Now</a>`;
+  return `🚻 Nearest public washroom we know of${named ? `: ${esc(w.name)},` : ' is'} about ${d} from the start (open or closed status not live). <a href="${goLink}">More on the Washroom Map</a>`;
 }
 
 function bodyHtml(base, today, logistics = {}) {
@@ -157,7 +157,7 @@ ${PHOTOS.strip.map(p => `  <figure><img src="${p.src}" width="${p.w}" height="${
   <ul>
     <li><b>Layer up more than feels necessary.</b> Standing still on a curb for an hour in late November is colder than walking around in the same weather.</li>
     <li><b>Bring your own hot drinks and snacks.</b> Cafe lineups near the route get long the moment a parade lets out.</li>
-    <li><b>Find a washroom before you need one.</b> Washrooms near a route fill up once the crowd arrives. Each row above has the nearest one we know of, and <a href="/go?utm_source=parades">Go Now</a> finds more.</li>
+    <li><b>Find a washroom before you need one.</b> Washrooms near a route fill up once the crowd arrives. Each row above has the nearest one we know of, and the <a href="/go?utm_source=parades">Washroom Map</a> finds more.</li>
     <li><b>Plan for a washout.</b> Most parades run rain or shine. Know which indoor spot nearby could save the morning if a downpour hits.</li>
     <li><b>Think about transit.</b> Roads along the route close for a few hours and parking nearby disappears early, so a train or bus can beat circling for a spot.</li>
     <li><b>Keep it short for little ones.</b> An hour of waiting plus the parade is a long stretch for a three year old. A spot near the middle of the route usually means less standing around before anything happens.</li>

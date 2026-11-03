@@ -112,7 +112,7 @@
     panel.appendChild(img);
     var url = shareUrl(p);
     var text = p.name + ': ' + ({ open: 'open', closed: 'closed', unknown: 'status unknown' }[p.washroom_status]) +
-      (p.changing_table === true ? ', changing table' : '') + '. Found on DayHop Go Now.';
+      (p.changing_table === true ? ', changing table' : '') + '. Found on the DayHop Washroom Map.';
     var btns = el('div', 'gn-actions');
     var send = el('button', 'gn-btn go', navigator.share ? 'Send it' : 'Copy link');
     send.addEventListener('click', function () {
@@ -200,7 +200,7 @@
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (mine !== seq) return;
-        if (d.error) { empty(d.message || 'Go Now covers Ontario.'); return; }
+        if (d.error) { empty(d.message || 'The Washroom Map covers Ontario.'); return; }
         state.results = d.results || [];
         render();
       })

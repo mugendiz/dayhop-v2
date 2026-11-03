@@ -4258,65 +4258,116 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
 }
 .holiday-strip-close:hover { background: var(--paper-dim); color: var(--coral-dark); }
 
-/* Free tools in the hero (index.html .tool-tile): Santa parades under the
-   prompt (left column), Go Now under the featured card (right column).
-   On desktop the two are mirror images across the hero: icon on the
-   outside edge, arrow pointing in, outer corners rounded like the prompt
-   box and the featured card. On phones the columns stack and both read
-   left to right. Coral for parades, moss for Go Now. */
+/* ---------- Hero extras: carousel (left), Washroom Map tile (right) ---------- */
+/* Carousel under the prompt (index.html #hero-carousel, public/hero-carousel.js):
+   one slide per view, scroll-snap, thumbnail left, a share glyph right.
+   Tapping a slide opens the share sheet. */
+.hero-carousel { margin: 18px 0 6px; min-width: 0; max-width: 100%; }
+/* A grid item's min-width defaults to its content, so a row of 100%-wide
+   slides would stretch the whole left column off a phone screen. */
+.hero-left { min-width: 0; }
+.hc-head { display: flex; align-items: center; justify-content: space-between; margin: 0 0 8px; }
+.hc-label { margin: 0; font-family: var(--mono, 'Space Grotesk', monospace); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--moss); }
+.hc-nav { display: flex; gap: 6px; }
+.hc-prev, .hc-next {
+  width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.8);
+  color: var(--ink); font-size: 1.4rem; line-height: 1; cursor: pointer; box-shadow: var(--shadow-soft);
+}
+.hc-track {
+  display: flex; width: 100%; min-width: 0; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none;
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+.hc-track::-webkit-scrollbar { display: none; }
+.hc-slide {
+  flex: 0 0 100%; scroll-snap-align: start; display: flex; align-items: center; gap: 14px; min-height: 120px;
+  padding: 12px 16px 12px 12px; border: 1px solid var(--line); border-radius: var(--radius) 0 0 var(--radius);
+  background: rgba(255, 255, 255, 0.72); -webkit-backdrop-filter: saturate(1.6) blur(16px); backdrop-filter: saturate(1.6) blur(16px);
+  color: var(--ink); text-align: left; font: inherit; cursor: pointer;
+}
+.hc-slide:focus-visible { outline: 3px solid var(--coral-btn); outline-offset: -3px; }
+.hc-thumb { flex: 0 0 auto; width: 96px; height: 96px; object-fit: cover; border-radius: 14px 4px 4px 14px; background: var(--paper-dim); }
+.hc-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.hc-kicker { font-family: var(--mono, 'Space Grotesk', monospace); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--coral-dark); }
+.hc-slide--fall .hc-kicker { color: #B5482A; }
+.hc-slide--tott .hc-kicker { color: var(--moss); }
+.hc-title { font-family: var(--display, 'Satoshi', system-ui, sans-serif); font-weight: 700; font-size: 1.08rem; line-height: 1.25; }
+.hc-sub { font-size: 0.84rem; line-height: 1.35; color: var(--ink-soft); }
+.hc-share { flex: 0 0 auto; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--marigold); color: var(--ink); }
+.hc-dots { display: flex; justify-content: center; gap: 2px; margin-top: 6px; }
+.hc-dot { width: 28px; height: 28px; border: 0; background: none; cursor: pointer; position: relative; }
+.hc-dot::after { content: ''; position: absolute; inset: 11px; border-radius: 50%; background: var(--line-strong); }
+.hc-dot[aria-current="true"]::after { background: var(--coral-btn); inset: 10px; }
+@media (max-width: 420px) {
+  .hc-thumb { width: 80px; height: 80px; }
+  .hc-title { font-size: 1rem; }
+  .hc-sub { font-size: 0.8rem; }
+}
+
+/* Washroom Map tile under the featured card (index.html .tool-tile). */
 .hero-right { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .hero-right > .hero-featured[hidden] { display: none; }
 .tool-tile {
   position: relative; display: flex; align-items: center; gap: 14px;
-  min-height: 84px; margin: 16px 0 0; padding: 14px 18px; text-decoration: none; color: var(--ink);
+  min-height: 84px; padding: 14px 18px; text-decoration: none; color: var(--ink);
   background: rgba(255, 255, 255, 0.66);
   -webkit-backdrop-filter: saturate(1.6) blur(16px); backdrop-filter: saturate(1.6) blur(16px);
   border: 1px solid var(--line); box-shadow: var(--shadow-soft);
-  border-radius: var(--radius) 0 0 var(--radius);
+  border-radius: 0 var(--radius) var(--radius) 0;
   transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
 }
-.hero-right > .tool-tile { margin: 0; }
-.tool-tile--right { border-radius: 0 var(--radius) var(--radius) 0; }
 .tool-tile:hover, .tool-tile:focus-visible { background: rgba(255, 255, 255, 0.92); box-shadow: var(--shadow); transform: translateY(-2px); }
 .tool-tile:focus-visible { outline: 3px solid var(--coral-btn); outline-offset: 2px; }
 .tool-tile-icon {
   flex: 0 0 auto; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%;
-  font-size: 26px; line-height: 1;
+  font-size: 26px; line-height: 1; background: rgba(63, 111, 92, 0.13); box-shadow: inset 0 0 0 2px rgba(63, 111, 92, 0.3);
 }
-.tool-tile--left .tool-tile-icon { background: rgba(255, 107, 74, 0.14); box-shadow: inset 0 0 0 2px rgba(225, 80, 47, 0.28); }
-.tool-tile--right .tool-tile-icon { background: rgba(63, 111, 92, 0.13); box-shadow: inset 0 0 0 2px rgba(63, 111, 92, 0.3); }
 .tool-tile-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; }
-.tool-tile-kicker {
-  font-family: var(--mono, 'Space Grotesk', monospace); font-size: 0.68rem; font-weight: 600;
-  letter-spacing: 0.12em; text-transform: uppercase;
-}
-.tool-tile--left .tool-tile-kicker { color: var(--coral-dark); }
-.tool-tile--right .tool-tile-kicker { color: var(--moss); }
+.tool-tile-kicker { font-family: var(--mono, 'Space Grotesk', monospace); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--moss); }
 .tool-tile-title { font-family: var(--display, 'Satoshi', system-ui, sans-serif); font-weight: 700; font-size: 1.08rem; line-height: 1.2; }
 .tool-tile-sub { font-size: 0.84rem; line-height: 1.35; color: var(--ink-soft); }
-.tool-tile-cta {
-  flex: 0 0 auto; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
-  font-weight: 700; font-size: 1.1rem; color: #fff;
-}
-.tool-tile--left .tool-tile-cta { background: var(--coral-btn); }
-.tool-tile--right .tool-tile-cta { background: var(--moss); }
+.tool-tile-cta { flex: 0 0 auto; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; font-weight: 700; font-size: 1.1rem; color: #fff; background: var(--moss); }
+@media (min-width: 880px) { .hero-right > .hero-featured { flex: 1 1 auto; } }
+@media (prefers-reduced-motion: reduce) { .tool-tile, .hc-track { transition: none; scroll-behavior: auto; } .tool-tile:hover { transform: none; } }
 
-@media (min-width: 880px) {
-  /* Mirror: the Go Now tile reads from the right edge in. */
-  .tool-tile--right { flex-direction: row-reverse; }
-  .tool-tile--right .tool-tile-text { text-align: right; }
-  .tool-tile--right .tool-tile-cta { transform: scaleX(-1); }
-  .hero-right > .hero-featured { flex: 1 1 auto; }
-  /* Same height both sides, so the pair shares a baseline. */
-  .tool-tile { min-height: 108px; }
+/* ---------- Share sheet (public/share-sheet.js) ----------
+   Big and thumb-first: the photo and title up top, four one-tap channels
+   in a 2x2 grid, the phone's own share below, "open it first" last. A
+   bottom sheet on phones, a centred card on desktop. */
+html.share-sheet-open { overflow: hidden; }
+.share-sheet { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: flex-end; justify-content: center; }
+.share-sheet[hidden] { display: none; }
+.share-sheet-backdrop { position: absolute; inset: 0; background: rgba(16, 42, 46, 0.5); opacity: 0; transition: opacity .18s ease; }
+.share-sheet.in .share-sheet-backdrop { opacity: 1; }
+.share-sheet-panel {
+  position: relative; width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto;
+  background: var(--paper); border-radius: 22px 22px 0 0; padding: 18px 18px max(18px, env(safe-area-inset-bottom));
+  box-shadow: var(--shadow-lg); transform: translateY(24px); opacity: 0; transition: transform .2s ease, opacity .2s ease;
 }
-@media (max-width: 420px) {
-  .tool-tile { gap: 12px; padding: 12px 14px; }
-  .tool-tile-icon { width: 44px; height: 44px; font-size: 22px; }
-  .tool-tile-title { font-size: 1rem; }
-  .tool-tile-sub { font-size: 0.8rem; }
+.share-sheet.in .share-sheet-panel { transform: none; opacity: 1; }
+.share-sheet-x { position: absolute; top: 8px; right: 8px; width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; font-size: 18px; color: var(--ink-soft); cursor: pointer; }
+.share-sheet-hero { display: flex; gap: 14px; align-items: center; margin: 4px 36px 16px 0; }
+.share-sheet-thumb { flex: 0 0 auto; width: 92px; height: 92px; object-fit: cover; border-radius: 16px; background: var(--paper-dim); }
+.share-sheet-kicker { margin: 0 0 2px; font-family: var(--mono, 'Space Grotesk', monospace); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--coral-dark); }
+.share-sheet-title { margin: 0; font-family: var(--display, 'Satoshi', system-ui, sans-serif); font-size: 1.3rem; line-height: 1.2; }
+.share-sheet-lede { margin: 4px 0 0; font-size: 0.88rem; color: var(--ink-soft); }
+.share-sheet-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.share-ch {
+  display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 56px; border: 0; border-radius: 14px;
+  font: inherit; font-weight: 700; font-size: 1rem; color: #fff; cursor: pointer;
 }
-@media (prefers-reduced-motion: reduce) { .tool-tile { transition: none; } .tool-tile:hover { transform: none; } }
+.share-ch span { font-size: 1.2rem; }
+.share-ch--wa { background: #1DA851; }
+.share-ch--sms { background: #2B7BE4; }
+.share-ch--fb { background: #1877F2; }
+.share-ch--copy { background: var(--ink); }
+.share-ch:focus-visible, .share-native:focus-visible, .share-open:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; }
+.share-native { display: block; width: 100%; min-height: 48px; margin-top: 10px; border: 1.5px solid var(--ink); border-radius: 14px; background: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.share-open { display: block; text-align: center; margin: 14px 0 2px; min-height: 44px; line-height: 44px; font-weight: 700; color: var(--coral-dark); }
+@media (min-width: 700px) {
+  .share-sheet { align-items: center; }
+  .share-sheet-panel { border-radius: 22px; }
+}
+@media (prefers-reduced-motion: reduce) { .share-sheet-panel, .share-sheet-backdrop { transition: none; } }
 
 .proof-strip {
   margin: 10px 0 0; text-align: center;

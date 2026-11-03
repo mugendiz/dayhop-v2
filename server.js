@@ -418,6 +418,8 @@ const goLimiter = rateLimit({
 // The status alert subscribes to the newsletter (a confirmation email), so
 // it gets the newsletter's 3 a minute on top.
 app.use('/api/go/alert', newsletterLimiter);
+// Homepage carousel slides (routes/heroCarousel.js): a cached read.
+app.use('/api/carousel', goLimiter, require('./routes/heroCarousel').api);
 app.use('/api/go', goLimiter, require('./routes/goNow').api);
 
 // Digest email tracking (open pixel + signed click redirects). GETs from
@@ -579,6 +581,8 @@ app.use(require('./routes/issues').router);
 // GTA Santa Claus parades 2026 (routes/parades.js): dates checked against
 // each organizer's own page, on a map, with a night-before reminder.
 app.use(require('./routes/parades').router);
+// Fall colours page, the first homepage carousel slide (routes/heroCarousel.js).
+app.use(require('./routes/heroCarousel').page);
 // Illustrated placeholder for cards with no photo (routes/placeholderArt.js).
 // Outside /api on purpose: no rate limiter, edge-cacheable.
 app.use('/art', require('./routes/placeholderArt').router);

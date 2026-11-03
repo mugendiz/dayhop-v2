@@ -282,6 +282,7 @@ async function sitemap(req, res) {
     { loc: `${base}/guides/personal`, priority: '0.8' },
     { loc: `${base}/santa-parades`, priority: '0.9' },
     { loc: `${base}/go`, priority: '0.9' },
+    { loc: `${base}/fall-colours`, priority: '0.8' },
     // One page per verified catalog place (routes/placePages.js): the
     // content search engines and AI answers can cite.
     ...require('./placePages').sitemapUrls(base),

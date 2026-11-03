@@ -20,6 +20,9 @@ const CLIENT_EVENT_TYPES = new Set([
   'booking_click', 'maps_click', 'shortlist_add', 'signup', 'guide_export',
   // Go Now (/go): opened, filter or layer changed, share card, directions.
   'go_opened', 'go_filter', 'go_share', 'go_directions',
+  // Share sheet (public/share-sheet.js): opened, sent (source = channel),
+  // or the 'open it first' link. Step one of social planning.
+  'share_open', 'share_sent', 'share_open_page',
   // Conversion funnel: upgrade_viewed (modal shown, source = which gate)
   // → upgrade_started (checkout created) → subscriptions table.
   'upgrade_viewed',

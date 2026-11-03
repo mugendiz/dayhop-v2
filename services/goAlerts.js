@@ -75,7 +75,7 @@ function alertEmail(p, token) {
   ].filter(v => v !== null).join('\n');
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;background:#FBF7EE;">
   <div style="max-width:520px;margin:0 auto;padding:28px 20px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102A2E;">
-    <p style="font-size:21px;font-weight:700;margin:0;">DayHop Go Now</p>
+    <p style="font-size:21px;font-weight:700;margin:0;">DayHop Washroom Map</p>
     <h1 style="font-size:23px;line-height:1.3;margin:16px 0 10px;">${esc(p.name)} ${esc(word)}</h1>
     <p style="font-size:15.5px;line-height:1.6;margin:0 0 10px;">According to the City of Toronto's park washroom feed.${p.notes ? ` ${esc(p.notes)}` : ''}</p>
     <p style="margin:0 0 18px;"><a href="${esc(url)}" style="color:#E1502F;font-weight:700;">See it and the nearest alternatives</a></p>

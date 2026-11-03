@@ -70,9 +70,23 @@ const PAGE_SCRIPT = `
 })();
 </script>`;
 
-async function renderIssue(req, res, pathKey, date) {
+// Talk of the town before any issue has been sent: this week's live picks
+// from the weekly store (services/talkOfTown.js), so the homepage carousel
+// and shared links always land on something. Hooks are the picks' own first
+// sentences (no Grok call on a page view). Null when the shelf is empty.
+function liveTottSnapshot() {
+  const talkOfTown = require('../services/talkOfTown');
+  const raw = talkOfTown.active({ point: { lat: 43.6532, lng: -79.3832 }, limit: talkOfTown.SHELF_SIZE });
+  if (!raw.length) return null;
+  const { applyEnrichment, firstSentence } = require('../services/issueEnrich');
+  const picks = applyEnrichment(raw, { hooks: raw.map(p => firstSentence(p.description || p.title)), standout: 0 });
+  return { kind: 'tott', picks, hubName: 'Toronto', subject: `Talk of the town: ${picks[0].title}` };
+}
+
+async function renderIssue(req, res, pathKey, date, liveSnap = null) {
   const kind = KIND_BY_PATH[pathKey];
-  const snap = isDate(date) ? await issueStore.getIssue(kind, date).catch(() => null) : null;
+  const snap = liveSnap || (isDate(date) ? await issueStore.getIssue(kind, date).catch(() => null) : null);
+  if (liveSnap) date = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto' }).format(new Date());
   if (!snap) {
     res.status(404).send(page({
       req, title: 'Issue not found | DayHop', description: 'That newsletter issue is not here.',
@@ -81,9 +95,9 @@ async function renderIssue(req, res, pathKey, date) {
     }));
     return;
   }
-  recordView(req, `issue_${kind}`, date);
+  recordView(req, `issue_${kind}`, liveSnap ? 'live' : date);
   const base = origin(req);
-  const canonicalPath = `/${pathKey}/${date}`;
+  const canonicalPath = liveSnap ? `/${pathKey}` : `/${pathKey}/${date}`;
   const webUrl = `${base}${canonicalPath}`;
   const lead = snap.picks[0] || {};
   const leadPhoto = kit.photoFor(lead, base);
@@ -106,6 +120,10 @@ ${PAGE_SCRIPT}`
 async function latest(req, res, pathKey) {
   const date = await issueStore.latestDate(KIND_BY_PATH[pathKey]).catch(() => null);
   if (date) return res.redirect(302, `/${pathKey}/${date}${req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''}`);
+  if (pathKey === 'talk-of-the-town') {
+    const live = (() => { try { return liveTottSnapshot(); } catch { return null; } })();
+    if (live) return renderIssue(req, res, pathKey, null, live);
+  }
   return renderIssue(req, res, pathKey, null);
 }
 

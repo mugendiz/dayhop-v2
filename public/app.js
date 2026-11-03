@@ -2089,7 +2089,7 @@
       <div class="card-actions">
         <button class="btn-dismiss" type="button" title="Not for us">✕ Skip</button>
         <button class="btn-detail" type="button" title="See details">Details</button>
-        ${idea.section ? '<button class="btn-build-around" type="button" title="Add this and start building your day around it">⚡ Build a day</button>' : ''}
+        <button class="btn-build-around btn-share-card" type="button" title="Share this with your group">↗ Share</button>
         <button class="btn-add" type="button" title="Add to your day">Add to my day →</button>
       </div>
     `;
@@ -2130,12 +2130,26 @@
       track('card_open', idea);
       openDetail(idea);
     });
-    const buildBtn = card.querySelector('.btn-build-around');
-    if (buildBtn) buildBtn.addEventListener('click', (e) => {
+    // Share (was "Build a day", same marigold button): the first step toward
+    // social planning. Opens the share sheet (public/share-sheet.js). A
+    // curated place shares its own page; anything else shares a planner
+    // link that plans a day around it, so the friend lands on a plan.
+    const shareBtn = card.querySelector('.btn-share-card');
+    if (shareBtn) shareBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      addToShortlist(idea, card);
-      renderShortlistPanel();
-      openPanel('shortlist-panel');
+      const curated = /^cur-/.test(String(idea.id || ''));
+      const path = curated
+        ? `/places/${String(idea.id).replace(/^cur-/, '')}`
+        : `/?plan=${encodeURIComponent(`Plan a family day around ${idea.title}`.slice(0, 300))}`;
+      const thumb = idea.image_url || categoryImage(idea.category, 640, idea.title);
+      if (!window.DayHopShare) { window.location.href = path; return; }
+      window.DayHopShare.open({
+        title: idea.title, kicker: idea.category || 'Share', thumb,
+        text: `${idea.title}${idea.location ? `, ${idea.location}` : ''}. Want to go?`,
+        url: `${window.location.origin}${path}`,
+        openUrl: curated ? path : null,
+        campaign: 'feed_card'
+      });
     });
 
     addSwipeListeners(card, idea);

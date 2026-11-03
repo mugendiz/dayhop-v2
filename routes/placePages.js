@@ -216,4 +216,4 @@ function sitemapUrls(base) {
   ];
 }
 
-module.exports = { router, sitemapUrls, slugOf, splitTitle, undash, ENTRIES };
+module.exports = { router, sitemapUrls, slugOf, splitTitle, undash, heroOf, ENTRIES };
