@@ -20,6 +20,34 @@ function origin(req) {
   return `${req.protocol}://${req.get('host')}`;
 }
 
+// ---------- content views (blog + place pages) ----------
+// A view of a server-rendered page, recorded with where it came from, so
+// "did the blog or the place pages bring anyone?" has an answer. Crawlers
+// are logged apart (crawler_view, by bot name): that is how we learn when
+// Google, Bing or an AI engine has read a page. Visitors get an anonymous
+// key from a hash of IP and browser, never stored raw beyond the usual
+// meta.ip analytics already keeps for internal-traffic filtering.
+const BOT_RE = /(googlebot|bingbot|gptbot|oai-searchbot|chatgpt-user|perplexitybot|claudebot|anthropic-ai|applebot|duckduckbot|yandex|baiduspider|facebookexternalhit|twitterbot|slackbot|linkedinbot|ahrefsbot|semrushbot|bot\b|crawler|spider|preview)/i;
+function recordView(req, kind, slug) {
+  try {
+    const analytics = require('../services/analytics');
+    const ua = String(req.get('user-agent') || '');
+    const bot = ua.match(BOT_RE);
+    if (bot) {
+      analytics.recordEvent({ type: 'crawler_view', ownerKey: 'system', meta: { kind, slug, bot: bot[1].toLowerCase().slice(0, 40) } });
+      return;
+    }
+    let referrer = null;
+    try {
+      const host = new URL(req.get('referer') || '').hostname.replace(/^www\./, '');
+      if (host && host !== String(req.hostname || '').replace(/^www\./, '')) referrer = host.slice(0, 80);
+    } catch (e) { /* no or bad referrer */ }
+    const utm = analytics.sanitizeAttrib(Object.assign({}, req.query, referrer ? { referrer } : {}));
+    const ownerKey = 'cv-' + require('crypto').createHash('sha1').update(`${req.ip}|${ua}`).digest('hex').slice(0, 12);
+    analytics.recordEvent({ type: 'content_view', ownerKey, meta: Object.assign({ kind, slug }, utm ? { utm } : {}) });
+  } catch (e) { /* a page view must never break a page */ }
+}
+
 function fmtDate(iso) {
   try {
     return new Date(iso).toLocaleDateString('en-CA', {
@@ -85,13 +113,13 @@ footer a{color:var(--ink-soft)}
 const SUBSCRIBE_PANEL = `
 <div class="subscribe-panel">
   <strong>Get the free Weekend Playbook 📖</strong>
-  <p>Subscribe and get <a href="/playbook">The GTA Family Weekend Playbook</a> — 70+ outings actually worth your Saturday — plus a short Thursday brief with the week's best picks and the weather call. Free, no spam, one-click unsubscribe.</p>
+  <p>Subscribe and get <a href="/playbook">The GTA Family Weekend Playbook</a>, 70+ outings actually worth your Saturday, plus a short Thursday brief with the week's best picks and the weather call. Free, no spam, one-click unsubscribe.</p>
   <form class="subscribe-form" id="subscribe-form">
     <input type="email" id="subscribe-email" required autocomplete="email" placeholder="you@example.com" aria-label="Email address">
     <button type="submit">Sign me up</button>
   </form>
   <p class="subscribe-msg" id="subscribe-msg" role="status" aria-live="polite"></p>
-  <p class="subscribe-fineprint">By subscribing you agree to weekly emails from DayHop (Richmond Hill, ON, Canada — admin@dayhop.quest). Unsubscribe any time.</p>
+  <p class="subscribe-fineprint">By subscribing you agree to weekly emails from DayHop (Richmond Hill, ON, Canada, admin@dayhop.quest). Unsubscribe any time.</p>
 </div>
 <script>
 (function(){var f=document.getElementById('subscribe-form');if(!f)return;var m=document.getElementById('subscribe-msg');
@@ -103,7 +131,7 @@ fetch('/api/newsletter/subscribe',{method:'POST',headers:{'Content-Type':'applic
 .catch(function(err){m.textContent=err.message;b.disabled=false;});});})();
 </script>`;
 
-function page({ req, title, description, canonicalPath, ogImage, bodyHtml, jsonLd }) {
+function page({ req, title, description, canonicalPath, ogImage, bodyHtml, jsonLd, ogType }) {
   const base = origin(req);
   return `<!DOCTYPE html>
 <html lang="en">
@@ -114,7 +142,7 @@ function page({ req, title, description, canonicalPath, ogImage, bodyHtml, jsonL
 <meta name="description" content="${escapeHtml(description)}">
 <link rel="canonical" href="${base}${canonicalPath}">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-<meta property="og:type" content="${canonicalPath === '/blog' ? 'website' : 'article'}">
+<meta property="og:type" content="${ogType || (canonicalPath === '/blog' ? 'website' : 'article')}">
 <meta property="og:title" content="${escapeHtml(title)}">
 <meta property="og:description" content="${escapeHtml(description)}">
 <meta property="og:url" content="${base}${canonicalPath}">
@@ -134,7 +162,7 @@ ${bodyHtml}
 ${SUBSCRIBE_PANEL}
 <footer>
 <p>DayHop is a Toronto-built day planner: real venues, live weather, and AI that plans like a thoughtful local friend.</p>
-<nav><a href="/">Planner</a><a href="/blog">Stories</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="mailto:admin@dayhop.quest?subject=Advertising%20inquiry%20%E2%80%94%20DayHop">Advertise with us</a></nav>
+<nav><a href="/">Planner</a><a href="/places">Places</a><a href="/blog">Stories</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="mailto:admin@dayhop.quest?subject=Advertising%20inquiry%20%E2%80%94%20DayHop">Advertise with us</a></nav>
 </footer>
 </div>
 </body>
@@ -142,6 +170,7 @@ ${SUBSCRIBE_PANEL}
 }
 
 router.get('/', async (req, res) => {
+  recordView(req, 'blog', 'index');
   const all = await articles.listPublished();
   const cards = all.map(a => `
 <li class="card">
@@ -184,6 +213,7 @@ router.get('/:slug', async (req, res) => {
     }));
   }
 
+  recordView(req, 'blog', a.slug);
   const jsonLd = JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'Article',
@@ -235,6 +265,10 @@ async function sitemap(req, res) {
     { loc: `${base}/playbook`, priority: '0.9' },
     { loc: `${base}/guides`, priority: '0.9' },
     { loc: `${base}/guides/richmond-hill`, priority: '0.8' },
+    { loc: `${base}/guides/personal`, priority: '0.8' },
+    // One page per verified catalog place (routes/placePages.js): the
+    // content search engines and AI answers can cite.
+    ...require('./placePages').sitemapUrls(base),
     { loc: `${base}/blog`, priority: '0.8' },
     ...all.map(a => ({
       loc: `${base}/blog/${a.slug}`,
@@ -251,4 +285,6 @@ ${urls.map(u => `  <url><loc>${u.loc}</loc>${u.lastmod ? `<lastmod>${u.lastmod}<
   res.send(xml);
 }
 
-module.exports = { router, sitemap };
+// page/escapeHtml/origin are shared with routes/placePages.js so the place
+// pages wear the same chrome, subscribe panel and pixel as the blog.
+module.exports = { router, sitemap, page, escapeHtml, origin, recordView };

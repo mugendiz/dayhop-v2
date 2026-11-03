@@ -48,7 +48,11 @@ test('the cut never returns duplicates across its three slot groups', () => {
 test('relevance still leads: the best text fit is not displaced by a reserve', () => {
   // The reserves take the tail of the cap, never the head. If a reserve could
   // outrank the best fit, the feed would stop matching the mode it is in.
-  const adventure = pick('adventure').map(c => c.id);
+  // Pinned to a July date: Treetop Trekking is a summer entry, and summer
+  // entries leave the pool from November (data/seasons.js
+  // isCatalogSeasonEligible), so an undated run failed every winter.
+  const july = { start: '2026-07-15', end: '2026-07-15' };
+  const adventure = catalogCandidates(MODE_PROMPTS.adventure, [], CAP, { isGta: true, dateWindow: july }).map(c => c.id);
   assert.equal(adventure[0], 'cur-treetop-trekking',
     'the top adventure fit should still lead the catalog slice');
 });

@@ -48,7 +48,7 @@ const DEADLINES = [
   { on: '2026-10-30', what: 'Zeely access ends (cancelled Sep 30, 30 days granted)', act: 'Last day the scheduler works. Anything still wanted from the 30-post calendar goes out before this, or by hand after. No bill either way.' },
   { on: '2026-09-27', what: 'BLG billing date — pause takes effect', act: 'BLG stays fully active/usable through this date (already paid for); billing drops to $0 after, autopilot cadence stops.' },
   { on: '2026-10-03', what: 'Gate 2 — day-30 maintenance-mode decision', act: 'On zero revenue, take the rule at its word.' },
-  { on: '2027-02-13', what: 'BLG pause (5mo from Sep 27 billing date) resumes billing ~2027-02-27', act: 'Decide cancel vs. continue before it auto-resumes — confirm exact resume date from BLG\'s pause confirmation.' }
+  { on: '2027-02-03', what: 'BLG pause ends: billing resumes Feb 17, 2027 (BLG dashboard, read 2026-11-03)', act: 'Decide cancel vs. continue before it auto-resumes. Judge it on the blog-traffic numbers, which are not recorded yet (docs/findings-log.md, 2026-11-03).' }
 ];
 
 // Held items with no date: decisions the founder parked on purpose ("no

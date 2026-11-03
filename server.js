@@ -550,6 +550,13 @@ app.use('/blog', blog.router);
 // lost visitor.
 app.use('/go', require('./routes/go'));
 app.get('/sitemap.xml', blog.sitemap);
+// One page per verified catalog place (routes/placePages.js): the content
+// search engines and AI answers can read and cite.
+app.use('/places', require('./routes/placePages').router);
+// llms.txt: a plain map of the site for AI crawlers (llmstxt.org).
+app.get('/llms.txt', (req, res) => {
+  res.type('text/plain').set('Cache-Control', 'public, max-age=86400').send(require('./routes/llmsTxt')(`${req.protocol}://${req.get('host')}`));
+});
 
 // Lead magnet: The GTA Family Weekend Playbook (token-gated full version,
 // teaser + subscribe form without). Above the SPA fallback for the same

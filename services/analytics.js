@@ -68,6 +68,11 @@ const SERVER_EVENT_TYPES = new Set([
   'plan_replanned', 'guide_created', 'guide_edited', 'guide_deleted',
   // Instant discovery feed served (server-truth, includes cache hits).
   'browse_feed',
+  // Server-rendered content pages (blog stories, /places): a person's view
+  // with its referrer and utm, or a search/AI crawler's fetch. Until
+  // 2026-11-03 blog visits were not recorded at all, so a paid SEO channel
+  // could not be judged (docs/findings-log.md).
+  'content_view', 'crawler_view',
   // Surprise-me / Next feed served (routes/surprise.js). Was missing from
   // this registry, so recordEvent silently dropped every surprise
   // impression — exactly the drift the comment above warns about.
