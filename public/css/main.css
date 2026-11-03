@@ -4258,6 +4258,53 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
 }
 .holiday-strip-close:hover { background: var(--paper-dim); color: var(--coral-dark); }
 
+/* Free tools under the prompt (index.html .tool-duo): two mirrored tiles.
+   Same size, same structure, centred content; the outer corners take the
+   site's big radius and the inner edges meet square, so the pair reads as
+   one object split down the middle. Coral on the left, moss on the right. */
+.tool-duo { margin: 18px 0 4px; }
+.tool-duo-label {
+  display: flex; align-items: center; gap: 12px; margin: 0 0 10px;
+  font-family: var(--mono, 'Space Grotesk', monospace); font-size: 0.72rem; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--moss);
+}
+.tool-duo-label::before, .tool-duo-label::after { content: ''; flex: 1; height: 1px; background: var(--line-strong); }
+.tool-duo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.tool-tile {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; min-height: 148px; padding: 18px 14px 16px; text-align: center; text-decoration: none; color: var(--ink);
+  background: rgba(255, 255, 255, 0.66);
+  -webkit-backdrop-filter: saturate(1.6) blur(16px); backdrop-filter: saturate(1.6) blur(16px);
+  border: 1px solid var(--line); box-shadow: var(--shadow-soft);
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.tool-tile--left { border-radius: var(--radius) 0 0 var(--radius); border-right-width: 0; }
+.tool-tile--right { border-radius: 0 var(--radius) var(--radius) 0; }
+/* The seam: one thin centred divider, inset top and bottom like a fold. */
+.tool-tile--left::after {
+  content: ''; position: absolute; right: 0; top: 18%; bottom: 18%; width: 1px; background: var(--line-strong);
+}
+.tool-tile:hover, .tool-tile:focus-visible { background: rgba(255, 255, 255, 0.92); box-shadow: var(--shadow); transform: translateY(-2px); z-index: 1; }
+.tool-tile:focus-visible { outline: 3px solid var(--coral-btn); outline-offset: 2px; }
+.tool-tile-icon {
+  display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 4px; border-radius: 50%;
+  font-size: 26px; line-height: 1;
+}
+.tool-tile--left .tool-tile-icon { background: rgba(255, 107, 74, 0.14); box-shadow: inset 0 0 0 2px rgba(225, 80, 47, 0.28); }
+.tool-tile--right .tool-tile-icon { background: rgba(63, 111, 92, 0.13); box-shadow: inset 0 0 0 2px rgba(63, 111, 92, 0.3); }
+.tool-tile-title { font-family: var(--display, 'Satoshi', system-ui, sans-serif); font-weight: 700; font-size: 1.05rem; line-height: 1.2; }
+.tool-tile-sub { font-size: 0.82rem; line-height: 1.35; color: var(--ink-soft); max-width: 22ch; }
+.tool-tile-cta { margin-top: 6px; font-weight: 700; font-size: 0.85rem; }
+.tool-tile--left .tool-tile-cta { color: var(--coral-dark); }
+.tool-tile--right .tool-tile-cta { color: var(--moss); }
+@media (max-width: 420px) {
+  .tool-tile { min-height: 136px; padding: 14px 8px 12px; }
+  .tool-tile-icon { width: 44px; height: 44px; font-size: 22px; }
+  .tool-tile-title { font-size: 0.95rem; }
+  .tool-tile-sub { font-size: 0.76rem; }
+}
+@media (prefers-reduced-motion: reduce) { .tool-tile { transition: none; } .tool-tile:hover { transform: none; } }
+
 .proof-strip {
   margin: 10px 0 0; text-align: center;
   font-size: 0.8rem; color: var(--ink-soft); opacity: 0.85;

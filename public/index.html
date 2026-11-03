@@ -58,12 +58,6 @@
 
 <a class="skip-link" href="#main">Skip to content</a>
 
-<!-- Free utilities strip: Santa parades (routes/parades.js) and Go Now
-     (routes/goNow.js). One slim line, two links. -->
-<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 18px;padding:6px 14px;background:#2D5A47;font-weight:700;font-size:14px;line-height:1.3;">
-  <a href="/santa-parades?utm_source=home&amp;utm_medium=banner&amp;utm_campaign=parades" style="display:inline-flex;align-items:center;min-height:44px;color:#fff;text-decoration:none;">🎅&nbsp;<u>2026 GTA Santa parade dates and map</u></a>
-  <a href="/go?utm_source=home&amp;utm_medium=banner&amp;utm_campaign=go" style="display:inline-flex;align-items:center;min-height:44px;color:#fff;text-decoration:none;">🚻&nbsp;<u>Washroom or changing table near you</u></a>
-</div>
 
 <header class="hero">
   <div class="hero-trail" aria-hidden="true"></div>
@@ -230,6 +224,28 @@
       <p class="voice-status" id="voice-status" role="status" aria-live="polite" hidden></p>
     </form>
     <p class="prompt-hint" id="prompt-error" role="alert" aria-live="polite"></p>
+
+    <!-- Free tools, right under the prompt: two mirrored tiles that read as
+         one pair (rounded outer corners, a shared seam in the middle).
+         Santa parades: routes/parades.js. Go Now: routes/goNow.js. -->
+    <nav class="tool-duo" aria-label="Free tools">
+      <p class="tool-duo-label"><span>Free this week</span></p>
+      <div class="tool-duo-grid">
+        <a class="tool-tile tool-tile--left" href="/santa-parades?utm_source=home&amp;utm_medium=tiles&amp;utm_campaign=parades">
+          <span class="tool-tile-icon" aria-hidden="true">🎅</span>
+          <span class="tool-tile-title">Santa parades 2026</span>
+          <span class="tool-tile-sub">Every GTA date, time and route, checked</span>
+          <span class="tool-tile-cta">See the map →</span>
+        </a>
+        <a class="tool-tile tool-tile--right" href="/go?utm_source=home&amp;utm_medium=tiles&amp;utm_campaign=go">
+          <span class="tool-tile-icon" aria-hidden="true">🚻</span>
+          <span class="tool-tile-title">Go Now</span>
+          <span class="tool-tile-sub">Open washrooms and changing tables near you</span>
+          <span class="tool-tile-cta">Find one →</span>
+        </a>
+      </div>
+    </nav>
+
     <p class="proof-strip">Built for the GTA · every plan checked against today's weather · 3 free plans a day</p>
     <!-- Free-tier meter: "N of 3 free plans left today" — JS fills & shows. -->
     <p class="plans-left" id="plans-left" hidden></p>
