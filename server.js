@@ -553,6 +553,9 @@ app.get('/sitemap.xml', blog.sitemap);
 // One page per verified catalog place (routes/placePages.js): the content
 // search engines and AI answers can read and cite.
 app.use('/places', require('./routes/placePages').router);
+// Illustrated placeholder for cards with no photo (routes/placeholderArt.js).
+// Outside /api on purpose: no rate limiter, edge-cacheable.
+app.use('/art', require('./routes/placeholderArt').router);
 // llms.txt: a plain map of the site for AI crawlers (llmstxt.org).
 app.get('/llms.txt', (req, res) => {
   res.type('text/plain').set('Cache-Control', 'public, max-age=86400').send(require('./routes/llmsTxt')(`${req.protocol}://${req.get('host')}`));

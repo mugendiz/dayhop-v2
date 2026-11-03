@@ -27,9 +27,13 @@
     general: '1486325212027-8081e485255e'
   };
 
-  function categoryImage(category, width = 640) {
-    const id = CATEGORY_IMAGES[category] || CATEGORY_IMAGES.general;
-    return `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${width}&q=70`;
+  // A card with no photo gets an illustrated placeholder with the place's
+  // own name on it (routes/placeholderArt.js), not one of nine stock photos
+  // that repeated across a whole category and read as a picture of the
+  // place. SVG scales to any width; `width` stays for existing callers.
+  function categoryImage(category, width = 640, title = '') {
+    const c = CATEGORY_IMAGES[category] ? category : 'general';
+    return `/art/placeholder.svg?c=${encodeURIComponent(c)}${title ? `&t=${encodeURIComponent(String(title).slice(0, 80))}` : ''}`;
   }
 
   // Third-party card images arrive at whatever size their host serves —
@@ -2063,8 +2067,8 @@
 
     card.innerHTML = `
       <div class="card-photo">
-        <img src="${escapeAttr(proxiedImage(idea.image_url || categoryImage(idea.category), 640))}" alt="" loading="lazy" decoding="async"
-          onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(idea.category))}'">
+        <img src="${escapeAttr(proxiedImage(idea.image_url || categoryImage(idea.category, 640, idea.title), 640))}" alt="" loading="lazy" decoding="async"
+          onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(idea.category, 640, idea.title))}'">
         <span class="card-stamp">STOP ${stopNumber}</span>
         ${bestMatch ? '<span class="card-badge card-badge--best">🎯 Best match for you</span>' : ''}
         ${idea.sponsored ? '<span class="card-badge card-badge--sponsored">⭐ Sponsored</span>' : ''}
@@ -2093,7 +2097,7 @@
     // Broken partner image URLs fall back to the category stock photo.
     if (idea.image_url) {
       const img = card.querySelector('.card-photo img');
-      img.addEventListener('error', () => { img.src = categoryImage(idea.category); }, { once: true });
+      img.addEventListener('error', () => { img.src = categoryImage(idea.category, 640, idea.title); }, { once: true });
     }
 
     // The whole card opens details — users tap the photo/title, not the small
@@ -2197,8 +2201,8 @@
     card.innerHTML = `
       <div class="best-match-inner">
         <div class="best-match-photo">
-          <img src="${escapeAttr(proxiedImage(idea.image_url || categoryImage(idea.category, 1200), 960))}" alt="" decoding="async" fetchpriority="high"
-            onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(idea.category, 1200))}'">
+          <img src="${escapeAttr(proxiedImage(idea.image_url || categoryImage(idea.category, 1200, idea.title), 960))}" alt="" decoding="async" fetchpriority="high"
+            onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(idea.category, 1200, idea.title))}'">
           <span class="best-match-flag">✦ Best match for you</span>
         </div>
         <div class="best-match-body">
@@ -2221,7 +2225,7 @@
     `;
 
     const img = card.querySelector('.best-match-photo img');
-    img.addEventListener('error', () => { img.src = categoryImage(idea.category, 1200); }, { once: true });
+    img.addEventListener('error', () => { img.src = categoryImage(idea.category, 1200, idea.title); }, { once: true });
 
     card.querySelector('.btn-dismiss').addEventListener('click', () => dismissIdea(idea, card));
     card.querySelector('.btn-detail').addEventListener('click', () => {
@@ -2526,8 +2530,8 @@
       .join(' · ');
     document.getElementById('detail-content').innerHTML = `
       <div class="detail-hero">
-        <img class="detail-hero-img" src="${escapeAttr(proxiedImage(idea.image_url || categoryImage(idea.category, 900), 900))}" alt="" loading="lazy"
-          onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(idea.category, 900))}'">
+        <img class="detail-hero-img" src="${escapeAttr(proxiedImage(idea.image_url || categoryImage(idea.category, 900, idea.title), 900))}" alt="" loading="lazy"
+          onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(idea.category, 900, idea.title))}'">
         <div class="detail-hero-gradient"></div>
         <span class="detail-hero-category">${categoryLabel}</span>
         ${idea.wow_reason ? '<span class="detail-hero-wow">✨ Unexpected find</span>' : ''}
@@ -3126,7 +3130,7 @@
           ${stop.changed ? '<span class="plan-changed-badge">✨ Updated</span>' : ''}
           ${timeHtml}
           <h3>${escapeHtml(stop.title || idea.title || '')}</h3>
-          ${idea.image_url && !state.editMode ? `<div class="plan-stop-photo"><img src="${escapeAttr(proxiedImage(idea.image_url, 480))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(idea.category))}'"></div>` : ''}
+          ${idea.image_url && !state.editMode ? `<div class="plan-stop-photo"><img src="${escapeAttr(proxiedImage(idea.image_url, 480))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(idea.category, 640, idea.title))}'"></div>` : ''}
           ${idea.why && !state.editMode ? `<p class="plan-stop-why">${escapeHtml(idea.why)}</p>` : ''}
           ${facts.length && !state.editMode ? `<p class="plan-stop-facts">${facts.join(' · ')}</p>` : ''}
           ${!state.editMode ? bookingLinksHtml(idea, 'stop') : ''}
@@ -4321,7 +4325,7 @@
   // before fading anyway, so lazy is a harmless hint there).
   let featuredFirstPaint = true;
   function renderFeaturedCard(aside, ev) {
-    const fallback = categoryImage(ev.category, 900);
+    const fallback = categoryImage(ev.category, 900, ev.title);
     const imgAttrs = featuredFirstPaint
       ? 'loading="eager" fetchpriority="high"'
       : 'loading="lazy"';
@@ -4393,7 +4397,7 @@
     };
     pre.onload = swap;
     pre.onerror = swap;
-    pre.src = prev.image_url || categoryImage(prev.category, 900);
+    pre.src = prev.image_url || categoryImage(prev.category, 900, prev.title);
     // Restart the ambient timer so the card the user just rewound to isn't
     // immediately rotated away from under them.
     startFeaturedTimer(aside, pool);
@@ -4563,7 +4567,7 @@
       };
       pre.onload = swap;
       pre.onerror = swap;
-      pre.src = next.image_url || categoryImage(next.category, 900);
+      pre.src = next.image_url || categoryImage(next.category, 900, next.title);
     }, 16000);
   }
 
@@ -5682,7 +5686,7 @@
       card.type = 'button';
       card.className = 'collection-card';
       const thumbs = ideas.slice(0, 3).map(i =>
-        `<img src="${escapeAttr(i.image_url || categoryImage(i.category, 200))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(i.category, 200))}'">`).join('');
+        `<img src="${escapeAttr(i.image_url || categoryImage(i.category, 200, i.title))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${escapeAttr(categoryImage(i.category, 200, i.title))}'">`).join('');
       card.innerHTML = `
         <span class="collection-thumbs">${thumbs}</span>
         <span class="collection-text">
@@ -5844,9 +5848,9 @@
     const el = document.getElementById('return-sheet');
     if (!el) return;
     const thumb = document.getElementById('return-thumb');
-    const src = (idea && (idea.image_url || categoryImage(idea.category, 200))) || categoryImage('general', 200);
+    const src = (idea && (idea.image_url || categoryImage(idea.category, 200, idea.title))) || categoryImage('general', 200);
     thumb.src = src;
-    thumb.onerror = () => { thumb.src = categoryImage((idea && idea.category) || 'general', 200); };
+    thumb.onerror = () => { thumb.src = categoryImage((idea && idea.category) || 'general', 200, idea && idea.title); };
     document.getElementById('return-title').textContent = title;
     document.getElementById('return-sub').textContent = sub;
 
@@ -6247,7 +6251,7 @@
   // placeholder if even that fails to load (never a grey box or a bare
   // gradient).
   function tileImageUrl(idea, w) {
-    return proxiedImage(idea.image_url || categoryImage(idea.category, w), w);
+    return proxiedImage(idea.image_url || categoryImage(idea.category, w, idea.title), w);
   }
   function tileGlyph(category) {
     const label = CATEGORY_LABELS[category] || CATEGORY_LABELS.general;
@@ -6259,7 +6263,7 @@
     img.addEventListener('error', () => {
       if (img.dataset.fallback === '1') { img.src = illustratedTile(idea, 0); return; }
       img.dataset.fallback = '1';
-      img.src = categoryImage(idea.category, w);
+      img.src = categoryImage(idea.category, w, idea.title);
     });
   }
 
@@ -6282,7 +6286,7 @@
     const stockKey = 'stock:' + (CATEGORY_IMAGES[idea.category] ? idea.category : 'general');
     if (!tileArtUsed.has(stockKey)) {
       tileArtUsed.add(stockKey);
-      return { kind: 'stock', src: proxiedImage(categoryImage(idea.category, w), w) };
+      return { kind: 'stock', src: proxiedImage(categoryImage(idea.category, w, idea.title), w) };
     }
     return { kind: 'illustration', src: illustratedTile(idea, tileArtDrawn++) };
   }
@@ -6698,7 +6702,7 @@
     // so: it is not a picture of this place.
     const art = (!isFavs && tileArtFor.get(idea)) || { kind: idea.image_url ? 'photo' : 'stock' };
     const photoSrc = art.kind === 'photo' ? tileImageUrl(idea, 720)
-      : art.kind === 'stock' ? proxiedImage(categoryImage(idea.category, 720), 720) : art.src;
+      : art.kind === 'stock' ? proxiedImage(categoryImage(idea.category, 720, idea.title), 720) : art.src;
     const artNote = art.kind === 'stock' ? 'Illustrative photo, not this place'
       : art.kind === 'illustration' ? 'No photo of this place yet' : '';
     content.innerHTML = `
