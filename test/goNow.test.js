@@ -65,6 +65,23 @@ test('filters combine: open + changing table + stroller returns only stops where
   for (const p of ct) assert.equal(p.changing_table, true);
 });
 
+test('seeded data: "limited" is unknown, and the winter filter drops seasonal and closed stops', () => {
+  const pt = o => goNow.seededPoint(Object.assign({ id: 'osm-n1', k: 'wc', n: 'Loo', lat: 44.0, lng: -79.0, src: 'osm', ct: null, acc: null, free: null, hours: null, seasonal: null, addr: null }, o), '2026-11-03');
+  assert.equal(pt({ acc: true }).stroller_friendly, true);
+  assert.equal(pt({ acc: null }).stroller_friendly, 'unknown');
+  assert.equal(pt({ seasonal: true }).seasonal, true);
+  const snap = require('../data/go/ontario.json');
+  // The build maps wheelchair=limited to null, so no snapshot point can be
+  // step-free on a "limited" tag; spot check that the parser is strict.
+  assert.match(require('fs').readFileSync(require('path').join(__dirname, '..', 'scripts', 'build-go-data.js'), 'utf8'), /\/\^\(yes\|designated\|\[1-9\]\[0-9\]\*\)\$\/i/);
+  assert.ok(snap.points.length > 4000);
+});
+
+test('winter filter: no closed or seasonal stops', async () => {
+  const w = await goNow.nearest({ lat: 43.6532, lng: -79.3832, filters: { winter: true }, limit: 60 });
+  for (const p of w) { assert.notEqual(p.washroom_status, 'closed'); assert.notEqual(p.seasonal, true); }
+});
+
 async function withApp(fn) {
   const app = express();
   app.use('/api/go', routes.api);

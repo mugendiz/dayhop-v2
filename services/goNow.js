@@ -102,14 +102,18 @@ function seededPoint(p, builtOn) {
     changing_table: yn(p.ct),
     stroller_friendly: p.src === 'osm' ? yn(p.acc) : 'unknown',
     last_checked: builtOn,
+    seasonal: p.seasonal === true,
     source: p.src === 'ottawa' ? 'ottawa_open_data' : 'osm',
     address: p.addr || null,
     notes
   };
 }
 
+const FEED_TIMEOUT_MS = 8000;
+
 async function refreshLive(fetcher = fetch) {
-  const res = await fetcher(TORONTO_FEED, { headers: { 'User-Agent': 'DayHop/1.0 (admin@dayhop.quest)' } });
+  // Bounded: a slow City server must never hang /go or a page that waits.
+  const res = await fetcher(TORONTO_FEED, { headers: { 'User-Agent': 'DayHop/1.0 (admin@dayhop.quest)' }, signal: AbortSignal.timeout(FEED_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`toronto washroom feed ${res.status}`);
   const j = await res.json();
   const day = today();
@@ -119,14 +123,19 @@ async function refreshLive(fetcher = fetch) {
   return live;
 }
 
-/** Live Toronto places; refreshes in the background when stale. Never throws. */
-async function livePoints() {
+/**
+ * Live Toronto places; refreshes in the background when stale. Never throws.
+ * wait=false never blocks on the City (callers that do not need Toronto's
+ * live status, like the parade page); wait=true blocks only the very first
+ * request after a restart, at most FEED_TIMEOUT_MS.
+ */
+async function livePoints({ wait = true } = {}) {
   if (Date.now() - live.at > LIVE_TTL_MS && !inflight) {
     inflight = refreshLive()
       .catch(err => { console.warn('[go-now] live refresh failed:', err.message); live.at = Date.now() - LIVE_TTL_MS + 10 * 60 * 1000; })
       .finally(() => { inflight = null; });
-    if (!live.points.length) await inflight; // first request waits; later ones never do
   }
+  if (wait && !live.points.length && inflight) await inflight;
   return live.points;
 }
 
@@ -150,8 +159,8 @@ function seeded() {
 }
 
 /** Every washroom: live Toronto first; a seeded OSM toilet within ~40 m of a live one is dropped. */
-async function allPlaces() {
-  const lp = await livePoints();
+async function allPlaces({ waitLive = true } = {}) {
+  const lp = await livePoints({ wait: waitLive });
   const near = (a, b) => Math.abs(a.lat - b.lat) < 0.0004 && Math.abs(a.lng - b.lng) < 0.0005;
   const rest = lp.length
     ? seeded().filter(p => !(p.source === 'osm' && p.lat > 43.55 && p.lat < 43.86 && p.lng > -79.65 && p.lng < -79.1 && lp.some(l => near(l, p))))
@@ -164,13 +173,14 @@ async function allPlaces() {
  *   open: washroom_status === 'open'; changing: changing_table === true;
  *   stroller: stroller_friendly === true.
  */
-async function nearest({ lat, lng, filters = {}, limit = 8 }) {
+async function nearest({ lat, lng, filters = {}, limit = 8, waitLive = true }) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new Error('bad point');
-  const all = await allPlaces();
+  const all = await allPlaces({ waitLive });
   const scored = [];
   for (const p of all) {
     if (filters.open && p.washroom_status !== 'open') continue;
-    if (filters.notClosed && p.washroom_status === 'closed') continue;
+    // winter: drop anything closed now or listed as seasonal (summer only).
+    if (filters.winter && (p.washroom_status === 'closed' || p.seasonal === true)) continue;
     if (filters.changing && p.changing_table !== true) continue;
     if (filters.stroller && p.stroller_friendly !== true) continue;
     if (Math.abs(p.lat - lat) > 0.55 || Math.abs(p.lng - lng) > 0.75) continue; // about 60 km

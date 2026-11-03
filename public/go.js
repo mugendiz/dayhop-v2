@@ -6,12 +6,13 @@
   var state = { f: { open: false, changing: false, stroller: false }, center: null, me: false, results: [], focusId: params.get('p') };
   var SOURCE = { toronto_open_data: 'City of Toronto open data (live)', ottawa_open_data: 'City of Ottawa open data', osm: 'OpenStreetMap', manual: 'Checked by DayHop' };
 
-  // A stable anonymous id per browser, so repeat opens can be counted
-  // (the success measure for this page). Never tied to a person.
+  // The planner's own anonymous guest id (public/app.js getOwnerId), so one
+  // browser is one visitor across the planner and Go Now, and repeat opens
+  // can still be counted (the success measure for this page).
   var vid = null;
   try {
-    vid = localStorage.getItem('dh_go_vid');
-    if (!vid) { vid = 'go-' + Math.random().toString(36).slice(2, 12); localStorage.setItem('dh_go_vid', vid); }
+    vid = localStorage.getItem('dayhop_owner_id');
+    if (!vid) { vid = 'guest-' + Math.random().toString(36).slice(2, 10); localStorage.setItem('dayhop_owner_id', vid); }
   } catch (e) { vid = null; }
 
   function track(type, source) {
@@ -47,7 +48,7 @@
 
   // The three facts, always shown, unknown included.
   function pills(p) {
-    var wrap = el('div', 'gn-pills');
+    var wrap = el('span', 'gn-pills'); // a span: it sits inside a <button> in the list
     var w = { open: ['open', 'Open'], closed: ['closed', 'Closed'], unknown: ['unknown', 'Status unknown'] }[p.washroom_status];
     wrap.appendChild(el('span', 'gn-pill ' + w[0], w[1]));
     var ct = p.changing_table === true ? ['open', 'Changing table'] : p.changing_table === false ? ['closed', 'No changing table'] : ['unknown', 'Changing table unknown'];

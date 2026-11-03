@@ -33,14 +33,26 @@ async function get(key) {
   return data && data.payload ? data.payload.v : null;
 }
 
+// watch() and the sweep read, change and write the same rows. One web
+// process runs DayHop, so a promise chain makes those writes take turns and
+// two parents tapping "Alert me" at the same moment both stick.
+let chain = Promise.resolve();
+function serial(fn) {
+  const run = chain.then(fn);
+  chain = run.catch(() => {});
+  return run;
+}
+
 /** Watch one stop for an email. status: the stop's status right now. */
-async function watch(id, email, status) {
-  const row = (await get(`go-alert:${id}`)) || { emails: [], last: status };
-  if (!row.emails.includes(email)) row.emails.push(email);
-  row.emails = row.emails.slice(-2000);
-  await put(`go-alert:${id}`, row);
-  const index = (await get('go-alert:index')) || [];
-  if (!index.includes(id)) { index.push(id); await put('go-alert:index', index.slice(-5000)); }
+function watch(id, email, status) {
+  return serial(async () => {
+    const row = (await get(`go-alert:${id}`)) || { emails: [], last: status };
+    if (!row.emails.includes(email)) row.emails.push(email);
+    row.emails = row.emails.slice(-2000);
+    await put(`go-alert:${id}`, row);
+    const index = (await get('go-alert:index')) || [];
+    if (!index.includes(id)) { index.push(id); await put('go-alert:index', index.slice(-5000)); }
+  });
 }
 
 const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -76,7 +88,7 @@ function alertEmail(p, token) {
  * Email confirmed watchers of every stop whose open/closed status changed
  * since the last sweep. deps for tests: { places, listSubscribed, send }.
  */
-async function runAlertSweep(deps = {}) {
+async function sweepOnce(deps = {}) {
   const index = (await get('go-alert:index').catch(() => null)) || [];
   if (!index.length) return { watched: 0, changed: 0, sent: 0 };
   const goNow = require('./goNow');
@@ -106,5 +118,8 @@ async function runAlertSweep(deps = {}) {
   if (changed) console.log(`[go-alert] ${changed} status changes, ${sent} alerts sent`);
   return { watched: index.length, changed, sent };
 }
+
+// The sweep writes the same rows as watch(), so it takes its turn too.
+function runAlertSweep(deps = {}) { return serial(() => sweepOnce(deps)); }
 
 module.exports = { watch, runAlertSweep, alertEmail, _mem: mem };

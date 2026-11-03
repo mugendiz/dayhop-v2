@@ -404,9 +404,21 @@ app.use('/api/newsletter', newsletterLimiter, require('./routes/newsletter'));
 // Santa parade reminders (routes/parades.js): a newsletter signup with a
 // parade attached, so the same limiter.
 app.use('/api/parades', newsletterLimiter, require('./routes/parades').api);
-// Go Now (routes/goNow.js): nearest washrooms, changing tables, family stops.
-// Reads in-memory data only (no Google calls), same cap as the feed.
-app.use('/api/go', browseLimiter, require('./routes/goNow').api);
+// Go Now (routes/goNow.js): nearest washrooms, changing tables, stroller
+// access. Reads in-memory data only (no Google calls), so its own roomier
+// bucket: every map drag, toggle, place and card image is a request, and it
+// must not share the planner feed's 30 a minute.
+const goLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'RATE_LIMITED', message: 'Slow down a little. Try again in a moment.' }
+});
+// The status alert subscribes to the newsletter (a confirmation email), so
+// it gets the newsletter's 3 a minute on top.
+app.use('/api/go/alert', newsletterLimiter);
+app.use('/api/go', goLimiter, require('./routes/goNow').api);
 
 // Digest email tracking (open pixel + signed click redirects). GETs from
 // email clients — never rate-limited, a bounced tracking link is a broken

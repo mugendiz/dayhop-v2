@@ -89,6 +89,11 @@ test('calendar files: timed when the town posted a time, all day when it did not
   assert.match(toronto, /DTSTART;VALUE=DATE:20261122/);
   assert.match(toronto, /DTEND;VALUE=DATE:20261123/);
   assert.match(toronto, /Start time not posted yet/);
+  // RFC 5545: no line over 75 octets; folded lines continue with a space.
+  for (const p of PARADES) {
+    for (const line of icsFor(p, 'https://dayhop.quest').split('\r\n')) assert.ok(Buffer.byteLength(line) <= 75, `${p.slug}: ${line}`);
+  }
+  assert.equal(parades.foldLine('x'.repeat(80)), `${'x'.repeat(75)}\r\n ${'x'.repeat(5)}`);
   await withApp(async base => {
     const r = await fetch(`${base}/santa-parades/oakville.ics`);
     assert.equal(r.status, 200);

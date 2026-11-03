@@ -242,7 +242,9 @@ async function washroomLogistics() {
   const out = {};
   await Promise.all(PARADES.filter(p => p.slug !== 'toronto').map(async p => {
     try {
-      const [w] = await goNow.nearest({ lat: p.lat, lng: p.lng, filters: { notClosed: true }, limit: 1 });
+      // Winter: no summer-only toilets for a November parade. waitLive false:
+      // these starts are outside Toronto, so never wait on the City's feed.
+      const [w] = await goNow.nearest({ lat: p.lat, lng: p.lng, filters: { winter: true }, limit: 1, waitLive: false });
       if (w && w.dist <= 1500) out[p.slug] = { name: w.name, dist: w.dist };
     } catch { /* line omitted */ }
   }));
@@ -287,6 +289,20 @@ function parseTimes(text) {
   return [hits[0], hits[1] != null && hits[1] > hits[0] ? hits[1] : hits[0] + 120];
 }
 
+// RFC 5545: lines longer than 75 octets are folded (CRLF plus one space),
+// counting bytes, never splitting a multi-byte character. Pure.
+function foldLine(line) {
+  const out = [];
+  let cur = '', bytes = 0;
+  for (const ch of line) {
+    const b = Buffer.byteLength(ch);
+    if (bytes + b > (out.length ? 74 : 75)) { out.push(cur); cur = ''; bytes = 0; }
+    cur += ch; bytes += b;
+  }
+  out.push(cur);
+  return out.join('\r\n ');
+}
+
 const icsEsc = s => String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
 const hhmm = mins => `${String(Math.floor(mins / 60)).padStart(2, '0')}${String(mins % 60).padStart(2, '0')}00`;
 
@@ -313,7 +329,7 @@ function icsFor(p, base) {
     `DESCRIPTION:${icsEsc(desc)}`,
     `URL:${p.official_url}`,
     'END:VEVENT', 'END:VCALENDAR', ''
-  ].join('\r\n');
+  ].map(foldLine).join('\r\n');
 }
 
 router.get('/santa-parades/:slug.ics', (req, res) => {
@@ -338,4 +354,4 @@ api.post('/remind', express.json({ limit: '4kb' }), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-module.exports = { router, api, bodyHtml, icsFor, parseTimes };
+module.exports = { router, api, bodyHtml, icsFor, parseTimes, foldLine };

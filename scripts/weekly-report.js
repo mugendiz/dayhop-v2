@@ -83,7 +83,8 @@ function trafficBlock(events, start, end) {
 }
 
 // Go Now (/go): its success measure is repeat opens and share-card use,
-// not planner use. Openers are the per-browser go-* ids public/go.js sends.
+// not planner use. Openers are the planner's per-browser guest ids, which
+// public/go.js reuses, so one browser is one visitor everywhere.
 function goBlock(events, start, end) {
   const inWin = events.filter(e => { const t = new Date(e.created_at); return t >= start && t < end; });
   const days = new Map(); // opener -> Set of Toronto days

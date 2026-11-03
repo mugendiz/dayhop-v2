@@ -118,6 +118,27 @@ test('published issues (standout, hooks, chips, share rows) have no dash punctua
   assertNoViolations(tottDigest.digestText(tott, 'test-token'), 'tottDigest.js published digestText');
 });
 
+test('Go Now (/go): the page, share cards and status alert emails have no dash punctuation', () => {
+  const routes = require('../routes/goNow');
+  const goNow = require('../services/goNow');
+  const { alertEmail } = require('../services/goAlerts');
+  const strip = s => s.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<svg[\s\S]*?<\/svg>/g, '');
+  assertNoViolations(strip(routes.html({ base: 'https://dayhop.quest', title: 'Go Now', description: 'd', ogImage: 'x', canonical: '/go', lastCheck: 'Nov 3, 2026' })), 'goNow.js page');
+  const geo = JSON.stringify({ type: 'Point', coordinates: [-79.38, 43.65] });
+  const stops = [
+    goNow.torontoPoint({ ASSET_ID: 1, AssetName: 'Test Park Washroom', LOCATION: 'Test Park', Status: '1', Reason: 'None', ACCESSIBLE_FEATURES: 'Entrance at Grade, Child Change Table', HOURS: '9 a.m. to 10 p.m.', geometry: geo }, '2026-11-03'),
+    goNow.torontoPoint({ ASSET_ID: 2, AssetName: 'Closed Park Washroom', Status: '0', Reason: 'Closed for the Season', ACCESSIBLE_FEATURES: 'None', geometry: geo }, '2026-11-03')
+  ];
+  assertNoViolations(routes.cardSvg(null).replace(/<[^>]+>/g, ' '), 'goNow.js default card');
+  for (const p of stops) {
+    assertNoViolations(routes.cardSvg(p).replace(/<[^>]+>/g, ' '), `goNow.js card (${p.id})`);
+    const m = alertEmail(p, 'tok');
+    assertNoViolations(m.subject, `goAlerts.js subject (${p.id})`);
+    assertNoViolations(m.text, `goAlerts.js text (${p.id})`);
+    assertNoViolations(m.html, `goAlerts.js html (${p.id})`);
+  }
+});
+
 test('Santa parades: the page body and every reminder email have no dash punctuation', () => {
   const { PARADES } = require('../data/santaParades2026');
   assertNoViolations(require('../routes/parades').bodyHtml('https://dayhop.quest', '2026-11-03').replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, ''), 'parades.js page body');

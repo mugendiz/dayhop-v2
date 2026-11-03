@@ -37,7 +37,10 @@ async function overpass(query) {
   throw new Error('overpass unavailable');
 }
 
-const yes = v => (v == null ? null : /^(yes|designated|limited|[1-9][0-9]*)$/i.test(v) ? true : /^no$/i.test(v) ? false : null);
+// Only a plain yes (or a count, for diaper=2) is true and only "no" is
+// false. "limited" stays unknown: a toilet with wheelchair=limited may have
+// steps, and a stroller pill must not promise step-free on a maybe.
+const yes = v => (v == null ? null : /^(yes|designated|[1-9][0-9]*)$/i.test(v) ? true : /^no$/i.test(v) ? false : null);
 const round = n => Math.round(n * 1e5) / 1e5;
 
 function osmPoint(e, kind) {
