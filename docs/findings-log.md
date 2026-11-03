@@ -209,3 +209,22 @@ Commit titles and PR merge records are the reliable signal, not diff
 replay.
 
 **Reviewed.**
+
+## 2026-11-03 Googlebot has not read a single page in a week
+
+**Finding.** AI and SEO crawlers are reading the new place and blog pages,
+but Google is not. Without Google, the 128 place pages cannot bring search
+traffic, so submitting the sitemap in Search Console is the blocking step for
+the traffic half of the 30-day plan, not a nice-to-have.
+
+**Number and source.** `crawler_view` events in public.events, 2026-10-27 to
+2026-11-03, read by `scripts/weekly-report.js` on 2026-11-03: claudebot 131,
+ahrefsbot 129, yandex 45, oai-searchbot 5, bingbot 1, googlebot 0. Same
+report: 32 outside visitor IDs, 31 with no source and 1 from google.com.
+
+**Costing.** Google sent 8 of 110 outside people in the 60 days to
+2026-11-03 (first-touch meta.utm, logged earlier today). Every week without
+a crawl is a week the place pages earn nothing from search. Fix costs the
+founder about 5 minutes in Search Console.
+
+**Reviewed.**

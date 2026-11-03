@@ -941,4 +941,4 @@ async function engagementByIdea(ideaIds, { days = 30 } = {}) {
   return counts;
 }
 
-module.exports = { recordEvent, countToday, metrics, userActivity, engagementByIdea, sanitizeAttrib, normalizeShelf, EVENT_TYPES, CLIENT_EVENT_TYPES };
+module.exports = { recordEvent, countToday, metrics, userActivity, engagementByIdea, sanitizeAttrib, normalizeShelf, internalSets, isInternalEvent, EVENT_TYPES, CLIENT_EVENT_TYPES };
