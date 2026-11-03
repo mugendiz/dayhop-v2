@@ -10,6 +10,8 @@ delete process.env.RESEND_API_KEY;
 const { PARADES, NOT_POSTED } = require('../data/santaParades2026');
 const reminders = require('../services/paradeReminders');
 const parades = require('../routes/parades');
+// The washroom line reads Go Now's data; keep Toronto's live feed offline.
+require('../services/goNow')._setLive({ at: Date.now(), points: [], postedDate: null });
 
 test('every parade row cites its own organizer, a check date, and a GTA spot', () => {
   const slugs = new Set();
@@ -54,6 +56,56 @@ test('the page: a plain table with every parade, sources, a map and a reminder b
     assert.equal((html.match(/CC BY 2\.0/g) || []).length, 3, 'every photo carries its licence');
     assert.doesNotMatch(html, /googleusercontent|\/api\/photo/);
   });
+});
+
+test('planner structure: status per row, unconfirmed towns listed without dates, washroom line, calendar links', async () => {
+  await withApp(async base => {
+    const html = await (await fetch(`${base}/santa-parades`)).text();
+    assert.equal((html.match(/pz-status ok">Confirmed/g) || []).length, PARADES.length);
+    for (const town of NOT_POSTED) assert.match(html, new RegExp(`<span class="pz-town">${town}</span>`));
+    assert.equal((html.match(/pz-status no">Unconfirmed/g) || []).length, NOT_POSTED.length);
+    assert.match(html, /Verified on November 3, 2026/);
+    assert.match(html, /href="\/santa-parades\/mississauga\.ics"/);
+    assert.match(html, /Nearest public washroom we know of(: [^<]+,| is) about \d/, 'a washroom line from the Go Now data');
+    assert.doesNotMatch(html, /we know of: Public washroom,/, 'a generic name is not repeated');
+    assert.match(html, /Route not posted yet\. <a href="\/go\?lat=/, 'Toronto: no route, so no washroom claim');
+    assert.match(html, /Parade day with kids/);
+    const short = await fetch(`${base}/parades`, { redirect: 'manual' });
+    assert.equal(short.status, 301);
+    assert.equal(short.headers.get('location'), '/santa-parades');
+  });
+});
+
+test('calendar files: timed when the town posted a time, all day when it did not', async () => {
+  const { icsFor, parseTimes } = parades;
+  assert.deepEqual(parseTimes('11 a.m. to 1 p.m.'), [660, 780]);
+  assert.deepEqual(parseTimes('6 p.m.'), [1080, 1200]);
+  assert.deepEqual(parseTimes('6 p.m. to 7:30 p.m.'), [1080, 1170]);
+  assert.equal(parseTimes(null), null);
+  const miss = icsFor(PARADES.find(p => p.slug === 'mississauga'), 'https://dayhop.quest');
+  assert.match(miss, /DTSTART;TZID=America\/Toronto:20261121T180000/);
+  assert.match(miss, /UID:parade-mississauga-2026@dayhop\.quest/);
+  const toronto = icsFor(PARADES.find(p => p.slug === 'toronto'), 'https://dayhop.quest');
+  assert.match(toronto, /DTSTART;VALUE=DATE:20261122/);
+  assert.match(toronto, /DTEND;VALUE=DATE:20261123/);
+  assert.match(toronto, /Start time not posted yet/);
+  await withApp(async base => {
+    const r = await fetch(`${base}/santa-parades/oakville.ics`);
+    assert.equal(r.status, 200);
+    assert.match(r.headers.get('content-type'), /text\/calendar/);
+    assert.equal((await fetch(`${base}/santa-parades/atlantis.ics`)).status, 404);
+  });
+});
+
+test('the old parade story redirects to the checked page', async () => {
+  const app = express();
+  app.use('/blog', require('../routes/blog').router);
+  const server = await new Promise(r => { const s = app.listen(0, () => r(s)); });
+  try {
+    const r = await fetch(`http://127.0.0.1:${server.address().port}/blog/santa-claus-parades-near-toronto-2026-dates-and-family-tips-for-the-gta`, { redirect: 'manual' });
+    assert.equal(r.status, 301);
+    assert.equal(r.headers.get('location'), '/santa-parades');
+  } finally { server.close(); }
 });
 
 test('remind: needs a real email and a listed parade; a good request is stored', async () => {

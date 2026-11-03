@@ -201,7 +201,17 @@ router.get('/', async (req, res) => {
   }));
 });
 
+// Stories replaced by a structured page. The parade story (published
+// 2026-11-03) had Pickering on Nov 21 and Toronto, Brampton, Markham and
+// Newmarket as unconfirmed; each town's own page said otherwise the same
+// day, so the checked table at /santa-parades replaces it.
+const MOVED = {
+  'santa-claus-parades-near-toronto-2026-dates-and-family-tips-for-the-gta': '/santa-parades'
+};
+
 router.get('/:slug', async (req, res) => {
+  const moved = MOVED[String(req.params.slug || '').toLowerCase()];
+  if (moved) return res.redirect(301, moved);
   const a = await articles.getBySlug(String(req.params.slug || '').toLowerCase());
   if (!a) {
     res.status(404).setHeader('Cache-Control', 'no-store');
@@ -279,7 +289,7 @@ async function sitemap(req, res) {
     ...weekendDates.map(d => ({ loc: `${base}/weekend/${d}`, lastmod: d, priority: '0.5' })),
     ...tottDates.map(d => ({ loc: `${base}/talk-of-the-town/${d}`, lastmod: d, priority: '0.5' })),
     { loc: `${base}/blog`, priority: '0.8' },
-    ...all.map(a => ({
+    ...all.filter(a => !MOVED[a.slug]).map(a => ({
       loc: `${base}/blog/${a.slug}`,
       lastmod: String(a.published_at).slice(0, 10),
       priority: '0.6'

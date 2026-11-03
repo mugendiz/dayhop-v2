@@ -67,6 +67,14 @@ const STYLE = `
 .pz-town{font-weight:800;color:#102A2E}
 .pz-note{display:block;font-size:13px;color:#6b7c7e;margin-top:3px}
 .pz-tbc{color:#B5482A;font-weight:600}
+.pz-logi{display:block;font-size:13px;color:#2D5A47;margin-top:6px}
+.pz-status{display:inline-block;font-size:12px;font-weight:800;padding:3px 9px;border-radius:999px}
+.pz-status.ok{background:#E3F1E8;color:#2D7A55}
+.pz-status.no{background:#ECEEEE;color:#6B7578}
+tr.pz-unconf td{color:#6b7c7e}
+.pz-tips{margin:22px 0}
+.pz-tips h2{font-size:21px;margin:0 0 8px}
+.pz-tips li{margin:0 0 8px;line-height:1.55}
 .pz-box{background:#102A2E;color:#fff;border-radius:14px;padding:18px;margin:22px 0}
 .pz-box h2{margin:0 0 4px;font-size:19px;color:#fff}
 .pz-box p{margin:0 0 12px;color:#d9e3df;font-size:14px;line-height:1.5}
@@ -78,23 +86,45 @@ const STYLE = `
 @media (max-width:640px){.pz-table thead{display:none}.pz-table,.pz-table tbody,.pz-table tr,.pz-table td{display:block;width:100%}.pz-table tr{border-bottom:1px solid #EFE9DB;padding:10px 0}.pz-table td{border:0;padding:2px 0}}
 </style>`;
 
-function bodyHtml(base, today) {
-  const rows = PARADES.slice().sort((a, b) => a.date.localeCompare(b.date)).map(p => {
+// logistics: { [slug]: { name, dist } } nearest public washroom to each
+// start point (services/goNow.js), computed per request; optional.
+function logisticsLine(p, logistics) {
+  const goLink = `/go?lat=${p.lat}&amp;lng=${p.lng}&amp;utm_source=parades`;
+  if (p.slug === 'toronto') return `🚻 Route not posted yet. <a href="${goLink}">Find open washrooms downtown on Go Now</a>`;
+  const w = logistics && logistics[p.slug];
+  if (!w) return `🚻 <a href="${goLink}">Washrooms near the start on Go Now</a>`;
+  const d = w.dist < 1000 ? `${Math.round(w.dist / 10) * 10} m` : `${(w.dist / 1000).toFixed(1)} km`;
+  const named = !/^public (washroom|toilets?)$/i.test(String(w.name).trim());
+  return `🚻 Nearest public washroom we know of${named ? `: ${esc(w.name)},` : ' is'} about ${d} from the start (open or closed status not live). <a href="${goLink}">More on Go Now</a>`;
+}
+
+function bodyHtml(base, today, logistics = {}) {
+  const confirmedRows = PARADES.slice().sort((a, b) => a.date.localeCompare(b.date)).map(p => {
     const past = p.date < today;
     return `<tr id="${esc(p.slug)}"${past ? ' class="past"' : ''}>
   <td><b>${esc(fmtDay(p.date))}</b>${past ? '<span class="pz-note">Already happened</span>' : ''}</td>
   <td><span class="pz-town">${esc(p.town)}</span><span class="pz-note">${esc(p.name)}</span></td>
   <td>${p.time ? esc(p.time) : '<span class="pz-tbc">Not posted yet</span>'}</td>
-  <td>${esc(p.where)}${p.note ? `<span class="pz-note">${esc(p.note)}</span>` : ''}</td>
-  <td><a href="${esc(p.official_url)}" rel="noopener" target="_blank">Official page</a><span class="pz-note">Checked ${esc(fmtVerified(p.verified_on))}</span></td>
+  <td>${esc(p.where)}${p.note ? `<span class="pz-note">${esc(p.note)}</span>` : ''}<span class="pz-logi">${logisticsLine(p, logistics)}</span></td>
+  <td><span class="pz-status ok">Confirmed</span><span class="pz-note">Verified on ${esc(fmtVerified(p.verified_on))}</span></td>
+  <td><a href="${esc(p.official_url)}" rel="noopener" target="_blank">Official page</a>${past ? '' : `<span class="pz-note"><a href="/santa-parades/${esc(p.slug)}.ics">📅 Add to calendar</a></span>`}</td>
 </tr>`;
-  }).join('\n');
+  });
+  const unconfirmedRows = NOT_POSTED.map(town => `<tr class="pz-unconf">
+  <td><span class="pz-tbc">Not posted</span></td>
+  <td><span class="pz-town">${esc(town)}</span></td>
+  <td></td>
+  <td><span class="pz-note">No 2026 date on the town's own site when we checked. We add it once they post it.</span></td>
+  <td><span class="pz-status no">Unconfirmed</span></td>
+  <td></td>
+</tr>`);
+  const rows = [...confirmedRows, ...unconfirmedRows].join('\n');
   const upcoming = PARADES.filter(p => p.date >= today).sort((a, b) => a.date.localeCompare(b.date));
   const options = upcoming.map(p => `<option value="${esc(p.slug)}">${esc(p.town)}, ${esc(fmtDay(p.date))}</option>`).join('');
   const share = shareLinks(`${base}/santa-parades`);
   const lastChecked = PARADES.map(p => p.verified_on).sort().pop();
   const mapData = JSON.stringify(PARADES.map(p => ({
-    slug: p.slug, town: p.town, day: fmtDay(p.date), time: p.time, lat: p.lat, lng: p.lng, past: p.date < today
+    slug: p.slug, town: p.town, day: fmtDay(p.date), time: p.time, lat: p.lat, lng: p.lng, past: p.date < today, url: p.official_url
   }))).replace(/</g, '\\u003c');
 
   return `${STYLE}
@@ -103,24 +133,37 @@ function bodyHtml(base, today) {
   <img src="${PHOTOS.hero.src}" width="${PHOTOS.hero.w}" height="${PHOTOS.hero.h}" alt="${esc(PHOTOS.hero.alt)}" fetchpriority="high">
   <figcaption>${PHOTOS.hero.caption}</figcaption>
 </figure>
-<h1>Santa Claus parades in the GTA, 2026 🎅</h1>
-<p class="pz-lede">Every 2026 date we could confirm, with start times, where each route runs and a map. Each row is checked against the town's or organizer's own page, not a listing site.</p>
+<h1>GTA Santa Claus parades 2026: dates, times and routes, checked 🎅</h1>
+<p class="pz-lede">Every 2026 parade we could confirm on the town's or organizer's own page, with start times, routes, the nearest washroom and a map. A date only goes in the table once the official page posts it.</p>
 <span class="pz-checked">✓ Last checked ${esc(fmtVerified(lastChecked))}</span>
 
 <div id="pz-map" role="img" aria-label="Map of GTA Santa Claus parade start areas"></div>
 <p class="pz-mapnote">Pins mark each parade's start area and are approximate. The official page has the exact route.</p>
 
 <table class="pz-table">
-<thead><tr><th>Date</th><th>Town</th><th>Time</th><th>Route</th><th>Source</th></tr></thead>
+<thead><tr><th>Date</th><th>Town</th><th>Time</th><th>Start and route</th><th>Status</th><th>Official link</th></tr></thead>
 <tbody>
 ${rows}
 </tbody>
 </table>
-<p class="pz-note">Not posted on the town's own site yet: ${esc(NOT_POSTED.join(', '))}. We check again before each weekend and add them here.</p>
+<p class="pz-note">Confirmed means the date is on the organizer's own page. Times and routes can still change, so check the official page the week of the parade.</p>
 
 <div class="pz-strip">
 ${PHOTOS.strip.map(p => `  <figure><img src="${p.src}" width="${p.w}" height="${p.h}" alt="${esc(p.alt)}" loading="lazy"><figcaption>${p.caption}</figcaption></figure>`).join('\n')}
 </div>
+
+<section class="pz-tips" id="tips">
+  <h2>Parade day with kids: what actually helps</h2>
+  <ul>
+    <li><b>Layer up more than feels necessary.</b> Standing still on a curb for an hour in late November is colder than walking around in the same weather.</li>
+    <li><b>Bring your own hot drinks and snacks.</b> Cafe lineups near the route get long the moment a parade lets out.</li>
+    <li><b>Find a washroom before you need one.</b> Washrooms near a route fill up once the crowd arrives. Each row above has the nearest one we know of, and <a href="/go?utm_source=parades">Go Now</a> finds more.</li>
+    <li><b>Plan for a washout.</b> Most parades run rain or shine. Know which indoor spot nearby could save the morning if a downpour hits.</li>
+    <li><b>Think about transit.</b> Roads along the route close for a few hours and parking nearby disappears early, so a train or bus can beat circling for a spot.</li>
+    <li><b>Keep it short for little ones.</b> An hour of waiting plus the parade is a long stretch for a three year old. A spot near the middle of the route usually means less standing around before anything happens.</li>
+    <li><b>Check the official page the week of.</b> Towns adjust routes for construction (Pickering moved its route this year), so the town's page beats any list, including this one.</li>
+  </ul>
+</section>
 
 ${upcoming.length ? `<section class="pz-box" id="remind">
   <h2>Email me the night before 📬</h2>
@@ -158,6 +201,8 @@ ${upcoming.length ? `<section class="pz-box" id="remind">
       t.appendChild(document.createTextNode(p.day + (p.time ? ', ' + p.time : ', time not posted yet')));
       t.appendChild(document.createElement('br'));
       var a = document.createElement('a'); a.href = '#' + p.slug; a.textContent = 'Details'; t.appendChild(a);
+      t.appendChild(document.createTextNode(' · '));
+      var o = document.createElement('a'); o.href = p.url; o.target = '_blank'; o.rel = 'noopener'; o.textContent = 'Official page'; t.appendChild(o);
       m.bindPopup(t);
       pts.push([p.lat, p.lng]);
     });
@@ -189,19 +234,95 @@ ${upcoming.length ? `<section class="pz-box" id="remind">
 </script>`;
 }
 
-router.get('/santa-parades', (req, res) => {
-  recordView(req, 'parades', '2026');
-  const base = origin(req);
-  const today = TORONTO_DAY.format(new Date());
-  const next = PARADES.filter(p => p.date >= today).sort((a, b) => a.date.localeCompare(b.date));
-  const description = `Every 2026 Santa Claus parade in the GTA with dates, start times and routes, checked against each town's own page.${next.length ? ` Next up: ${next[0].town}, ${fmtDay(next[0].date)}.` : ''}`;
-  res.set('Cache-Control', 'public, max-age=600');
-  res.send(page({
-    req, title: 'Santa Claus parades in the GTA 2026: dates, times and map | DayHop',
-    description, canonicalPath: '/santa-parades', ogType: 'article', subscribePanel: false,
-    ogImage: `${base}${PHOTOS.og}`,
-    bodyHtml: bodyHtml(base, today)
+// Nearest public washroom to each start point, from Go Now's data
+// (services/goNow.js). Winter filter drops anything the source marks closed
+// for the season. Never blocks the page: a failure just drops the line.
+async function washroomLogistics() {
+  const goNow = require('../services/goNow');
+  const out = {};
+  await Promise.all(PARADES.filter(p => p.slug !== 'toronto').map(async p => {
+    try {
+      const [w] = await goNow.nearest({ lat: p.lat, lng: p.lng, layer: 'wc', filters: { winter: true }, limit: 1 });
+      if (w && w.dist <= 1500) out[p.slug] = { name: w.n, dist: w.dist };
+    } catch { /* line omitted */ }
   }));
+  return out;
+}
+
+router.get('/santa-parades', async (req, res, next) => {
+  try {
+    recordView(req, 'parades', '2026');
+    const base = origin(req);
+    const today = TORONTO_DAY.format(new Date());
+    const next = PARADES.filter(p => p.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+    const description = `Every 2026 Santa Claus parade in the GTA with dates, start times and routes, checked against each town's own page.${next.length ? ` Next up: ${next[0].town}, ${fmtDay(next[0].date)}.` : ''}`;
+    const logistics = await washroomLogistics();
+    res.set('Cache-Control', 'public, max-age=600');
+    res.send(page({
+      req, title: 'GTA Santa Claus parades 2026: dates, times, routes and map | DayHop',
+      description, canonicalPath: '/santa-parades', ogType: 'article', subscribePanel: false,
+      ogImage: `${base}${PHOTOS.og}`,
+      bodyHtml: bodyHtml(base, today, logistics)
+    }));
+  } catch (err) { next(err); }
+});
+
+// Short and old addresses for the page.
+router.get(['/parades', '/santa-parades-2026'], (req, res) => res.redirect(301, '/santa-parades'));
+
+// ---------- calendar files ----------
+// "11 a.m. to 1 p.m." → [11:00, 13:00]; "6 p.m." → [18:00, 20:00]. Null when
+// the official page posted no time (the event is then all day). Pure.
+function parseTimes(text) {
+  if (!text) return null;
+  const re = /(\d{1,2})(?::(\d{2}))?\s*(a|p)\.m\./gi;
+  const hits = [];
+  let m;
+  while ((m = re.exec(text))) {
+    let h = Number(m[1]) % 12;
+    if (m[3].toLowerCase() === 'p') h += 12;
+    hits.push(h * 60 + Number(m[2] || 0));
+  }
+  if (!hits.length) return null;
+  return [hits[0], hits[1] != null && hits[1] > hits[0] ? hits[1] : hits[0] + 120];
+}
+
+const icsEsc = s => String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+const hhmm = mins => `${String(Math.floor(mins / 60)).padStart(2, '0')}${String(mins % 60).padStart(2, '0')}00`;
+
+/** One parade as an iCalendar file (America/Toronto wall time). Pure. */
+function icsFor(p, base) {
+  const ymd = p.date.replace(/-/g, '');
+  const times = parseTimes(p.time);
+  const when = times
+    ? [`DTSTART;TZID=America/Toronto:${ymd}T${hhmm(times[0])}`, `DTEND;TZID=America/Toronto:${ymd}T${hhmm(times[1])}`]
+    : (() => { const d = new Date(`${p.date}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); return [`DTSTART;VALUE=DATE:${ymd}`, `DTEND;VALUE=DATE:${d.toISOString().slice(0, 10).replace(/-/g, '')}`]; })();
+  const desc = [p.time ? null : 'Start time not posted yet. Check the official page.', p.note, `Official page: ${p.official_url}`, `All GTA parades: ${base}/santa-parades`].filter(Boolean).join('\n');
+  return [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//DayHop//Santa Parades 2026//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VTIMEZONE', 'TZID:America/Toronto',
+    'BEGIN:STANDARD', 'DTSTART:19701101T020000', 'RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU', 'TZOFFSETFROM:-0400', 'TZOFFSETTO:-0500', 'TZNAME:EST', 'END:STANDARD',
+    'BEGIN:DAYLIGHT', 'DTSTART:19700308T020000', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU', 'TZOFFSETFROM:-0500', 'TZOFFSETTO:-0400', 'TZNAME:EDT', 'END:DAYLIGHT',
+    'END:VTIMEZONE',
+    'BEGIN:VEVENT',
+    `UID:parade-${p.slug}-2026@dayhop.quest`,
+    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')}`,
+    ...when,
+    `SUMMARY:${icsEsc(`${p.name} (${p.town})`)}`,
+    `LOCATION:${icsEsc(p.where)}`,
+    `DESCRIPTION:${icsEsc(desc)}`,
+    `URL:${p.official_url}`,
+    'END:VEVENT', 'END:VCALENDAR', ''
+  ].join('\r\n');
+}
+
+router.get('/santa-parades/:slug.ics', (req, res) => {
+  const p = PARADES.find(x => x.slug === String(req.params.slug));
+  if (!p) return res.status(404).send('Not found');
+  res.set('Content-Type', 'text/calendar; charset=utf-8');
+  res.set('Content-Disposition', `attachment; filename="${p.slug}-santa-parade-2026.ics"`);
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.send(icsFor(p, origin(req)));
 });
 
 api.post('/remind', express.json({ limit: '4kb' }), async (req, res, next) => {
@@ -217,4 +338,4 @@ api.post('/remind', express.json({ limit: '4kb' }), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-module.exports = { router, api, bodyHtml };
+module.exports = { router, api, bodyHtml, icsFor, parseTimes };

@@ -218,11 +218,15 @@
   }
   document.getElementById('gn-locate').addEventListener('click', function () { locate(true); });
 
-  // Start: a shared place, else the user's location, else downtown Toronto.
-  track('go_opened', focusId ? 'shared' : null);
-  state.center = TORONTO;
+  // Start: a shared place, else a point another page linked (?lat&lng, e.g.
+  // a parade start), else the user's location, else downtown Toronto.
+  var qLat = Number(params.get('lat')), qLng = Number(params.get('lng'));
+  var linked = qLat > 41 && qLat < 57.5 && qLng > -95.5 && qLng < -74;
+  track('go_opened', focusId ? 'shared' : linked ? 'linked' : null);
+  state.center = linked ? [qLat, qLng] : TORONTO;
+  if (linked) map.setView(state.center, 15);
   load();
-  if (!focusId) locate(false);
+  if (!focusId && !linked) locate(false);
   else {
     // Center on the shared place once it is known.
     fetch('/api/go/place/' + encodeURIComponent(focusId)).then(function (r) { return r.ok ? r.json() : null; }).then(function (p) {
