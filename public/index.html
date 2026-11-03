@@ -225,26 +225,6 @@
     </form>
     <p class="prompt-hint" id="prompt-error" role="alert" aria-live="polite"></p>
 
-    <!-- Free tools, right under the prompt: two mirrored tiles that read as
-         one pair (rounded outer corners, a shared seam in the middle).
-         Santa parades: routes/parades.js. Go Now: routes/goNow.js. -->
-    <nav class="tool-duo" aria-label="Free tools">
-      <p class="tool-duo-label"><span>Free this week</span></p>
-      <div class="tool-duo-grid">
-        <a class="tool-tile tool-tile--left" href="/santa-parades?utm_source=home&amp;utm_medium=tiles&amp;utm_campaign=parades">
-          <span class="tool-tile-icon" aria-hidden="true">🎅</span>
-          <span class="tool-tile-title">Santa parades 2026</span>
-          <span class="tool-tile-sub">Every GTA date, time and route, checked</span>
-          <span class="tool-tile-cta">See the map →</span>
-        </a>
-        <a class="tool-tile tool-tile--right" href="/go?utm_source=home&amp;utm_medium=tiles&amp;utm_campaign=go">
-          <span class="tool-tile-icon" aria-hidden="true">🚻</span>
-          <span class="tool-tile-title">Go Now</span>
-          <span class="tool-tile-sub">Open washrooms and changing tables near you</span>
-          <span class="tool-tile-cta">Find one →</span>
-        </a>
-      </div>
-    </nav>
 
     <p class="proof-strip">Built for the GTA · every plan checked against today's weather · 3 free plans a day</p>
     <!-- Free-tier meter: "N of 3 free plans left today" — JS fills & shows. -->
@@ -254,12 +234,39 @@
            JS fills with the highest-severity active advisory. -->
       <div class="advisory-strip" id="advisory-strip" role="status" aria-live="polite" hidden></div>
 
+    <!-- Free tool under the prompt area: Santa parades (routes/parades.js).
+         Last in the left column so its bottom edge lines up with its twin,
+         Go Now, at the bottom of the right column; the two tiles mirror
+         each other across the hero. -->
+    <a class="tool-tile tool-tile--left" href="/santa-parades?utm_source=home&amp;utm_medium=tiles&amp;utm_campaign=parades">
+      <span class="tool-tile-icon" aria-hidden="true">🎅</span>
+      <span class="tool-tile-text">
+        <span class="tool-tile-kicker">Free this week</span>
+        <span class="tool-tile-title">Santa parades 2026</span>
+        <span class="tool-tile-sub">Every GTA date, time and route, checked</span>
+      </span>
+      <span class="tool-tile-cta" aria-hidden="true">→</span>
+    </a>
+
     </div><!-- /.hero-left -->
 
     <!-- Featured event: the soonest upcoming dated event from the Toronto
          feeds (open data + civic calendars + partners), rendered by app.js
          once the browse payload lands. Hidden until there's one to show. -->
+    <!-- Right column: the featured card, then Go Now (routes/goNow.js), the
+         mirror of the Santa parades tile under the prompt. -->
+    <div class="hero-right">
     <aside class="hero-featured" id="hero-featured" aria-label="Featured event" hidden></aside>
+    <a class="tool-tile tool-tile--right" href="/go?utm_source=home&amp;utm_medium=tiles&amp;utm_campaign=go">
+      <span class="tool-tile-icon" aria-hidden="true">🚻</span>
+      <span class="tool-tile-text">
+        <span class="tool-tile-kicker">Free, live in the GTA</span>
+        <span class="tool-tile-title">Go Now</span>
+        <span class="tool-tile-sub">Open washrooms and changing tables near you</span>
+      </span>
+      <span class="tool-tile-cta" aria-hidden="true">→</span>
+    </a>
+    </div>
 
     </div><!-- /.hero-columns -->
   </div>
