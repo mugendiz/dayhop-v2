@@ -890,6 +890,27 @@ button.date-clear-btn { padding: 13px 4px; }
 .filter-chip:hover { border-color: var(--ink-soft); transform: translateY(-1px); }
 .filter-chip:active { transform: translateY(0) scale(0.97); }
 
+/* Vibrant chips: each category wears its own colour (--chip) as a soft
+   tint with a coloured edge and text; the active chip fills solid. On wide
+   screens the row spans the container in equal widths, symmetric edge to
+   edge; phones keep the swipeable row. */
+.filter-chip { --chip: var(--moss); background: color-mix(in srgb, var(--chip) 12%, #fff); border: 1.5px solid color-mix(in srgb, var(--chip) 45%, #fff); color: color-mix(in srgb, var(--chip) 80%, #000); font-weight: 600; }
+.filter-chip[data-filter="all"] { --chip: #3F6F5C; }
+.filter-chip[data-filter="water"] { --chip: #1F7FB8; }
+.filter-chip[data-filter="culture"] { --chip: #6A4C93; }
+.filter-chip[data-filter="kids"] { --chip: #C27C00; }
+.filter-chip[data-filter="patios"] { --chip: #E1502F; }
+.filter-chip[data-filter="food"] { --chip: #B5482A; }
+.filter-chip[data-filter="cruises"] { --chip: #2C7A8C; }
+.filter-chip[data-filter="adventures"] { --chip: #D9601A; }
+#sort-distance-chip { --chip: #E1502F; }
+.filter-chip:hover { border-color: var(--chip); box-shadow: 0 4px 12px color-mix(in srgb, var(--chip) 25%, transparent); }
+.filter-chip.active, .filter-chip.active:hover { background: var(--chip); border-color: var(--chip); color: #fff; box-shadow: 0 4px 14px color-mix(in srgb, var(--chip) 35%, transparent); }
+@media (min-width: 880px) {
+  .filters { overflow-x: visible; }
+  .filters > .filter-chip:not([hidden]) { flex: 1 1 0; min-width: max-content; text-align: center; }
+}
+
 .filter-chip.active {
   background: var(--ink);
   border-color: var(--ink);
@@ -3179,12 +3200,9 @@ body[data-mode="adventure"] .mode-thumb { transform: translateX(100%); }
 }
 @media (prefers-reduced-motion: reduce) { .mode-nudge { animation: none; } }
 
-/* Active filter chip picks up the mode accent (was flat ink). */
-.filter-chip.active {
-  background: var(--mode-accent);
-  border-color: var(--mode-accent);
-  color: var(--paper);
-}
+/* "All" picks up the mode accent; category chips keep their own colour
+   (see the vibrant chips block above). */
+.filter-chip[data-filter="all"] { --chip: var(--mode-accent); }
 
 /* Feed dips while the mode switch refetches, so the swap reads as one
    smooth transition instead of a hard repaint. */
