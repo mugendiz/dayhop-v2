@@ -7058,9 +7058,13 @@
       </button>`).join('');
     // The fine print travels with the homes (it lived in the old detail
     // panel; every card now opens the /dream scroll, which repeats it).
-    rail.innerHTML = homeCards + visions + `
-      <p class="dream-fine" role="note">Open house times and prices change. Verify with the listing agent before you go.
-      DayHop is not a real estate brokerage and does not sell homes. This is a dreaming and visiting guide, not buying advice.</p>`;
+    rail.innerHTML = homeCards + visions;
+    const fine = document.getElementById('dream-fine');
+    if (fine) {
+      fine.textContent = 'Open house times and prices change. Verify with the listing agent before you go. ' +
+        'DayHop is not a real estate brokerage and does not sell homes. This is a dreaming and visiting guide, not buying advice.';
+      fine.hidden = false;
+    }
     // Every card goes to the dream scroll (routes/dream.js), at its panel.
     rail.querySelectorAll('[data-dream]').forEach(btn => btn.addEventListener('click', () => {
       window.location.href = `/dream#home-${encodeURIComponent(btn.dataset.dream)}`;

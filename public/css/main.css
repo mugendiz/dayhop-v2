@@ -987,7 +987,10 @@ button.date-clear-btn { padding: 13px 4px; }
 .dream-beta { display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 999px; background: var(--marigold); color: var(--ink); font-size: 10px; letter-spacing: 0.1em; }
 .dream-scroll-link { display: inline-flex; align-items: center; min-height: 44px; margin-top: 4px; font-weight: 700; color: var(--coral-dark); text-decoration: none; }
 .dream-scroll-link:hover { text-decoration: underline; }
-a.dream-card { display: block; text-decoration: none; }
+/* Cards share the rail's height; contents start at the top (a <button>
+   would otherwise centre them vertically). */
+.dream-card { display: flex; flex-direction: column; justify-content: flex-start; }
+a.dream-card { text-decoration: none; }
 .dream-head h2 { font-size: 22px; line-height: 1.25; max-width: 640px; margin: 0; }
 .dream-sub { color: var(--ink-soft); font-size: 14.5px; margin: 6px 0 0; max-width: 640px; }
 .dream-rail {
@@ -4264,15 +4267,18 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
 }
 .holiday-strip-close:hover { background: var(--paper-dim); color: var(--coral-dark); }
 
-/* ---------- Hero extras: carousel (left), Washroom Map tile (right) ---------- */
-/* The carousel card and the Washroom Map tile face each other across the
-   hero: same top (both sit one --hero-gap under cards whose bottoms are
-   already level), same height (--duo-h), mirrored corners. The carousel's
-   dots and arrows live inside its card, along the bottom edge. */
+/* ---------- This week row: carousel (left), Washroom Map tile (right) ---------- */
+/* At the top of the explore section (index.html .tools-row): the carousel
+   card and the Washroom Map tile side by side, same height (--duo-h),
+   mirrored corners, in the same column split as the hero above. The
+   carousel's dots and arrows live inside its card, along the bottom edge.
+   Phones stack them. */
 :root { --hero-gap: 28px; --duo-h: 184px; }
-.hero-left { min-width: 0; } /* a row of 100%-wide slides must not widen the grid column */
+.hero-left { min-width: 0; } /* a grid column must not grow to fit its content */
+.tools-row { display: grid; grid-template-columns: 1fr; gap: 16px; margin: 4px 0 28px; }
+.tools-row > * { min-width: 0; } /* a row of 100%-wide slides must not widen the column */
+@media (min-width: 880px) { .tools-row { grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.85fr); gap: 24px; } }
 .hero-carousel { margin: 0; min-width: 0; max-width: 100%; }
-.prompt-hint + .hero-carousel { margin-top: calc(var(--hero-gap) - 28px); } /* .prompt-hint is 10px + 18px tall */
 .hc-frame {
   display: flex; flex-direction: column; min-height: var(--duo-h); overflow: hidden;
   border: 1px solid var(--line); border-radius: var(--radius) 0 0 var(--radius); box-shadow: var(--shadow-soft);
@@ -4341,8 +4347,8 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
    (syncFeaturedHeight), so its bottom edge stays level with the prompt
    box's; the Washroom Map tile follows below, level with the carousel. */
 @media (min-width: 880px) { .hero-right > .hero-featured { flex: 0 0 auto; } }
-/* Phones: the columns stack, so the pair no longer faces each other. */
-@media (max-width: 879.98px) { :root { --duo-h: 0px; } .prompt-hint + .hero-carousel { margin-top: 4px; } }
+/* Phones: the pair stacks, so each card takes its natural height. */
+@media (max-width: 879.98px) { :root { --duo-h: 0px; } }
 @media (prefers-reduced-motion: reduce) { .tool-tile, .hc-track { transition: none; scroll-behavior: auto; } .tool-tile:hover { transform: none; } }
 
 /* Share sheet styles: public/css/share-sheet.css (also used by /dream). */
