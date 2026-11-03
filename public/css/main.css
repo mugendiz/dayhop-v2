@@ -4259,44 +4259,49 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
 .holiday-strip-close:hover { background: var(--paper-dim); color: var(--coral-dark); }
 
 /* ---------- Hero extras: carousel (left), Washroom Map tile (right) ---------- */
-/* Carousel under the prompt (index.html #hero-carousel, public/hero-carousel.js):
-   one slide per view, scroll-snap, thumbnail left, a share glyph right.
-   Tapping a slide opens the share sheet. */
-.hero-carousel { margin: 18px 0 6px; min-width: 0; max-width: 100%; }
-/* A grid item's min-width defaults to its content, so a row of 100%-wide
-   slides would stretch the whole left column off a phone screen. */
-.hero-left { min-width: 0; }
-.hc-head { display: flex; align-items: center; justify-content: space-between; margin: 0 0 8px; }
-.hc-label { margin: 0; font-family: var(--mono, 'Space Grotesk', monospace); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--moss); }
-.hc-nav { display: flex; gap: 6px; }
-.hc-prev, .hc-next {
-  width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.8);
-  color: var(--ink); font-size: 1.4rem; line-height: 1; cursor: pointer; box-shadow: var(--shadow-soft);
+/* The carousel card and the Washroom Map tile face each other across the
+   hero: same top (both sit one --hero-gap under cards whose bottoms are
+   already level), same height (--duo-h), mirrored corners. The carousel's
+   dots and arrows live inside its card, along the bottom edge. */
+:root { --hero-gap: 28px; --duo-h: 184px; }
+.hero-left { min-width: 0; } /* a row of 100%-wide slides must not widen the grid column */
+.hero-carousel { margin: 0; min-width: 0; max-width: 100%; }
+.prompt-hint + .hero-carousel { margin-top: calc(var(--hero-gap) - 28px); } /* .prompt-hint is 10px + 18px tall */
+.hc-frame {
+  display: flex; flex-direction: column; min-height: var(--duo-h); overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--radius) 0 0 var(--radius); box-shadow: var(--shadow-soft);
+  background: rgba(255, 255, 255, 0.72); -webkit-backdrop-filter: saturate(1.6) blur(16px); backdrop-filter: saturate(1.6) blur(16px);
 }
 .hc-track {
-  display: flex; width: 100%; min-width: 0; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none;
-  border-radius: var(--radius) 0 0 var(--radius);
+  flex: 1; display: flex; width: 100%; min-width: 0; overflow-x: auto;
+  scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none;
 }
 .hc-track::-webkit-scrollbar { display: none; }
 .hc-slide {
-  flex: 0 0 100%; scroll-snap-align: start; display: flex; align-items: center; gap: 14px; min-height: 120px;
-  padding: 12px 16px 12px 12px; border: 1px solid var(--line); border-radius: var(--radius) 0 0 var(--radius);
-  background: rgba(255, 255, 255, 0.72); -webkit-backdrop-filter: saturate(1.6) blur(16px); backdrop-filter: saturate(1.6) blur(16px);
+  flex: 0 0 100%; scroll-snap-align: start; display: flex; align-items: center; gap: 16px;
+  padding: 16px 18px 6px 16px; border: 0; background: transparent;
   color: var(--ink); text-align: left; font: inherit; cursor: pointer;
 }
 .hc-slide:focus-visible { outline: 3px solid var(--coral-btn); outline-offset: -3px; }
-.hc-thumb { flex: 0 0 auto; width: 96px; height: 96px; object-fit: cover; border-radius: 14px 4px 4px 14px; background: var(--paper-dim); }
+.hc-thumb { flex: 0 0 auto; width: 104px; height: 104px; object-fit: cover; border-radius: 14px 4px 4px 14px; background: var(--paper-dim); }
 .hc-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .hc-kicker { font-family: var(--mono, 'Space Grotesk', monospace); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--coral-dark); }
 .hc-slide--fall .hc-kicker { color: #B5482A; }
 .hc-slide--tott .hc-kicker { color: var(--moss); }
-.hc-title { font-family: var(--display, 'Satoshi', system-ui, sans-serif); font-weight: 700; font-size: 1.08rem; line-height: 1.25; }
-.hc-sub { font-size: 0.84rem; line-height: 1.35; color: var(--ink-soft); }
+.hc-title { font-family: var(--display, 'Satoshi', system-ui, sans-serif); font-weight: 700; font-size: 1.12rem; line-height: 1.25; }
+.hc-sub { font-size: 0.86rem; line-height: 1.35; color: var(--ink-soft); }
 .hc-share { flex: 0 0 auto; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--marigold); color: var(--ink); }
-.hc-dots { display: flex; justify-content: center; gap: 2px; margin-top: 6px; }
+.hc-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 12px 8px 16px; }
+.hc-dots { display: flex; gap: 2px; }
 .hc-dot { width: 28px; height: 28px; border: 0; background: none; cursor: pointer; position: relative; }
 .hc-dot::after { content: ''; position: absolute; inset: 11px; border-radius: 50%; background: var(--line-strong); }
 .hc-dot[aria-current="true"]::after { background: var(--coral-btn); inset: 10px; }
+.hc-nav { display: flex; gap: 8px; }
+.hc-prev, .hc-next {
+  width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: #fff;
+  color: var(--ink); font-size: 1.5rem; line-height: 1; cursor: pointer; box-shadow: var(--shadow-soft);
+}
+.hc-prev:hover, .hc-next:hover { background: var(--paper-dim); }
 @media (max-width: 420px) {
   .hc-thumb { width: 80px; height: 80px; }
   .hc-title { font-size: 1rem; }
@@ -4304,12 +4309,12 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
 }
 
 /* Washroom Map tile under the featured card (index.html .tool-tile). */
-.hero-right { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.hero-right { display: flex; flex-direction: column; gap: var(--hero-gap); min-width: 0; }
 .hero-right > .hero-featured[hidden] { display: none; }
 .tool-tile {
-  position: relative; display: flex; align-items: center; gap: 14px;
-  min-height: 84px; padding: 14px 18px; text-decoration: none; color: var(--ink);
-  background: rgba(255, 255, 255, 0.66);
+  position: relative; display: flex; align-items: center; gap: 16px;
+  min-height: var(--duo-h); padding: 16px 20px; text-decoration: none; color: var(--ink);
+  background: rgba(255, 255, 255, 0.72);
   -webkit-backdrop-filter: saturate(1.6) blur(16px); backdrop-filter: saturate(1.6) blur(16px);
   border: 1px solid var(--line); box-shadow: var(--shadow-soft);
   border-radius: 0 var(--radius) var(--radius) 0;
@@ -4318,18 +4323,20 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
 .tool-tile:hover, .tool-tile:focus-visible { background: rgba(255, 255, 255, 0.92); box-shadow: var(--shadow); transform: translateY(-2px); }
 .tool-tile:focus-visible { outline: 3px solid var(--coral-btn); outline-offset: 2px; }
 .tool-tile-icon {
-  flex: 0 0 auto; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%;
-  font-size: 26px; line-height: 1; background: rgba(63, 111, 92, 0.13); box-shadow: inset 0 0 0 2px rgba(63, 111, 92, 0.3);
+  flex: 0 0 auto; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%;
+  font-size: 30px; line-height: 1; background: rgba(63, 111, 92, 0.13); box-shadow: inset 0 0 0 2px rgba(63, 111, 92, 0.3);
 }
-.tool-tile-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; }
+.tool-tile-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; text-align: left; }
 .tool-tile-kicker { font-family: var(--mono, 'Space Grotesk', monospace); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--moss); }
-.tool-tile-title { font-family: var(--display, 'Satoshi', system-ui, sans-serif); font-weight: 700; font-size: 1.08rem; line-height: 1.2; }
-.tool-tile-sub { font-size: 0.84rem; line-height: 1.35; color: var(--ink-soft); }
-.tool-tile-cta { flex: 0 0 auto; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; font-weight: 700; font-size: 1.1rem; color: #fff; background: var(--moss); }
+.tool-tile-title { font-family: var(--display, 'Satoshi', system-ui, sans-serif); font-weight: 700; font-size: 1.12rem; line-height: 1.2; }
+.tool-tile-sub { font-size: 0.86rem; line-height: 1.35; color: var(--ink-soft); }
+.tool-tile-cta { flex: 0 0 auto; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; font-weight: 700; font-size: 1.15rem; color: #fff; background: var(--moss); }
 /* Desktop: the featured card keeps the height app.js gives it
    (syncFeaturedHeight), so its bottom edge stays level with the prompt
    box's; the Washroom Map tile follows below, level with the carousel. */
 @media (min-width: 880px) { .hero-right > .hero-featured { flex: 0 0 auto; } }
+/* Phones: the columns stack, so the pair no longer faces each other. */
+@media (max-width: 879.98px) { :root { --duo-h: 0px; } .prompt-hint + .hero-carousel { margin-top: 4px; } }
 @media (prefers-reduced-motion: reduce) { .tool-tile, .hc-track { transition: none; scroll-behavior: auto; } .tool-tile:hover { transform: none; } }
 
 /* ---------- Share sheet (public/share-sheet.js) ----------

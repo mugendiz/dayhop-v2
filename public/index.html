@@ -229,16 +229,19 @@
          1 fall colours, 2 Talk of the town (when the shelf has picks),
          3 Santa parades. Tapping a slide opens the share sheet. Hidden
          until the slides load. -->
-    <section class="hero-carousel" id="hero-carousel" aria-roledescription="carousel" aria-label="This week on DayHop" hidden>
-      <div class="hc-head">
-        <p class="hc-label">This week · tap to share</p>
-        <div class="hc-nav">
-          <button type="button" class="hc-prev" aria-label="Previous">‹</button>
-          <button type="button" class="hc-next" aria-label="Next">›</button>
+    <section class="hero-carousel" id="hero-carousel" aria-roledescription="carousel" aria-label="This week on DayHop, tap a card to share" hidden>
+      <!-- One card: the slides on top, dots and arrows along its bottom
+           edge. Same top and height as the Washroom Map tile opposite. -->
+      <div class="hc-frame">
+        <div class="hc-track"></div>
+        <div class="hc-foot">
+          <div class="hc-dots" role="group" aria-label="Choose a slide"></div>
+          <div class="hc-nav">
+            <button type="button" class="hc-prev" aria-label="Previous">‹</button>
+            <button type="button" class="hc-next" aria-label="Next">›</button>
+          </div>
         </div>
       </div>
-      <div class="hc-track"></div>
-      <div class="hc-dots" role="group" aria-label="Choose a slide"></div>
     </section>
 
 
