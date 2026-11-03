@@ -4469,23 +4469,30 @@
   // window resizes. Below the split breakpoint the card sizes naturally.
   function syncFeaturedHeight() {
     const aside = document.getElementById('hero-featured');
-    const toggle = document.getElementById('mode-toggle');
     const form = document.getElementById('prompt-form');
-    if (!aside || !toggle || !form) return;
+    if (!aside || !form) return;
     if (!window.matchMedia('(min-width: 880px)').matches) {
       aside.style.height = '';
       aside.style.removeProperty('--featured-photo-h');
       return;
     }
-    const t = toggle.getBoundingClientRect();
-    const f = form.getBoundingClientRect();
-    const h = Math.round(f.bottom - t.top);
+    // Layout positions, not getBoundingClientRect: the hero's entrance and
+    // scroll-driven animations transform both columns, so on-screen boxes
+    // drift by a few px depending on when and where this runs. offsetTop
+    // ignores transforms, so the card's bottom lands exactly level with the
+    // prompt box's bottom, measured from the card's own top edge.
+    const topIn = (el, root) => { let y = 0; for (let n = el; n && n !== root; n = n.offsetParent) y += n.offsetTop; return y; };
+    const root = aside.closest('.hero-columns') || document.body;
+    const a = { top: topIn(aside, root) };
+    const fTop = topIn(form, root);
+    const f = { top: fTop, bottom: fTop + form.offsetHeight };
+    const h = Math.round(f.bottom - a.top);
     if (h > 240) { aside.style.height = `${h}px`; aside.style.minHeight = ''; }
     // The photo's bottom edge sits level with the prompt box's top edge, so
     // photo ↔ (toggle+headline) and card body ↔ prompt box pair up as two
     // matched bands across the hero. Set as a CSS variable on the aside so
     // it survives the rotation's innerHTML swaps.
-    const photoH = Math.round(f.top - t.top);
+    const photoH = Math.round(f.top - a.top);
     if (photoH > 120) aside.style.setProperty('--featured-photo-h', `${photoH}px`);
   }
 

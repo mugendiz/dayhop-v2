@@ -4326,7 +4326,10 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
 .tool-tile-title { font-family: var(--display, 'Satoshi', system-ui, sans-serif); font-weight: 700; font-size: 1.08rem; line-height: 1.2; }
 .tool-tile-sub { font-size: 0.84rem; line-height: 1.35; color: var(--ink-soft); }
 .tool-tile-cta { flex: 0 0 auto; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; font-weight: 700; font-size: 1.1rem; color: #fff; background: var(--moss); }
-@media (min-width: 880px) { .hero-right > .hero-featured { flex: 1 1 auto; } }
+/* Desktop: the featured card keeps the height app.js gives it
+   (syncFeaturedHeight), so its bottom edge stays level with the prompt
+   box's; the Washroom Map tile follows below, level with the carousel. */
+@media (min-width: 880px) { .hero-right > .hero-featured { flex: 0 0 auto; } }
 @media (prefers-reduced-motion: reduce) { .tool-tile, .hc-track { transition: none; scroll-behavior: auto; } .tool-tile:hover { transform: none; } }
 
 /* ---------- Share sheet (public/share-sheet.js) ----------
