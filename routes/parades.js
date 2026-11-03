@@ -31,8 +31,31 @@ function shareLinks(url) {
   };
 }
 
+// Photos: Wikimedia Commons, CC BY 2.0, self-hosted and resized
+// (public/img/parades/, fetched 2026-11-03). All three are from Toronto's
+// parade, so captions say Toronto; never caption one as another town's.
+const PHOTO_CREDIT = (file, author) => `Photo: <a href="https://commons.wikimedia.org/wiki/${encodeURIComponent(file).replace(/%20/g, '_')}" rel="noopener" target="_blank">${author}</a>, <a href="https://creativecommons.org/licenses/by/2.0/" rel="noopener" target="_blank">CC BY 2.0</a>`;
+const PHOTOS = {
+  hero: { src: '/img/parades/santa-waving.jpg', w: 1200, h: 700, alt: 'Santa waving from his sleigh float at the Toronto Santa Claus Parade',
+    caption: `Santa at the Original Santa Claus Parade, Toronto. ${PHOTO_CREDIT('File:Santa Claus Parade (Toronto) (23052920425).jpg', 'Randy Landicho')}` },
+  strip: [
+    { src: '/img/parades/elves.jpg', w: 800, h: 533, alt: 'Elves dancing past families sitting along the curb in Toronto',
+      caption: `Curbside in Toronto. ${PHOTO_CREDIT('File:Santa Claus Parade (Toronto) (22634640577).jpg', 'Randy Landicho')}` },
+    { src: '/img/parades/clowns.jpg', w: 800, h: 533, alt: 'Clowns in bright wigs handing out cheer at the Toronto parade',
+      caption: `Clowns on the Toronto route. ${PHOTO_CREDIT('File:Santa Claus Parade (Toronto) (22430193564).jpg', 'Randy Landicho')}` }
+  ],
+  og: '/img/parades/og-parades.jpg'
+};
+
 const STYLE = `
 <style>
+.pz-hero{margin:0 0 14px}
+.pz-hero img,.pz-strip img{display:block;width:100%;height:auto;border-radius:14px}
+.pz-hero figcaption,.pz-strip figcaption{font-size:11.5px;color:#8a9a9c;margin:4px 2px 0}
+.pz-hero figcaption a,.pz-strip figcaption a{color:inherit}
+.pz-strip{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0 6px}
+.pz-strip figure{margin:0}
+@media (max-width:640px){.pz-strip{grid-template-columns:1fr}}
 .pz-lede{font-size:17px;line-height:1.6;color:#2C4A4E;margin:0 0 6px}
 .pz-checked{display:inline-block;background:#E8F2EC;color:#2D5A47;font-weight:700;font-size:13px;padding:5px 10px;border-radius:999px;margin:4px 0 16px}
 #pz-map{height:380px;border-radius:14px;border:1px solid #E8E2D4;margin:0 0 6px;z-index:0}
@@ -76,6 +99,10 @@ function bodyHtml(base, today) {
 
   return `${STYLE}
 <link rel="stylesheet" href="/vendor/leaflet-1.9.4/leaflet.css">
+<figure class="pz-hero">
+  <img src="${PHOTOS.hero.src}" width="${PHOTOS.hero.w}" height="${PHOTOS.hero.h}" alt="${esc(PHOTOS.hero.alt)}" fetchpriority="high">
+  <figcaption>${PHOTOS.hero.caption}</figcaption>
+</figure>
 <h1>Santa Claus parades in the GTA, 2026 🎅</h1>
 <p class="pz-lede">Every 2026 date we could confirm, with start times, where each route runs and a map. Each row is checked against the town's or organizer's own page, not a listing site.</p>
 <span class="pz-checked">✓ Last checked ${esc(fmtVerified(lastChecked))}</span>
@@ -90,6 +117,10 @@ ${rows}
 </tbody>
 </table>
 <p class="pz-note">Not posted on the town's own site yet: ${esc(NOT_POSTED.join(', '))}. We check again before each weekend and add them here.</p>
+
+<div class="pz-strip">
+${PHOTOS.strip.map(p => `  <figure><img src="${p.src}" width="${p.w}" height="${p.h}" alt="${esc(p.alt)}" loading="lazy"><figcaption>${p.caption}</figcaption></figure>`).join('\n')}
+</div>
 
 ${upcoming.length ? `<section class="pz-box" id="remind">
   <h2>Email me the night before 📬</h2>
@@ -168,6 +199,7 @@ router.get('/santa-parades', (req, res) => {
   res.send(page({
     req, title: 'Santa Claus parades in the GTA 2026: dates, times and map | DayHop',
     description, canonicalPath: '/santa-parades', ogType: 'article', subscribePanel: false,
+    ogImage: `${base}${PHOTOS.og}`,
     bodyHtml: bodyHtml(base, today)
   }));
 });

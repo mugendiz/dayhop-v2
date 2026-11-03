@@ -48,6 +48,11 @@ test('the page: a plain table with every parade, sources, a map and a reminder b
     assert.match(html, /\/vendor\/leaflet-1\.9\.4\/leaflet\.js/);
     assert.match(html, /<link rel="canonical" href="[^"]*\/santa-parades">/);
     assert.match(html, /utm_campaign=parades/);
+    // Pictures: self-hosted, credited, and the share card has one.
+    assert.match(html, /<meta property="og:image" content="[^"]*\/img\/parades\/og-parades\.jpg">/);
+    for (const img of ['santa-waving', 'elves', 'clowns']) assert.match(html, new RegExp(`/img/parades/${img}\\.jpg`));
+    assert.equal((html.match(/CC BY 2\.0/g) || []).length, 3, 'every photo carries its licence');
+    assert.doesNotMatch(html, /googleusercontent|\/api\/photo/);
   });
 });
 
