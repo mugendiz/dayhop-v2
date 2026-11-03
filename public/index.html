@@ -53,6 +53,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
 </noscript>
 <link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/share-sheet.css">
 </head>
 <body>
 
@@ -280,14 +281,15 @@
 
 <main class="app" id="main">
 
-  <!-- Dream Home: real open houses an admin entered by hand (no listings
-       feed exists for us), open now first. app.js fills the rail from
-       /api/dream-homes; the section stays hidden if that call fails. -->
+  <!-- Dream big (BETA, not public): real open houses an admin entered by
+       hand plus vision-board dreams (routes/dream.js). Shown only with the
+       dh_beta cookie (?beta=1); every card opens the /dream scroll. -->
   <section class="dream" id="dream-homes" aria-labelledby="dream-title" hidden>
     <div class="dream-head">
-      <p class="dream-kicker">Dream Home</p>
-      <h2 id="dream-title">You don't need a plan to buy a house to walk through your dream home.</h2>
-      <p class="dream-sub">These are real open houses near you. See it in person. That is how a dream gets real.</p>
+      <p class="dream-kicker">Dream big <span class="dream-beta">Beta</span></p>
+      <h2 id="dream-title">You don't have to be buying to walk through your dream home.</h2>
+      <p class="dream-sub">Real open houses near you, and the rest of the vision board: supercars, yachts, invite-only nights. Each one with a real way to get a taste.</p>
+      <a class="dream-scroll-link" href="/dream">Open the dream scroll →</a>
     </div>
     <div class="dream-rail" id="dream-rail" role="list"></div>
   </section>

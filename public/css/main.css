@@ -982,6 +982,12 @@ button.date-clear-btn { padding: 13px 4px; }
   font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--coral-dark); margin: 0 0 6px;
 }
+/* Dream big (beta): the badge, the link to the /dream scroll, and the
+   vision cards (anchors) styled like the open-house cards. */
+.dream-beta { display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 999px; background: var(--marigold); color: var(--ink); font-size: 10px; letter-spacing: 0.1em; }
+.dream-scroll-link { display: inline-flex; align-items: center; min-height: 44px; margin-top: 4px; font-weight: 700; color: var(--coral-dark); text-decoration: none; }
+.dream-scroll-link:hover { text-decoration: underline; }
+a.dream-card { display: block; text-decoration: none; }
 .dream-head h2 { font-size: 22px; line-height: 1.25; max-width: 640px; margin: 0; }
 .dream-sub { color: var(--ink-soft); font-size: 14.5px; margin: 6px 0 0; max-width: 640px; }
 .dream-rail {
@@ -4339,45 +4345,7 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
 @media (max-width: 879.98px) { :root { --duo-h: 0px; } .prompt-hint + .hero-carousel { margin-top: 4px; } }
 @media (prefers-reduced-motion: reduce) { .tool-tile, .hc-track { transition: none; scroll-behavior: auto; } .tool-tile:hover { transform: none; } }
 
-/* ---------- Share sheet (public/share-sheet.js) ----------
-   Big and thumb-first: the photo and title up top, four one-tap channels
-   in a 2x2 grid, the phone's own share below, "open it first" last. A
-   bottom sheet on phones, a centred card on desktop. */
-html.share-sheet-open { overflow: hidden; }
-.share-sheet { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: flex-end; justify-content: center; }
-.share-sheet[hidden] { display: none; }
-.share-sheet-backdrop { position: absolute; inset: 0; background: rgba(16, 42, 46, 0.5); opacity: 0; transition: opacity .18s ease; }
-.share-sheet.in .share-sheet-backdrop { opacity: 1; }
-.share-sheet-panel {
-  position: relative; width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto;
-  background: var(--paper); border-radius: 22px 22px 0 0; padding: 18px 18px max(18px, env(safe-area-inset-bottom));
-  box-shadow: var(--shadow-lg); transform: translateY(24px); opacity: 0; transition: transform .2s ease, opacity .2s ease;
-}
-.share-sheet.in .share-sheet-panel { transform: none; opacity: 1; }
-.share-sheet-x { position: absolute; top: 8px; right: 8px; width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; font-size: 18px; color: var(--ink-soft); cursor: pointer; }
-.share-sheet-hero { display: flex; gap: 14px; align-items: center; margin: 4px 36px 16px 0; }
-.share-sheet-thumb { flex: 0 0 auto; width: 92px; height: 92px; object-fit: cover; border-radius: 16px; background: var(--paper-dim); }
-.share-sheet-kicker { margin: 0 0 2px; font-family: var(--mono, 'Space Grotesk', monospace); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--coral-dark); }
-.share-sheet-title { margin: 0; font-family: var(--display, 'Satoshi', system-ui, sans-serif); font-size: 1.3rem; line-height: 1.2; }
-.share-sheet-lede { margin: 4px 0 0; font-size: 0.88rem; color: var(--ink-soft); }
-.share-sheet-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.share-ch {
-  display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 56px; border: 0; border-radius: 14px;
-  font: inherit; font-weight: 700; font-size: 1rem; color: #fff; cursor: pointer;
-}
-.share-ch span { font-size: 1.2rem; }
-.share-ch--wa { background: #1DA851; }
-.share-ch--sms { background: #2B7BE4; }
-.share-ch--fb { background: #1877F2; }
-.share-ch--copy { background: var(--ink); }
-.share-ch:focus-visible, .share-native:focus-visible, .share-open:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; }
-.share-native { display: block; width: 100%; min-height: 48px; margin-top: 10px; border: 1.5px solid var(--ink); border-radius: 14px; background: #fff; font: inherit; font-weight: 700; cursor: pointer; }
-.share-open { display: block; text-align: center; margin: 14px 0 2px; min-height: 44px; line-height: 44px; font-weight: 700; color: var(--coral-dark); }
-@media (min-width: 700px) {
-  .share-sheet { align-items: center; }
-  .share-sheet-panel { border-radius: 22px; }
-}
-@media (prefers-reduced-motion: reduce) { .share-sheet-panel, .share-sheet-backdrop { transition: none; } }
+/* Share sheet styles: public/css/share-sheet.css (also used by /dream). */
 
 .proof-strip {
   margin: 10px 0 0; text-align: center;
