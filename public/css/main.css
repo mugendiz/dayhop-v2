@@ -289,14 +289,14 @@ button, .filter-chip {
   font-weight: 600;
   letter-spacing: 0.01em;
   padding: 7px 16px;
-  border-radius: var(--radius-pill);
+  border-radius: 11px; /* squared like the R&R / Adventure toggle (.mode-option) */
   box-shadow: 0 2px 10px rgba(255, 107, 74, 0.22);
   transition: filter 0.15s ease, transform 0.15s var(--ease), box-shadow 0.15s ease;
 }
 .go-pro-btn:hover { filter: brightness(1.06); box-shadow: 0 4px 14px rgba(255, 107, 74, 0.3); }
 .go-pro-btn:active { transform: scale(0.96); }
 
-/* Blog entry: Go Pro's quiet green sibling — same pill, moss instead of
+/* Blog entry: Go Pro's quiet green sibling — same shape, moss instead of
    coral, so the pair reads as one control family with two temperatures. */
 .stories-btn {
   background: var(--moss);
@@ -306,7 +306,7 @@ button, .filter-chip {
   font-weight: 600;
   letter-spacing: 0.01em;
   padding: 7px 16px;
-  border-radius: var(--radius-pill);
+  border-radius: 11px; /* same as Go Pro and the mode toggle */
   text-decoration: none;
   box-shadow: 0 2px 10px rgba(63, 111, 92, 0.22);
   transition: filter 0.15s ease, transform 0.15s var(--ease), box-shadow 0.15s ease;
