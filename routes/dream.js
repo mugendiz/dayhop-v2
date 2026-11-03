@@ -5,11 +5,16 @@
 //                     the vision cards (data/dreamBoard.js) and the real open
 //                     houses (services/dreamHomes.js), each with a real way to
 //                     get a taste and a share button.
-//   GET /api/dream    the same, as JSON, for the homepage "Dream big" rail.
+//   GET /api/dream    the same, as JSON (?view=html adds the rendered
+//                     panels), for the homepage rail and the /dream shell.
 //
-// Beta gate: both answer 404 unless the browser carries the dh_beta=1
-// cookie, which ?beta=1 on any page sets (and ?beta=0 clears); see
-// betaGate below. The page is noindex and in no sitemap or llms.txt.
+// Who sees it: admin accounts (the ADMIN_EMAILS list or a team role in
+// services/outreach) and localhost. Everyone else gets a 404 from the APIs
+// and never sees the homepage section. A page visit carries no sign-in
+// token (it lives in the browser), so on the live site /dream is an empty
+// noindex shell that fetches its panels from /api/dream with the admin's
+// token; on localhost the server renders it directly. In no sitemap or
+// llms.txt.
 
 const express = require('express');
 const BOARD = require('../data/dreamBoard');
@@ -18,19 +23,26 @@ const { escapeHtml: esc } = require('./blog');
 const page = express.Router();
 const api = express.Router();
 
-const BETA_COOKIE = 'dh_beta';
-const isBeta = req => /(?:^|;\s*)dh_beta=1(?:;|$)/.test(String(req.headers.cookie || ''));
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
+// Never in production: with 'trust proxy' on, req.hostname follows
+// X-Forwarded-Host, which a visitor can set to "localhost". Render runs with
+// NODE_ENV=production (render.yaml), so there only admins get in.
+const isLocal = req => process.env.NODE_ENV !== 'production' && LOCAL_HOSTS.has(String(req.hostname || ''));
 
-/** Sets or clears the beta cookie from ?beta=1 / ?beta=0 on any GET. */
-function betaGate(req, res, next) {
-  if (req.method === 'GET' && (req.query.beta === '1' || req.query.beta === '0')) {
-    const on = req.query.beta === '1';
-    // Readable by the page (not HttpOnly): app.js only shows the beta rail
-    // when it sees it. It unlocks nothing private, just unreleased pages.
-    res.cookie(BETA_COOKIE, on ? '1' : '0', { maxAge: on ? 365 * 24 * 3600 * 1000 : 0, sameSite: 'lax', secure: req.secure, path: '/' });
-    if (on) req.headers.cookie = `${req.headers.cookie ? `${req.headers.cookie}; ` : ''}${BETA_COOKIE}=1`;
-  }
-  next();
+/** Admin account or localhost. Never throws. */
+async function canSeeDream(req) {
+  if (isLocal(req)) return true;
+  const user = req.user;
+  if (!user || !user.email) return false;
+  try {
+    if (require('../services/entitlements').isAdmin(user)) return true;
+    return Boolean(await require('../services/outreach').roleFor(user.email));
+  } catch { return false; }
+}
+
+/** Express middleware: 404 unless canSeeDream. */
+function requireDream(req, res, next) {
+  canSeeDream(req).then(ok => (ok ? next() : res.status(404).set('Cache-Control', 'no-store').json({ error: 'NOT_FOUND' })), next);
 }
 
 const fmtPrice = p => (p != null ? `$${Number(p).toLocaleString('en-CA')}` : '');
@@ -82,14 +94,14 @@ function panel(d, i) {
 </section>`;
 }
 
-function scrollHtml(list) {
+function scrollHtml(list, { shell = false } = {}) {
   const data = JSON.stringify(list.map(d => ({ id: d.id, title: d.title, kicker: d.kicker, line: d.line, image: d.image }))).replace(/</g, '\\u003c');
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Dream big | DayHop (beta)</title>
+<title>Dream big | DayHop (admin preview)</title>
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#102A2E">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
@@ -120,19 +132,22 @@ html,body{margin:0;height:100%;background:var(--ink);color:#fff;font-family:Inte
 .dr-btn--go{background:rgba(255,255,255,.14);color:#fff;border:1.5px solid rgba(255,255,255,.5)}
 .dr-credit{margin:12px 0 0;font-size:11.5px;color:#A9BAB4}
 .dr-credit a{color:inherit}
+.dr-empty{display:grid;place-items:center;height:100%;margin:0;color:#A9BAB4}
 .dr-hint{position:fixed;z-index:10;right:16px;bottom:max(18px,env(safe-area-inset-bottom));font-size:12px;color:#A9BAB4}
 @media (min-width:900px){.dr-copy{margin-left:6vw;padding-bottom:56px}}
 </style>
 </head>
 <body>
-<header class="dr-top"><a href="/">← DayHop<span class="dr-beta">Dream big · beta</span></a></header>
+<header class="dr-top"><a href="/">← DayHop<span class="dr-beta">Dream big · admin preview</span></a></header>
 <main class="dr-scroll" id="dr-scroll">
-${list.map(panel).join('\n')}
+${shell ? '<p class="dr-empty" id="dr-empty">Loading…</p>' : list.map(panel).join('\n')}
 </main>
 <script src="/share-sheet.js" defer></script>
 <script>
 (function () {
   var DREAMS = ${data};
+  var main = document.getElementById('dr-scroll');
+  function jump() { if (location.hash) { var t = document.getElementById(location.hash.slice(1)); if (t) t.scrollIntoView(); } }
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-share]');
     if (!b || !window.DayHopShare) return;
@@ -140,30 +155,51 @@ ${list.map(panel).join('\n')}
     if (!d) return;
     window.DayHopShare.open({ title: d.title, kicker: d.kicker, text: d.title + '. ' + d.line + ' Dream big with me?', thumb: d.image, url: location.origin + '/dream#' + d.id, campaign: 'dream' });
   });
-  if (location.hash) { var t = document.getElementById(location.hash.slice(1)); if (t) t.scrollIntoView(); }
+  ${shell ? `// Live site: the panels come from /api/dream with the signed-in
+  // admin's token (supabase-js keeps the session in localStorage).
+  var token = null;
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (/^sb-.*-auth-token$/.test(k)) { var v = JSON.parse(localStorage.getItem(k)); token = v && (v.access_token || (v.currentSession && v.currentSession.access_token)); }
+    }
+  } catch (e) { token = null; }
+  fetch('/api/dream?view=html', { headers: token ? { Authorization: 'Bearer ' + token } : {} })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d) { document.getElementById('dr-empty').textContent = 'Not found.'; return; }
+      DREAMS = d.dreams; main.innerHTML = d.html; jump();
+    })
+    .catch(function () { document.getElementById('dr-empty').textContent = 'Not found.'; });` : 'jump();'}
 })();
 </script>
 </body>
 </html>`;
 }
 
-const notFound = res => res.status(404).set('Cache-Control', 'no-store').type('text/plain').send('Not found');
+const slim = d => ({ id: d.id, kind: d.kind || 'vision', kicker: d.kicker, emoji: d.emoji, title: d.title, line: d.line, image: d.image, alt: d.alt });
 
+// Localhost: rendered here. Live site: a shell (no dreams in it) that loads
+// its panels from /api/dream with the admin's token, so a page visit never
+// needs to carry a session.
 page.get('/dream', async (req, res, next) => {
   try {
-    if (!isBeta(req)) return notFound(res);
     res.set('Cache-Control', 'private, no-store');
     res.set('X-Robots-Tag', 'noindex, nofollow');
-    res.send(scrollHtml(await dreams()));
+    if (isLocal(req)) return res.send(scrollHtml(await dreams()));
+    res.send(scrollHtml([], { shell: true }));
   } catch (err) { next(err); }
 });
 
-api.get('/', async (req, res, next) => {
+api.get('/', requireDream, async (req, res, next) => {
   try {
-    if (!isBeta(req)) return notFound(res);
     res.set('Cache-Control', 'private, no-store');
-    res.json({ dreams: (await dreams()).map(d => ({ id: d.id, kind: d.kind || 'vision', kicker: d.kicker, emoji: d.emoji, title: d.title, line: d.line, image: d.image, alt: d.alt })) });
+    const list = await dreams();
+    const out = { dreams: list.map(slim) };
+    if (req.query.view === 'html') out.html = list.map(panel).join('\n');
+    res.json(out);
   } catch (err) { next(err); }
 });
 
-module.exports = { page, api, betaGate, isBeta, dreams, scrollHtml };
+module.exports = { page, api, requireDream, canSeeDream, isLocal, dreams, scrollHtml };
+

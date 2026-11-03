@@ -14,7 +14,7 @@ test('slide order: fall colours, Talk of the town when it has picks, then Santa 
   const none = carousel.slides([]);
   assert.deepEqual(none.map(s => s.key), ['fall', 'parades'], 'an empty shelf hides the Talk of the town slide');
   const withTott = carousel.slides([{ title: 'Toronto Christmas Market — Distillery', image_url: null }, { title: 'B' }]);
-  assert.deepEqual(withTott.map(s => s.key), ['fall', 'tott', 'parades']);
+  assert.deepEqual(withTott.map(s => s.key), ['fall', 'tott-1', 'tott-2', 'parades'], 'one slide per Talk of the town pick');
   assert.equal(withTott[1].title, 'Toronto Christmas Market, Distillery', 'dashes become commas');
   for (const s of withTott) {
     assert.ok(s.thumb, `${s.key} has a thumbnail`);
@@ -57,7 +57,7 @@ test('Talk of the town slide falls back to the last emailed issue when the live 
   });
   await withApp(async base => {
     const j = await (await fetch(`${base}/api/carousel`)).json();
-    assert.deepEqual(j.slides.map(s => s.key), ['fall', 'tott', 'parades']);
+    assert.deepEqual(j.slides.map(s => s.key), ['fall', 'tott-1', 'parades']);
     assert.equal(j.slides[1].title, 'Brampton Diwali Mela', 'past picks are dropped');
   });
   issueStore._mem.clear();

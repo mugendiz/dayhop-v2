@@ -22,6 +22,9 @@ const page$ = express.Router();
 const api = express.Router();
 
 const FALL_RE = /fall colou?rs?|foliage|autumn/i;
+// "Sat Nov 7" or "Sat Nov 7 to Sun Nov 8" from YYYY-MM-DD. Pure.
+const fmtDay = ymd => new Date(`${ymd}T12:00:00Z`).toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+const fmtRange = (a, b) => (!a ? '' : !b || b === a ? fmtDay(a) : `${fmtDay(a)} to ${fmtDay(b)}`);
 const fallEntries = () => ENTRIES.filter(e => (e.tags || []).some(t => FALL_RE.test(t)));
 const thumbOf = e => {
   const h = heroOf(e);
@@ -44,17 +47,20 @@ function slides(tott = []) {
       share: `The best fall colour spots around the GTA, ${fall.length} picks on DayHop`
     });
   }
-  if (tott.length) {
-    const top = tott[0];
+  // Talk of the town as a feed: one slide per pick (the email's picks, in
+  // its order), each with its own thumbnail and where and when.
+  tott.slice(0, 5).forEach((p, i) => {
+    const where = [p.venue, p.location && p.location !== p.venue ? p.location : null].filter(Boolean).join(', ');
+    const when = fmtRange(p.date, p.date_end);
     out.push({
-      key: 'tott', kicker: 'Talk of the town',
-      title: undash(top.title),
-      sub: tott.length > 1 ? `Plus ${tott.length - 1} more things everyone's going to this week` : 'What everyone is going to this week',
-      thumb: top.image_url && /^https:\/\//.test(top.image_url) ? top.image_url : `/art/placeholder.svg?c=events&t=${encodeURIComponent(top.title)}`,
+      key: `tott-${i + 1}`, kicker: `Talk of the town · ${i + 1} of ${Math.min(tott.length, 5)}`,
+      title: undash(p.title),
+      sub: [when, where].filter(Boolean).join(' · ') || 'What everyone is going to this week',
+      thumb: p.image_url && /^https:\/\//.test(p.image_url) ? p.image_url : `/art/placeholder.svg?c=events&t=${encodeURIComponent(p.title)}`,
       url: '/talk-of-the-town',
-      share: `What everyone's going to this week around Toronto: ${undash(top.title)} and more`
+      share: `${undash(p.title)}${when ? `, ${when}` : ''}. Want to go?`
     });
-  }
+  });
   out.push({
     key: 'parades', kicker: 'Free this week',
     title: 'Santa Claus parades 2026',

@@ -193,9 +193,6 @@ if (hasHashedShell) {
 
 // Legacy stable-name minified shell — kept for HTML/SW cached before the
 // hashing deploy; 5-minute cache bounds the skew window.
-// Beta switch (routes/dream.js): ?beta=1 on any page sets the dh_beta
-// cookie that unlocks unreleased features (Dream big); ?beta=0 clears it.
-app.use(require('./routes/dream').betaGate);
 
 app.use((req, res, next) => {
   const abs = minifiedShell[req.path];
@@ -352,8 +349,8 @@ app.use('/api/cityguides', cityGuidesLimiter, require('./routes/cityGuides'));
 app.use('/api/personal-guides', cityGuidesLimiter, require('./routes/personalGuides'));
 // Dream Home rail (routes/dreamHomes.js): one cheap read of hand-entered
 // open houses; the admin writes are under /api/admin/dream-homes.
-// Beta only (Dream big): 404 without the dh_beta cookie.
-app.use('/api/dream-homes', (req, res, next) => (require('./routes/dream').isBeta(req) ? next() : res.status(404).json({ error: 'NOT_FOUND', homes: [] })), require('./routes/dreamHomes'));
+// Dream big is admin and localhost only (routes/dream.js): 404 for everyone else.
+app.use('/api/dream-homes', require('./routes/dream').requireDream, require('./routes/dreamHomes'));
 // A plan-less POST /api/guides triggers a Grok call server-side — the save
 // path must not be a free unmetered AI endpoint just because /generate is.
 const guidesLimiter = rateLimit({

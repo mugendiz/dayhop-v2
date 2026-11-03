@@ -12,7 +12,7 @@
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
   function slide(s, i, n) {
-    var b = el('button', 'hc-slide hc-slide--' + s.key);
+    var b = el('button', 'hc-slide hc-slide--' + s.key.replace(/-\d+$/, ''));
     b.type = 'button';
     b.setAttribute('role', 'group');
     b.setAttribute('aria-roledescription', 'slide');

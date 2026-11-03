@@ -7071,22 +7071,32 @@
     }));
   }
 
-  // Dream big is BETA: the rail loads only for a browser carrying the
-  // dh_beta cookie (?beta=1 sets it; routes/dream.js). Everyone else never
-  // sees the section, and both APIs answer 404 for them anyway.
-  const isBeta = () => /(?:^|;\s*)dh_beta=1(?:;|$)/.test(document.cookie);
+  // Dream big is admin and localhost only (routes/dream.js decides; both
+  // APIs answer 404 to everyone else, and the section stays hidden). On the
+  // live site it is only asked for once someone is signed in, and again
+  // whenever sign-in changes, so an admin sees it without a reload.
+  const DREAM_LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+  let dreamTried = '';
 
-  function initDreamHomes() {
-    if (!isBeta()) return;
-    window.__dreamDrawing = DREAM_DRAWING; // <img onerror> swaps a dead photo for the drawing
+  function loadDream() {
+    const who = DREAM_LOCAL ? 'local' : (isLoggedIn() ? String((window.DayHopAuth.getUser() || {}).email || 'user') : '');
+    if (!who || who === dreamTried) return;
+    dreamTried = who;
     Promise.all([
-      fetch('/api/dream-homes').then(r => (r.ok ? r.json() : { homes: [] })).catch(() => ({ homes: [] })),
-      fetch('/api/dream').then(r => (r.ok ? r.json() : { dreams: [] })).catch(() => ({ dreams: [] }))
+      fetch('/api/dream-homes', { headers: authHeaders() }).then(r => (r.ok ? r.json() : null)).catch(() => null),
+      fetch('/api/dream', { headers: authHeaders() }).then(r => (r.ok ? r.json() : null)).catch(() => null)
     ]).then(([h, d]) => {
-      dreamState.homes = Array.isArray(h.homes) ? h.homes : [];
-      dreamState.visions = (Array.isArray(d.dreams) ? d.dreams : []).filter(x => x.kind === 'vision');
+      if (!h && !d) return; // not an admin: the section stays hidden
+      dreamState.homes = h && Array.isArray(h.homes) ? h.homes : [];
+      dreamState.visions = (d && Array.isArray(d.dreams) ? d.dreams : []).filter(x => x.kind === 'vision');
       renderDreamRail();
     });
+  }
+
+  function initDreamHomes() {
+    window.__dreamDrawing = DREAM_DRAWING; // <img onerror> swaps a dead photo for the drawing
+    loadDream();
+    document.addEventListener('dayhop:auth', loadDream);
     setInterval(() => { if (dreamState.homes.length) renderDreamRail(); }, 60 * 1000);
   }
 

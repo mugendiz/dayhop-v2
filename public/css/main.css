@@ -4279,10 +4279,13 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
 .tools-row > * { min-width: 0; } /* a row of 100%-wide slides must not widen the column */
 @media (min-width: 880px) { .tools-row { grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.85fr); gap: 24px; } }
 .hero-carousel { margin: 0; min-width: 0; max-width: 100%; }
+/* Each card gets its own tint and the same soft lift: warm autumn peach for
+   the carousel, cool moss for the Washroom Map. */
+:root { --duo-shadow: 0 10px 24px rgba(16, 42, 46, 0.10), 0 2px 4px rgba(16, 42, 46, 0.06); }
 .hc-frame {
   display: flex; flex-direction: column; min-height: var(--duo-h); overflow: hidden;
-  border: 1px solid var(--line); border-radius: var(--radius) 0 0 var(--radius); box-shadow: var(--shadow-soft);
-  background: rgba(255, 255, 255, 0.72); -webkit-backdrop-filter: saturate(1.6) blur(16px); backdrop-filter: saturate(1.6) blur(16px);
+  border: 1px solid rgba(225, 80, 47, 0.18); border-radius: var(--radius) 0 0 var(--radius); box-shadow: var(--duo-shadow);
+  background: linear-gradient(135deg, #FFF6E8 0%, #FCE6D4 100%);
 }
 .hc-track {
   flex: 1; display: flex; width: 100%; min-width: 0; overflow-x: auto;
@@ -4326,17 +4329,16 @@ body[data-mode="adventure"] .hero-featured-eyebrow {
 .tool-tile {
   position: relative; display: flex; align-items: center; gap: 16px;
   min-height: var(--duo-h); padding: 16px 20px; text-decoration: none; color: var(--ink);
-  background: rgba(255, 255, 255, 0.72);
-  -webkit-backdrop-filter: saturate(1.6) blur(16px); backdrop-filter: saturate(1.6) blur(16px);
-  border: 1px solid var(--line); box-shadow: var(--shadow-soft);
+  background: linear-gradient(135deg, #EEF6F1 0%, #DCEDE3 100%);
+  border: 1px solid rgba(63, 111, 92, 0.22); box-shadow: var(--duo-shadow);
   border-radius: 0 var(--radius) var(--radius) 0;
-  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
 }
-.tool-tile:hover, .tool-tile:focus-visible { background: rgba(255, 255, 255, 0.92); box-shadow: var(--shadow); transform: translateY(-2px); }
+.tool-tile:hover, .tool-tile:focus-visible { filter: brightness(1.03); box-shadow: var(--shadow); transform: translateY(-2px); }
 .tool-tile:focus-visible { outline: 3px solid var(--coral-btn); outline-offset: 2px; }
 .tool-tile-icon {
   flex: 0 0 auto; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%;
-  font-size: 30px; line-height: 1; background: rgba(63, 111, 92, 0.13); box-shadow: inset 0 0 0 2px rgba(63, 111, 92, 0.3);
+  font-size: 30px; line-height: 1; background: #fff; box-shadow: inset 0 0 0 2px rgba(63, 111, 92, 0.3);
 }
 .tool-tile-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; text-align: left; }
 .tool-tile-kicker { font-family: var(--mono, 'Space Grotesk', monospace); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--moss); }

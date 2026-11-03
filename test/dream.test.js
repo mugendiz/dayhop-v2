@@ -1,5 +1,6 @@
-// test/dream.test.js — Dream big (beta): the beta gate, the /dream scroll,
-// honest cards (credits, no invented events) and house copy style.
+// test/dream.test.js — Dream big: admins and localhost only, never the
+// public; the /dream scroll; honest cards (credits, no invented events);
+// house copy style.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
@@ -9,40 +10,51 @@ const dream = require('../routes/dream');
 const BOARD = require('../data/dreamBoard');
 const { lint } = require('../services/copyStyle');
 
-async function withApp(fn) {
+// user: what middleware/auth.js would have attached for this request.
+async function withApp(fn, { user = null } = {}) {
   const app = express();
-  app.use(dream.betaGate);
+  app.use((req, res, next) => { req.user = user; next(); });
   app.use('/api/dream', dream.api);
   app.use(dream.page);
-  app.get('/', (req, res) => res.send('home'));
   const server = await new Promise(r => { const s = app.listen(0, () => r(s)); });
   try { await fn(`http://127.0.0.1:${server.address().port}`); } finally { server.close(); }
 }
 
-test('not public: /dream and /api/dream are 404 without the beta cookie', async () => {
-  await withApp(async base => {
-    assert.equal((await fetch(`${base}/dream`)).status, 404);
-    assert.equal((await fetch(`${base}/api/dream`)).status, 404);
-  });
+test('production: the public gets 404 from the API and an empty shell from /dream', async () => {
+  const prev = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+  try {
+    await withApp(async base => {
+      assert.equal((await fetch(`${base}/api/dream`)).status, 404);
+      assert.equal((await fetch(`${base}/api/dream`, { headers: { 'X-Forwarded-Host': 'localhost' } })).status, 404, 'a forged host does not unlock it');
+      const shell = await fetch(`${base}/dream`);
+      const html = await shell.text();
+      assert.match(shell.headers.get('x-robots-tag'), /noindex/);
+      for (const d of BOARD) assert.ok(!html.includes(`id="${d.id}"`), `${d.id} is not in the public shell`);
+    }, { user: { id: 'u1', email: 'someone@example.com' } });
+    // An admin account (services/entitlements ADMIN_EMAILS) gets the dreams.
+    await withApp(async base => {
+      const j = await (await fetch(`${base}/api/dream?view=html`)).json();
+      assert.deepEqual(j.dreams.filter(d => d.kind === 'vision').map(d => d.id), BOARD.map(d => d.id));
+      assert.match(j.html, /dr-panel/);
+    }, { user: { id: 'a1', email: 'mugendiz@gmail.com' } });
+  } finally {
+    if (prev === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = prev;
+  }
 });
 
-test('?beta=1 sets the cookie and unlocks the scroll; ?beta=0 clears it', async () => {
+test('localhost (not production): the scroll renders in full without signing in', async () => {
+  delete process.env.NODE_ENV;
+  // The test server answers on 127.0.0.1, which counts as local.
   await withApp(async base => {
-    const on = await fetch(`${base}/?beta=1`);
-    assert.match(on.headers.get('set-cookie'), /dh_beta=1/);
-    const page = await fetch(`${base}/dream`, { headers: { cookie: 'dh_beta=1' } });
+    const page = await fetch(`${base}/dream`);
     assert.equal(page.status, 200);
-    assert.match(page.headers.get('x-robots-tag'), /noindex/);
     const html = await page.text();
     assert.match(html, /<meta name="robots" content="noindex, nofollow">/);
     for (const d of BOARD) assert.ok(html.includes(`id="${d.id}"`), d.id);
     assert.equal((html.match(/class="dr-btn dr-btn--share"/g) || []).length, BOARD.length, 'every dream can be shared');
-    const off = await fetch(`${base}/?beta=0`);
-    assert.match(off.headers.get('set-cookie'), /dh_beta=0/);
-    const j = await (await fetch(`${base}/api/dream`, { headers: { cookie: 'x=1; dh_beta=1' } })).json();
-    assert.deepEqual(j.dreams.filter(d => d.kind === 'vision').map(d => d.id), BOARD.map(d => d.id));
+    assert.equal((await fetch(`${base}/api/dream`)).status, 200);
   });
-  assert.equal(dream.isBeta({ headers: { cookie: 'dh_beta=10' } }), false);
 });
 
 test('every vision card has a self-hosted photo, a credit with a licence, and a real way to get a taste', () => {
