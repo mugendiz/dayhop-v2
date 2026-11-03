@@ -404,6 +404,9 @@ app.use('/api/newsletter', newsletterLimiter, require('./routes/newsletter'));
 // Santa parade reminders (routes/parades.js): a newsletter signup with a
 // parade attached, so the same limiter.
 app.use('/api/parades', newsletterLimiter, require('./routes/parades').api);
+// Go Now (routes/goNow.js): nearest washrooms, changing tables, family stops.
+// Reads in-memory data only (no Google calls), same cap as the feed.
+app.use('/api/go', browseLimiter, require('./routes/goNow').api);
 
 // Digest email tracking (open pixel + signed click redirects). GETs from
 // email clients — never rate-limited, a bounced tracking link is a broken
@@ -551,6 +554,8 @@ app.use('/blog', blog.router);
 // Keyed profile links (/go/tiktok, /go/ig, …): log the tap, bounce to the
 // keyed page. GETs from social apps — no limiter, a bounced bio link is a
 // lost visitor.
+// Bare /go is the Go Now page; /go/<key> stays the keyed profile links.
+app.use(require('./routes/goNow').page);
 app.use('/go', require('./routes/go'));
 app.get('/sitemap.xml', blog.sitemap);
 // One page per verified catalog place (routes/placePages.js): the content

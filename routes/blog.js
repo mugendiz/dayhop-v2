@@ -164,7 +164,7 @@ ${bodyHtml}
 ${subscribePanel ? SUBSCRIBE_PANEL : ''}
 <footer>
 <p>DayHop is a Toronto-built day planner: real venues, live weather, and AI that plans like a thoughtful local friend.</p>
-<nav><a href="/">Planner</a><a href="/places">Places</a><a href="/santa-parades">Santa parades</a><a href="/blog">Stories</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="mailto:admin@dayhop.quest?subject=Advertising%20inquiry%20%E2%80%94%20DayHop">Advertise with us</a></nav>
+<nav><a href="/">Planner</a><a href="/places">Places</a><a href="/santa-parades">Santa parades</a><a href="/go">Washrooms near me</a><a href="/blog">Stories</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="mailto:admin@dayhop.quest?subject=Advertising%20inquiry%20%E2%80%94%20DayHop">Advertise with us</a></nav>
 </footer>
 </div>
 </body>
@@ -271,6 +271,7 @@ async function sitemap(req, res) {
     { loc: `${base}/guides/richmond-hill`, priority: '0.8' },
     { loc: `${base}/guides/personal`, priority: '0.8' },
     { loc: `${base}/santa-parades`, priority: '0.9' },
+    { loc: `${base}/go`, priority: '0.9' },
     // One page per verified catalog place (routes/placePages.js): the
     // content search engines and AI answers can cite.
     ...require('./placePages').sitemapUrls(base),

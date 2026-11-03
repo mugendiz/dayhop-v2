@@ -18,6 +18,8 @@ const requestContext = require('./requestContext');
 // booking_return_continue / sample_plan_viewed were rejected with 400.)
 const CLIENT_EVENT_TYPES = new Set([
   'booking_click', 'maps_click', 'shortlist_add', 'signup', 'guide_export',
+  // Go Now (/go): opened, filter or layer changed, share card, directions.
+  'go_opened', 'go_filter', 'go_share', 'go_directions',
   // Conversion funnel: upgrade_viewed (modal shown, source = which gate)
   // → upgrade_started (checkout created) → subscriptions table.
   'upgrade_viewed',
