@@ -65,16 +65,29 @@ function slides(tott = []) {
   return out;
 }
 
-function liveTott() {
+// Talk of the town picks: the live weekly shelf when the server has it,
+// else the last Talk of the town email as sent (services/issueStore.js
+// saves every issue before it goes out, in the database, so it survives a
+// deploy; the live shelf is memory-only while public.talk_of_town is
+// missing). Only picks still running today are shown.
+async function tottPicks() {
   try {
     const talkOfTown = require('../services/talkOfTown');
-    return talkOfTown.active({ point: { lat: 43.6532, lng: -79.3832 }, limit: talkOfTown.SHELF_SIZE });
+    const live = talkOfTown.active({ point: { lat: 43.6532, lng: -79.3832 }, limit: talkOfTown.SHELF_SIZE });
+    if (live.length) return live;
+  } catch { /* fall through to the last email */ }
+  try {
+    const issueStore = require('../services/issueStore');
+    const date = await issueStore.latestDate('tott');
+    const snap = date ? await issueStore.getIssue('tott', date) : null;
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto' }).format(new Date());
+    return ((snap && snap.picks) || []).filter(p => (p.date_end || p.date || '9999-12-31') >= today);
   } catch { return []; }
 }
 
-api.get('/', (req, res) => {
+api.get('/', async (req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
-  res.json({ slides: slides(liveTott()) });
+  res.json({ slides: slides(await tottPicks()) });
 });
 
 // ---------- /fall-colours ----------

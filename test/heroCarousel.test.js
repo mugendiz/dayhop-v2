@@ -46,6 +46,23 @@ test('API and /fall-colours page', async () => {
   });
 });
 
+test('Talk of the town slide falls back to the last emailed issue when the live shelf is empty', async () => {
+  const issueStore = require('../services/issueStore');
+  await issueStore.saveIssue('tott', '2026-11-02', {
+    subject: 'Talk of the town: Brampton Diwali Mela + 4 more this week', hubName: 'Toronto',
+    picks: [
+      { title: 'Old Fair', date: '2026-10-01', date_end: '2026-10-02' },
+      { title: 'Brampton Diwali Mela', date: '2026-11-07', date_end: '2026-11-08' }
+    ]
+  });
+  await withApp(async base => {
+    const j = await (await fetch(`${base}/api/carousel`)).json();
+    assert.deepEqual(j.slides.map(s => s.key), ['fall', 'tott', 'parades']);
+    assert.equal(j.slides[1].title, 'Brampton Diwali Mela', 'past picks are dropped');
+  });
+  issueStore._mem.clear();
+});
+
 test('/talk-of-the-town with no saved issue: live picks when the shelf has them, else not found', async () => {
   await withApp(async base => {
     const empty = await fetch(`${base}/talk-of-the-town`, { redirect: 'manual' });
