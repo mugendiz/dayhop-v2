@@ -17,6 +17,7 @@ const express = require('express');
 const router = express.Router();
 const catalog = require('../data/curatedCatalog');
 const { page, escapeHtml, origin, recordView } = require('./blog');
+const { stayLink, DISCLOSURE } = require('../services/affiliates');
 
 let coords = {};
 try { coords = require('../data/catalogCoords.json'); } catch (e) { /* none */ }
@@ -137,6 +138,12 @@ router.get('/:slug', (req, res) => {
   ].filter(([, v]) => v);
   const near = nearby(e);
   const credit = h && h.image_credit ? h.image_credit : null;
+  // A place far enough out to stay over (more than 60 km from downtown
+  // Toronto) gets a "places to stay" link, when an affiliate ID is set.
+  const TORONTO = { lat: 43.6532, lng: -79.3832 };
+  const stay = c && km(TORONTO, c) > 60
+    ? stayLink({ lat: c.lat, lng: c.lng, campaign: `place_${slugOf(e)}` })
+    : null;
   const planUrl = `/?plan=${encodeURIComponent(`A family day around ${cleanName}${area ? ` in ${area}` : ''}`)}&utm_source=places&utm_medium=page&utm_campaign=${encodeURIComponent(slugOf(e))}`;
 
   const jsonLd = JSON.stringify({
@@ -195,6 +202,7 @@ router.get('/:slug', (req, res) => {
   </div>
   ${near.length ? `<h2 style="font-family:var(--display);margin:40px 0 0">Nearby on DayHop</h2>
   <ul class="grid" style="margin-top:16px">${near.map(({ x, d }) => card(x, `${d < 10 ? d.toFixed(1) : Math.round(d)} km away`)).join('')}</ul>` : ''}
+  ${stay ? `<p class="sub" style="margin:10px 0 0"><strong>Make it a weekend:</strong> <a href="${escapeHtml(stay)}" rel="sponsored nofollow">places to stay near ${escapeHtml(cleanName)}</a>.<br><span style="font-size:12px">${escapeHtml(DISCLOSURE)}</span></p>` : ''}
   <p class="sub" style="margin:10px 0 0">Going for a few days? <a href="/guides/personal?utm_source=places&utm_medium=page">Get a guide made for your trip</a>.</p>
 </article>`
   }));

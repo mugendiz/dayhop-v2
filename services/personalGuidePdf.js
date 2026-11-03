@@ -543,9 +543,19 @@ function draw(doc, g, pix = { byTitle: new Map(), scenes: [] }) {
   if (g.overnight.rv.length) { sub('RV and van sites'); g.overnight.rv.forEach(osmEntry); }
   if (g.overnight.dump.length) { sub('Dump stations'); osmGrid(g.overnight.dump); }
   if (g.overnight.rest.length) { sub('Highway service centres and rest areas'); osmGrid(g.overnight.rest); }
+  // Hotels and rentals for the trip's own dates (services/affiliates.js).
+  // Built at render time, so a guide sold before an affiliate ID was set
+  // gains the link on its next download; absent when no ID is set.
+  const stay = require('./affiliates').stayLink({
+    lat: g.center.lat, lng: g.center.lng, checkin: g.order.start,
+    checkout: g.order.end > g.order.start ? g.order.end : undefined,
+    campaign: `trip_guide_${String(g.order.city).toLowerCase()}`
+  });
   sub('Find more');
-  [['Ontario Parks campsite reservations', g.links.ontarioParks], ['iOverlander: traveller reports of van-friendly spots near here', g.links.overlander]]
+  [stay && [`Hotels and rentals in ${city} for your dates`, stay], ['Ontario Parks campsite reservations', g.links.ontarioParks], ['iOverlander: traveller reports of van-friendly spots near here', g.links.overlander]]
+    .filter(Boolean)
     .forEach(([t, u]) => { doc.font(F.body).fontSize(10).fillColor(CORAL).text(t, M, doc.y, { link: u, underline: true, width: W }); doc.moveDown(0.3); });
+  if (stay) doc.font(F.body).fontSize(8).fillColor(INK_SOFT).text(require('./affiliates').DISCLOSURE, M, doc.y + 2, { width: W });
 
   // ---------- the regular DayHop feed ----------
   if (C.food.length) { opener('Eat, drink, warm up', 'The best-reviewed tables and counters near your trip.', C.food); list(C.food); }
