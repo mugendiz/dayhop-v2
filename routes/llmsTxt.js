@@ -27,6 +27,8 @@ module.exports = function llmsTxt(base) {
     `- [City guides](${base}/guides): field-checked PDF nature guides for Ontario cities.`,
     `- [Trip guides](${base}/guides/personal): a custom guide for any Ontario place and dates.`,
     `- [Stories](${base}/blog): new openings, hidden gems and day plans.`,
+    `- [The weekend brief](${base}/weekend): this week's newsletter, five family picks for the GTA weekend.`,
+    `- [Talk of the town](${base}/talk-of-the-town): the festivals, fairs and markets people around Toronto are going to this week.`,
     '',
     '## Places',
     ...places,

@@ -105,6 +105,37 @@ test('tottDigest.js (Monday talk of the town): html and text have no dash punctu
   assertNoViolations(tottDigest.digestText(TOTT_FIXTURE, 'test-token'), 'tottDigest.js digestText');
 });
 
+// A published issue renders more than the fixtures above: the standout
+// banner, hook lines, best-for chips, the web link and both share rows.
+const enrichedPick = (p, standout) => Object.assign({}, p, { hook: 'A farm in the city, free all day.', best_for: ['Free', 'Toddlers'], standout });
+
+test('published issues (standout, hooks, chips, share rows) have no dash punctuation', () => {
+  const weekend = Object.assign({}, DIGEST_FIXTURE, { issueDate: '2026-11-05', picks: [enrichedPick(DIGEST_FIXTURE.picks[0], true), enrichedPick(DIGEST_FIXTURE.picks[0], false)] });
+  const tott = Object.assign({}, TOTT_FIXTURE, { issueDate: '2026-11-09', picks: [enrichedPick(TOTT_FIXTURE.picks[0], true), enrichedPick(TOTT_FIXTURE.picks[0], false)] });
+  assertNoViolations(digest.digestHtml(weekend, 'test-token', { issue: '2026-11-05', sid: 'x' }), 'digest.js published digestHtml');
+  assertNoViolations(digest.digestText(weekend, 'test-token'), 'digest.js published digestText');
+  assertNoViolations(tottDigest.digestHtml(tott, 'test-token', { issue: 'tott-2026-11-09', sid: 'x' }), 'tottDigest.js published digestHtml');
+  assertNoViolations(tottDigest.digestText(tott, 'test-token'), 'tottDigest.js published digestText');
+});
+
+test('routes/issues.js: the public issue page and its 404 have no dash punctuation', async () => {
+  delete process.env.SUPABASE_SERVICE_KEY;
+  const issueStore = require('../services/issueStore');
+  await issueStore.saveIssue('tott', '2026-11-09', Object.assign({}, TOTT_FIXTURE, { picks: [enrichedPick(TOTT_FIXTURE.picks[0], true)] }));
+  const express = require('express');
+  const app = express();
+  app.use(require('../routes/issues').router);
+  const server = await new Promise(r => { const s = app.listen(0, () => r(s)); });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const body = html => html.slice(html.indexOf('<body>'), html.indexOf('<footer>'));
+    const found = await (await fetch(`${base}/talk-of-the-town/2026-11-09`)).text();
+    assertNoViolations(body(found), 'issues.js issue page');
+    const missing = await (await fetch(`${base}/weekend/2020-01-01`)).text();
+    assertNoViolations(body(missing), 'issues.js 404 page');
+  } finally { server.close(); }
+});
+
 test('newsletter.js: confirm and welcome emails have no dash punctuation', () => {
   assertNoViolations(newsletter.confirmEmailHtml('test-token'), 'newsletter.js confirmEmailHtml');
   assertNoViolations(newsletter.confirmEmailText('test-token'), 'newsletter.js confirmEmailText');

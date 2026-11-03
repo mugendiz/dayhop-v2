@@ -131,7 +131,9 @@ fetch('/api/newsletter/subscribe',{method:'POST',headers:{'Content-Type':'applic
 .catch(function(err){m.textContent=err.message;b.disabled=false;});});})();
 </script>`;
 
-function page({ req, title, description, canonicalPath, ogImage, bodyHtml, jsonLd, ogType }) {
+// subscribePanel: false for pages that carry their own subscribe box
+// (routes/issues.js), so a reader never sees two forms.
+function page({ req, title, description, canonicalPath, ogImage, bodyHtml, jsonLd, ogType, subscribePanel = true }) {
   const base = origin(req);
   return `<!DOCTYPE html>
 <html lang="en">
@@ -159,7 +161,7 @@ ${jsonLd ? `<script type="application/ld+json">${jsonLd}</script>` : ''}
 <div class="wrap">
 <nav class="topbar"><a class="logo" href="/">DayHop</a><a class="cta" href="/">Plan my day →</a></nav>
 ${bodyHtml}
-${SUBSCRIBE_PANEL}
+${subscribePanel ? SUBSCRIBE_PANEL : ''}
 <footer>
 <p>DayHop is a Toronto-built day planner: real venues, live weather, and AI that plans like a thoughtful local friend.</p>
 <nav><a href="/">Planner</a><a href="/places">Places</a><a href="/blog">Stories</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="mailto:admin@dayhop.quest?subject=Advertising%20inquiry%20%E2%80%94%20DayHop">Advertise with us</a></nav>
@@ -257,6 +259,8 @@ router.get('/:slug', async (req, res) => {
 async function sitemap(req, res) {
   const base = origin(req);
   const all = await articles.listPublished();
+  const issueStore = require('../services/issueStore');
+  const [weekendDates, tottDates] = await Promise.all([issueStore.listDates('weekend'), issueStore.listDates('tott')]);
   const urls = [
     { loc: `${base}/`, priority: '1.0' },
     // The lead magnet every paid campaign links to (docs/ads.md) - it was
@@ -269,6 +273,9 @@ async function sitemap(req, res) {
     // One page per verified catalog place (routes/placePages.js): the
     // content search engines and AI answers can cite.
     ...require('./placePages').sitemapUrls(base),
+    // The public copy of every sent newsletter issue (routes/issues.js).
+    ...weekendDates.map(d => ({ loc: `${base}/weekend/${d}`, lastmod: d, priority: '0.5' })),
+    ...tottDates.map(d => ({ loc: `${base}/talk-of-the-town/${d}`, lastmod: d, priority: '0.5' })),
     { loc: `${base}/blog`, priority: '0.8' },
     ...all.map(a => ({
       loc: `${base}/blog/${a.slug}`,

@@ -17,6 +17,9 @@ const { sendEmail, isConfigured: emailConfigured } = require('./email');
 const newsletter = require('./newsletter');
 const analytics = require('./analytics');
 const digestLinks = require('./digestLinks');
+const kit = require('./emailKit');
+const { enrichIssue, applyEnrichment } = require('./issueEnrich');
+const issueStore = require('./issueStore');
 
 const TORONTO_DAY_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto' });
 const HUB_ID = 'toronto'; // GTA-only for v1, same scope as the Thursday brief
@@ -43,66 +46,80 @@ function fmtDateRange(start, end) {
 }
 const isYmd = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
 
-async function buildTottDigest() {
+// opts.preview: no Grok call; hooks fall back to first sentences.
+async function buildTottDigest({ preview = false } = {}) {
   const hub = hubById(HUB_ID);
   // No maxKm on purpose. The live feeds cap at FEED_MAX_KM (80) because a
   // Saturday-morning scroll wants somewhere to go today; the Monday
   // newsletter goes out with a week's notice, so the full reach of the store
   // (HUB_REACH_KM, 180) is exactly what earns the open. Do not "fix" this to
   // match the feeds — the difference is the point.
-  const picks = talkOfTown.active({ point: { lat: hub.lat, lng: hub.lng }, limit: talkOfTown.SHELF_SIZE });
-  if (!picks.length) throw new Error('talk-of-town digest has no live picks — refusing to send an empty email');
+  const raw = talkOfTown.active({ point: { lat: hub.lat, lng: hub.lng }, limit: talkOfTown.SHELF_SIZE });
+  if (!raw.length) throw new Error('talk-of-town digest has no live picks — refusing to send an empty email');
+  // Hooks, best-for tags, standout (services/issueEnrich.js). Never blocks.
+  const picks = applyEnrichment(raw, await enrichIssue(raw, { kind: 'tott', offline: preview }));
   const subject = `Talk of the town: ${trim(picks[0].title, 55)}${picks.length > 1 ? ` + ${picks.length - 1} more this week` : ''}`;
   return { subject, picks, hubName: hub.name };
 }
 
 // ---------- templates ----------
+// The issue itself, shared by the email and its public web copy
+// (routes/issues.js). ctx: { base, wrap, web, webUrl }.
+function digestBody(d, { base, wrap = u => u, web = false, webUrl = null }) {
+  const picksHtml = d.picks.map((p, i) => kit.pickCard(p, {
+    index: i,
+    base,
+    link: wrap(p.booking_url || p.maps_url || base, i),
+    planLink: wrap(kit.planUrl(base, p.title, 'talk-of-the-town'), 100 + i),
+    ribbon: null,
+    period: 'week',
+    metaLines: [
+      // venue/location are frequently the identical string for a single-venue
+      // pick; never repeat it (public/app.js's detail panel hit this same bug).
+      [p.venue, p.location && p.location !== p.venue ? p.location : null].filter(Boolean).join(' · '),
+      [fmtDateRange(p.date, p.date_end) && `🗓️ ${fmtDateRange(p.date, p.date_end)}`, p.cost_tier].filter(Boolean).join(' · ')
+    ],
+    description: p.description ? trim(p.description, 190) : '',
+    ctaLabel: p.booking_url ? 'Details' : 'See it on the map'
+  }));
+  const share = webUrl
+    ? kit.shareRow(kit.shareLinks(webUrl, 'tott', d.subject), {
+      wrap: (u, ch) => wrap(u, 200 + ['web', 'email', 'whatsapp', 'facebook'].indexOf(ch)), web,
+      heading: 'Know someone who needs plans this week?'
+    })
+    : '';
+  const [first, ...rest] = picksHtml;
+  return `
+    ${kit.masthead(base, 'tott', 'DayHop: talk of the town')}
+    ${!web && webUrl ? `<p style="margin:-10px 0 14px;font-size:12.5px;text-align:right;"><a href="${esc(wrap(kit.shareLinks(webUrl, 'tott').web, 210))}" style="color:#3F6F5C;font-weight:700;text-decoration:none;">View and share this issue on the web →</a></p>` : ''}
+    <p style="margin:0 0 4px;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#3F6F5C;font-weight:700;">Talk of the town · ${esc(d.hubName)}</p>
+    <h1 style="font-size:26px;line-height:1.25;margin:0 0 8px;">What everyone's going to this week 🎉</h1>
+    <p style="font-size:15.5px;line-height:1.6;margin:0 0 20px;color:#2C4A4E;">
+      ${d.picks.length} verified happenings people around ${esc(d.hubName)} are talking about right now. Festivals, fairs, markets, the works.
+    </p>
+    ${first || ''}
+    ${share}
+    ${rest.join('')}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#102A2E;border-radius:14px;margin:0 0 22px;"><tr><td align="center" style="padding:24px 20px;">
+      <p style="margin:0 0 6px;font-size:19px;font-weight:800;color:#ffffff;">There's more on the shelf 👀</p>
+      <p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:#d9e3df;">Once an event's over, it drops off automatically. This list is always this week's.</p>
+      ${kit.button(wrap(`${base}/`), 'See the full shelf on DayHop')}
+    </td></tr></table>
+    ${share}`;
+}
+
 function digestHtml(d, token, tracking) {
   const base = newsletter.baseUrl();
   const unsub = newsletter.unsubscribeUrl(token);
   const wrap = (url, idx) => tracking
     ? digestLinks.clickUrl(base, { issue: tracking.issue, sid: tracking.sid, url, idx })
     : url;
-  const picksHtml = d.picks.map((p, i) => {
-    const link = wrap(p.booking_url || p.maps_url || base, i);
-    // venue/location are frequently the identical string for a single-venue
-    // pick — never repeat it (public/app.js's detail panel hit this same bug).
-    const where = [p.venue, p.location && p.location !== p.venue ? p.location : null].filter(Boolean).join(' · ');
-    const dateCost = [fmtDateRange(p.date, p.date_end), p.cost_tier].filter(Boolean).join(' · ');
-    return `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;">
-      <tr><td style="background:#ffffff;border:1px solid #e8e2d4;border-radius:0 14px 14px 0;padding:18px 20px;">
-        <p style="margin:0 0 2px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#3F6F5C;font-weight:600;">${i === 0 ? '🔥 Most talked about' : `#${i + 1} this week`}</p>
-        <p style="margin:0 0 6px;font-size:18px;font-weight:700;line-height:1.3;"><a href="${esc(link)}" style="color:#102A2E;text-decoration:none;">${esc(p.title)}</a></p>
-        ${where ? `<p style="margin:0 0 4px;font-size:13px;color:#6b7c7e;">${esc(where)}</p>` : ''}
-        ${dateCost ? `<p style="margin:0 0 8px;font-size:12.5px;color:#6b7c7e;">${esc(dateCost)}</p>` : ''}
-        ${p.description ? `<p style="margin:0 0 10px;font-size:14.5px;line-height:1.55;color:#2C4A4E;">${esc(trim(p.description, 190))}</p>` : ''}
-        <p style="margin:0;font-size:13px;"><a href="${esc(link)}" style="color:#E1502F;font-weight:600;text-decoration:none;">${p.booking_url ? 'Details →' : 'See it on the map →'}</a></p>
-      </td></tr>
-    </table>`;
-  }).join('');
-
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"></head><body style="margin:0;padding:0;background:#FBF7EE;">
-  <div style="max-width:560px;margin:0 auto;padding:28px 20px 36px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#102A2E;">
-    <p style="font-size:21px;font-weight:700;margin:0;">DayHop</p>
-    <p style="margin:2px 0 0;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#3F6F5C;font-weight:600;">Talk of the town · ${esc(d.hubName)}</p>
-    <h1 style="font-size:25px;line-height:1.25;margin:16px 0 8px;">What everyone's going to this week.</h1>
-    <p style="font-size:15.5px;line-height:1.6;margin:0 0 20px;color:#2C4A4E;">
-      ${d.picks.length} verified outdoor happenings people around ${esc(d.hubName)} are actually talking about right now. Festivals, fairs, markets, the works.
-    </p>
-    ${picksHtml}
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 0;">
-      <a href="${esc(wrap(`${base}/`))}" style="display:inline-block;background:#FF6B4A;color:#ffffff;text-decoration:none;font-weight:700;font-size:15.5px;padding:13px 28px;border-radius:10px;">
-        See the full shelf on DayHop</a>
-      <p style="margin:10px 0 0;font-size:13px;color:#6b7c7e;">Once an event's over, it drops off automatically. This list is always this week's.</p>
-    </td></tr></table>
-    <p style="margin:30px 0 0;padding-top:16px;border-top:1px solid #e8e2d4;font-size:12px;line-height:1.6;color:#6b7c7e;">
-      You're receiving this because you subscribed at dayhop.quest.<br>
-      DayHop · Richmond Hill, Ontario, Canada · <a href="mailto:admin@dayhop.quest" style="color:#6b7c7e;">admin@dayhop.quest</a><br>
-      <a href="${unsub}" style="color:#6b7c7e;">Unsubscribe</a>. One click, no questions.
-    </p>
-    ${tracking ? `<img src="${esc(digestLinks.openPixelUrl(base, tracking))}" width="1" height="1" alt="" style="display:block;border:0;">` : ''}
-  </div></body></html>`;
+  // Only a published issue (d.issueDate, the plain date) links to its web copy.
+  const webUrl = d.issueDate ? kit.issueUrl(base, 'tott', d.issueDate) : null;
+  return kit.page(`
+    ${digestBody(d, { base, wrap, webUrl })}
+    ${kit.footer(unsub)}
+    ${tracking ? `<img src="${esc(digestLinks.openPixelUrl(base, tracking))}" width="1" height="1" alt="" style="display:block;border:0;">` : ''}`);
 }
 
 function digestText(d, token) {
@@ -110,7 +127,10 @@ function digestText(d, token) {
   const lines = [`DAYHOP: TALK OF THE TOWN (${d.hubName})`, ''];
   d.picks.forEach((p, i) => {
     const where = [p.venue, p.location && p.location !== p.venue ? p.location : null].filter(Boolean).join(' · ');
+    if (p.standout) lines.push('IF YOU ONLY DO ONE THING:');
     lines.push(`${i + 1}. ${p.title}${where ? `, ${where}` : ''}`);
+    if (p.hook) lines.push(`   ${p.hook}`);
+    if ((p.best_for || []).length) lines.push(`   Best for: ${p.best_for.join(', ')}`);
     const dateCost = [fmtDateRange(p.date, p.date_end), p.cost_tier].filter(Boolean).join(' · ');
     if (dateCost) lines.push(`   ${dateCost}`);
     if (p.description) lines.push(`   ${trim(p.description, 160)}`);
@@ -118,6 +138,7 @@ function digestText(d, token) {
     lines.push('');
   });
   lines.push(`See the full shelf: ${base}/`);
+  if (d.issueDate) lines.push(`Share this issue: ${kit.shareLinks(kit.issueUrl(base, 'tott', d.issueDate), 'tott').copy}`);
   lines.push('');
   lines.push(`Unsubscribe: ${newsletter.unsubscribeUrl(token)}`);
   lines.push('DayHop · Richmond Hill, Ontario, Canada · admin@dayhop.quest');
@@ -145,6 +166,18 @@ async function sendTottDigest({ testTo = null } = {}) {
   // Prefixed so this issue never collides with the Thursday brief's plain-date
   // issue id in the digest_opened/digest_clicked analytics rollup.
   const issue = `tott-${TORONTO_DAY_FMT.format(new Date())}`;
+  // Publish the web copy (/talk-of-the-town/<date>) before the first open.
+  // Same rules as the weekend brief: test sends publish nothing and carry no
+  // web links; a same-day re-send reuses the saved snapshot.
+  if (!testTo) {
+    const date = issue.replace(/^tott-/, '');
+    try {
+      const snap = await issueStore.saveIssue('tott', date, digest);
+      digest.picks = snap.picks;
+      digest.subject = snap.subject || digest.subject;
+      digest.issueDate = date;
+    } catch (err) { console.warn('[tott-digest] web copy not saved:', err.message); }
+  }
 
   let sent = 0;
   const delivered = [];
@@ -172,7 +205,7 @@ async function sendTottDigest({ testTo = null } = {}) {
 
 /** Admin preview: the rendered HTML without sending anything. */
 async function previewTottDigest() {
-  const digest = await buildTottDigest();
+  const digest = await buildTottDigest({ preview: true });
   return { subject: digest.subject, html: digestHtml(digest, 'preview-token'), picks: digest.picks.length };
 }
 
@@ -185,3 +218,4 @@ module.exports = { buildTottDigest, sendTottDigest, previewTottDigest, tottDiges
 // template functions over a plain data object, no network.
 module.exports.digestHtml = digestHtml;
 module.exports.digestText = digestText;
+module.exports.digestBody = digestBody;

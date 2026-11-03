@@ -553,6 +553,9 @@ app.get('/sitemap.xml', blog.sitemap);
 // One page per verified catalog place (routes/placePages.js): the content
 // search engines and AI answers can read and cite.
 app.use('/places', require('./routes/placePages').router);
+// The public web copy of every newsletter issue (routes/issues.js), so a
+// forwarded or shared issue opens a real, indexable page.
+app.use(require('./routes/issues').router);
 // Illustrated placeholder for cards with no photo (routes/placeholderArt.js).
 // Outside /api on purpose: no rate limiter, edge-cacheable.
 app.use('/art', require('./routes/placeholderArt').router);
