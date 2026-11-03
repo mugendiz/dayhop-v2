@@ -1,66 +1,68 @@
-// test/goNow.test.js — Go Now (/go): honest status, real badges, nearest
-// first, share card. Offline: the Toronto live feed is stubbed; the Ontario
-// snapshot is the committed data/go/ontario.json.
+// test/goNow.test.js — Go Now (/go): one honest data shape, live only where
+// the City is live, combinable filters, share card, status alerts.
+// Offline: the Toronto live feed is stubbed; the Ontario snapshot is the
+// committed data/go/ontario.json.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
 
 delete process.env.SUPABASE_SERVICE_KEY;
 const goNow = require('../services/goNow');
+const goAlerts = require('../services/goAlerts');
 const routes = require('../routes/goNow');
 const { lint } = require('../services/copyStyle');
 
-const rec = (o) => Object.assign({
+const rec = o => Object.assign({
   _id: 1, ASSET_ID: 1, LOCATION: 'Test Park', AssetName: 'Test Park Washroom', TYPE: 'Washroom Building',
   ACCESSIBLE_FEATURES: 'None', HOURS: '9 a.m. to 10 p.m.', LOCATION_DETAILS: 'By the playground', ADDRESS: '1 Test St',
-  PostedDate: '2026-11-02T13:22:40', Reason: 'None', Status: '1',
+  PostedDate: '2026-03-10T13:22:40', Reason: 'None', Status: '1',
   geometry: JSON.stringify({ type: 'Point', coordinates: [-79.3832, 43.6532] })
 }, o);
 
 const LIVE = [
-  goNow.torontoPoint(rec({ ASSET_ID: 101, AssetName: 'Open With Table', ACCESSIBLE_FEATURES: 'Accessible Stall, Entrance at Grade, Child Change Table' })),
-  goNow.torontoPoint(rec({ ASSET_ID: 102, AssetName: 'Closed For Winter', Status: '0', Reason: 'Closed for the Season', geometry: JSON.stringify({ type: 'Point', coordinates: [-79.3840, 43.6540] }) })),
-  goNow.torontoPoint(rec({ ASSET_ID: 103, AssetName: 'Under Repair', Status: '0', Reason: 'Maintenance/Repairs', geometry: JSON.stringify({ type: 'Point', coordinates: [-79.3850, 43.6550] }) }))
+  goNow.torontoPoint(rec({ ASSET_ID: 101, AssetName: 'Open With Table', ACCESSIBLE_FEATURES: 'Accessible Stall, Entrance at Grade, Child Change Table' }), '2026-11-03'),
+  goNow.torontoPoint(rec({ ASSET_ID: 102, AssetName: 'Closed For Winter', Status: '0', Reason: 'Closed for the Season', geometry: JSON.stringify({ type: 'Point', coordinates: [-79.3840, 43.6540] }) }), '2026-11-03'),
+  goNow.torontoPoint(rec({ ASSET_ID: 103, AssetName: 'Open No Info', geometry: JSON.stringify({ type: 'Point', coordinates: [-79.3850, 43.6550] }) }), '2026-11-03')
 ];
-goNow._setLive({ at: Date.now(), points: LIVE, postedDate: '2026-11-02' });
+goNow._setLive({ at: Date.now(), points: LIVE, postedDate: '2026-11-03' });
 
-test('Toronto feed: status and badges come only from the City fields', () => {
-  const [open, season, repair] = LIVE;
-  assert.equal(open.status, 'open');
-  assert.equal(open.ct, true);
-  assert.equal(open.stepfree, true);
-  assert.equal(open.acc, true);
-  assert.equal(open.checked, '2026-11-02');
-  assert.equal(season.status, 'season');
-  assert.equal(season.ct, null, 'no "Child Change Table" listed means unknown, not no');
-  assert.equal(repair.status, 'closed');
-  assert.deepEqual(goNow.statusOf(season), { key: 'closed', label: 'Closed for the season' });
-  assert.equal(goNow.statusOf(repair).label, 'Closed: Maintenance/Repairs');
+const SHAPE = ['id', 'name', 'lat', 'lng', 'city', 'washroom_status', 'changing_table', 'stroller_friendly', 'last_checked', 'source', 'notes'];
+
+test('Toronto feed maps to the spec shape; only what the City lists becomes true', () => {
+  const [withTable, season, noInfo] = LIVE;
+  for (const k of SHAPE) assert.ok(k in withTable, `field ${k}`);
+  assert.equal(withTable.washroom_status, 'open');
+  assert.equal(withTable.changing_table, true);
+  assert.equal(withTable.stroller_friendly, true);
+  assert.equal(withTable.source, 'toronto_open_data');
+  assert.equal(withTable.last_checked, '2026-11-03');
+  assert.equal(season.washroom_status, 'closed');
+  assert.match(season.notes, /Closed for the Season/);
+  assert.equal(noInfo.changing_table, 'unknown', 'not listed is unknown, never false');
+  assert.equal(noInfo.stroller_friendly, 'unknown');
 });
 
-test('outside Toronto nothing claims to be open: the label says the status is not live', async () => {
-  const ott = await goNow.nearest({ lat: 45.4215, lng: -75.6972, layer: 'wc', limit: 5 });
-  assert.ok(ott.length > 0, 'Ottawa has washrooms in the snapshot');
-  for (const p of ott) assert.notEqual(p.statusLabel.key, 'open', `${p.n} must not claim open`);
+test('outside Toronto nothing claims open or closed, and every stop carries a check date and a source', async () => {
+  const ott = await goNow.nearest({ lat: 45.4215, lng: -75.6972, limit: 6 });
+  assert.ok(ott.length > 0);
+  for (const p of ott) {
+    assert.equal(p.washroom_status, 'unknown', `${p.name} must not claim a status`);
+    assert.equal(p.region, 'Ontario');
+    assert.match(p.last_checked, /^\d{4}-\d{2}-\d{2}$/);
+    assert.ok(['ottawa_open_data', 'osm'].includes(p.source));
+    for (const k of SHAPE) assert.ok(k in p, `field ${k}`);
+  }
 });
 
-test('nearest first; Open now keeps only live-open Toronto spots; Winter open drops seasonal closures', async () => {
-  const all = await goNow.nearest({ lat: 43.6532, lng: -79.3832, layer: 'wc', limit: 10 });
+test('filters combine: open + changing table + stroller returns only stops where all three are true', async () => {
+  const all = await goNow.nearest({ lat: 43.6532, lng: -79.3832, limit: 10 });
   for (let i = 1; i < all.length; i++) assert.ok(all[i].dist >= all[i - 1].dist);
-  const open = await goNow.nearest({ lat: 43.6532, lng: -79.3832, layer: 'wc', filters: { open: true }, limit: 10 });
-  assert.deepEqual(open.map(p => p.n), ['Open With Table']);
-  const winter = await goNow.nearest({ lat: 43.6532, lng: -79.3832, layer: 'wc', filters: { winter: true }, limit: 40 });
-  assert.ok(!winter.some(p => p.n === 'Closed For Winter'));
-});
-
-test('changing tables layer only shows places a source says have one; family stops carry the nearest washroom', async () => {
-  const ct = await goNow.nearest({ lat: 43.6532, lng: -79.3832, layer: 'ct', limit: 10 });
-  assert.ok(ct.length > 0);
-  for (const p of ct) assert.equal(p.ct, true);
-  const stops = await goNow.nearest({ lat: 43.6532, lng: -79.3832, layer: 'stop', limit: 5 });
-  assert.ok(stops.length > 0);
-  for (const p of stops) assert.equal(p.k, 'stop');
-  assert.ok(stops.some(p => p.wcDist != null));
+  const open = await goNow.nearest({ lat: 43.6532, lng: -79.3832, filters: { open: true }, limit: 10 });
+  assert.deepEqual(open.map(p => p.name).sort(), ['Open No Info', 'Open With Table']);
+  const allThree = await goNow.nearest({ lat: 43.6532, lng: -79.3832, filters: { open: true, changing: true, stroller: true }, limit: 10 });
+  assert.deepEqual(allThree.map(p => p.name), ['Open With Table']);
+  const ct = await goNow.nearest({ lat: 43.6532, lng: -79.3832, filters: { changing: true }, limit: 20 });
+  for (const p of ct) assert.equal(p.changing_table, true);
 });
 
 async function withApp(fn) {
@@ -71,44 +73,73 @@ async function withApp(fn) {
   try { await fn(`http://127.0.0.1:${server.address().port}`); } finally { server.close(); }
 }
 
-test('API, page and share card', async () => {
+test('page, API and share card', async () => {
   await withApp(async base => {
     assert.equal((await fetch(`${base}/api/go/near?lat=40&lng=-120`)).status, 400, 'outside Ontario');
-    const near = await (await fetch(`${base}/api/go/near?lat=43.6532&lng=-79.3832&layer=wc&limit=3`)).json();
-    assert.equal(near.results.length, 3);
-    assert.equal(near.meta.toronto_checked, '2026-11-02');
+    const near = await (await fetch(`${base}/api/go/near?lat=43.6532&lng=-79.3832&f=open,changing&limit=5`)).json();
+    assert.deepEqual(near.results.map(p => p.name), ['Open With Table']);
+    assert.equal(near.meta.toronto_checked, '2026-11-03');
 
     const page = await (await fetch(`${base}/go`)).text();
+    assert.match(page, /GTA live<\/b> · Ontario seeded · Last data check <span id="gn-lastcheck">Nov 3, 2026<\/span>/);
+    for (const chip of ['Open now', 'Changing table', 'Stroller']) assert.match(page, new RegExp(`<span>${chip}</span>`));
     assert.match(page, /<meta property="og:image" content="[^"]*\/api\/go\/card\/default\.png">/);
-    assert.match(page, /\/vendor\/leaflet-1\.9\.4\/leaflet\.js/);
-    assert.match(page, /Plan it free/);
+    assert.doesNotMatch(page, /Go Pro|upgrade|checkout/i, 'no upsells on this page');
     const shared = await (await fetch(`${base}/go?p=to-101`)).text();
-    assert.match(shared, /\/api\/go\/card\/to-101\.png/);
     assert.match(shared, /<title>Open With Table: Open \| DayHop Go Now<\/title>/);
+    assert.match(shared, /\/api\/go\/card\/to-101\.png/);
 
     const card = await fetch(`${base}/api/go/card/to-101.png`);
     assert.equal(card.status, 200);
     assert.equal(card.headers.get('content-type'), 'image/png');
-    assert.ok((await card.arrayBuffer()).byteLength > 5000);
     assert.equal((await fetch(`${base}/api/go/card/default.png`)).status, 200);
     assert.equal((await fetch(`${base}/api/go/card/nope-999.png`)).status, 404);
-    assert.equal((await fetch(`${base}/api/go/place/to-101`)).status, 200);
   });
 });
 
-test('copy style: page and share cards have no dash punctuation', () => {
+test('status alerts: Toronto live stops only, sent once when the status flips, to confirmed subscribers', async () => {
+  await withApp(async base => {
+    const post = body => fetch(`${base}/api/go/alert`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const ott = (await goNow.nearest({ lat: 45.4215, lng: -75.6972, limit: 1 }))[0];
+    assert.equal((await post({ email: 'a@example.com', id: ott.id })).status, 400, 'no alerts where status is not live');
+    assert.equal((await post({ email: 'nope', id: 'to-102' })).status, 400);
+    assert.equal((await post({ email: 'Parent@Example.com', id: 'to-102' })).status, 200);
+  });
+  const sent = [];
+  const deps = {
+    send: async m => { sent.push(m); return { sent: true }; },
+    listSubscribed: async () => [{ email: 'parent@example.com', token: 'tok' }]
+  };
+  // No change yet: nothing goes out.
+  await goAlerts.runAlertSweep(Object.assign({ places: LIVE }, deps));
+  assert.equal(sent.length, 0);
+  // The City reopens it.
+  const reopened = LIVE.map(p => (p.id === 'to-102' ? Object.assign({}, p, { washroom_status: 'open' }) : p));
+  await goAlerts.runAlertSweep(Object.assign({ places: reopened }, deps));
+  assert.equal(sent.length, 1);
+  assert.match(sent[0].subject, /Closed For Winter is open again/);
+  assert.match(sent[0].html, /unsubscribe\?token=tok/);
+  await goAlerts.runAlertSweep(Object.assign({ places: reopened }, deps));
+  assert.equal(sent.length, 1, 'once per change');
+});
+
+test('copy style: page, cards and alert emails have no dash punctuation', () => {
   const text = s => s.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<svg[\s\S]*?<\/svg>/g, '').replace(/<[^>]+>/g, ' ');
-  const page = routes.html({ base: 'https://dayhop.quest', title: 'Go Now', description: 'd', ogImage: 'x', canonical: '/go' });
+  const page = routes.html({ base: 'https://dayhop.quest', title: 'Go Now', description: 'd', ogImage: 'x', canonical: '/go', lastCheck: 'Nov 3, 2026' });
   assert.deepEqual(lint(text(page)).map(v => v.detail), []);
-  for (const p of [null, Object.assign({}, LIVE[0], { statusLabel: goNow.statusOf(LIVE[0]) }), Object.assign({}, LIVE[1], { statusLabel: goNow.statusOf(LIVE[1]) })]) {
+  for (const p of [null, ...LIVE]) {
     const svgText = routes.cardSvg(p).match(/>([^<]+)</g).map(s => s.slice(1, -1)).join(' ');
     assert.deepEqual(lint(svgText).map(v => v.detail), []);
+  }
+  for (const p of LIVE) {
+    const m = goAlerts.alertEmail(p, 'tok');
+    for (const part of [m.subject, m.text, text(m.html)]) assert.deepEqual(lint(part).map(v => v.detail), []);
   }
 });
 
 test('no Google calls anywhere in Go Now (Goal 3)', () => {
   const fs = require('fs');
-  for (const f of ['services/goNow.js', 'routes/goNow.js', 'public/go.js']) {
+  for (const f of ['services/goNow.js', 'services/goAlerts.js', 'routes/goNow.js', 'public/go.js']) {
     assert.doesNotMatch(fs.readFileSync(require('path').join(__dirname, '..', f), 'utf8'), /googleapis|maps\.google\.com\/maps\/api|places\.googleapis/);
   }
 });

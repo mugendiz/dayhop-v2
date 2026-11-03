@@ -739,6 +739,9 @@ if (process.env.RECOVERY_SWEEP !== 'off') {
     require('./services/heartbeat').record('recovery_sweep');
     require('./services/checkoutRecovery').runRecoverySweep()
       .catch(err => console.warn('[recovery] sweep failed:', err.message));
+    // Go Now status alerts: a watched Toronto washroom opened or closed.
+    require('./services/goAlerts').runAlertSweep()
+      .catch(err => console.warn('[go-alert] sweep failed:', err.message));
     // Santa parade reminders: the evening before, confirmed subscribers only.
     require('./services/paradeReminders').runReminderSweep()
       .catch(err => console.warn('[parade-remind] sweep failed:', err.message));

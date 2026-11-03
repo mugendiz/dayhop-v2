@@ -33,7 +33,9 @@ router.post('/', (req, res) => {
   }
   // Ad attribution rides on the funnel events only — sanitized to known
   // utm_*/fbclid keys, so meta can't become a free-form dumping ground.
-  if (type === 'signup' || type === 'upgrade_viewed') {
+  // go_opened too: Go Now's success is repeat opens and shares, so where
+  // each opener first came from (a shared card, the homepage) matters.
+  if (type === 'signup' || type === 'upgrade_viewed' || type === 'go_opened') {
     const utm = analytics.sanitizeAttrib(attrib);
     if (utm) meta = Object.assign(meta || {}, { utm });
   }

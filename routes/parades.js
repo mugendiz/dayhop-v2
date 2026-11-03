@@ -242,8 +242,8 @@ async function washroomLogistics() {
   const out = {};
   await Promise.all(PARADES.filter(p => p.slug !== 'toronto').map(async p => {
     try {
-      const [w] = await goNow.nearest({ lat: p.lat, lng: p.lng, layer: 'wc', filters: { winter: true }, limit: 1 });
-      if (w && w.dist <= 1500) out[p.slug] = { name: w.n, dist: w.dist };
+      const [w] = await goNow.nearest({ lat: p.lat, lng: p.lng, filters: { notClosed: true }, limit: 1 });
+      if (w && w.dist <= 1500) out[p.slug] = { name: w.name, dist: w.dist };
     } catch { /* line omitted */ }
   }));
   return out;

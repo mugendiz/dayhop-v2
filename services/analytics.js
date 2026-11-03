@@ -77,6 +77,8 @@ const SERVER_EVENT_TYPES = new Set([
   'content_view', 'crawler_view',
   // Santa parade night-before reminder requested (routes/parades.js).
   'parade_reminder',
+  // Go Now status alert requested (routes/goNow.js).
+  'go_alert',
   // Surprise-me / Next feed served (routes/surprise.js). Was missing from
   // this registry, so recordEvent silently dropped every surprise
   // impression — exactly the drift the comment above warns about.

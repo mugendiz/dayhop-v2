@@ -82,6 +82,29 @@ function trafficBlock(events, start, end) {
   };
 }
 
+// Go Now (/go): its success measure is repeat opens and share-card use,
+// not planner use. Openers are the per-browser go-* ids public/go.js sends.
+function goBlock(events, start, end) {
+  const inWin = events.filter(e => { const t = new Date(e.created_at); return t >= start && t < end; });
+  const days = new Map(); // opener -> Set of Toronto days
+  for (const e of inWin) {
+    if (e.type !== 'go_opened') continue;
+    const k = e.owner_key && e.owner_key !== 'anon' ? e.owner_key : null;
+    if (!k) continue;
+    if (!days.has(k)) days.set(k, new Set());
+    days.get(k).add(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto' }).format(new Date(e.created_at)));
+  }
+  const count = type => inWin.filter(e => e.type === type).length;
+  return {
+    opens: count('go_opened'),
+    openers: days.size,
+    repeat: [...days.values()].filter(s => s.size >= 2).length,
+    shares: count('go_share'),
+    directions: count('go_directions'),
+    alerts: count('go_alert')
+  };
+}
+
 async function stripeSales() {
   if (!process.env.STRIPE_SECRET_KEY) return { note: 'STRIPE_SECRET_KEY not set, sales not read' };
   const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
@@ -134,6 +157,12 @@ async function main() {
   out.push('## Newsletter (public.newsletter_subscribers, read now)');
   out.push(`- ${subs.subscribed} confirmed, ${subs.pending} pending, ${subs.unsubscribed} unsubscribed`);
   out.push(`- Confirmed in the last ${DAYS}d: ${subs.confirmedInWindow}; subscribe events from outside people: ${cur.subscribes}`);
+  out.push('');
+  const go = goBlock(outside, since, new Date(now));
+  const goPrev = goBlock(outside, prevSince, since);
+  out.push(`## Go Now (/go) (public.events, last ${DAYS}d vs the ${DAYS}d before)`);
+  out.push(`- Openers (distinct browsers): ${go.openers}, of whom opened on 2+ days: ${go.repeat} (previous: ${goPrev.openers}, ${goPrev.repeat})`);
+  out.push(`- Opens: ${go.opens} · share-card uses: ${go.shares} · directions: ${go.directions} · status alerts asked: ${go.alerts}`);
   out.push('');
   out.push('## Plan targets by Dec 3, 2026: 2 paid guides, 40 confirmed subscribers');
   console.log(out.join('\n'));
