@@ -228,3 +228,28 @@ a crawl is a week the place pages earn nothing from search. Fix costs the
 founder about 5 minutes in Search Console.
 
 **Reviewed.**
+
+## 2026-11-03 Toronto publishes the data a free "near me now" layer needs, daily and free
+
+**Finding.** The free-utility ideas (washrooms, library programs, drop-ins)
+do not need scraping or Google calls. The City's open data portal carries
+them, most of it refreshed daily, so these pages can be built from one
+nightly fetch with zero metered spend (Goal 3).
+
+**Number and source.** Toronto Open Data CKAN API
+(ckan0.cf.opendata.inter.prod-toronto.ca), queried 2026-11-03:
+`washroom-facilities` refreshed daily, 355 park washrooms with a live
+status: 255 open, 71 "Closed for the Season", the rest closed for repairs,
+construction or partly open. `library-branch-programs-and-events-feed`:
+7,078 Toronto Public Library events with time, branch and audience.
+`earlyon-child-and-family-centres` refreshed daily. `festivals-events`
+real time. `registered-programs-and-drop-in-courses-offering` weekly.
+Parking has no current dataset (`green-p-parking` not refreshed since
+2019-06-30), so parking notes would be hand-checked only.
+
+**Costing.** Building on this costs agent time and one nightly fetch, no API
+spend. Not building on it means any "near me" feature falls back to Google
+Places calls, which is what produced the ~US$100 Maps bill in Aug to Sep
+2026 (`docs/maps-cost.md`).
+
+**Reviewed.**

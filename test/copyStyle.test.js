@@ -118,6 +118,18 @@ test('published issues (standout, hooks, chips, share rows) have no dash punctua
   assertNoViolations(tottDigest.digestText(tott, 'test-token'), 'tottDigest.js published digestText');
 });
 
+test('Santa parades: the page body and every reminder email have no dash punctuation', () => {
+  const { PARADES } = require('../data/santaParades2026');
+  assertNoViolations(require('../routes/parades').bodyHtml('https://dayhop.quest', '2026-11-03').replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, ''), 'parades.js page body');
+  const { reminderEmail } = require('../services/paradeReminders');
+  for (const p of PARADES) {
+    const m = reminderEmail(p, 'tok');
+    assertNoViolations(m.subject, `parade reminder subject (${p.slug})`);
+    assertNoViolations(m.text, `parade reminder text (${p.slug})`);
+    assertNoViolations(m.html, `parade reminder html (${p.slug})`);
+  }
+});
+
 test('routes/issues.js: the public issue page and its 404 have no dash punctuation', async () => {
   delete process.env.SUPABASE_SERVICE_KEY;
   const issueStore = require('../services/issueStore');

@@ -401,6 +401,9 @@ const newsletterLimiter = rateLimit({
   message: { error: 'RATE_LIMITED', message: 'Slow down a little.' }
 });
 app.use('/api/newsletter', newsletterLimiter, require('./routes/newsletter'));
+// Santa parade reminders (routes/parades.js): a newsletter signup with a
+// parade attached, so the same limiter.
+app.use('/api/parades', newsletterLimiter, require('./routes/parades').api);
 
 // Digest email tracking (open pixel + signed click redirects). GETs from
 // email clients — never rate-limited, a bounced tracking link is a broken
@@ -556,6 +559,9 @@ app.use('/places', require('./routes/placePages').router);
 // The public web copy of every newsletter issue (routes/issues.js), so a
 // forwarded or shared issue opens a real, indexable page.
 app.use(require('./routes/issues').router);
+// GTA Santa Claus parades 2026 (routes/parades.js): dates checked against
+// each organizer's own page, on a map, with a night-before reminder.
+app.use(require('./routes/parades').router);
 // Illustrated placeholder for cards with no photo (routes/placeholderArt.js).
 // Outside /api on purpose: no rate limiter, edge-cacheable.
 app.use('/art', require('./routes/placeholderArt').router);
@@ -728,6 +734,9 @@ if (process.env.RECOVERY_SWEEP !== 'off') {
     require('./services/heartbeat').record('recovery_sweep');
     require('./services/checkoutRecovery').runRecoverySweep()
       .catch(err => console.warn('[recovery] sweep failed:', err.message));
+    // Santa parade reminders: the evening before, confirmed subscribers only.
+    require('./services/paradeReminders').runReminderSweep()
+      .catch(err => console.warn('[parade-remind] sweep failed:', err.message));
     require('./services/newsletter').runConfirmNudge()
       .catch(err => console.warn('[newsletter] nudge failed:', err.message));
     // Testimonial ask: one email 7 days after a guide purchase. Sends only

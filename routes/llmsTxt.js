@@ -22,6 +22,7 @@ module.exports = function llmsTxt(base) {
     '',
     '## Main pages',
     `- [Planner](${base}/): describe the day you want in one sentence and get a plan with real venues and today's weather.`,
+    `- [Santa Claus parades in the GTA, 2026](${base}/santa-parades): every confirmed 2026 parade with date, start time, route and the official source, checked against each town's own page.`,
     `- [All places](${base}/places): ${ENTRIES.length} family outings around the GTA, grouped by area.`,
     `- [Weekend Playbook](${base}/playbook): free guide to 70+ GTA family outings.`,
     `- [City guides](${base}/guides): field-checked PDF nature guides for Ontario cities.`,

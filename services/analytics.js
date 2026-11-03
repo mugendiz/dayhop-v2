@@ -73,6 +73,8 @@ const SERVER_EVENT_TYPES = new Set([
   // 2026-11-03 blog visits were not recorded at all, so a paid SEO channel
   // could not be judged (docs/findings-log.md).
   'content_view', 'crawler_view',
+  // Santa parade night-before reminder requested (routes/parades.js).
+  'parade_reminder',
   // Surprise-me / Next feed served (routes/surprise.js). Was missing from
   // this registry, so recordEvent silently dropped every surprise
   // impression — exactly the drift the comment above warns about.
