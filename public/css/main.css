@@ -4048,6 +4048,28 @@ html.lenis, html.lenis body { height: auto; }
    From 1000px the hero opens into two columns and the left rail left-aligns. */
 .hero-content--split { max-width: 720px; }
 .hero-columns { display: grid; grid-template-columns: 1fr; gap: 32px; align-items: start; }
+/* One light meadow behind the toggle, search box and featured card:
+   fresh grass on the left, sunlit orange on the right, a soft sheen
+   across the top so it reads shiny rather than flat. */
+:root {
+  --hero-meadow:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.15) 26%, rgba(255, 255, 255, 0) 40%),
+    radial-gradient(75% 70% at 0% 100%, rgba(116, 186, 72, 0.45), rgba(116, 186, 72, 0) 72%),
+    radial-gradient(55% 60% at 58% 0%, rgba(255, 160, 50, 0.30), rgba(255, 160, 50, 0) 70%),
+    radial-gradient(60% 80% at 100% 100%, rgba(255, 128, 30, 0.38), rgba(255, 128, 30, 0) 70%),
+    linear-gradient(100deg, #E2F3CC 0%, #F4F7E2 46%, #FFE4C4 100%);
+}
+/* Let the meadow read through the toggle and search box as one surface. */
+.hero-columns .mode-toggle { background: rgba(255, 255, 255, 0.5); }
+.hero-columns .prompt-box { background: linear-gradient(170deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.5)); }
+@media (max-width: 879.98px) {
+  .hero-columns { position: relative; }
+  .hero-columns::before {
+    content: ''; position: absolute; z-index: -1; inset: -14px -10px; pointer-events: none;
+    border-radius: 28px; background: var(--hero-meadow);
+    box-shadow: inset 0 0 0 1px rgba(110, 160, 70, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+}
 
 @media (min-width: 880px) {
   .hero-content--split { max-width: 1120px; }
@@ -4063,10 +4085,8 @@ html.lenis, html.lenis body { height: auto; }
   .hero-columns::before {
     content: ''; position: absolute; z-index: -1; inset: -18px -22px -22px -18px; pointer-events: none;
     border-radius: 30px 48% 48% 30px / 30px 50% 50% 30px;
-    background:
-      radial-gradient(120% 90% at 100% 50%, rgba(255, 182, 39, 0.16), rgba(255, 182, 39, 0) 60%),
-      linear-gradient(90deg, rgba(63, 111, 92, 0.12), rgba(251, 247, 238, 0.35) 55%, rgba(255, 182, 39, 0.10));
-    box-shadow: inset 0 0 0 1px rgba(63, 111, 92, 0.10);
+    background: var(--hero-meadow);
+    box-shadow: inset 0 0 0 1px rgba(110, 160, 70, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 18px 40px -24px rgba(120, 140, 40, 0.35);
   }
   .hero-content--split .hero-left { text-align: left; }
   .hero-content--split .hero-left .mode-toggle { margin-left: 0; }
