@@ -7056,18 +7056,27 @@
     section.hidden = false;
     // Dream big: a few open houses, then the vision-board dreams. Every
     // card opens its panel in the /dream scroll.
+    // Winter showcase cards (routes/dream.js): the "taste it" date leads, the
+    // photo or a typographic poster behind it; the row ends in a "See all"
+    // tile into the full-screen scroll.
     const visions = (dreamState.visions || []).map(v => `
       <a class="dream-card dream-card--vision" role="listitem" href="/dream#${escapeAttr(v.id)}"
-        aria-label="${escapeAttr(`${v.kicker}: ${v.title}`)}">
-        <div class="dream-photo">
-          <img src="${escapeAttr(v.image)}" alt="${escapeAttr(v.alt || '')}" loading="lazy">
-          <span class="dream-badge">${escapeHtml(`${v.emoji || ''} ${v.kicker}`.trim())}</span>
+        aria-label="${escapeAttr(`${v.kicker}: ${v.title}, ${v.when_label || ''}`)}">
+        <div class="dream-photo${v.image ? '' : ' dream-photo--poster'}">
+          ${v.image ? `<img src="${escapeAttr(v.image)}" alt="${escapeAttr(v.alt || '')}" loading="lazy">` : `<span class="dream-poster-word" aria-hidden="true">${escapeHtml(v.kicker)}</span>`}
+          ${v.when_label ? `<span class="dream-badge dream-badge--when">${escapeHtml(v.when_label)}</span>` : ''}
         </div>
         <div class="dream-body">
+          <p class="dream-kick">${escapeHtml(v.kicker)}</p>
           <p class="dream-area">${escapeHtml(v.title)}</p>
-          <p class="dream-price">${escapeHtml(v.line)}</p>
+          ${v.cost ? `<p class="dream-price">${escapeHtml(v.cost)}</p>` : ''}
         </div>
-      </a>`).join('');
+      </a>`).join('') + (dreamState.visions && dreamState.visions.length ? `
+      <a class="dream-card dream-card--all" role="listitem" href="/dream">
+        <span class="dream-all-num">${dreamState.visions.length}</span>
+        <span class="dream-all-label">dreams with a real way in this winter</span>
+        <span class="dream-all-cta">See the showcase →</span>
+      </a>` : '');
     if (!live.length) {
       rail.innerHTML = visions || `<p class="dream-empty">Dream homes appear here as this weekend's open houses are added.</p>`;
       return;

@@ -1012,6 +1012,16 @@ button.date-clear-btn { padding: 13px 4px; }
    would otherwise centre them vertically). */
 .dream-card { display: flex; flex-direction: column; justify-content: flex-start; }
 a.dream-card { text-decoration: none; }
+/* Winter showcase cards: date badge in brass on the photo, a typographic
+   poster when there is no photo, and a closing "See all" tile in midnight. */
+.dream-badge--when { background: #D9A441; color: #2A1E05; font-family: var(--mono); font-weight: 600; letter-spacing: 0.02em; }
+.dream-kick { margin: 0 0 2px; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--coral-dark); }
+.dream-photo--poster { display: grid; place-items: center; overflow: hidden; background: linear-gradient(160deg, #16253C, #0D1726); }
+.dream-poster-word { font-family: var(--display); font-weight: 800; text-transform: uppercase; font-size: 46px; line-height: 0.85; color: transparent; -webkit-text-stroke: 1.2px rgba(156, 203, 234, 0.55); text-align: center; transform: rotate(-6deg); padding: 0 8px; }
+.dream-card--all { display: flex !important; flex-direction: column; justify-content: center; align-items: flex-start; gap: 6px; padding: 18px; color: #EEF3F8; background: radial-gradient(80% 60% at 80% 20%, rgba(217, 164, 65, 0.28), rgba(13, 23, 38, 0) 60%), linear-gradient(160deg, #16253C, #0D1726); border-color: #0D1726; }
+.dream-all-num { font-family: var(--display); font-weight: 800; font-size: 54px; line-height: 0.9; color: #D9A441; }
+.dream-all-label { font-size: 14px; line-height: 1.35; color: #DCE5EE; }
+.dream-all-cta { margin-top: 6px; font-weight: 700; color: #EEF3F8; }
 .dream-head h2 { font-size: 22px; line-height: 1.25; max-width: 640px; margin: 0; }
 .dream-sub { color: var(--ink-soft); font-size: 14.5px; margin: 6px 0 0; max-width: 640px; }
 .dream-rail {
