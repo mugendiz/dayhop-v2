@@ -191,7 +191,7 @@ ${upcoming.length ? `<section class="pz-box" id="remind">
   var data = ${mapData};
   if (window.L && document.getElementById('pz-map')) {
     var map = L.map('pz-map', { scrollWheelZoom: false }).setView([43.75, -79.45], 9);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, referrerPolicy: 'strict-origin-when-cross-origin', attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
     var pts = [];
     data.forEach(function (p) {
       var m = L.circleMarker([p.lat, p.lng], { radius: 9, color: '#fff', weight: 2, fillColor: p.past ? '#9aa5a6' : '#E1502F', fillOpacity: 0.95 }).addTo(map);

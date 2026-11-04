@@ -104,14 +104,15 @@ function holidayWindow(dateStr) {
   }
 }
 
-// "Aug 1–3" / "Dec 25" — for eyebrows and prompts.
+// "Aug 1 to 3" / "Dec 31 to Jan 2" / "Dec 25" for eyebrows and prompts.
+// "to", not a dash: the hero eyebrow is customer copy (house dash rule).
 function formatRange(window) {
   const fmt = d => RANGE_FMT.format(toUtc(d));
   if (window.start === window.end) return fmt(window.start);
   const sameMonth = window.start.slice(0, 7) === window.end.slice(0, 7);
   return sameMonth
-    ? `${fmt(window.start)}–${window.end.split('-')[2].replace(/^0/, '')}`
-    : `${fmt(window.start)} – ${fmt(window.end)}`;
+    ? `${fmt(window.start)} to ${window.end.split('-')[2].replace(/^0/, '')}`
+    : `${fmt(window.start)} to ${fmt(window.end)}`;
 }
 
 // Next holiday whose promo window hasn't fully passed — so on the Sunday of

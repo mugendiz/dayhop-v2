@@ -186,3 +186,20 @@ test('landmark names follow house copy style (no "word - word")', async () => {
   const res = await goNow.nearest({ lat: 43.6532, lng: -79.3832, limit: 60, waitLive: false });
   for (const p of res) assert.deepEqual(lint(p.name).map(v => v.detail), [], p.name);
 });
+
+test('OSM tile layers send a Referer (the site default is no-referrer; OSM blocks tiles without one)', () => {
+  const fs = require('fs'), path = require('path');
+  for (const f of ['public/go.js', 'routes/parades.js']) {
+    const src = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+    for (const m of src.match(/L\.tileLayer\([^;]*\)/g) || []) assert.match(m, /referrerPolicy: 'strict-origin-when-cross-origin'/, f);
+  }
+});
+
+test('spotlight date ranges in the hero eyebrow carry no dash', () => {
+  const { formatRange } = require('../services/spotlight');
+  const { lint } = require('../services/copyStyle');
+  for (const w of [{ start: '2026-12-25', end: '2026-12-28' }, { start: '2026-12-31', end: '2027-01-02' }]) {
+    assert.deepEqual(lint(formatRange(w)).map(v => v.detail), [], formatRange(w));
+  }
+  assert.equal(formatRange({ start: '2026-12-25', end: '2026-12-28' }), 'Dec 25 to 28');
+});

@@ -56,7 +56,9 @@ test('publish needs every required field; a draft needs only an address', () => 
 
 test('public rail: live only, open now first, expired and drafts never shown (AC1, AC3, AC5)', async () => {
   dh._mem.clear();
-  const now = Date.now();
+  // A fixed Toronto noon: near midnight, win() clamps both open windows to
+  // 23:59 and their order became a tie (flaked at 23:58 on 2026-11-03).
+  const now = dh.torontoMs('2030-06-15', '12:00');
   // Two open now (the one closing sooner first), one upcoming, one expired, one draft.
   const openLate = await dh.save(null, { ...base(10), windows: [win(-1, 3, now)] }, { publish: true });
   const openSoon = await dh.save(null, { ...base(11), windows: [win(-1, 0.5, now)] }, { publish: true });

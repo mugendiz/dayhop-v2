@@ -410,7 +410,6 @@ button, .filter-chip {
   text-transform: uppercase;
   color: var(--ink-soft);
   background: rgba(255,255,255,0.7);
-  border: 1px solid var(--line-strong);
   padding: 7px 14px;
   border-radius: 999px;
   margin-bottom: 28px;

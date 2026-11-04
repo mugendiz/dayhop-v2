@@ -24,7 +24,9 @@
   }
 
   var map = L.map('gn-map', { zoomControl: false }).setView(RICHMOND_HILL, 13);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+  // OSM's tile policy requires a Referer, and the site sends Referrer-Policy:
+  // no-referrer (helmet), so the tiles opt back in to sending our origin.
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin', attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
   var pins = L.layerGroup().addTo(map);
   var meMarker = null;
 
