@@ -173,27 +173,49 @@ async function allPlaces({ waitLive = true } = {}) {
 // eight times. Name each after the nearest named place within 300 m
 // (a park, library, EarlyON centre or named washroom); else leave it.
 const GENERIC_NAME = /^public washroom$/i;
+const NOT_A_LANDMARK = /^(public\s+)?(washrooms?|toilets?|restrooms?)?$/i;
 const NEAR_M = 300;
-let landmarkCache = null;
-function landmarks(lp) {
-  if (!landmarkCache || landmarkCache.liveAt !== live.at) {
-    const s = loadSnapshot();
-    const list = s.points.filter(p => p.n && !GENERIC_NAME.test(p.n))
-      .map(p => ({ lat: p.lat, lng: p.lng, name: String(p.n).replace(/\s+(public\s+)?washrooms?$/i, '').trim() }));
-    for (const p of lp) if (p.park) list.push({ lat: p.lat, lng: p.lng, name: p.park });
-    landmarkCache = { liveAt: live.at, list };
+// House copy style (the names show on the page and the share card):
+// "Toronto Public Library - City Hall" reads "..., City Hall".
+const undash = s => String(s || '').replace(/\s*[—–]\s*/g, ', ').replace(/\s-{1,2}\s/g, ', ').trim();
+
+// id -> "Washroom near X" for every generic seeded toilet, built once per
+// live refresh (live parks are landmarks too). A grid of ~330 m cells
+// means each toilet checks only the 9 cells around it.
+let nearNames = null;
+function nearNameMap() {
+  if (nearNames && nearNames.liveAt === live.at) return nearNames.byId;
+  const ci = lat => Math.floor(lat / 0.003), cj = lng => Math.floor(lng / 0.004);
+  const grid = new Map();
+  const add = (lat, lng, raw) => {
+    const name = undash(String(raw || '').replace(/\s+(public\s+)?washrooms?$/i, ''));
+    if (NOT_A_LANDMARK.test(name)) return;
+    const k = `${ci(lat)}:${cj(lng)}`;
+    if (!grid.has(k)) grid.set(k, []);
+    grid.get(k).push({ lat, lng, name });
+  };
+  for (const p of loadSnapshot().points) if (p.n && !GENERIC_NAME.test(p.n)) add(p.lat, p.lng, p.n);
+  for (const p of live.points) if (p.park) add(p.lat, p.lng, p.park);
+  const byId = new Map();
+  for (const p of seeded()) {
+    if (!GENERIC_NAME.test(p.name)) continue;
+    let best = null, bestD = NEAR_M;
+    for (let a = -1; a <= 1; a++) {
+      for (let b = -1; b <= 1; b++) {
+        for (const l of grid.get(`${ci(p.lat) + a}:${cj(p.lng) + b}`) || []) {
+          const d = distM(p.lat, p.lng, l.lat, l.lng);
+          if (d < bestD) { bestD = d; best = l; }
+        }
+      }
+    }
+    if (best) byId.set(p.id, `Washroom near ${best.name}`);
   }
-  return landmarkCache.list;
+  nearNames = { liveAt: live.at, byId };
+  return byId;
 }
-function withNearName(p, lp) {
-  if (!GENERIC_NAME.test(p.name)) return p;
-  let best = null, bestD = NEAR_M;
-  for (const l of landmarks(lp)) {
-    if (Math.abs(l.lat - p.lat) > 0.003 || Math.abs(l.lng - p.lng) > 0.004) continue;
-    const d = distM(p.lat, p.lng, l.lat, l.lng);
-    if (d < bestD) { bestD = d; best = l; }
-  }
-  return best ? Object.assign({}, p, { name: `Washroom near ${best.name}` }) : p;
+function withNearName(p) {
+  const name = GENERIC_NAME.test(p.name) && nearNameMap().get(p.id);
+  return name ? Object.assign({}, p, { name }) : p;
 }
 
 /**
@@ -215,13 +237,12 @@ async function nearest({ lat, lng, filters = {}, limit = 8, waitLive = true }) {
     scored.push([distM(lat, lng, p.lat, p.lng), p]);
   }
   scored.sort((a, b) => a[0] - b[0]);
-  const lp = live.points;
-  return scored.slice(0, Math.min(Math.max(1, limit), 60)).map(([d, p]) => Object.assign({ dist: Math.round(d) }, withNearName(p, lp)));
+  return scored.slice(0, Math.min(Math.max(1, limit), 60)).map(([d, p]) => Object.assign({ dist: Math.round(d) }, withNearName(p)));
 }
 
 async function byId(id) {
   const p = (await allPlaces()).find(x => x.id === id);
-  return p ? withNearName(p, live.points) : null;
+  return p ? withNearName(p) : null;
 }
 
 function meta() {

@@ -55,6 +55,7 @@ test('Talk of the town slide falls back to the last emailed issue when the live 
       { title: 'Brampton Diwali Mela', date: '2026-11-07', date_end: '2026-11-08' }
     ]
   });
+  carousel._resetIssueCache(); // the earlier test cached the empty store
   await withApp(async base => {
     const j = await (await fetch(`${base}/api/carousel`)).json();
     assert.deepEqual(j.slides.map(s => s.key), ['fall', 'tott-1', 'parades']);

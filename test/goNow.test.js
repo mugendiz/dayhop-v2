@@ -178,3 +178,11 @@ test('the City link text "View ... hours" is not shown as hours', () => {
   const p = require('../services/goNow').torontoPoint({ ASSET_ID: 1, AssetName: 'X', Status: '1', HOURS: 'View outdoor rink hours', geometry: { coordinates: [-79.38, 43.65] } }, '2026-11-03');
   assert.ok(!p.notes || !/Hours:/.test(p.notes));
 });
+
+test('landmark names follow house copy style (no "word - word")', async () => {
+  const goNow = require('../services/goNow');
+  const { lint } = require('../services/copyStyle');
+  goNow._setLive({ at: Date.now() + 1, postedDate: '2026-11-03', points: [] });
+  const res = await goNow.nearest({ lat: 43.6532, lng: -79.3832, limit: 60, waitLive: false });
+  for (const p of res) assert.deepEqual(lint(p.name).map(v => v.detail), [], p.name);
+});

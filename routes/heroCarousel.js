@@ -82,13 +82,23 @@ async function tottPicks() {
     const live = talkOfTown.active({ point: { lat: 43.6532, lng: -79.3832 }, limit: talkOfTown.SHELF_SIZE });
     if (live.length) return live;
   } catch { /* fall through to the last email */ }
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto' }).format(new Date());
+  return (await lastIssuePicks()).filter(p => (p.date_end || p.date || '9999-12-31') >= today);
+}
+
+// The emailed issue changes once a week, so it is read from the database at
+// most every 15 minutes, not on every homepage view.
+const ISSUE_TTL_MS = 15 * 60 * 1000;
+let issueCache = { at: 0, picks: [] };
+async function lastIssuePicks() {
+  if (Date.now() - issueCache.at < ISSUE_TTL_MS) return issueCache.picks;
   try {
     const issueStore = require('../services/issueStore');
     const date = await issueStore.latestDate('tott');
     const snap = date ? await issueStore.getIssue('tott', date) : null;
-    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto' }).format(new Date());
-    return ((snap && snap.picks) || []).filter(p => (p.date_end || p.date || '9999-12-31') >= today);
-  } catch { return []; }
+    issueCache = { at: Date.now(), picks: (snap && snap.picks) || [] };
+  } catch { issueCache = { at: Date.now(), picks: issueCache.picks }; }
+  return issueCache.picks;
 }
 
 api.get('/', async (req, res) => {
@@ -139,4 +149,5 @@ page$.get('/fall-colours', (req, res) => {
   }));
 });
 
-module.exports = { page: page$, api, slides, fallBody, fallEntries };
+module.exports = { page: page$, api, slides, fallBody, fallEntries,
+  _resetIssueCache: () => { issueCache = { at: 0, picks: [] }; } };

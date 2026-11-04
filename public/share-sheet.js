@@ -9,7 +9,7 @@
 // share_sent (source = channel), owned by the planner's guest id.
 (function () {
   'use strict';
-  var sheet = null, current = null, lastFocus = null;
+  var sheet = null, current = null, lastFocus = null, hideTimer = 0;
 
   function ownerId() {
     try { return localStorage.getItem('dayhop_owner_id') || undefined; } catch (e) { return undefined; }
@@ -79,6 +79,7 @@
 
   function open(opts) {
     if (!sheet) build();
+    clearTimeout(hideTimer); // a close still fading out must not hide this open
     current = opts || {};
     lastFocus = document.activeElement;
     var img = sheet.querySelector('.share-sheet-thumb');
@@ -98,7 +99,7 @@
     if (!sheet || sheet.hidden) return;
     sheet.classList.remove('in');
     document.documentElement.classList.remove('share-sheet-open');
-    setTimeout(function () { sheet.hidden = true; }, 180);
+    hideTimer = setTimeout(function () { sheet.hidden = true; }, 180);
     if (lastFocus && lastFocus.focus) lastFocus.focus();
   }
 

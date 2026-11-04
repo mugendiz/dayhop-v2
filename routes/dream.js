@@ -85,7 +85,8 @@ async function dreams(today = TORONTO_DAY()) {
   const list = BOARD.visibleDreams(today);
   const h = await homes();
   const i = list.findIndex(d => d.id === 'dream-home');
-  if (h.length) list.splice(i >= 0 ? i + 1 : list.length, 0, ...h.slice(0, 3));
+  // Every public home, so each homepage rail card has its panel here.
+  if (h.length) list.splice(i >= 0 ? i + 1 : list.length, 0, ...h);
   return list.map(d => Object.assign(d, { when_label: whenLabel(d) }));
 }
 
@@ -148,7 +149,8 @@ const panelsHtml = list => `${list.map((d, i) => panel(d, i, list.length)).join(
 const FONTS = 'https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Instrument+Sans:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap';
 
 function scrollHtml(list, { shell = false } = {}) {
-  const data = JSON.stringify(list.map(d => ({ id: d.id, title: d.title, kicker: d.kicker, line: d.line, image: d.image })).concat([{ id: 'dream-end', title: "Toronto's winter showcase", kicker: 'Dream big', line: `${list.length} dreams with a real way in this winter.`, image: list.find(d => d.image) ? list.find(d => d.image).image : null }])).replace(/</g, '\\u003c');
+  // Same share list the live shell gets from /api/dream (shareData).
+  const data = JSON.stringify(shareData(list)).replace(/</g, '\\u003c');
   return `<!DOCTYPE html>
 <html lang="en">
 <head>

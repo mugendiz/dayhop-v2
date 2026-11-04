@@ -2162,8 +2162,8 @@
       const thumb = idea.image_url || categoryImage(idea.category, 640, idea.title);
       if (!window.DayHopShare) { window.location.href = path; return; }
       window.DayHopShare.open({
-        title: idea.title, kicker: idea.category || 'Share', thumb,
-        text: `${idea.title}${idea.location ? `, ${idea.location}` : ''}. Want to go?`,
+        title: undash(idea.title), kicker: idea.category || 'Share', thumb,
+        text: `${undash(idea.title)}${idea.location ? `, ${undash(idea.location)}` : ''}. Want to go?`,
         url: `${window.location.origin}${path}`,
         openUrl: curated ? path : null,
         campaign: 'feed_card'
@@ -2366,6 +2366,12 @@
   // allocated a detached <div> per call — 6-10 calls per card, hundreds of
   // cards per session.
   const HTML_ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  // House copy style for text we send on the reader's behalf (share sheet):
+  // dashes become commas, as routes/placePages.js undash does on the server.
+  // (Dashes built from char codes so this file stays dash-free for the copy test.)
+  const DASH_RUN = new RegExp(`\\s*[${String.fromCharCode(0x2014, 0x2013)}]\\s*`, 'g');
+  const undash = s => String(s || '').replace(DASH_RUN, ', ').replace(/\s-{1,2}\s/g, ', ').trim();
+
   function escapeHtml(str) {
     return str == null ? '' : String(str).replace(/[&<>"']/g, c => HTML_ESC[c]);
   }
@@ -5271,9 +5277,10 @@
     if (!state.browseMode) return handleNext();
     const page = state.feedPage || 0;
     if (visibleIdeas().length <= (page + 1) * FEED_PAGE) {
-      const before = state.allIdeas.length;
       await handleNext({ paged: true });
-      if (state.allIdeas.length === before) return;
+      // Count what the reader can see (the active chip applies): new ideas
+      // that all fall outside the filter must not turn onto an empty page.
+      if (visibleIdeas().length <= (page + 1) * FEED_PAGE) { renderFeed(true); return; }
     }
     state.feedPage = page + 1;
     renderFeed(true);
@@ -7136,13 +7143,26 @@
 
   function loadDream() {
     const who = DREAM_LOCAL ? 'local' : (isLoggedIn() ? String((window.DayHopAuth.getUser() || {}).email || 'user') : '');
-    if (!who || who === dreamTried) return;
+    if (who === dreamTried) return;
     dreamTried = who;
+    // Signed out, or a different account: take the admin-only rail down
+    // (open-house addresses) until the server says this one may see it.
+    const clear = () => {
+      dreamState.homes = []; dreamState.visions = [];
+      const section = document.getElementById('dream-homes');
+      const rail = document.getElementById('dream-rail');
+      const fine = document.getElementById('dream-fine');
+      if (rail) rail.innerHTML = '';
+      if (fine) fine.hidden = true;
+      if (section) section.hidden = true;
+    };
+    if (!who) { clear(); return; }
     Promise.all([
       fetch('/api/dream-homes', { headers: authHeaders() }).then(r => (r.ok ? r.json() : null)).catch(() => null),
       fetch('/api/dream', { headers: authHeaders() }).then(r => (r.ok ? r.json() : null)).catch(() => null)
     ]).then(([h, d]) => {
-      if (!h && !d) return; // not an admin: the section stays hidden
+      if (dreamTried !== who) return; // sign-in changed while these were in flight
+      if (!h && !d) { clear(); return; } // not an admin: the section stays hidden
       dreamState.homes = h && Array.isArray(h.homes) ? h.homes : [];
       dreamState.visions = (d && Array.isArray(d.dreams) ? d.dreams : []).filter(x => x.kind === 'vision');
       renderDreamRail();
