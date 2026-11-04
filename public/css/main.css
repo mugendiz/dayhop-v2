@@ -4067,6 +4067,10 @@ html.lenis, html.lenis body { height: auto; }
   .hero-columns::before {
     content: ''; position: absolute; z-index: -1; inset: 0; pointer-events: none;
     border-radius: 18px; background: var(--hero-meadow);
+    -webkit-mask: linear-gradient(#000 0 0) 0 0 / 100% var(--d-band-top, 100%) no-repeat,
+      linear-gradient(#000 0 0) 0 var(--d-band-bot, 0px) / 100% 100% no-repeat;
+    mask: linear-gradient(#000 0 0) 0 0 / 100% var(--d-band-top, 100%) no-repeat,
+      linear-gradient(#000 0 0) 0 var(--d-band-bot, 0px) / 100% 100% no-repeat;
     box-shadow: inset 0 0 0 1px rgba(110, 160, 70, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   }
 }
@@ -4087,6 +4091,14 @@ html.lenis, html.lenis body { height: auto; }
        corner radii (toggle and prompt box 16 to 18px left, card 18px right). */
     content: ''; position: absolute; z-index: -1; inset: 0 0 var(--d-bottom, 0px) 0; pointer-events: none;
     border-radius: 18px;
+    /* Three bands, unioned: the toggle row on top, the card on the right,
+       the prompt box below. The headline band in between stays clear. */
+    -webkit-mask: linear-gradient(#000 0 0) 0 0 / 100% var(--d-band-top, 100%) no-repeat,
+      linear-gradient(#000 0 0) 100% 0 / calc(100% - var(--d-split, 0px)) 100% no-repeat,
+      linear-gradient(#000 0 0) 0 var(--d-band-bot, 0px) / 100% 100% no-repeat;
+    mask: linear-gradient(#000 0 0) 0 0 / 100% var(--d-band-top, 100%) no-repeat,
+      linear-gradient(#000 0 0) 100% 0 / calc(100% - var(--d-split, 0px)) 100% no-repeat,
+      linear-gradient(#000 0 0) 0 var(--d-band-bot, 0px) / 100% 100% no-repeat;
     background: var(--hero-meadow);
     box-shadow: inset 0 0 0 1px rgba(110, 160, 70, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 18px 40px -24px rgba(120, 140, 40, 0.35);
   }

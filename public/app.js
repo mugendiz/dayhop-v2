@@ -4526,7 +4526,9 @@
     const aside = document.getElementById('hero-featured');
     const form = document.getElementById('prompt-form');
     if (!aside || !form) return;
-    if (!window.matchMedia('(min-width: 880px)').matches) {
+    const split = window.matchMedia('(min-width: 880px)').matches;
+    syncMeadowBands(form, split);
+    if (!split) {
       aside.style.height = '';
       aside.style.removeProperty('--featured-photo-h');
       return;
@@ -4552,6 +4554,20 @@
     // The meadow behind the D (.hero-columns::before) stops at that same
     // bottom edge, not at the hint and weather lines below the prompt box.
     if (root !== document.body) root.style.setProperty('--d-bottom', `${Math.max(0, root.offsetHeight - f.bottom)}px`);
+  }
+
+  // The meadow is the D's outline only (toggle, card, prompt box): the
+  // headline band between the toggle and the prompt box stays clear. Stacked
+  // on phones there is no right column, so the split is the full width.
+  function syncMeadowBands(form, split) {
+    const root = form.closest('.hero-columns');
+    const toggle = root && root.querySelector('.mode-toggle');
+    const left = root && root.querySelector('.hero-left');
+    if (!toggle || !left) return;
+    const topIn = el => { let y = 0; for (let n = el; n && n !== root; n = n.offsetParent) y += n.offsetTop; return y; };
+    root.style.setProperty('--d-band-top', `${topIn(toggle) + toggle.offsetHeight}px`);
+    root.style.setProperty('--d-band-bot', `${topIn(form)}px`);
+    root.style.setProperty('--d-split', split ? `${left.offsetWidth}px` : '100%');
   }
 
   function wireFeaturedHeightSync() {
