@@ -4549,6 +4549,9 @@
     // it survives the rotation's innerHTML swaps.
     const photoH = Math.round(f.top - a.top);
     if (photoH > 120) aside.style.setProperty('--featured-photo-h', `${photoH}px`);
+    // The meadow behind the D (.hero-columns::before) stops at that same
+    // bottom edge, not at the hint and weather lines below the prompt box.
+    if (root !== document.body) root.style.setProperty('--d-bottom', `${Math.max(0, root.offsetHeight - f.bottom)}px`);
   }
 
   function wireFeaturedHeightSync() {

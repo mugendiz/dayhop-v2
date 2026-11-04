@@ -4065,8 +4065,8 @@ html.lenis, html.lenis body { height: auto; }
 @media (max-width: 879.98px) {
   .hero-columns { position: relative; }
   .hero-columns::before {
-    content: ''; position: absolute; z-index: -1; inset: -14px -10px; pointer-events: none;
-    border-radius: 28px; background: var(--hero-meadow);
+    content: ''; position: absolute; z-index: -1; inset: 0; pointer-events: none;
+    border-radius: 18px; background: var(--hero-meadow);
     box-shadow: inset 0 0 0 1px rgba(110, 160, 70, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   }
 }
@@ -4083,8 +4083,10 @@ html.lenis, html.lenis body { height: auto; }
      pair traces it: square-ish on the left, a long curve on the right,
      moss to marigold. */
   .hero-columns::before {
-    content: ''; position: absolute; z-index: -1; inset: -18px -22px -22px -18px; pointer-events: none;
-    border-radius: 30px 48% 48% 30px / 30px 50% 50% 30px;
+    /* Exactly the D: the two columns' outer box, with the blocks' own
+       corner radii (toggle and prompt box 16 to 18px left, card 18px right). */
+    content: ''; position: absolute; z-index: -1; inset: 0 0 var(--d-bottom, 0px) 0; pointer-events: none;
+    border-radius: 18px;
     background: var(--hero-meadow);
     box-shadow: inset 0 0 0 1px rgba(110, 160, 70, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 18px 40px -24px rgba(120, 140, 40, 0.35);
   }
