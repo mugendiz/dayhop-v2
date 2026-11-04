@@ -160,3 +160,21 @@ test('no Google calls anywhere in Go Now (Goal 3)', () => {
     assert.doesNotMatch(fs.readFileSync(require('path').join(__dirname, '..', f), 'utf8'), /googleapis|maps\.google\.com\/maps\/api|places\.googleapis/);
   }
 });
+
+test('unnamed OSM toilets take the nearest landmark name within 300 m; named ones keep theirs', async () => {
+  const goNow = require('../services/goNow');
+  goNow._setLive({ at: Date.now(), postedDate: '2026-11-03', points: [] });
+  const res = await goNow.nearest({ lat: 43.6532, lng: -79.3832, limit: 60, waitLive: false });
+  const generic = res.filter(p => p.name === 'Public washroom').length;
+  const named = res.filter(p => /^Washroom near /.test(p.name));
+  assert.ok(named.length > 0, 'some downtown toilets get a landmark name');
+  assert.ok(generic < res.length / 2, `${generic} of ${res.length} still generic`);
+  for (const p of named) assert.doesNotMatch(p.name, /near .*washroom$/i);
+  const again = await goNow.byId(named[0].id);
+  assert.equal(again.name, named[0].name, 'the shared link shows the same name');
+});
+
+test('the City link text "View ... hours" is not shown as hours', () => {
+  const p = require('../services/goNow').torontoPoint({ ASSET_ID: 1, AssetName: 'X', Status: '1', HOURS: 'View outdoor rink hours', geometry: { coordinates: [-79.38, 43.65] } }, '2026-11-03');
+  assert.ok(!p.notes || !/Hours:/.test(p.notes));
+});

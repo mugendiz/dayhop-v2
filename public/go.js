@@ -40,6 +40,15 @@
   }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function fmtDist(m) { return m == null ? '' : m < 1000 ? Math.round(m / 10) * 10 + ' m' : (m / 1000).toFixed(m < 10000 ? 1 : 0) + ' km'; }
+  // "250 m NW" from the search centre, so look-alike stops can be told apart.
+  function compass(p) {
+    var c = state.center;
+    if (!c || p.dist == null || p.dist < 30) return '';
+    var dy = p.lat - c[0], dx = (p.lng - c[1]) * Math.cos(c[0] * Math.PI / 180);
+    var deg = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
+    return ' ' + ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(deg / 45) % 8];
+  }
+  function distLabel(p) { return fmtDist(p.dist) + compass(p); }
   function fmtDate(d) {
     if (!d) return 'unknown';
     try { return new Date(d + 'T12:00:00Z').toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }); } catch (e) { return d; }
@@ -78,7 +87,7 @@
     detailEl.appendChild(back);
     var row = el('div', 'gn-row');
     row.appendChild(el('h2', 'gn-dname', p.name));
-    if (p.dist != null) row.appendChild(el('span', 'gn-dist', fmtDist(p.dist)));
+    if (p.dist != null) row.appendChild(el('span', 'gn-dist', distLabel(p)));
     detailEl.appendChild(row);
     var sub = p.park && p.park !== p.name ? p.park : p.address;
     if (sub) detailEl.appendChild(el('p', 'gn-sub', sub));
@@ -170,10 +179,10 @@
     var li = el('li', 'gn-card');
     li.style.animationDelay = (i * 40) + 'ms';
     var btn = el('button', 'gn-card-btn');
-    btn.setAttribute('aria-label', p.name + ', ' + fmtDist(p.dist));
+    btn.setAttribute('aria-label', p.name + ', ' + distLabel(p));
     var row = el('span', 'gn-row');
     row.appendChild(el('span', 'gn-name', p.name));
-    row.appendChild(el('span', 'gn-dist', fmtDist(p.dist)));
+    row.appendChild(el('span', 'gn-dist', distLabel(p)));
     btn.appendChild(row);
     btn.appendChild(pills(p));
     btn.appendChild(el('span', 'gn-checked', sourceLine(p)));

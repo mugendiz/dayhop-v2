@@ -63,7 +63,8 @@ function torontoPoint(r, checkedOn = today()) {
   const notes = [
     code === '2' && reason ? `Partly open: ${reason}` : null,
     !open && reason ? reason : null,
-    r.HOURS && r.HOURS !== 'None' ? `Hours: ${String(r.HOURS).slice(0, 60)}` : null,
+    // "View outdoor rink hours" is the City's link text, not hours.
+    r.HOURS && r.HOURS !== 'None' && !/^view\b/i.test(String(r.HOURS).trim()) ? `Hours: ${String(r.HOURS).slice(0, 60)}` : null,
     r.LOCATION_DETAILS && r.LOCATION_DETAILS !== 'None' ? String(r.LOCATION_DETAILS).slice(0, 140) : null
   ].filter(Boolean).join(' · ') || null;
   return {
@@ -168,6 +169,33 @@ async function allPlaces({ waitLive = true } = {}) {
   return [...lp, ...rest];
 }
 
+// Most OSM toilets carry no name, so a list of them reads "Public washroom"
+// eight times. Name each after the nearest named place within 300 m
+// (a park, library, EarlyON centre or named washroom); else leave it.
+const GENERIC_NAME = /^public washroom$/i;
+const NEAR_M = 300;
+let landmarkCache = null;
+function landmarks(lp) {
+  if (!landmarkCache || landmarkCache.liveAt !== live.at) {
+    const s = loadSnapshot();
+    const list = s.points.filter(p => p.n && !GENERIC_NAME.test(p.n))
+      .map(p => ({ lat: p.lat, lng: p.lng, name: String(p.n).replace(/\s+(public\s+)?washrooms?$/i, '').trim() }));
+    for (const p of lp) if (p.park) list.push({ lat: p.lat, lng: p.lng, name: p.park });
+    landmarkCache = { liveAt: live.at, list };
+  }
+  return landmarkCache.list;
+}
+function withNearName(p, lp) {
+  if (!GENERIC_NAME.test(p.name)) return p;
+  let best = null, bestD = NEAR_M;
+  for (const l of landmarks(lp)) {
+    if (Math.abs(l.lat - p.lat) > 0.003 || Math.abs(l.lng - p.lng) > 0.004) continue;
+    const d = distM(p.lat, p.lng, l.lat, l.lng);
+    if (d < bestD) { bestD = d; best = l; }
+  }
+  return best ? Object.assign({}, p, { name: `Washroom near ${best.name}` }) : p;
+}
+
 /**
  * Nearest places to (lat, lng), matching EVERY active filter:
  *   open: washroom_status === 'open'; changing: changing_table === true;
@@ -187,11 +215,13 @@ async function nearest({ lat, lng, filters = {}, limit = 8, waitLive = true }) {
     scored.push([distM(lat, lng, p.lat, p.lng), p]);
   }
   scored.sort((a, b) => a[0] - b[0]);
-  return scored.slice(0, Math.min(Math.max(1, limit), 60)).map(([d, p]) => Object.assign({ dist: Math.round(d) }, p));
+  const lp = live.points;
+  return scored.slice(0, Math.min(Math.max(1, limit), 60)).map(([d, p]) => Object.assign({ dist: Math.round(d) }, withNearName(p, lp)));
 }
 
 async function byId(id) {
-  return (await allPlaces()).find(x => x.id === id) || null;
+  const p = (await allPlaces()).find(x => x.id === id);
+  return p ? withNearName(p, live.points) : null;
 }
 
 function meta() {
