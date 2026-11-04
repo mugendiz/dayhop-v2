@@ -1722,7 +1722,7 @@
   // Server shelves that only mean "the rest" get split by category instead,
   // so every heading on the page says what is under it. Named shelves (Top 5
   // picks, Talk of the town, Hidden gems, Worth the drive...) keep theirs.
-  const CATCH_ALL_SHELVES = /^(Restorative picks|Top thrills|More ideas)\b/i;
+  const CATCH_ALL_SHELVES = /^(Restorative picks|Top thrills|More ideas|More to explore)\b/i;
   function feedSectionTitle(idea) {
     if (idea.section && !CATCH_ALL_SHELVES.test(idea.section)) return idea.section;
     const cat = idea.category || 'general';
