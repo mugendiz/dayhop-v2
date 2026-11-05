@@ -253,3 +253,29 @@ Places calls, which is what produced the ~US$100 Maps bill in Aug to Sep
 2026 (`docs/maps-cost.md`).
 
 **Reviewed.**
+
+## 2026-11-05 "Outside people" jumped 25x in two days, almost all with no source and no checkouts
+
+**Finding.** The scoreboard the 30-day plan is judged on counts about 300
+new outside visitors since Nov 3, nearly all with no first-touch source and
+none of them starting a checkout. That looks like traffic that runs
+JavaScript without being people (headless crawlers minting a fresh guest
+id per visit), not an audience. Unverified: the per-IP breakdown that would
+settle it was not run. If it is bots, the plan's "500 outside visitors by
+Dec 4" target can be met without a single new person arriving.
+
+**Number and source.** `scripts/weekly-report.js`, read-only, run
+2026-11-05 08:00 UTC. Last 2d: 317 people (previous 2d: 7), 304 of them
+"no source". Last 7d: 326 (previous 7d: 13), 0 guide or Pro checkouts, 1
+venue click. Same 7d report: `crawler_view` "bot" 401 page reads. Ruled
+out as the cause: local preview and test runs. Loopback IPs are already
+internal (`services/analytics.js` LOCALHOST_IPS), and no test loads `.env`.
+
+**Costing.** A wrong number decides the Dec 4 call. Read at face value,
+the visitor target looks on track and the kill signal (under 100 outside
+visitors) can never fire. Check: the admin "Traffic by IP" table for Nov 3
+to 5. If a handful of IPs or a datacenter range account for the 300,
+exclude them (INTERNAL_IPS, or a bot rule on the events) before the first
+Monday scoreboard.
+
+**Reviewed.**
