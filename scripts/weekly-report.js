@@ -1,5 +1,5 @@
 // scripts/weekly-report.js — the Monday numbers for the 30-day plan
-// (Nov 4 to Dec 3, 2026): did outside people come, did any of them try to
+// (Thu Nov 5 to Fri Dec 4, 2026, the DayHop business case): did outside people come, did any of them try to
 // buy, did anyone pay, and is the list growing. Every line names its source
 // and window (CLAUDE.md rule 2).
 //
@@ -165,7 +165,20 @@ async function main() {
   out.push(`- Openers (distinct browsers): ${go.openers}, of whom opened on 2+ days: ${go.repeat} (previous: ${goPrev.openers}, ${goPrev.repeat})`);
   out.push(`- Opens: ${go.opens} · share-card uses: ${go.shares} · directions: ${go.directions} · status alerts asked: ${go.alerts}`);
   out.push('');
-  out.push('## Plan targets by Dec 3, 2026: 2 paid guides, 40 confirmed subscribers');
+  // The business case's Dec 4 targets (30 days, Nov 5 to Dec 4, 2026).
+  // "Now" figures are this run's window, so they only line up with a
+  // 30-day target when run with --days 30. Pro subscribers, testimonials,
+  // venue trials, Googlebot weekly crawl and the Stay22 switch are read
+  // elsewhere (admin dashboard, Search Console, Render), not here.
+  const DUE = '2026-12-04';
+  const daysLeft = Math.max(0, Math.ceil((Date.parse(`${DUE}T23:59:59-05:00`) - now) / 86400000));
+  out.push(`## Business case targets, judged Fri Dec 4, 2026 (${daysLeft} days left; "now" is the last ${DAYS}d)`);
+  out.push(`- Outside visitors: ${cur.people} now, target 500. Check bots first (docs/findings-log.md, 2026-11-05)`);
+  out.push(`- Guide checkouts started: ${cur.guideCheckouts} now, target 30`);
+  out.push(`- Paid guide sales: ${sales.note ? 'not read' : sales.count} now, target 10 ($200)`);
+  out.push(`- Newsletter confirmed: ${subs.subscribed} now (all time), target 100`);
+  out.push('- Pro subscribers: target 5 ($25/mo). Testimonials: target 3. Venues on trial: target 3. Not read by this script');
+  out.push('- Kill signal: under 100 outside visitors and 0 paid sales on Dec 4. Double down: any one channel with 5+ paid sales');
   console.log(out.join('\n'));
 }
 
